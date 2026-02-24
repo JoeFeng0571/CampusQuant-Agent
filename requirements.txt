@@ -1,0 +1,54 @@
+# ============================================================
+#  Multi-Agent Trading System — Production Requirements
+#  Refactored: LangGraph + Hybrid RAG (Chroma+BM25) + FastAPI SSE
+# ============================================================
+
+# ── Core Data Science ────────────────────────────────────────
+pandas
+numpy
+
+# ── Market Data Sources ──────────────────────────────────────
+akshare           # A股、港股数据
+yfinance          # 美股数据
+ccxt              # 加密货币数据 (Binance)
+
+# ── Technical Analysis ───────────────────────────────────────
+pandas-ta         # 技术指标库
+
+# ── LangGraph & LangChain Agent Framework ────────────────────
+langgraph             # LangGraph 状态机引擎（核心）
+langchain             # LangChain 基础
+langchain-core        # LangChain Core
+langchain-community   # 社区集成（Chroma/BM25/DuckDuckGo 等）
+langchain-openai      # OpenAI ChatModel + Embeddings
+langchain-anthropic   # Claude ChatModel
+
+# ── Vector Store & Hybrid RAG ────────────────────────────────
+# faiss-cpu       # 旧版 FAISS 向量库（已由 Chroma 替代，可保留作备选）
+chromadb          # Chroma 持久化向量数据库（稠密检索，替代 FAISS）
+pypdf             # PDF 文档加载（支持 data/docs/ 研报 PDF 接入）
+rank_bm25         # BM25 稀疏关键词检索（混合召回核心，解决专有名词问题）
+duckduckgo-search # DuckDuckGo 实时联网搜索（无需 API Key，补充时效性信息）
+
+# ── LLM Providers ────────────────────────────────────────────
+openai            # OpenAI Python SDK
+anthropic         # Anthropic Claude SDK
+
+# ── FastAPI & Async Server ───────────────────────────────────
+fastapi           # FastAPI Web框架
+uvicorn[standard] # ASGI服务器
+sse-starlette     # Server-Sent Events 支持
+httpx             # 异步HTTP客户端（Streamlit SSE消费）
+python-multipart  # FastAPI 表单解析
+
+# ── Utilities ────────────────────────────────────────────────
+requests
+python-dotenv     # 环境变量管理
+pydantic          # 数据验证（LangGraph依赖）
+tenacity          # 重试机制
+
+# ── Logging & Monitoring ─────────────────────────────────────
+loguru            # 日志管理
+
+# ── Web UI ───────────────────────────────────────────────────
+streamlit         # 可视化交互界面
