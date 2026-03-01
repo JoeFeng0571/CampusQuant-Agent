@@ -326,13 +326,31 @@ def _load_all_documents() -> List[Document]:
 def _build_embedding_model():
     """
     按优先级构建 Embedding 模型：
-      优先级 1: OpenAI text-embedding-3-small（效果最佳，需 OPENAI_API_KEY）
-      优先级 2: 返回 None → 触发"仅 BM25"降级模式
-
-    说明：Anthropic 官方不提供 Embedding 模型，故无 Anthropic 备选。
+      优先级 1: DashScope text-embedding-v3（默认，使用 OpenAI 兼容端点）
+      优先级 2: OpenAI text-embedding-3-small（备选，需 OPENAI_API_KEY）
+      优先级 3: 返回 None → 触发"仅 BM25"降级模式
     """
+    from config import config
+
+    # 优先使用 DashScope Embedding（OpenAI 兼容协议）
     try:
-        from config import config
+        dashscope_key = getattr(config, "DASHSCOPE_API_KEY", None)
+        if dashscope_key and len(dashscope_key) > 20:
+            from langchain_openai import OpenAIEmbeddings
+            model = OpenAIEmbeddings(
+                model=config.DASHSCOPE_EMBEDDING_MODEL,
+                api_key=dashscope_key,
+                base_url=config.DASHSCOPE_BASE_URL,
+                # DashScope 仅接受原始字符串，禁用 LangChain 的 tiktoken 预分词
+                check_embedding_ctx_length=False,
+            )
+            logger.info(f"  Embedding 模型: DashScope {config.DASHSCOPE_EMBEDDING_MODEL} ✅")
+            return model
+    except Exception as e:
+        logger.warning(f"  DashScope Embeddings 初始化失败: {e}")
+
+    # 备选：OpenAI 官方 Embedding
+    try:
         key = getattr(config, "OPENAI_API_KEY", None)
         if key and "your-openai" not in key.lower() and len(key) > 20:
             from langchain_openai import OpenAIEmbeddings
@@ -346,7 +364,7 @@ def _build_embedding_model():
         logger.warning(f"  OpenAI Embeddings 初始化失败: {e}")
 
     logger.warning("  ⚠️ 无可用 Embedding 模型，向量检索降级为纯 BM25 模式")
-    logger.warning("     若需开启向量检索，请在 .env 中配置有效的 OPENAI_API_KEY")
+    logger.warning("     若需开启向量检索，请在 .env 中配置有效的 DASHSCOPE_API_KEY")
     return None
 
 

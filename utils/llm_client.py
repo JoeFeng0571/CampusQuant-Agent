@@ -1,6 +1,7 @@
 """
 LLM 客户端封装
-提供统一的 LLM 调用接口，支持 OpenAI 和 Anthropic Claude
+提供统一的 LLM 调用接口，默认使用阿里云百炼（DashScope/Qwen），
+备选支持 OpenAI 和 Anthropic Claude。
 """
 import json
 from typing import Optional, Dict, Any, List
@@ -18,14 +19,21 @@ class LLMClient:
         初始化 LLM 客户端
 
         Args:
-            provider: LLM 提供商 ('openai' 或 'anthropic')，默认使用配置文件设置
+            provider: LLM 提供商 ('dashscope' | 'openai' | 'anthropic')，默认使用配置文件设置
             model: 模型名称，默认使用配置文件设置
         """
         self.provider = provider or config.PRIMARY_LLM_PROVIDER
         self.model = model or self._get_default_model()
 
         # 初始化对应的客户端
-        if self.provider == "openai":
+        if self.provider == "dashscope":
+            # DashScope 使用 OpenAI 兼容端点，直接复用 openai SDK
+            from openai import OpenAI
+            self.client = OpenAI(
+                api_key=config.DASHSCOPE_API_KEY,
+                base_url=config.DASHSCOPE_BASE_URL,
+            )
+        elif self.provider == "openai":
             from openai import OpenAI
             self.client = OpenAI(api_key=config.OPENAI_API_KEY)
         elif self.provider == "anthropic":
@@ -38,11 +46,13 @@ class LLMClient:
 
     def _get_default_model(self) -> str:
         """获取默认模型"""
-        if self.provider == "openai":
+        if self.provider == "dashscope":
+            return config.DASHSCOPE_MODEL
+        elif self.provider == "openai":
             return config.OPENAI_MODEL
         elif self.provider == "anthropic":
             return config.ANTHROPIC_MODEL
-        return "gpt-4-turbo-preview"
+        return config.DASHSCOPE_MODEL
 
     @retry(
         stop=stop_after_attempt(3),
@@ -71,8 +81,8 @@ class LLMClient:
             生成的文本内容
         """
         try:
-            if self.provider == "openai":
-                return self._generate_openai(
+            if self.provider in ("dashscope", "openai"):
+                return self._generate_openai_compat(
                     prompt, system_prompt, temperature, max_tokens, response_format
                 )
             elif self.provider == "anthropic":
@@ -83,7 +93,7 @@ class LLMClient:
             logger.error(f"❌ LLM 生成失败: {e}")
             raise
 
-    def _generate_openai(
+    def _generate_openai_compat(
         self,
         prompt: str,
         system_prompt: Optional[str],
@@ -91,7 +101,7 @@ class LLMClient:
         max_tokens: int,
         response_format: Optional[str],
     ) -> str:
-        """调用 OpenAI API"""
+        """调用 OpenAI 兼容 API（DashScope / OpenAI 均走此路径）"""
         messages = []
 
         if system_prompt:
@@ -106,7 +116,6 @@ class LLMClient:
             "max_tokens": max_tokens,
         }
 
-        # 如果需要 JSON 格式
         if response_format == "json":
             kwargs["response_format"] = {"type": "json_object"}
 
@@ -122,7 +131,6 @@ class LLMClient:
         response_format: Optional[str],
     ) -> str:
         """调用 Anthropic Claude API"""
-        # Claude 的 system 是单独参数
         kwargs = {
             "model": self.model,
             "max_tokens": max_tokens,
@@ -133,7 +141,6 @@ class LLMClient:
         if system_prompt:
             kwargs["system"] = system_prompt
 
-        # Claude 需要在 prompt 中明确要求 JSON 格式
         if response_format == "json":
             kwargs["messages"][0]["content"] = (
                 f"{prompt}\n\n请以 JSON 格式返回结果。"
@@ -159,7 +166,6 @@ class LLMClient:
         Returns:
             解析后的 JSON 对象
         """
-        # 构建包含 schema 的提示
         enhanced_prompt = prompt
         if schema:
             enhanced_prompt += f"\n\n请严格按照以下 JSON Schema 返回结果:\n{json.dumps(schema, ensure_ascii=False, indent=2)}"
@@ -167,7 +173,7 @@ class LLMClient:
         response_text = self.generate(
             prompt=enhanced_prompt,
             system_prompt=system_prompt,
-            temperature=0.3,  # 降低温度以提高结构化输出稳定性
+            temperature=0.3,
             response_format="json",
         )
 
@@ -175,36 +181,24 @@ class LLMClient:
             return json.loads(response_text)
         except json.JSONDecodeError as e:
             logger.error(f"❌ JSON 解析失败: {e}\n原始响应: {response_text}")
-            # 尝试提取 JSON
             return self._extract_json_from_text(response_text)
 
     def _extract_json_from_text(self, text: str) -> Dict[str, Any]:
         """从文本中提取 JSON（应对 LLM 返回额外说明文字的情况）"""
         import re
 
-        # 尝试匹配 JSON 代码块
         json_match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
         if json_match:
             return json.loads(json_match.group(1))
 
-        # 尝试匹配纯 JSON
         json_match = re.search(r'\{.*\}', text, re.DOTALL)
         if json_match:
             return json.loads(json_match.group(0))
 
-        # 如果都失败，返回错误信息
         return {"error": "无法解析 JSON", "raw_text": text}
 
     def analyze_sentiment(self, text: str) -> Dict[str, Any]:
-        """
-        情感分析快捷方法
-
-        Args:
-            text: 待分析文本
-
-        Returns:
-            包含情感得分和关键词的字典
-        """
+        """情感分析快捷方法"""
         prompt = f"""
 请对以下金融文本进行情感分析，并以 JSON 格式返回结果：
 
@@ -221,27 +215,10 @@ class LLMClient:
 }}
 """
         system_prompt = "你是一位专业的金融舆情分析师，擅长从新闻、社交媒体中提取市场情绪。"
+        return self.generate_structured(prompt=prompt, system_prompt=system_prompt)
 
-        return self.generate_structured(
-            prompt=prompt,
-            system_prompt=system_prompt,
-        )
-
-    def explain_decision(
-        self,
-        context: Dict[str, Any],
-        recommendation: str,
-    ) -> str:
-        """
-        解释交易决策（CoT - Chain of Thought）
-
-        Args:
-            context: 包含市场数据、指标等的上下文信息
-            recommendation: 推荐的交易动作
-
-        Returns:
-            决策推理过程
-        """
+    def explain_decision(self, context: Dict[str, Any], recommendation: str) -> str:
+        """解释交易决策（CoT）"""
         prompt = f"""
 作为一名资深基金经理，请基于以下市场情报，详细解释为什么做出"{recommendation}"的决策：
 
@@ -257,34 +234,26 @@ class LLMClient:
 请使用专业但简洁的语言，分步骤说明你的推理过程。
 """
         system_prompt = "你是一位拥有20年经验的量化交易专家和基金经理。"
-
-        return self.generate(
-            prompt=prompt,
-            system_prompt=system_prompt,
-            temperature=0.7,
-        )
+        return self.generate(prompt=prompt, system_prompt=system_prompt, temperature=0.7)
 
 
 # ==================== 测试代码 ====================
 if __name__ == "__main__":
-    # 测试 LLM 客户端
     logger.add("logs/llm_test.log", rotation="10 MB")
 
     try:
         client = LLMClient()
 
-        # 测试基本生成
         print("\n=== 测试基本文本生成 ===")
         response = client.generate(
-            prompt="请用一句话解释什么是量化交易。",
-            system_prompt="你是一位金融专家。",
+            prompt="请用一句话解释什么是ETF定投。",
+            system_prompt="你是一位面向大学生的财商教育专家。",
         )
         print(response)
 
-        # 测试情感分析
         print("\n=== 测试情感分析 ===")
         sentiment = client.analyze_sentiment(
-            "美联储宣布降息50个基点，市场情绪高涨，纳斯达克指数飙升3%。"
+            "A股市场受政策利好提振，沪深300指数单日上涨2.3%，科技板块领涨。"
         )
         print(json.dumps(sentiment, ensure_ascii=False, indent=2))
 

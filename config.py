@@ -12,35 +12,33 @@ load_dotenv()
 class Config:
     """系统全局配置"""
 
-    # ==================== API Keys ====================
-    # OpenAI API (推荐使用环境变量或.env文件存储)
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "your-openai-api-key-here")
-    OPENAI_MODEL = "gpt-4-turbo-preview"  # 或 "gpt-4o"
+    # ==================== 主 LLM：阿里云百炼（DashScope）====================
+    DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "sk-f41678f1b5f7477ea2cd9b0554dd40ab")
+    DASHSCOPE_MODEL   = "qwen-plus"                                     # 文本生成模型
+    DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"  # OpenAI 兼容端点
+    DASHSCOPE_EMBEDDING_MODEL = "text-embedding-v3"                     # Embedding 模型
+
+    # ==================== 备用 LLM（按需启用）====================
+    # OpenAI API
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_MODEL   = "gpt-4-turbo-preview"
 
     # Anthropic Claude API
-    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "your-anthropic-api-key-here")
-    ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
-
-    # Binance API (加密货币)
-    BINANCE_API_KEY = os.getenv("BINANCE_API_KEY", "your-binance-api-key")
-    BINANCE_API_SECRET = os.getenv("BINANCE_API_SECRET", "your-binance-secret-key")
-
-    # Binance 代理设置 (针对网络限制地区)
-    BINANCE_PROXY = {
-        'http': os.getenv('HTTP_PROXY', None),   # 例如: 'http://127.0.0.1:7890'
-        'https': os.getenv('HTTPS_PROXY', None),  # 例如: 'http://127.0.0.1:7890'
-    }
+    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+    ANTHROPIC_MODEL   = "claude-3-5-sonnet-20241022"
 
     # ==================== LLM 选择 ====================
-    # 可选: 'openai' 或 'anthropic'
-    PRIMARY_LLM_PROVIDER = "anthropic"
+    # 可选: 'dashscope' | 'openai' | 'anthropic'
+    PRIMARY_LLM_PROVIDER = "dashscope"
 
-    # ==================== 交易对配置 ====================
-    # 支持的交易标的列表
+    # ==================== 交易标的配置 ====================
+    # 支持的交易标的列表（A股 / 港股 / 美股，已移除加密货币）
     TRADING_SYMBOLS = [
         # A股 (上海: .SH, 深圳: .SZ)
         "600519.SH",  # 贵州茅台
         "000858.SZ",  # 五粮液
+        "300750.SZ",  # 宁德时代
+        "510300.SH",  # 沪深300ETF
 
         # 港股 (使用 HK 后缀)
         "00700.HK",   # 腾讯控股
@@ -50,11 +48,6 @@ class Config:
         "AAPL",       # 苹果
         "TSLA",       # 特斯拉
         "NVDA",       # 英伟达
-
-        # 加密货币 (CCXT 格式: BASE/QUOTE)
-        "BTC/USDT",
-        "ETH/USDT",
-        "BNB/USDT",
     ]
 
     # ==================== 技术指标参数 ====================
@@ -85,16 +78,16 @@ class Config:
         "ATR_PERIOD": 14,
     }
 
-    # ==================== 风控参数 ====================
+    # ==================== 风控参数（大学生保守策略）====================
     RISK_PARAMS = {
         # 最大回撤限制 (%)
-        "MAX_DRAWDOWN_PCT": 20,
+        "MAX_DRAWDOWN_PCT": 15,
 
         # 单笔交易最大风险 (占总资金的%)
         "MAX_RISK_PER_TRADE": 2,
 
-        # 最大总持仓比例 (%)
-        "MAX_TOTAL_POSITION": 80,
+        # 最大总持仓比例（A股≤15%，港股/美股≤10%）
+        "MAX_TOTAL_POSITION": 50,
 
         # 止损比例 (%)
         "STOP_LOSS_PCT": 5,
@@ -118,8 +111,8 @@ class Config:
 
     # ==================== 系统参数 ====================
     SYSTEM_PARAMS = {
-        # 初始资金 (USD)
-        "INITIAL_CAPITAL": 100000,
+        # 初始资金假设（大学生场景，单位：人民币）
+        "INITIAL_CAPITAL": 50000,
 
         # 日志级别
         "LOG_LEVEL": "INFO",
@@ -135,12 +128,11 @@ class Config:
     }
 
     # ==================== Agent 权重配置 ====================
-    # Portfolio Manager 综合决策时各智能体的权重
     AGENT_WEIGHTS = {
-        "fundamental": 0.30,  # 基本面分析权重
-        "sentiment": 0.20,    # 舆情分析权重
-        "technical": 0.40,    # 技术分析权重
-        "risk": 0.10,         # 风控权重
+        "fundamental": 0.30,
+        "sentiment": 0.20,
+        "technical": 0.40,
+        "risk": 0.10,
     }
 
 
@@ -153,14 +145,18 @@ def validate_config():
     """验证配置完整性"""
     errors = []
 
-    if config.PRIMARY_LLM_PROVIDER == "openai" and "your-openai-api-key" in config.OPENAI_API_KEY:
-        errors.append("请设置有效的 OPENAI_API_KEY")
+    if config.PRIMARY_LLM_PROVIDER == "dashscope":
+        key = config.DASHSCOPE_API_KEY
+        if not key or len(key) < 20:
+            errors.append("请设置有效的 DASHSCOPE_API_KEY")
 
-    if config.PRIMARY_LLM_PROVIDER == "anthropic" and "your-anthropic-api-key" in config.ANTHROPIC_API_KEY:
-        errors.append("请设置有效的 ANTHROPIC_API_KEY")
+    elif config.PRIMARY_LLM_PROVIDER == "openai":
+        if not config.OPENAI_API_KEY or "your-openai" in config.OPENAI_API_KEY:
+            errors.append("请设置有效的 OPENAI_API_KEY")
 
-    if "your-binance-api-key" in config.BINANCE_API_KEY:
-        errors.append("警告: 未设置 Binance API Key，加密货币交易功能将受限")
+    elif config.PRIMARY_LLM_PROVIDER == "anthropic":
+        if not config.ANTHROPIC_API_KEY or "your-anthropic" in config.ANTHROPIC_API_KEY:
+            errors.append("请设置有效的 ANTHROPIC_API_KEY")
 
     if errors:
         print("⚠️ 配置验证失败:")
@@ -173,10 +169,10 @@ def validate_config():
 
 
 if __name__ == "__main__":
-    # 测试配置加载
-    print("=== 交易系统配置概览 ===")
+    print("=== CampusQuant-Agent 配置概览 ===")
     print(f"LLM 提供商: {config.PRIMARY_LLM_PROVIDER}")
+    print(f"文本模型:   {config.DASHSCOPE_MODEL}")
+    print(f"Embedding:  {config.DASHSCOPE_EMBEDDING_MODEL}")
     print(f"交易标的数量: {len(config.TRADING_SYMBOLS)}")
-    print(f"初始资金: ${config.SYSTEM_PARAMS['INITIAL_CAPITAL']:,}")
-    print(f"协作模式: {config.SYSTEM_PARAMS['COLLABORATION_MODE']}")
+    print(f"假设本金: ¥{config.SYSTEM_PARAMS['INITIAL_CAPITAL']:,}")
     validate_config()

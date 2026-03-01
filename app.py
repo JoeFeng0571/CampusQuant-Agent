@@ -180,7 +180,16 @@ def _call_advisor(history: List[dict]) -> str:
                 lc_messages.append(LCAIMessage(content=msg["content"]))
 
         provider = config.PRIMARY_LLM_PROVIDER.lower()
-        if provider == "anthropic":
+        if provider == "dashscope":
+            from langchain_openai import ChatOpenAI
+            llm = ChatOpenAI(
+                model=config.DASHSCOPE_MODEL,
+                api_key=config.DASHSCOPE_API_KEY,
+                base_url=config.DASHSCOPE_BASE_URL,
+                temperature=0.75,
+                max_tokens=500,
+            )
+        elif provider == "anthropic":
             from langchain_anthropic import ChatAnthropic
             llm = ChatAnthropic(
                 model=config.ANTHROPIC_MODEL,

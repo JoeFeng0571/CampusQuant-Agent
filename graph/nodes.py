@@ -51,11 +51,20 @@ from tools.knowledge_base import search_knowledge_base
 def _build_llm(temperature: float = 0.3):
     """
     根据 config.PRIMARY_LLM_PROVIDER 构建 LangChain ChatModel。
-    支持 Anthropic Claude 和 OpenAI GPT，自动切换。
+    默认使用阿里云百炼（DashScope/Qwen），备选 OpenAI / Anthropic。
     """
     provider = config.PRIMARY_LLM_PROVIDER.lower()
 
-    if provider == "anthropic":
+    if provider == "dashscope":
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(
+            model=config.DASHSCOPE_MODEL,
+            api_key=config.DASHSCOPE_API_KEY,
+            base_url=config.DASHSCOPE_BASE_URL,
+            temperature=temperature,
+            max_tokens=2048,
+        )
+    elif provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
         return ChatAnthropic(
             model=config.ANTHROPIC_MODEL,

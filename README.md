@@ -14,7 +14,7 @@
 - **大学生优先风控**: 仓位上限更保守（A股≤15%，港股/美股≤10%），禁止任何形式的杠杆交易
 - **智能标的搜索**: 输入"茅台""英伟达""腾讯"等中文名，自动映射为标准代码
 - **多智能体协作**: 6个专业智能体并行分析，支持多空辩论机制与风控重试循环
-- **LLM 驱动决策**: GPT-4 或 Claude 3.5 进行 Chain-of-Thought 推理，低置信度强制 HOLD
+- **LLM 驱动决策**: 通义千问 Qwen（阿里云百炼 DashScope）进行 Chain-of-Thought 推理，低置信度强制 HOLD
 - **LangGraph 状态机**: StateGraph 有向图工作流，并行节点 + 条件路由 + 循环保护
 - **混合 RAG 知识库**: Chroma 向量检索 + BM25 关键词检索 + DuckDuckGo 实时联网搜索
 - **财商教育知识库**: 内置 ETF定投入门、价值投资基础、识别金融杀猪盘三大知识模块
@@ -78,8 +78,8 @@ fund_node  tech_node  sent_node  rag_node   ← 四节点并行
 │  数据层    │   │      分析引擎层       │   │  LLM 引擎   │
 ├────────────┤   ├──────────────────────┤   ├─────────────┤
 │DataLoader  │   │ FundamentalAgent     │   │ LLMClient   │
-│ A股 Akshare│   │ TechnicalAgent       │   │ (OpenAI /   │
-│ 港股 Akshare│  │ SentimentAgent       │   │  Anthropic) │
+│ A股 Akshare│   │ TechnicalAgent       │   │ DashScope/  │
+│ 港股 Akshare│  │ SentimentAgent       │   │ Qwen（主）  │
 │ 美股 yfinance  │ RiskManager（大学生版）│   │             │
 └────────────┘   │ PortfolioManager     │   │ CoT 推理    │
                  │ tools/knowledge_base │   │ 结构化输出  │
@@ -122,13 +122,16 @@ cp .env.example .env
 编辑 `.env`：
 
 ```env
-# LLM（二选一，建议 Anthropic Claude）
-OPENAI_API_KEY=sk-your-openai-key
-ANTHROPIC_API_KEY=sk-ant-your-anthropic-key
+# 主 LLM：阿里云百炼（国内直连，无需代理）
+DASHSCOPE_API_KEY=sk-ce03276f462f4cc5b93458d2642b56d3
 
-# 代理（国内访问 OpenAI / Anthropic 时需要）
-HTTP_PROXY=http://127.0.0.1:7890
-HTTPS_PROXY=http://127.0.0.1:7890
+# 备用 LLM（按需启用，取消注释即可）
+# OPENAI_API_KEY=sk-your-openai-key
+# ANTHROPIC_API_KEY=sk-ant-your-anthropic-key
+
+# 代理（访问 OpenAI / Anthropic 等境外服务时需要，DashScope 无需）
+# HTTP_PROXY=http://127.0.0.1:7890
+# HTTPS_PROXY=http://127.0.0.1:7890
 ```
 
 > Binance API 已不再需要（加密货币功能已移除）。
@@ -263,7 +266,7 @@ trading_agents_system/
 ```
 Query
   ├─ BM25 稀疏检索（rank_bm25）    → 精准词匹配（股票代码/专有名词）
-  ├─ Chroma 向量检索（OpenAI Emb） → 语义模糊匹配（同义词/概念）
+  ├─ Chroma 向量检索（DashScope text-embedding-v3） → 语义模糊匹配（同义词/概念）
   │    └─ EnsembleRetriever（各50%，RRF 排名融合）
   └─ DuckDuckGo 实时搜索           → 最新新闻/突发事件/实时财报
 ```
@@ -373,7 +376,7 @@ python workflow.py
 | 市场数据 | akshare（A/港股）, yfinance（美股） |
 | 技术分析 | pandas-ta |
 | LLM 框架 | langgraph, langchain, langchain-core, langchain-community |
-| LLM 提供商 | openai, anthropic, langchain-openai, langchain-anthropic |
+| LLM 提供商 | langchain-openai（DashScope/OpenAI 共用）, langchain-anthropic（备用）|
 | 混合 RAG | chromadb（向量库）, pypdf（PDF加载）, rank_bm25（关键词检索）, duckduckgo-search（联网搜索）|
 | 后端服务 | fastapi, uvicorn, sse-starlette, httpx |
 | 前端 | streamlit |
@@ -414,8 +417,17 @@ init_knowledge_base(force_rebuild=True)
 修改 `config.py`：
 
 ```python
-PRIMARY_LLM_PROVIDER = "anthropic"
-ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
+# 默认（推荐）：阿里云百炼 Qwen，国内直连
+PRIMARY_LLM_PROVIDER = "dashscope"
+DASHSCOPE_MODEL = "qwen-plus"
+
+# 备选 A：OpenAI GPT
+# PRIMARY_LLM_PROVIDER = "openai"
+# OPENAI_MODEL = "gpt-4-turbo-preview"
+
+# 备选 B：Anthropic Claude
+# PRIMARY_LLM_PROVIDER = "anthropic"
+# ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
 ```
 
 ### 添加 LangGraph 节点
