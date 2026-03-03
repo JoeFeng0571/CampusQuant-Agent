@@ -3,7 +3,10 @@
     "allow": [
       "Bash(python -c:*)",
       "Bash(cd \"C:\\\\Users\\\\封羽乔\\\\trading_agents_system\" && python -u -c \"\nimport sys, io\nsys.stdout = io.TextIOWrapper\\(sys.stdout.buffer, encoding='utf-8'\\)\n\nfrom langchain_openai import OpenAIEmbeddings\n\nemb = OpenAIEmbeddings\\(\n    model='text-embedding-v3',\n    api_key='sk-f41678f1b5f7477ea2cd9b0554dd40ab',\n    base_url='https://dashscope.aliyuncs.com/compatible-mode/v1',\n    check_embedding_ctx_length=False,\n\\)\n\nvec = emb.embed_query\\('测试向量化'\\)\nprint\\('[Embedding] 连接成功'\\)\nprint\\('向量维度:', len\\(vec\\)\\)\nprint\\('前5维:', [round\\(x, 6\\) for x in vec[:5]]\\)\n\" 2>&1)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(find \"D:/000intern/0agent/trading_agents_system/agents\" \"D:/000intern/0agent/trading_agents_system/api\" \"D:/000intern/0agent/trading_agents_system/graph\" \"D:/000intern/0agent/trading_agents_system/tools\" \"D:/000intern/0agent/trading_agents_system/utils\" \"D:/000intern/0agent/trading_agents_system/data\" -name \"*.py\" -type f 2>/dev/null | sort)",
+      "Bash(wc -l \"D:/000intern/0agent/trading_agents_system\"/*.html)",
+      "Bash(find \"D:/000intern/0agent/trading_agents_system\" -name \"*.py\" -type f ! -path \"*/TradingAgents-CN-main/*\" ! -path \"*/__pycache__/*\" | xargs wc -l | tail -1)"
     ]
   }
 }

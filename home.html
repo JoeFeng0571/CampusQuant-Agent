@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学习中心 · CampusQuant 校园财商</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box;
+            font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif; }
+        :root {
+            --primary:#4facfe; --secondary:#00f2fe; --accent:#a29bfe;
+            --danger:#fd79a8;  --success:#55efc4;  --warn:#fdcb6e;
+            --bg:#0b0f19; --card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.10);
+            --text-dim:#718096; --text-sub:#a0aec0;
+        }
+        body {
+            background-color:var(--bg); color:#fff; min-height:100vh;
+            display:flex; flex-direction:column; overflow-x:hidden;
+            background-image:
+                radial-gradient(circle at 15% 50%,rgba(0,242,254,0.07),transparent 32%),
+                radial-gradient(circle at 85% 28%,rgba(79,172,254,0.07),transparent 32%);
+        }
+
+        /* ══ 导航栏 ══ */
+        header {
+            position:fixed; top:0; left:0; width:100%;
+            display:flex; justify-content:space-between; align-items:center;
+            padding:16px 48px; background:rgba(11,15,25,0.78);
+            backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+            border-bottom:1px solid var(--border); z-index:1000;
+        }
+        .logo { display:flex; align-items:baseline; gap:8px; text-decoration:none; }
+        .logo-text { font-size:22px; font-weight:800;
+            background:linear-gradient(90deg,#4facfe 0%,#00f2fe 100%);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:0.5px; }
+        .logo-sub { font-size:12px; color:var(--text-dim); }
+        nav { display:flex; gap:28px; align-items:center; }
+        nav a { text-decoration:none; color:var(--text-sub); font-size:14px; font-weight:500;
+            transition:all 0.25s; position:relative; }
+        nav a:hover, nav a.active { color:var(--secondary); text-shadow:0 0 8px rgba(0,242,254,0.45); }
+        nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
+            background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width 0.3s; }
+        nav a:hover::after, nav a.active::after { width:100%; }
+
+        /* ══ 主体 ══ */
+        main { flex:1; margin-top:80px; padding:32px 48px; }
+
+        .page-header { margin-bottom:32px; }
+        .page-header h1 { font-size:26px; font-weight:700; margin-bottom:6px; }
+        .page-header p { color:var(--text-sub); font-size:14px; }
+
+        /* 顶部三格数据摘要 */
+        .summary-row { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px; }
+        .sum-card {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:14px; padding:20px 22px;
+            display:flex; align-items:center; gap:16px;
+        }
+        .sum-icon { font-size:32px; opacity:0.85; }
+        .sum-value { font-size:24px; font-weight:800; }
+        .sum-value.positive { color:var(--success); }
+        .sum-value.negative { color:var(--danger); }
+        .sum-value.neutral  { color:var(--primary); }
+        .sum-label { font-size:12px; color:var(--text-sub); margin-top:3px; }
+
+        /* 主内容布局 */
+        .content-grid { display:grid; grid-template-columns:1fr 300px; gap:22px; }
+
+        /* 自选股列表 */
+        .watch-section {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:16px; overflow:hidden;
+        }
+        .section-header {
+            padding:16px 22px; border-bottom:1px solid var(--border);
+            display:flex; justify-content:space-between; align-items:center;
+        }
+        .section-title { font-size:15px; font-weight:700; }
+        .btn-sm {
+            padding:5px 14px; border-radius:20px; font-size:12px; font-weight:600;
+            background:linear-gradient(90deg,var(--primary),var(--secondary));
+            border:none; color:#0b0f19; cursor:pointer;
+            transition:opacity 0.2s;
+        }
+        .btn-sm:hover { opacity:0.85; }
+
+        table { width:100%; border-collapse:collapse; }
+        thead th { padding:10px 16px; text-align:left; font-size:11px; font-weight:600;
+            color:var(--text-dim); text-transform:uppercase; letter-spacing:0.4px;
+            border-bottom:1px solid var(--border); }
+        tbody tr { border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.2s; }
+        tbody tr:last-child { border-bottom:none; }
+        tbody tr:hover { background:rgba(255,255,255,0.02); }
+        tbody td { padding:12px 16px; font-size:14px; }
+        .td-sym { font-weight:700; color:var(--primary); }
+        .td-name { color:var(--text-sub); font-size:13px; }
+        .up   { color:var(--success); font-weight:600; }
+        .down { color:var(--danger);  font-weight:600; }
+
+        /* AI 快速分析入口 */
+        .quick-action {
+            display:flex; align-items:center; gap:6px; font-size:12px;
+            color:var(--text-dim); cursor:pointer; transition:color 0.2s;
+        }
+        .quick-action:hover { color:var(--primary); }
+
+        /* 右侧面板 */
+        .right-col { display:flex; flex-direction:column; gap:18px; }
+
+        /* 学习进度卡 */
+        .progress-card {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:14px; overflow:hidden;
+        }
+        .progress-list { padding:8px 0; }
+        .prog-item {
+            padding:12px 18px; border-bottom:1px solid rgba(255,255,255,0.04);
+            display:flex; align-items:center; gap:12px;
+        }
+        .prog-item:last-child { border-bottom:none; }
+        .prog-icon { font-size:16px; flex-shrink:0; }
+        .prog-label { font-size:13px; color:#e2e8f0; flex:1; }
+        .prog-status {
+            font-size:11px; padding:2px 8px; border-radius:4px;
+        }
+        .status-done { background:rgba(85,239,196,0.15); color:var(--success); }
+        .status-wip  { background:rgba(253,203,110,0.15); color:var(--warn); }
+        .status-todo { background:rgba(255,255,255,0.06); color:var(--text-dim); }
+
+        /* 最近分析记录 */
+        .history-list { padding:8px 0; }
+        .hist-item {
+            padding:12px 18px; border-bottom:1px solid rgba(255,255,255,0.04);
+            cursor:pointer; transition:background 0.2s;
+        }
+        .hist-item:last-child { border-bottom:none; }
+        .hist-item:hover { background:rgba(79,172,254,0.05); }
+        .hist-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+        .hist-sym { font-size:13px; font-weight:700; color:var(--primary); }
+        .hist-time { font-size:11px; color:var(--text-dim); }
+        .hist-action { font-size:12px; font-weight:600; }
+        .hist-conf { font-size:11px; color:var(--text-dim); }
+
+        /* 快速入口按钮组 */
+        .quick-links { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+        .ql-btn {
+            padding:14px 10px; text-align:center; text-decoration:none;
+            background:var(--card); border:1px solid var(--border);
+            border-radius:12px; transition:all 0.25s; color:inherit;
+            display:flex; flex-direction:column; align-items:center; gap:6px;
+        }
+        .ql-btn:hover { border-color:rgba(79,172,254,0.35); transform:translateY(-3px); }
+        .ql-icon { font-size:22px; }
+        .ql-text { font-size:12px; color:var(--text-sub); }
+
+        /* ══ 页脚 ══ */
+        footer {
+            padding:18px; text-align:center; background:rgba(0,0,0,0.3);
+            border-top:1px solid var(--border); color:var(--text-dim); font-size:13px; margin-top:24px;
+        }
+        footer a { color:var(--primary); text-decoration:none; }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="index.html" class="logo">
+        <span class="logo-text">CampusQuant</span>
+        <span class="logo-sub">校园财商</span>
+    </a>
+    <nav>
+        <a href="index.html">首页</a>
+        <a href="trade.html">模拟演练</a>
+        <a href="platforms.html">持仓体检</a>
+        <a href="market.html">市场快讯</a>
+        <a href="community.html">投教社区</a>
+        <a href="team.html">关于我们</a>
+    </nav>
+</header>
+
+<main>
+    <div class="page-header">
+        <h1>学习中心</h1>
+        <p>模拟持仓概览 · 自选股监控 · AI 分析历史</p>
+    </div>
+
+    <!-- 数据摘要 -->
+    <div class="summary-row">
+        <div class="sum-card">
+            <div class="sum-icon">💼</div>
+            <div>
+                <div class="sum-value neutral">¥ 24,862</div>
+                <div class="sum-label">模拟总市值（今日）</div>
+            </div>
+        </div>
+        <div class="sum-card">
+            <div class="sum-icon">📈</div>
+            <div>
+                <div class="sum-value positive">+¥ 1,248 (+5.28%)</div>
+                <div class="sum-label">模拟浮盈（持仓期间）</div>
+            </div>
+        </div>
+        <div class="sum-card">
+            <div class="sum-icon">🤖</div>
+            <div>
+                <div class="sum-value neutral">12</div>
+                <div class="sum-label">AI 分析次数（本月）</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容 -->
+    <div class="content-grid">
+        <!-- 自选股 -->
+        <div class="watch-section">
+            <div class="section-header">
+                <div class="section-title">自选股监控</div>
+                <a href="trade.html"><button class="btn-sm">+ AI 分析</button></a>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>代码</th><th>名称</th><th>最新价</th>
+                        <th>涨跌幅</th><th>成本价</th><th>浮盈</th><th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="td-sym">600519.SH</td>
+                        <td class="td-name">贵州茅台</td>
+                        <td>1,842.00</td>
+                        <td class="up">+1.02%</td>
+                        <td>1,800.00</td>
+                        <td class="up">+2.33%</td>
+                        <td><a href="trade.html?sym=600519.SH" class="quick-action">🤖 分析</a></td>
+                    </tr>
+                    <tr>
+                        <td class="td-sym">00700.HK</td>
+                        <td class="td-name">腾讯控股</td>
+                        <td>375.20</td>
+                        <td class="down">-0.37%</td>
+                        <td>390.00</td>
+                        <td class="down">-3.79%</td>
+                        <td><a href="trade.html?sym=00700.HK" class="quick-action">🤖 分析</a></td>
+                    </tr>
+                    <tr>
+                        <td class="td-sym">AAPL</td>
+                        <td class="td-name">苹果</td>
+                        <td>$228.50</td>
+                        <td class="up">+0.93%</td>
+                        <td>$210.00</td>
+                        <td class="up">+8.81%</td>
+                        <td><a href="trade.html?sym=AAPL" class="quick-action">🤖 分析</a></td>
+                    </tr>
+                    <tr>
+                        <td class="td-sym">000858.SZ</td>
+                        <td class="td-name">五粮液</td>
+                        <td>145.20</td>
+                        <td class="up">+1.61%</td>
+                        <td>140.00</td>
+                        <td class="up">+3.71%</td>
+                        <td><a href="trade.html?sym=000858.SZ" class="quick-action">🤖 分析</a></td>
+                    </tr>
+                    <tr>
+                        <td class="td-sym">MSFT</td>
+                        <td class="td-name">微软</td>
+                        <td>$412.80</td>
+                        <td class="down">-0.29%</td>
+                        <td>$400.00</td>
+                        <td class="up">+3.20%</td>
+                        <td><a href="trade.html?sym=MSFT" class="quick-action">🤖 分析</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 右侧面板 -->
+        <div class="right-col">
+            <!-- 快速入口 -->
+            <div class="quick-links">
+                <a href="trade.html" class="ql-btn">
+                    <div class="ql-icon">🤖</div>
+                    <div class="ql-text">AI 分析</div>
+                </a>
+                <a href="platforms.html" class="ql-btn">
+                    <div class="ql-icon">🩺</div>
+                    <div class="ql-text">持仓体检</div>
+                </a>
+                <a href="market.html" class="ql-btn">
+                    <div class="ql-icon">📰</div>
+                    <div class="ql-text">市场快讯</div>
+                </a>
+                <a href="community.html" class="ql-btn">
+                    <div class="ql-icon">📚</div>
+                    <div class="ql-text">投教社区</div>
+                </a>
+            </div>
+
+            <!-- 学习进度 -->
+            <div class="progress-card">
+                <div class="section-header">
+                    <div class="section-title">学习进度</div>
+                </div>
+                <div class="progress-list">
+                    <div class="prog-item">
+                        <div class="prog-icon">✅</div>
+                        <div class="prog-label">A股市场基础</div>
+                        <span class="prog-status status-done">已完成</span>
+                    </div>
+                    <div class="prog-item">
+                        <div class="prog-icon">📖</div>
+                        <div class="prog-label">财务报表解读</div>
+                        <span class="prog-status status-wip">进行中</span>
+                    </div>
+                    <div class="prog-item">
+                        <div class="prog-icon">⏳</div>
+                        <div class="prog-label">PE/PB 估值入门</div>
+                        <span class="prog-status status-todo">未开始</span>
+                    </div>
+                    <div class="prog-item">
+                        <div class="prog-icon">⏳</div>
+                        <div class="prog-label">技术分析基础</div>
+                        <span class="prog-status status-todo">未开始</span>
+                    </div>
+                    <div class="prog-item">
+                        <div class="prog-icon">⏳</div>
+                        <div class="prog-label">仓位管理与止损</div>
+                        <span class="prog-status status-todo">未开始</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最近 AI 分析 -->
+            <div class="progress-card">
+                <div class="section-header">
+                    <div class="section-title">最近 AI 分析</div>
+                </div>
+                <div class="history-list">
+                    <div class="hist-item">
+                        <div class="hist-top">
+                            <span class="hist-sym">600519.SH 茅台</span>
+                            <span class="hist-time">2小时前</span>
+                        </div>
+                        <div class="hist-top">
+                            <span class="hist-action up">建议：持有</span>
+                            <span class="hist-conf">置信度：78%</span>
+                        </div>
+                    </div>
+                    <div class="hist-item">
+                        <div class="hist-top">
+                            <span class="hist-sym">AAPL 苹果</span>
+                            <span class="hist-time">昨天</span>
+                        </div>
+                        <div class="hist-top">
+                            <span class="hist-action up">建议：买入</span>
+                            <span class="hist-conf">置信度：82%</span>
+                        </div>
+                    </div>
+                    <div class="hist-item">
+                        <div class="hist-top">
+                            <span class="hist-sym">00700.HK 腾讯</span>
+                            <span class="hist-time">3天前</span>
+                        </div>
+                        <div class="hist-top">
+                            <span class="hist-action down">建议：观望</span>
+                            <span class="hist-conf">置信度：61%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    &copy; 2026 CampusQuant 校园财商 &nbsp;|&nbsp;
+    学习中心 · 模拟数据仅供学习参考 &nbsp;|&nbsp;
+    <a href="team.html">关于我们</a>
+</footer>
+
+</body>
+</html>

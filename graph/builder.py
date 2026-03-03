@@ -41,6 +41,7 @@ from graph.nodes import (
     data_node,
     debate_node,
     fundamental_node,
+    health_node,
     portfolio_node,
     rag_node,
     risk_node,
@@ -80,6 +81,8 @@ def build_graph(checkpointer=None):
     graph.add_node("debate_node",      debate_node)
     graph.add_node("risk_node",        risk_node)
     graph.add_node("trade_executor",   trade_executor)
+    # 持仓体检独立节点（health_node），可通过独立图实例触发
+    graph.add_node("health_node",      health_node)
 
     # ── 起点：START → data_node ───────────────────────────────
     graph.add_edge(START, "data_node")
@@ -188,9 +191,78 @@ def make_initial_state(symbol: str) -> TradingGraphState:
         risk_decision=None,
         risk_rejection_count=0,
         trade_order=None,
+        # Anti-Loop 工具调用计数器（TradingAgents-CN 模式）
+        tool_call_counts={},
+        # 持仓体检状态域
+        portfolio_positions=None,
+        health_report=None,
         messages=[],
         current_node="START",
         execution_log=[],
         status="running",
         error_message=None,
+        error_type=None,
+    )
+
+
+# ────────────────────────────────────────────────────────────────
+# 持仓体检专用图（独立分支，START → health_node → END）
+# ────────────────────────────────────────────────────────────────
+
+def build_health_graph(checkpointer=None):
+    """
+    构建持仓体检专用 StateGraph。
+    拓扑: START → health_node → END
+    可通过 FastAPI /api/v1/health-check 端点触发。
+    """
+    logger.info("🔧 构建持仓体检 StateGraph...")
+    graph = StateGraph(TradingGraphState)
+    graph.add_node("health_node", health_node)
+    graph.add_edge(START, "health_node")
+    graph.add_edge("health_node", END)
+
+    compile_kwargs = {}
+    if checkpointer is not None:
+        compile_kwargs["checkpointer"] = checkpointer
+
+    compiled = graph.compile(**compile_kwargs)
+    logger.info("✅ 持仓体检 StateGraph 编译完成")
+    return compiled
+
+
+def make_health_initial_state(
+    positions: list,
+) -> TradingGraphState:
+    """
+    构造持仓体检初始状态。
+
+    Args:
+        positions: PortfolioPosition.model_dump() 列表
+
+    Returns:
+        TradingGraphState 字典（仅 portfolio_positions 有效）
+    """
+    return TradingGraphState(
+        symbol="PORTFOLIO",
+        market_type="MIXED",
+        market_data={},
+        rag_context="",
+        fundamental_report=None,
+        technical_report=None,
+        sentiment_report=None,
+        has_conflict=False,
+        debate_outcome=None,
+        debate_rounds=0,
+        risk_decision=None,
+        risk_rejection_count=0,
+        trade_order=None,
+        tool_call_counts={},
+        portfolio_positions=positions,
+        health_report=None,
+        messages=[],
+        current_node="START",
+        execution_log=[],
+        status="running",
+        error_message=None,
+        error_type=None,
     )

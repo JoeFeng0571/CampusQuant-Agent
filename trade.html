@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模拟演练 · CampusQuant 校园财商</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box;
+            font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif; }
+        :root {
+            --primary:#4facfe; --secondary:#00f2fe; --accent:#a29bfe;
+            --danger:#fd79a8;  --success:#55efc4;  --warn:#fdcb6e;
+            --bg:#0b0f19; --card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.10);
+            --text-dim:#718096; --text-sub:#a0aec0;
+        }
+        body {
+            background-color:var(--bg); color:#fff; min-height:100vh;
+            display:flex; flex-direction:column; overflow-x:hidden;
+            background-image:
+                radial-gradient(circle at 15% 50%,rgba(0,242,254,0.07),transparent 32%),
+                radial-gradient(circle at 85% 28%,rgba(79,172,254,0.07),transparent 32%);
+        }
+
+        /* ══ 导航栏 ══ */
+        header {
+            position:fixed; top:0; left:0; width:100%;
+            display:flex; justify-content:space-between; align-items:center;
+            padding:16px 48px; background:rgba(11,15,25,0.78);
+            backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+            border-bottom:1px solid var(--border); z-index:1000;
+        }
+        .logo { display:flex; align-items:baseline; gap:8px; text-decoration:none; }
+        .logo-text { font-size:22px; font-weight:800;
+            background:linear-gradient(90deg,#4facfe 0%,#00f2fe 100%);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:0.5px; }
+        .logo-sub { font-size:12px; color:var(--text-dim); }
+        nav { display:flex; gap:28px; align-items:center; }
+        nav a { text-decoration:none; color:var(--text-sub); font-size:14px; font-weight:500;
+            transition:all 0.25s; position:relative; }
+        nav a:hover, nav a.active { color:var(--secondary); text-shadow:0 0 8px rgba(0,242,254,0.45); }
+        nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
+            background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width 0.3s; }
+        nav a:hover::after, nav a.active::after { width:100%; }
+
+        /* ══ 主体布局 ══ */
+        main {
+            flex:1; margin-top:80px;
+            display:grid; grid-template-columns:360px 1fr;
+            gap:24px; padding:32px 48px; align-items:start;
+        }
+
+        /* ── 左侧控制面板 ── */
+        .control-panel {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:16px; padding:28px;
+            backdrop-filter:blur(8px); position:sticky; top:96px;
+        }
+        .panel-title {
+            font-size:17px; font-weight:700; margin-bottom:22px;
+            display:flex; align-items:center; gap:10px; color:#fff;
+        }
+        .panel-title::before {
+            content:''; width:4px; height:18px; border-radius:2px; flex-shrink:0;
+            background:linear-gradient(180deg,var(--primary),var(--secondary));
+        }
+        .form-group { margin-bottom:18px; }
+        .form-label { display:block; font-size:11px; font-weight:600; letter-spacing:0.5px;
+            color:var(--text-sub); text-transform:uppercase; margin-bottom:7px; }
+        .form-input {
+            width:100%; padding:11px 14px;
+            background:rgba(255,255,255,0.06); border:1px solid var(--border);
+            border-radius:10px; color:#fff; font-size:14px;
+            transition:border-color 0.2s; outline:none;
+        }
+        .form-input:focus { border-color:var(--primary); }
+        .form-input::placeholder { color:var(--text-dim); }
+        .market-tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+        .market-tab {
+            padding:9px 6px; text-align:center; font-size:13px; font-weight:600;
+            border:1px solid var(--border); border-radius:8px; cursor:pointer;
+            transition:all 0.2s; color:var(--text-sub); background:transparent;
+        }
+        .market-tab.active { border-color:var(--primary); color:var(--primary);
+            background:rgba(79,172,254,0.09); }
+        .example-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+        .ex-tag {
+            padding:4px 10px; font-size:12px; border-radius:6px;
+            border:1px solid rgba(255,255,255,0.10); color:var(--text-sub);
+            cursor:pointer; transition:all 0.2s;
+        }
+        .ex-tag:hover { border-color:var(--secondary); color:var(--secondary); }
+        .analyze-btn {
+            width:100%; padding:13px; margin-top:6px;
+            background:linear-gradient(90deg,var(--primary) 0%,var(--secondary) 100%);
+            border:none; border-radius:10px; color:#0b0f19;
+            font-size:15px; font-weight:700; cursor:pointer; transition:all 0.3s; letter-spacing:0.5px;
+        }
+        .analyze-btn:hover { box-shadow:0 6px 24px rgba(0,242,254,0.4); transform:translateY(-1px); }
+        .analyze-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+        .risk-notice {
+            margin-top:16px; padding:11px 13px;
+            background:rgba(253,203,110,0.08); border:1px solid rgba(253,203,110,0.22);
+            border-radius:8px; font-size:12px; color:var(--warn); line-height:1.6;
+        }
+
+        /* ── 右侧分析区 ── */
+        .analysis-area { display:flex; flex-direction:column; gap:18px; }
+
+        /* 状态条 */
+        .status-bar {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:12px; padding:13px 18px;
+            display:flex; align-items:center; justify-content:space-between; font-size:13px;
+        }
+        .status-indicator { display:flex; align-items:center; gap:8px; }
+        .status-dot { width:8px; height:8px; border-radius:50%; background:var(--text-dim); }
+        .status-dot.running { background:var(--secondary); animation:pulse 1.2s ease-in-out infinite; }
+        .status-dot.done    { background:var(--success); }
+        .status-dot.error   { background:var(--danger); }
+        @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+
+        /* 节点进度徽章 */
+        #node-progress { display:flex; flex-wrap:wrap; gap:7px; }
+        .node-badge {
+            padding:3px 11px; border-radius:20px; font-size:11px; font-weight:600;
+            background:rgba(255,255,255,0.03); border:1px solid var(--border);
+            color:var(--text-dim); transition:all 0.3s;
+        }
+        .node-badge.active { border-color:var(--primary); color:var(--primary); background:rgba(79,172,254,0.09); }
+        .node-badge.done   { border-color:var(--success); color:var(--success); background:rgba(85,239,196,0.09); }
+        .node-badge.error  { border-color:var(--danger);  color:var(--danger);  background:rgba(253,121,168,0.09); }
+
+        /* 结果卡片 */
+        #result-card {
+            display:none; background:var(--card);
+            border:1px solid rgba(85,239,196,0.3); border-radius:16px; padding:24px;
+            grid-template-columns:repeat(3,1fr);
+        }
+        #result-card.visible { display:grid; }
+        .result-item { text-align:center; }
+        .result-label { font-size:11px; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; }
+        .result-value { font-size:28px; font-weight:800; }
+        .result-value.buy  { color:var(--success); }
+        .result-value.sell { color:var(--danger); }
+        .result-value.hold { color:var(--warn); }
+        .result-meta { font-size:12px; color:var(--text-dim); margin-top:4px; }
+
+        /* AI 思考气泡 */
+        .chat-area { display:flex; flex-direction:column; gap:14px; }
+        .ai-bubble {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:16px 16px 16px 4px; padding:20px 22px;
+        }
+        .bubble-label { font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;
+            color:var(--primary); margin-bottom:10px; }
+        #typewriter-text { font-size:14px; line-height:1.8; color:#e2e8f0; white-space:pre-wrap; }
+        .tw-cursor { display:inline-block; width:2px; height:15px; background:var(--secondary);
+            margin-left:2px; vertical-align:middle; animation:blink-cur 0.8s step-end infinite; }
+        @keyframes blink-cur { 0%,100%{opacity:1}50%{opacity:0} }
+
+        /* 占位提示 */
+        .placeholder-hint {
+            background:var(--card); border:1px dashed rgba(255,255,255,0.07);
+            border-radius:16px; padding:56px 36px; text-align:center; color:var(--text-dim);
+        }
+        .hint-icon { font-size:44px; margin-bottom:14px; opacity:0.5; }
+        .hint-text { font-size:14px; line-height:1.8; }
+
+        /* ══ 页脚 ══ */
+        footer {
+            padding:18px; text-align:center; background:rgba(0,0,0,0.3);
+            border-top:1px solid var(--border); color:var(--text-dim); font-size:13px; margin-top:16px;
+        }
+        footer a { color:var(--primary); text-decoration:none; }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="index.html" class="logo">
+        <span class="logo-text">CampusQuant</span>
+        <span class="logo-sub">校园财商</span>
+    </a>
+    <nav>
+        <a href="index.html">首页</a>
+        <a href="trade.html" class="active">模拟演练</a>
+        <a href="platforms.html">持仓体检</a>
+        <a href="market.html">市场快讯</a>
+        <a href="community.html">投教社区</a>
+        <a href="team.html">关于我们</a>
+    </nav>
+</header>
+
+<main>
+    <!-- 左侧控制面板 -->
+    <div class="control-panel">
+        <div class="panel-title">AI 分析参数</div>
+
+        <div class="form-group">
+            <label class="form-label">股票代码</label>
+            <input id="symbol-input" class="form-input" type="text"
+                   placeholder="600519.SH / 00700.HK / AAPL" />
+            <div class="example-tags">
+                <span class="ex-tag" onclick="setSymbol('600519.SH')">贵州茅台</span>
+                <span class="ex-tag" onclick="setSymbol('000858.SZ')">五粮液</span>
+                <span class="ex-tag" onclick="setSymbol('00700.HK')">腾讯控股</span>
+                <span class="ex-tag" onclick="setSymbol('09988.HK')">阿里巴巴</span>
+                <span class="ex-tag" onclick="setSymbol('AAPL')">苹果</span>
+                <span class="ex-tag" onclick="setSymbol('MSFT')">微软</span>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">市场</label>
+            <div class="market-tabs">
+                <div class="market-tab active" onclick="setMarket(this,'A_STOCK')">A 股</div>
+                <div class="market-tab" onclick="setMarket(this,'HK_STOCK')">港 股</div>
+                <div class="market-tab" onclick="setMarket(this,'US_STOCK')">美 股</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">分析周期（天）</label>
+            <input id="days-input" class="form-input" type="number"
+                   value="90" min="30" max="365" />
+        </div>
+
+        <button class="analyze-btn" id="analyze-btn" onclick="startAnalysis()">
+            ▶ 开始 AI 分析
+        </button>
+
+        <div class="risk-notice">
+            ⚠ 本功能为<strong>学习模拟</strong>，结果不构成投资建议。<br>
+            大学生守则：单股仓位 ≤ 15%，务必设置止损，切勿加杠杆。
+        </div>
+    </div>
+
+    <!-- 右侧分析区 -->
+    <div class="analysis-area">
+        <!-- 状态条 -->
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="status-dot"></div>
+                <span id="status-text" style="color:var(--text-sub)">等待分析...</span>
+            </div>
+            <div id="node-progress"></div>
+        </div>
+
+        <!-- 结果数值卡片 -->
+        <div id="result-card">
+            <div class="result-item">
+                <div class="result-label">AI 建议</div>
+                <div class="result-value" id="res-action">--</div>
+                <div class="result-meta" id="res-symbol">--</div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">综合置信度</div>
+                <div class="result-value" id="res-confidence" style="color:var(--primary)">--</div>
+                <div class="result-meta">AI 综合评分</div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">风险等级</div>
+                <div class="result-value" id="res-risk" style="color:var(--accent)">--</div>
+                <div class="result-meta" id="res-pos">建议仓位：--</div>
+            </div>
+        </div>
+
+        <!-- AI 气泡 / 占位 -->
+        <div class="chat-area" id="chat-area">
+            <div class="placeholder-hint" id="placeholder">
+                <div class="hint-icon">🤖</div>
+                <div class="hint-text">
+                    输入股票代码，点击「开始 AI 分析」<br>
+                    系统将启动基本面、技术面、情感面三路并行分析，<br>
+                    经多空辩论 + 风控审核后给出模拟交易建议。
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    &copy; 2026 CampusQuant 校园财商 &nbsp;|&nbsp;
+    模拟演练 · 纸上谈兵学本领，理性再战真市场 &nbsp;|&nbsp;
+    <a href="team.html">关于我们</a>
+</footer>
+
+<script>
+    let currentMarket = 'A_STOCK';
+    let analysisRunning = false;
+
+    function setSymbol(sym) {
+        document.getElementById('symbol-input').value = sym;
+        if (sym.endsWith('.SH') || sym.endsWith('.SZ')) setMarketByKey('A_STOCK');
+        else if (sym.endsWith('.HK')) setMarketByKey('HK_STOCK');
+        else setMarketByKey('US_STOCK');
+    }
+
+    function setMarket(el, market) {
+        document.querySelectorAll('.market-tab').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+        currentMarket = market;
+    }
+
+    function setMarketByKey(market) {
+        const idx = { A_STOCK:0, HK_STOCK:1, US_STOCK:2 }[market];
+        if (idx === undefined) return;
+        const tabs = document.querySelectorAll('.market-tab');
+        tabs.forEach(t => t.classList.remove('active'));
+        tabs[idx].classList.add('active');
+        currentMarket = market;
+    }
+
+    const NODE_LABELS = {
+        data_node:'数据加载', fundamental_node:'基本面',
+        technical_node:'技术面', sentiment_node:'情感面',
+        rag_node:'RAG检索', portfolio_node:'组合决策',
+        debate_node:'多空辩论', risk_node:'风控审核', trade_executor:'指令生成',
+    };
+
+    function resetUI() {
+        document.getElementById('status-dot').className = 'status-dot';
+        document.getElementById('status-text').textContent = '准备中...';
+        document.getElementById('node-progress').innerHTML = '';
+        const card = document.getElementById('result-card');
+        card.className = ''; card.style.display = 'none';
+        document.getElementById('chat-area').innerHTML = `
+            <div class="ai-bubble">
+                <div class="bubble-label">AI 分析助手</div>
+                <div id="typewriter-text"><span class="tw-cursor"></span></div>
+            </div>`;
+    }
+
+    function appendText(text) {
+        const tw = document.getElementById('typewriter-text');
+        if (!tw) return;
+        const cursor = tw.querySelector('.tw-cursor');
+        const node = document.createTextNode(text);
+        cursor ? tw.insertBefore(node, cursor) : tw.appendChild(node);
+    }
+
+    function setNodeStatus(name, status) {
+        const bar = document.getElementById('node-progress');
+        let badge = bar.querySelector(`[data-node="${name}"]`);
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'node-badge'; badge.dataset.node = name;
+            badge.textContent = NODE_LABELS[name] || name;
+            bar.appendChild(badge);
+        }
+        badge.className = `node-badge ${status}`;
+    }
+
+    function showResult(order, risk) {
+        const card = document.getElementById('result-card');
+        const action = order.action || 'HOLD';
+        const actionMap = { BUY:'买入', SELL:'卖出', HOLD:'观望' };
+        document.getElementById('res-action').textContent = actionMap[action] || action;
+        document.getElementById('res-action').className = 'result-value ' + action.toLowerCase();
+        document.getElementById('res-symbol').textContent = order.symbol || '';
+        document.getElementById('res-confidence').textContent = ((order.confidence||0)*100).toFixed(0) + '%';
+        const riskLevel = risk?.risk_level || order.risk_level || '--';
+        document.getElementById('res-risk').textContent = riskLevel;
+        const posPct = risk?.position_pct;
+        document.getElementById('res-pos').textContent = posPct != null ? `建议仓位：${posPct.toFixed(0)}%` : '建议仓位：--';
+        card.className = 'visible'; card.style.display = 'grid';
+    }
+
+    async function startAnalysis() {
+        if (analysisRunning) return;
+        const symbol = document.getElementById('symbol-input').value.trim();
+        if (!symbol) { alert('请输入股票代码'); return; }
+
+        analysisRunning = true;
+        document.getElementById('analyze-btn').disabled = true;
+        resetUI();
+
+        const dot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        dot.className = 'status-dot running';
+        statusText.textContent = `正在分析 ${symbol} ...`;
+
+        try {
+            const days = document.getElementById('days-input').value;
+            const url = `/api/v1/analyze?symbol=${encodeURIComponent(symbol)}&days=${days}`;
+            const resp = await fetch(url, { headers: { Accept: 'text/event-stream' } });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder();
+            let buf = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buf += decoder.decode(value, { stream: true });
+                const lines = buf.split('\n');
+                buf = lines.pop();
+                let eventType = '', dataStr = '';
+                for (const line of lines) {
+                    if (line.startsWith('event:')) eventType = line.slice(6).trim();
+                    else if (line.startsWith('data:')) dataStr = line.slice(5).trim();
+                    else if (line === '' && eventType) {
+                        handleSSEEvent(eventType, dataStr);
+                        eventType = ''; dataStr = '';
+                    }
+                }
+            }
+            dot.className = 'status-dot done';
+            statusText.textContent = `${symbol} 分析完成`;
+        } catch (err) {
+            dot.className = 'status-dot error';
+            statusText.textContent = `出错：${err.message}`;
+            appendText(`\n\n❌ 无法连接分析服务：${err.message}\n请确认后端已启动：python api/server.py`);
+        } finally {
+            analysisRunning = false;
+            document.getElementById('analyze-btn').disabled = false;
+        }
+    }
+
+    function handleSSEEvent(type, dataStr) {
+        let data = {};
+        try { data = JSON.parse(dataStr); } catch { data = { message: dataStr }; }
+        switch (type) {
+            case 'node_start':
+                setNodeStatus(data.node, 'active');
+                document.getElementById('status-text').textContent = `${NODE_LABELS[data.node]||data.node} 分析中...`;
+                break;
+            case 'node_done':  setNodeStatus(data.node, 'done');  break;
+            case 'node_error': setNodeStatus(data.node, 'error'); break;
+            case 'stream':     appendText(data.content || '');    break;
+            case 'analysis_complete':
+                if (data.trade_order) showResult(data.trade_order, data.risk_decision);
+                break;
+            case 'error':
+                appendText(`\n\n⚠ ${data.message || '未知错误'}`);
+                break;
+        }
+    }
+</script>
+
+</body>
+</html>

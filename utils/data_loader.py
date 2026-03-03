@@ -1,344 +1,381 @@
 """
-多市场数据加载器
-统一接口获取 A股、港股、美股、加密货币的行情数据
+utils/data_loader.py — 多市场历史行情加载器
+
+数据源路由:
+  A股  → akshare.stock_zh_a_hist()   (前复权日线)
+  港股  → akshare.stock_hk_hist()     (前复权日线)
+  美股  → yfinance.Ticker.history()   (日线)
+
+严格红线:
+  - 不引入任何加密货币相关库（无 CCXT / Binance / ccxt）
+  - 不连接任何真实交易所 API
+  - MarketType.CRYPTO 不在支持范围内，传入直接抛出 ValueError
+
+统一输出格式 (DataFrame):
+  timestamp | open | high | low | close | volume
+  ──────────┼──────┼──────┼─────┼───────┼────────
+  datetime  | float| float|float| float | float
+
+内置能力:
+  - 简单 TTL 内存缓存（默认 5 分钟），同一 symbol+days 不重复请求 API
+  - 指数退避重试（最多 3 次），应对网络抖动
+  - 对 akshare / yfinance 接口返回的列名做健壮映射
 """
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, List
-from loguru import logger
+from __future__ import annotations
+
 import time
+from datetime import datetime, timedelta
+from functools import lru_cache
+from typing import Dict, Optional, Tuple
+
+import numpy as np
+import pandas as pd
+from loguru import logger
 
 from config import config
 from .market_classifier import MarketClassifier, MarketType
 
 
+# ── 简单 TTL 缓存（避免同一请求短时间内重复调用 API）────────────
+_CACHE: Dict[str, Tuple[float, pd.DataFrame]] = {}
+_CACHE_TTL_SECONDS = 300   # 5 分钟
+
+
+def _cache_key(symbol: str, days: int) -> str:
+    return f"{symbol}:{days}"
+
+
+def _cache_get(key: str) -> Optional[pd.DataFrame]:
+    if key in _CACHE:
+        ts, df = _CACHE[key]
+        if time.time() - ts < _CACHE_TTL_SECONDS:
+            return df
+        del _CACHE[key]
+    return None
+
+
+def _cache_set(key: str, df: pd.DataFrame) -> None:
+    _CACHE[key] = (time.time(), df)
+
+
+# ── 指数退避重试装饰器 ───────────────────────────────────────────
+def _retry(func, *args, max_tries: int = 3, base_wait: float = 1.5, **kwargs):
+    """以指数退避方式重试 func，最多 max_tries 次。"""
+    for attempt in range(1, max_tries + 1):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            if attempt == max_tries:
+                raise
+            wait = base_wait ** attempt
+            logger.warning(f"[retry {attempt}/{max_tries}] {e}，{wait:.1f}s 后重试...")
+            time.sleep(wait)
+
+
 class DataLoader:
-    """多市场数据加载器"""
+    """
+    多市场数据加载器
+
+    支持市场: A股 (akshare) / 港股 (akshare) / 美股 (yfinance)
+    不支持: 加密货币（已从系统移除）
+    """
 
     def __init__(self):
-        """初始化数据加载器"""
         self.classifier = MarketClassifier()
-        self._init_crypto_client()
-        logger.info("✅ DataLoader 初始化完成")
+        logger.info("✅ DataLoader 初始化完成（A股/港股: akshare | 美股: yfinance）")
 
-    def _init_crypto_client(self):
-        """初始化加密货币客户端 (CCXT)"""
-        try:
-            import ccxt
-
-            # 创建 Binance 客户端
-            self.binance = ccxt.binance({
-                'apiKey': config.BINANCE_API_KEY,
-                'secret': config.BINANCE_API_SECRET,
-                'enableRateLimit': True,
-                'proxies': config.BINANCE_PROXY,  # 代理设置
-            })
-
-            # 测试连接
-            self.binance.load_markets()
-            logger.info("✅ Binance 连接成功")
-
-        except Exception as e:
-            logger.warning(f"⚠️ Binance 初始化失败: {e}")
-            self.binance = None
+    # ══════════════════════════════════════════════════════════
+    # 公共接口
+    # ══════════════════════════════════════════════════════════
 
     def get_historical_data(
         self,
         symbol: str,
         days: int = 180,
-        interval: str = "1d",
     ) -> pd.DataFrame:
         """
-        获取历史行情数据（统一接口）
+        获取历史日线行情（统一接口）
 
         Args:
-            symbol: 交易标的代码
-            days: 历史天数
-            interval: K线周期 ('1d', '1h', '4h' 等)
+            symbol: 标的代码，例如 600519.SH / 00700.HK / AAPL
+            days:   向前追溯的自然日数（默认 180 天）
 
         Returns:
-            包含 OHLCV 的 DataFrame，列名统一为:
-            ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+            标准化 DataFrame，列固定为:
+            [timestamp, open, high, low, close, volume]
+            失败时返回空 DataFrame（不抛出异常）
         """
-        market_type, normalized_symbol = self.classifier.classify(symbol)
+        market_type, normalized = self.classifier.classify(symbol)
+
+        if market_type == MarketType.CRYPTO:
+            logger.error(f"❌ {symbol}: 加密货币不在支持范围内，系统已移除该市场")
+            return pd.DataFrame()
+
+        # 命中缓存直接返回
+        key = _cache_key(normalized, days)
+        cached = _cache_get(key)
+        if cached is not None:
+            logger.debug(f"[cache hit] {normalized} days={days}")
+            return cached.copy()
 
         try:
             if market_type == MarketType.A_STOCK:
-                df = self._get_a_stock_data(normalized_symbol, days)
+                df = self._get_a_stock_data(normalized, days)
             elif market_type == MarketType.HK_STOCK:
-                df = self._get_hk_stock_data(normalized_symbol, days)
+                df = self._get_hk_stock_data(normalized, days)
             elif market_type == MarketType.US_STOCK:
-                df = self._get_us_stock_data(normalized_symbol, days)
-            elif market_type == MarketType.CRYPTO:
-                df = self._get_crypto_data(normalized_symbol, days, interval)
+                df = self._get_us_stock_data(normalized, days)
             else:
-                raise ValueError(f"不支持的市场类型: {market_type}")
-
-            # 数据验证
-            if df is None or df.empty:
-                logger.error(f"❌ {symbol} 数据获取失败: 返回空数据")
+                logger.error(f"❌ 未知市场类型: {market_type}")
                 return pd.DataFrame()
 
-            # 标准化列名
-            df = self._standardize_dataframe(df)
+            if df is None or df.empty:
+                logger.error(f"❌ {symbol} 数据为空")
+                return pd.DataFrame()
 
-            logger.info(f"✅ {symbol} 数据获取成功: {len(df)} 条记录")
+            df = self._standardize(df, market_type)
+
+            if df.empty:
+                logger.error(f"❌ {symbol} 标准化后数据为空，请检查列名映射")
+                return pd.DataFrame()
+
+            _cache_set(key, df)
+            logger.info(f"✅ {symbol} 获取成功: {len(df)} 条 | "
+                        f"{df['timestamp'].iloc[0].date()} → {df['timestamp'].iloc[-1].date()}")
             return df
 
         except Exception as e:
             logger.error(f"❌ {symbol} 数据获取异常: {e}")
             return pd.DataFrame()
 
-    def _get_a_stock_data(self, symbol: str, days: int) -> pd.DataFrame:
-        """获取A股历史数据 (使用 Akshare)"""
+    def get_latest_price(self, symbol: str) -> Optional[float]:
+        """
+        获取最新收盘价（从历史数据末行取）
+
+        Returns:
+            float 价格，失败返回 None
+        """
+        df = self.get_historical_data(symbol, days=10)
+        if df.empty:
+            return None
         try:
-            import akshare as ak
-
-            # 计算起止日期
-            end_date = datetime.now().strftime("%Y%m%d")
-            start_date = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
-
-            # 提取纯股票代码（去除 .SH 或 .SZ）
-            stock_code = symbol.split(".")[0]
-
-            # 使用 Akshare 获取日线数据
-            df = ak.stock_zh_a_hist(
-                symbol=stock_code,
-                start_date=start_date,
-                end_date=end_date,
-                adjust="qfq"  # 前复权
-            )
-
-            return df
-
+            return float(df["close"].iloc[-1])
         except Exception as e:
-            logger.error(f"Akshare A股数据获取失败: {e}")
-            return pd.DataFrame()
+            logger.error(f"get_latest_price 失败: {e}")
+            return None
+
+    # ══════════════════════════════════════════════════════════
+    # 内部：各市场数据拉取
+    # ══════════════════════════════════════════════════════════
+
+    def _get_a_stock_data(self, symbol: str, days: int) -> pd.DataFrame:
+        """
+        A股日线数据 — akshare.stock_zh_a_hist()
+
+        akshare 返回列（前复权）:
+          日期 | 股票代码 | 开盘 | 收盘 | 最高 | 最低 | 成交量 |
+          成交额 | 振幅 | 涨跌幅 | 涨跌额 | 换手率
+        """
+        import akshare as ak
+
+        # 去掉市场后缀：600519.SH → 600519
+        code = symbol.split(".")[0]
+        end_dt   = datetime.now()
+        start_dt = end_dt - timedelta(days=days)
+
+        end_str   = end_dt.strftime("%Y%m%d")
+        start_str = start_dt.strftime("%Y%m%d")
+
+        logger.debug(f"[akshare A股] code={code} {start_str}~{end_str}")
+
+        df = _retry(
+            ak.stock_zh_a_hist,
+            symbol=code,
+            period="daily",
+            start_date=start_str,
+            end_date=end_str,
+            adjust="qfq",
+        )
+        return df
 
     def _get_hk_stock_data(self, symbol: str, days: int) -> pd.DataFrame:
-        """获取港股历史数据 (使用 Akshare)"""
-        try:
-            import akshare as ak
-
-            # 提取纯股票代码
-            stock_code = symbol.replace(".HK", "")
-
-            # Akshare 港股接口
-            df = ak.stock_hk_hist(symbol=stock_code, period="daily", adjust="qfq")
-
-            # 过滤日期
-            if not df.empty and '日期' in df.columns:
-                df['日期'] = pd.to_datetime(df['日期'])
-                cutoff_date = datetime.now() - timedelta(days=days)
-                df = df[df['日期'] >= cutoff_date]
-
-            return df
-
-        except Exception as e:
-            logger.error(f"Akshare 港股数据获取失败: {e}")
-            return pd.DataFrame()
-
-    def _get_us_stock_data(self, symbol: str, days: int) -> pd.DataFrame:
-        """获取美股历史数据 (使用 yfinance)"""
-        try:
-            import yfinance as yf
-
-            # 计算起止日期
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=days)
-
-            # 下载数据
-            ticker = yf.Ticker(symbol)
-            df = ticker.history(start=start_date, end=end_date)
-
-            return df
-
-        except Exception as e:
-            logger.error(f"yfinance 美股数据获取失败: {e}")
-            return pd.DataFrame()
-
-    def _get_crypto_data(
-        self,
-        symbol: str,
-        days: int,
-        interval: str = "1d",
-    ) -> pd.DataFrame:
-        """获取加密货币历史数据 (使用 CCXT)"""
-        if not self.binance:
-            logger.error("Binance 客户端未初始化")
-            return pd.DataFrame()
-
-        try:
-            # 转换时间周期格式
-            timeframe = interval  # CCXT 格式: '1d', '4h', '1h'
-
-            # 计算起始时间戳（毫秒）
-            since = int((datetime.now() - timedelta(days=days)).timestamp() * 1000)
-
-            # 获取 OHLCV 数据
-            ohlcv = self.binance.fetch_ohlcv(
-                symbol=symbol,
-                timeframe=timeframe,
-                since=since,
-                limit=1000,
-            )
-
-            # 转换为 DataFrame
-            df = pd.DataFrame(
-                ohlcv,
-                columns=['timestamp', 'open', 'high', 'low', 'close', 'volume']
-            )
-
-            # 时间戳转换
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-
-            return df
-
-        except Exception as e:
-            logger.error(f"CCXT 加密货币数据获取失败: {e}")
-            return pd.DataFrame()
-
-    def _standardize_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        标准化 DataFrame 列名和格式
+        港股日线数据 — akshare.stock_hk_hist()
 
-        统一输出格式:
-        ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+        akshare 返回列:
+          日期 | 开盘 | 收盘 | 最高 | 最低 | 成交量 |
+          成交额 | 振幅 | 涨跌幅 | 涨跌额 | 换手率
+
+        symbol 格式示例: 00700.HK → 传入 akshare 为 "00700"
         """
-        if df.empty:
-            return df
+        import akshare as ak
 
-        # 列名映射 (中文 -> 英文)
-        column_mapping = {
-            # Akshare A股/港股
-            '日期': 'timestamp',
-            '开盘': 'open',
-            '收盘': 'close',
-            '最高': 'high',
-            '最低': 'low',
-            '成交量': 'volume',
-            # yfinance 美股
-            'Open': 'open',
-            'High': 'high',
-            'Low': 'low',
-            'Close': 'close',
-            'Volume': 'volume',
-            'Date': 'timestamp',
-        }
+        # 去掉市场后缀：00700.HK → 00700
+        code = symbol.split(".")[0]
 
-        # 重命名列
-        df = df.rename(columns=column_mapping)
+        logger.debug(f"[akshare 港股] code={code} days={days}")
 
-        # 确保必要列存在
-        required_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
-        for col in required_columns:
-            if col not in df.columns:
-                logger.warning(f"缺少必要列: {col}")
+        df = _retry(
+            ak.stock_hk_hist,
+            symbol=code,
+            period="daily",
+            adjust="qfq",
+        )
 
-        # 只保留必要列
-        available_columns = [col for col in required_columns if col in df.columns]
-        df = df[available_columns]
-
-        # 时间戳标准化
-        if 'timestamp' in df.columns:
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-
-        # 重置索引
-        df = df.reset_index(drop=True)
-
-        # 按时间排序
-        if 'timestamp' in df.columns:
-            df = df.sort_values('timestamp').reset_index(drop=True)
+        # akshare 港股接口一次返回全量，需要在本地截断日期
+        if df is not None and not df.empty:
+            date_col = _find_col(df, ["日期", "date", "Date", "时间"])
+            if date_col:
+                df[date_col] = pd.to_datetime(df[date_col])
+                cutoff = datetime.now() - timedelta(days=days)
+                df = df[df[date_col] >= cutoff].copy()
 
         return df
 
-    def get_realtime_price(self, symbol: str) -> Optional[float]:
+    def _get_us_stock_data(self, symbol: str, days: int) -> pd.DataFrame:
         """
-        获取实时价格
+        美股日线数据 — yfinance.Ticker.history()
 
-        Args:
-            symbol: 交易标的代码
+        yfinance 返回 DataFrame:
+          - index: DatetimeIndex（名称为 'Date'）
+          - columns: Open, High, Low, Close, Volume, Dividends, Stock Splits
 
-        Returns:
-            当前价格
+        处理要点: 必须先 reset_index() 将日期从 index 变为普通列。
         """
-        market_type, normalized_symbol = self.classifier.classify(symbol)
+        import yfinance as yf
 
-        try:
-            if market_type == MarketType.CRYPTO:
-                ticker = self.binance.fetch_ticker(normalized_symbol)
-                return ticker['last']
+        end_dt   = datetime.now()
+        start_dt = end_dt - timedelta(days=days)
 
-            else:
-                # 股票市场：获取最新一条数据
-                df = self.get_historical_data(symbol, days=5)
-                if not df.empty:
-                    return float(df.iloc[-1]['close'])
+        logger.debug(f"[yfinance 美股] symbol={symbol} {start_dt.date()}~{end_dt.date()}")
 
-        except Exception as e:
-            logger.error(f"实时价格获取失败: {e}")
+        ticker = yf.Ticker(symbol)
+        df = _retry(
+            ticker.history,
+            start=start_dt,
+            end=end_dt,
+            auto_adjust=True,    # 自动复权（等价于前复权）
+        )
 
-        return None
+        # yfinance 的日期在 index 里，需要 reset_index 变成列
+        if df is not None and not df.empty:
+            df = df.reset_index()
+            # reset_index 后列名可能是 'Date' 或 'Datetime'（Ticker.history 返回 'Date'）
 
-    def get_order_book(self, symbol: str, limit: int = 20) -> Dict[str, Any]:
+        return df
+
+    # ══════════════════════════════════════════════════════════
+    # 内部：标准化 DataFrame
+    # ══════════════════════════════════════════════════════════
+
+    def _standardize(self, df: pd.DataFrame, market_type: MarketType) -> pd.DataFrame:
         """
-        获取订单簿深度（仅适用于加密货币）
+        将不同来源的 DataFrame 统一为:
+          [timestamp, open, high, low, close, volume]
 
-        Args:
-            symbol: 交易标的代码
-            limit: 深度档位数量
-
-        Returns:
-            包含买盘和卖盘的字典
+        列名优先级映射（按顺序尝试）:
+          timestamp: 日期 / Date / Datetime / date / index
+          open:      开盘 / Open / open
+          high:      最高 / High / high
+          low:       最低 / Low / low
+          close:     收盘 / Close / close
+          volume:    成交量 / Volume / volume
         """
-        market_type, normalized_symbol = self.classifier.classify(symbol)
+        if df is None or df.empty:
+            return pd.DataFrame()
 
-        if market_type != MarketType.CRYPTO:
-            logger.warning(f"{symbol} 不支持订单簿查询")
-            return {}
+        df = df.copy()
 
-        try:
-            order_book = self.binance.fetch_order_book(normalized_symbol, limit=limit)
-            return {
-                'bids': order_book['bids'][:limit],  # 买盘 [[price, amount], ...]
-                'asks': order_book['asks'][:limit],  # 卖盘
-                'timestamp': order_book['timestamp'],
-            }
-        except Exception as e:
-            logger.error(f"订单簿获取失败: {e}")
-            return {}
+        # ── 1. 如果索引是日期类型，先 reset 进来（防漏网之鱼）────
+        if isinstance(df.index, pd.DatetimeIndex):
+            df = df.reset_index()
+
+        # ── 2. 列名归一化映射 ────────────────────────────────────
+        CANDIDATES = {
+            "timestamp": ["日期", "date", "Date", "Datetime", "datetime", "时间", "index"],
+            "open":      ["开盘", "open", "Open"],
+            "high":      ["最高", "high", "High"],
+            "low":       ["最低", "low", "Low"],
+            "close":     ["收盘", "close", "Close"],
+            "volume":    ["成交量", "volume", "Volume"],
+        }
+
+        rename_map: dict = {}
+        for target, candidates in CANDIDATES.items():
+            if target in df.columns:
+                continue   # 已经是标准名
+            col = _find_col(df, candidates)
+            if col:
+                rename_map[col] = target
+
+        df = df.rename(columns=rename_map)
+
+        # ── 3. 检查必要列 ────────────────────────────────────────
+        required = ["timestamp", "open", "high", "low", "close", "volume"]
+        missing  = [c for c in required if c not in df.columns]
+        if missing:
+            logger.warning(f"列名映射后仍缺少: {missing}  (现有列: {df.columns.tolist()})")
+            return pd.DataFrame()
+
+        df = df[required].copy()
+
+        # ── 4. 类型转换 ──────────────────────────────────────────
+        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+        for col in ["open", "high", "low", "close", "volume"]:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+        # ── 5. 清理：去掉 NaN 行、按时间升序排列 ─────────────────
+        df = df.dropna(subset=["timestamp", "close"])
+        df = df.sort_values("timestamp").reset_index(drop=True)
+
+        return df
 
 
-# ==================== 测试代码 ====================
+# ══════════════════════════════════════════════════════════════
+# 辅助函数
+# ══════════════════════════════════════════════════════════════
+
+def _find_col(df: pd.DataFrame, candidates: list) -> Optional[str]:
+    """在 df.columns 中找到第一个匹配的候选列名，找不到返回 None。"""
+    for c in candidates:
+        if c in df.columns:
+            return c
+    return None
+
+
+# ══════════════════════════════════════════════════════════════
+# 快速功能测试（直接运行此文件）
+# ══════════════════════════════════════════════════════════════
+
 if __name__ == "__main__":
-    logger.add("logs/data_loader_test.log", rotation="10 MB")
+    from loguru import logger as _log
+    _log.add("logs/data_loader_test.log", rotation="10 MB")
 
     loader = DataLoader()
 
-    # 测试不同市场的数据获取
-    test_symbols = [
-        "600519.SH",  # A股: 贵州茅台
-        "00700.HK",   # 港股: 腾讯
-        "AAPL",       # 美股: 苹果
-        "BTC/USDT",   # 加密货币: 比特币
+    test_cases = [
+        ("600519.SH", "A股 · 贵州茅台"),
+        ("000858.SZ", "A股 · 五粮液"),
+        ("00700.HK",  "港股 · 腾讯"),
+        ("09988.HK",  "港股 · 阿里巴巴"),
+        ("AAPL",      "美股 · 苹果"),
+        ("TSLA",      "美股 · 特斯拉"),
     ]
 
-    for symbol in test_symbols:
-        print(f"\n{'='*60}")
-        print(f"测试标的: {symbol}")
-        print('='*60)
+    for symbol, label in test_cases:
+        print(f"\n{'='*55}")
+        print(f"  {label}  ({symbol})")
+        print("="*55)
 
-        # 获取历史数据
         df = loader.get_historical_data(symbol, days=30)
-        if not df.empty:
-            print(f"数据行数: {len(df)}")
-            print(f"数据列名: {df.columns.tolist()}")
-            print(f"最新数据:\n{df.tail(3)}")
+        if df.empty:
+            print("  ❌ 数据获取失败")
+            continue
 
-        # 获取实时价格
-        price = loader.get_realtime_price(symbol)
-        if price:
-            print(f"\n当前价格: {price}")
+        print(f"  行数     : {len(df)}")
+        print(f"  日期范围 : {df['timestamp'].iloc[0].date()} → {df['timestamp'].iloc[-1].date()}")
+        print(f"  最新收盘 : {df['close'].iloc[-1]:.4f}")
+        print(f"  成交量   : {df['volume'].iloc[-1]:,.0f}")
+        print(f"  数据预览 :\n{df.tail(3).to_string(index=False)}")
 
-        time.sleep(1)  # 避免请求过快
+        time.sleep(0.8)   # 礼貌性请求间隔

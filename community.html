@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>投教社区 · CampusQuant 校园财商</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box;
+            font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif; }
+        :root {
+            --primary:#4facfe; --secondary:#00f2fe; --accent:#a29bfe;
+            --danger:#fd79a8;  --success:#55efc4;  --warn:#fdcb6e;
+            --bg:#0b0f19; --card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.10);
+            --text-dim:#718096; --text-sub:#a0aec0;
+        }
+        body {
+            background-color:var(--bg); color:#fff; min-height:100vh;
+            display:flex; flex-direction:column; overflow-x:hidden;
+            background-image:
+                radial-gradient(circle at 15% 50%,rgba(0,242,254,0.07),transparent 32%),
+                radial-gradient(circle at 85% 28%,rgba(79,172,254,0.07),transparent 32%);
+        }
+
+        /* ══ 导航栏 ══ */
+        header {
+            position:fixed; top:0; left:0; width:100%;
+            display:flex; justify-content:space-between; align-items:center;
+            padding:16px 48px; background:rgba(11,15,25,0.78);
+            backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+            border-bottom:1px solid var(--border); z-index:1000;
+        }
+        .logo { display:flex; align-items:baseline; gap:8px; text-decoration:none; }
+        .logo-text { font-size:22px; font-weight:800;
+            background:linear-gradient(90deg,#4facfe 0%,#00f2fe 100%);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:0.5px; }
+        .logo-sub { font-size:12px; color:var(--text-dim); }
+        nav { display:flex; gap:28px; align-items:center; }
+        nav a { text-decoration:none; color:var(--text-sub); font-size:14px; font-weight:500;
+            transition:all 0.25s; position:relative; }
+        nav a:hover, nav a.active { color:var(--secondary); text-shadow:0 0 8px rgba(0,242,254,0.45); }
+        nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
+            background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width 0.3s; }
+        nav a:hover::after, nav a.active::after { width:100%; }
+
+        /* ══ 主体 ══ */
+        main { flex:1; margin-top:80px; padding:32px 48px; }
+
+        .page-header { text-align:center; margin-bottom:40px; }
+        .page-header h1 { font-size:32px; font-weight:700; margin-bottom:10px; }
+        .page-header p { color:var(--text-sub); font-size:15px; max-width:560px; margin:0 auto; line-height:1.6; }
+
+        /* 学习资源四格 */
+        .resource-grid {
+            display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:32px;
+        }
+        .res-card {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:14px; padding:22px 18px; text-align:center;
+            transition:all 0.25s; cursor:pointer; text-decoration:none; color:inherit;
+            display:flex; flex-direction:column; align-items:center;
+        }
+        .res-card:hover { transform:translateY(-5px); border-color:rgba(79,172,254,0.35);
+            box-shadow:0 10px 28px rgba(0,242,254,0.10); }
+        .res-icon { font-size:36px; margin-bottom:12px; }
+        .res-title { font-size:15px; font-weight:700; color:#fff; margin-bottom:6px; }
+        .res-desc { font-size:12px; color:var(--text-sub); line-height:1.5; }
+
+        /* 主内容两栏 */
+        .content-grid { display:grid; grid-template-columns:1fr 300px; gap:24px; align-items:start; }
+
+        /* 帖子列表 */
+        .posts-section {
+            background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden;
+        }
+        .section-header {
+            padding:18px 24px; border-bottom:1px solid var(--border);
+            display:flex; justify-content:space-between; align-items:center;
+        }
+        .section-title { font-size:16px; font-weight:700; }
+        .filter-tabs { display:flex; gap:8px; }
+        .filter-btn {
+            padding:4px 12px; border-radius:16px; font-size:12px; font-weight:600;
+            border:1px solid var(--border); color:var(--text-sub); cursor:pointer;
+            background:transparent; transition:all 0.2s;
+        }
+        .filter-btn.active { border-color:var(--primary); color:var(--primary); background:rgba(79,172,254,0.09); }
+
+        .post-list { padding:8px 0; }
+        .post-item {
+            padding:16px 24px; border-bottom:1px solid rgba(255,255,255,0.04);
+            cursor:pointer; transition:background 0.2s;
+        }
+        .post-item:last-child { border-bottom:none; }
+        .post-item:hover { background:rgba(79,172,254,0.04); }
+        .post-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+        .post-title { font-size:15px; font-weight:600; color:#fff; line-height:1.4; flex:1; }
+        .post-meta { display:flex; align-items:center; gap:14px; }
+        .post-author { font-size:12px; color:var(--text-dim); }
+        .post-time { font-size:12px; color:var(--text-dim); }
+        .post-excerpt { font-size:13px; color:var(--text-sub); line-height:1.5; margin-bottom:10px; }
+        .post-footer { display:flex; align-items:center; gap:12px; }
+        .post-tag {
+            padding:2px 9px; border-radius:5px; font-size:11px; font-weight:600;
+        }
+        .tag-learn    { background:rgba(79,172,254,0.15); color:var(--primary); }
+        .tag-analysis { background:rgba(85,239,196,0.15); color:var(--success); }
+        .tag-risk     { background:rgba(253,203,110,0.15); color:var(--warn); }
+        .tag-exp      { background:rgba(162,155,254,0.15); color:var(--accent); }
+        .post-stats { font-size:12px; color:var(--text-dim); display:flex; gap:12px; margin-left:auto; }
+
+        /* 侧边栏 */
+        .sidebar { display:flex; flex-direction:column; gap:16px; }
+        .side-card {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:14px; overflow:hidden;
+        }
+        .side-header { padding:14px 18px; border-bottom:1px solid var(--border); font-size:14px; font-weight:700; }
+        .side-body { padding:14px 18px; }
+
+        /* 学习路径 */
+        .path-list { list-style:none; display:flex; flex-direction:column; gap:10px; }
+        .path-item { display:flex; align-items:center; gap:10px; font-size:13px; cursor:pointer; transition:color 0.2s; }
+        .path-item:hover { color:var(--secondary); }
+        .path-num {
+            width:22px; height:22px; border-radius:50%; flex-shrink:0;
+            background:linear-gradient(135deg,var(--primary),var(--secondary));
+            display:flex; align-items:center; justify-content:center;
+            font-size:11px; font-weight:700; color:#0b0f19;
+        }
+        .path-text { color:var(--text-sub); }
+        .path-item:hover .path-text { color:var(--secondary); }
+
+        /* 热门话题 */
+        .topic-tags { display:flex; flex-wrap:wrap; gap:8px; }
+        .topic-tag {
+            padding:5px 12px; border-radius:20px; font-size:12px;
+            border:1px solid var(--border); color:var(--text-sub); cursor:pointer; transition:all 0.2s;
+        }
+        .topic-tag:hover { border-color:var(--secondary); color:var(--secondary); }
+
+        /* 大学生守则卡 */
+        .rules-card {
+            background:linear-gradient(135deg,rgba(79,172,254,0.08),rgba(0,242,254,0.05));
+            border:1px solid rgba(79,172,254,0.2); border-radius:16px; padding:24px; margin-top:24px;
+        }
+        .rules-title { font-size:16px; font-weight:700; margin-bottom:16px; }
+        .rules-list { list-style:none; display:flex; flex-direction:column; gap:8px; }
+        .rules-list li { font-size:13px; color:var(--text-sub); line-height:1.5;
+            display:flex; gap:8px; align-items:flex-start; }
+        .rules-list li::before { content:'✓'; color:var(--success); font-weight:700; flex-shrink:0; }
+
+        /* ══ 页脚 ══ */
+        footer {
+            padding:18px; text-align:center; background:rgba(0,0,0,0.3);
+            border-top:1px solid var(--border); color:var(--text-dim); font-size:13px; margin-top:24px;
+        }
+        footer a { color:var(--primary); text-decoration:none; }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="index.html" class="logo">
+        <span class="logo-text">CampusQuant</span>
+        <span class="logo-sub">校园财商</span>
+    </a>
+    <nav>
+        <a href="index.html">首页</a>
+        <a href="trade.html">模拟演练</a>
+        <a href="platforms.html">持仓体检</a>
+        <a href="market.html">市场快讯</a>
+        <a href="community.html" class="active">投教社区</a>
+        <a href="team.html">关于我们</a>
+    </nav>
+</header>
+
+<main>
+    <div class="page-header">
+        <h1>投教社区</h1>
+        <p>学习 A股、港股、美股基础知识，与同学交流投资心得，共同养成理性财商思维。</p>
+    </div>
+
+    <!-- 四大学习资源入口 -->
+    <div class="resource-grid">
+        <a href="resources.html" class="res-card">
+            <div class="res-icon">📚</div>
+            <div class="res-title">入门指南</div>
+            <div class="res-desc">A股开户、港股打新、美股券商选择全攻略</div>
+        </a>
+        <a href="resources.html" class="res-card">
+            <div class="res-icon">📊</div>
+            <div class="res-title">基础分析</div>
+            <div class="res-desc">财务报表解读、PE/PB估值方法、技术形态入门</div>
+        </a>
+        <a href="resources.html" class="res-card">
+            <div class="res-icon">🛡</div>
+            <div class="res-title">风险守则</div>
+            <div class="res-desc">止损原则、仓位管理、大学生投资红线规范</div>
+        </a>
+        <a href="trade.html" class="res-card">
+            <div class="res-icon">🤖</div>
+            <div class="res-title">AI 模拟演练</div>
+            <div class="res-desc">让 AI 分析你选中的股票，学习多维度研判逻辑</div>
+        </a>
+    </div>
+
+    <!-- 主内容 -->
+    <div class="content-grid">
+        <!-- 帖子列表 -->
+        <div class="posts-section">
+            <div class="section-header">
+                <div class="section-title">讨论广场</div>
+                <div class="filter-tabs">
+                    <button class="filter-btn active">最新</button>
+                    <button class="filter-btn">精选</button>
+                    <button class="filter-btn">问答</button>
+                </div>
+            </div>
+            <div class="post-list">
+                <div class="post-item">
+                    <div class="post-top">
+                        <div class="post-title">【分享】用 CampusQuant AI 分析了贵州茅台，结果让我很惊喜</div>
+                    </div>
+                    <div class="post-excerpt">基本面 Agent 从 ROE 稳定性、护城河、现金流三个角度给出了详细分析，技术面提示近期均线金叉，最终综合建议持有…</div>
+                    <div class="post-footer">
+                        <span class="post-tag tag-exp">实战分享</span>
+                        <div class="post-meta">
+                            <span class="post-author">📍 @量化小白Leo</span>
+                            <span class="post-time">2小时前</span>
+                        </div>
+                        <div class="post-stats"><span>👍 48</span><span>💬 12</span></div>
+                    </div>
+                </div>
+
+                <div class="post-item">
+                    <div class="post-top">
+                        <div class="post-title">【问题】PE 估值方法中，对于周期股为什么不能直接用 PE？</div>
+                    </div>
+                    <div class="post-excerpt">最近在学习价值投资，发现很多分析师说周期股不能用静态 PE，但具体原因没太搞清楚，希望有大佬解释一下…</div>
+                    <div class="post-footer">
+                        <span class="post-tag tag-learn">基础知识</span>
+                        <div class="post-meta">
+                            <span class="post-author">📍 @金融小白Amber</span>
+                            <span class="post-time">5小时前</span>
+                        </div>
+                        <div class="post-stats"><span>👍 23</span><span>💬 31</span></div>
+                    </div>
+                </div>
+
+                <div class="post-item">
+                    <div class="post-top">
+                        <div class="post-title">【分析】港股腾讯估值拆解：游戏+广告+金融科技分部估值法</div>
+                    </div>
+                    <div class="post-excerpt">用 SOTP 分部估值把腾讯拆成三块：网络游戏 5,000 亿港元，网络广告 3,200 亿港元，金融科技 2,800 亿港元，合计…</div>
+                    <div class="post-footer">
+                        <span class="post-tag tag-analysis">深度分析</span>
+                        <div class="post-meta">
+                            <span class="post-author">📍 @港股研究所</span>
+                            <span class="post-time">昨天 20:15</span>
+                        </div>
+                        <div class="post-stats"><span>👍 112</span><span>💬 45</span></div>
+                    </div>
+                </div>
+
+                <div class="post-item">
+                    <div class="post-top">
+                        <div class="post-title">【经验】我踩过的五个大坑：大学期间炒股不能做的事</div>
+                    </div>
+                    <div class="post-excerpt">1. 不做止损，一跌再跌越套越深；2. 用生活费炒股，影响日常；3. 听消息买股票；4. 频繁交易摩擦成本高…</div>
+                    <div class="post-footer">
+                        <span class="post-tag tag-risk">风险警示</span>
+                        <div class="post-meta">
+                            <span class="post-author">📍 @三年老韭菜</span>
+                            <span class="post-time">2天前</span>
+                        </div>
+                        <div class="post-stats"><span>👍 289</span><span>💬 67</span></div>
+                    </div>
+                </div>
+
+                <div class="post-item">
+                    <div class="post-top">
+                        <div class="post-title">【教程】如何用 Python 抓取 A股财报数据并生成 ROE 趋势图</div>
+                    </div>
+                    <div class="post-excerpt">分享一段 akshare + matplotlib 的代码，可以一键拉取任意 A股公司的历史净资产收益率并可视化…</div>
+                    <div class="post-footer">
+                        <span class="post-tag tag-learn">编程入门</span>
+                        <div class="post-meta">
+                            <span class="post-author">📍 @Python量化入门</span>
+                            <span class="post-time">3天前</span>
+                        </div>
+                        <div class="post-stats"><span>👍 156</span><span>💬 28</span></div>
+                    </div>
+                </div>
+
+                <div class="post-item">
+                    <div class="post-top">
+                        <div class="post-title">【问题】美股期权买 Call 和直接买股票有什么区别？适合大学生吗？</div>
+                    </div>
+                    <div class="post-excerpt">期权杠杆大，收益可以翻倍，但时间价值损耗怎么理解？有没有简单的方式学习期权定价…</div>
+                    <div class="post-footer">
+                        <span class="post-tag tag-learn">基础知识</span>
+                        <div class="post-meta">
+                            <span class="post-author">📍 @美股新人Max</span>
+                            <span class="post-time">4天前</span>
+                        </div>
+                        <div class="post-stats"><span>👍 41</span><span>💬 53</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 侧边栏 -->
+        <div class="sidebar">
+            <!-- 学习路径 -->
+            <div class="side-card">
+                <div class="side-header">📖 推荐学习路径</div>
+                <div class="side-body">
+                    <ul class="path-list">
+                        <li class="path-item">
+                            <div class="path-num">1</div>
+                            <div class="path-text">A股市场结构与开户</div>
+                        </li>
+                        <li class="path-item">
+                            <div class="path-num">2</div>
+                            <div class="path-text">财务报表基础解读</div>
+                        </li>
+                        <li class="path-item">
+                            <div class="path-num">3</div>
+                            <div class="path-text">PE/PB 估值入门</div>
+                        </li>
+                        <li class="path-item">
+                            <div class="path-num">4</div>
+                            <div class="path-text">技术分析：均线与量价</div>
+                        </li>
+                        <li class="path-item">
+                            <div class="path-num">5</div>
+                            <div class="path-text">仓位管理与止损策略</div>
+                        </li>
+                        <li class="path-item">
+                            <div class="path-num">6</div>
+                            <div class="path-text">港股/美股入门指南</div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 热门话题 -->
+            <div class="side-card">
+                <div class="side-header">🔥 热门话题</div>
+                <div class="side-body">
+                    <div class="topic-tags">
+                        <span class="topic-tag">#价值投资</span>
+                        <span class="topic-tag">#止损技巧</span>
+                        <span class="topic-tag">#指数基金</span>
+                        <span class="topic-tag">#A股打新</span>
+                        <span class="topic-tag">#港股通</span>
+                        <span class="topic-tag">#美股入门</span>
+                        <span class="topic-tag">#量化学习</span>
+                        <span class="topic-tag">#财报解读</span>
+                        <span class="topic-tag">#白酒板块</span>
+                        <span class="topic-tag">#新能源</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 快速导航 -->
+            <div class="side-card">
+                <div class="side-header">⚡ 快速入口</div>
+                <div class="side-body" style="display:flex;flex-direction:column;gap:10px">
+                    <a href="trade.html" style="text-decoration:none;color:var(--primary);font-size:13px">→ 开始 AI 模拟演练</a>
+                    <a href="platforms.html" style="text-decoration:none;color:var(--primary);font-size:13px">→ 持仓体检诊断</a>
+                    <a href="market.html" style="text-decoration:none;color:var(--primary);font-size:13px">→ 查看市场快讯</a>
+                    <a href="resources.html" style="text-decoration:none;color:var(--primary);font-size:13px">→ 学习资源库</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 大学生守则 -->
+    <div class="rules-card">
+        <div class="rules-title">🎓 大学生投资守则（共同遵守，理性财商）</div>
+        <ul class="rules-list">
+            <li>单只股票仓位不超过可投资资金的 15%，分散持有，降低集中风险。</li>
+            <li>绝不动用生活费、学费、助学金投资，只用闲置资金进行模拟或小额练习。</li>
+            <li>每笔买入必须设定止损位（建议 -8% 至 -10%），达到止损立即执行。</li>
+            <li>不追求短线暴利，不参与高杠杆产品（融资融券、期货、期权等）。</li>
+            <li>定期复盘交易记录，总结盈亏原因，把每次失误当成付费学习。</li>
+        </ul>
+    </div>
+</main>
+
+<footer>
+    &copy; 2026 CampusQuant 校园财商 &nbsp;|&nbsp;
+    投教社区 · 共同学习，理性投资 &nbsp;|&nbsp;
+    <a href="team.html">关于我们</a>
+</footer>
+
+</body>
+</html>

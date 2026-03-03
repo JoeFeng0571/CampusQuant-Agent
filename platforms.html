@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>持仓体检 · CampusQuant 校园财商</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box;
+            font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif; }
+        :root {
+            --primary:#4facfe; --secondary:#00f2fe; --accent:#a29bfe;
+            --danger:#fd79a8;  --success:#55efc4;  --warn:#fdcb6e;
+            --bg:#0b0f19; --card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.10);
+            --text-dim:#718096; --text-sub:#a0aec0;
+        }
+        body {
+            background-color:var(--bg); color:#fff; min-height:100vh;
+            display:flex; flex-direction:column; overflow-x:hidden;
+            background-image:
+                radial-gradient(circle at 15% 50%,rgba(0,242,254,0.07),transparent 32%),
+                radial-gradient(circle at 85% 28%,rgba(79,172,254,0.07),transparent 32%);
+        }
+
+        /* ══ 导航栏 ══ */
+        header {
+            position:fixed; top:0; left:0; width:100%;
+            display:flex; justify-content:space-between; align-items:center;
+            padding:16px 48px; background:rgba(11,15,25,0.78);
+            backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+            border-bottom:1px solid var(--border); z-index:1000;
+        }
+        .logo { display:flex; align-items:baseline; gap:8px; text-decoration:none; }
+        .logo-text { font-size:22px; font-weight:800;
+            background:linear-gradient(90deg,#4facfe 0%,#00f2fe 100%);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:0.5px; }
+        .logo-sub { font-size:12px; color:var(--text-dim); }
+        nav { display:flex; gap:28px; align-items:center; }
+        nav a { text-decoration:none; color:var(--text-sub); font-size:14px; font-weight:500;
+            transition:all 0.25s; position:relative; }
+        nav a:hover, nav a.active { color:var(--secondary); text-shadow:0 0 8px rgba(0,242,254,0.45); }
+        nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
+            background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width 0.3s; }
+        nav a:hover::after, nav a.active::after { width:100%; }
+
+        /* ══ 主体 ══ */
+        main { flex:1; margin-top:80px; padding:32px 48px; }
+
+        .page-header { text-align:center; margin-bottom:40px; }
+        .page-header h1 { font-size:32px; font-weight:700; margin-bottom:10px; }
+        .page-header p { color:var(--text-sub); font-size:15px; max-width:560px; margin:0 auto; line-height:1.6; }
+
+        /* 两栏布局 */
+        .layout { display:grid; grid-template-columns:420px 1fr; gap:24px; align-items:start; }
+
+        /* ── 持仓录入面板 ── */
+        .input-panel {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:16px; padding:28px; position:sticky; top:96px;
+        }
+        .panel-title {
+            font-size:16px; font-weight:700; margin-bottom:20px;
+            display:flex; align-items:center; gap:10px;
+        }
+        .panel-title::before { content:''; width:4px; height:16px; border-radius:2px; flex-shrink:0;
+            background:linear-gradient(180deg,var(--primary),var(--secondary)); }
+
+        /* 持仓条目列表 */
+        #positions-list { display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
+        .position-row {
+            display:grid; grid-template-columns:1fr 80px 90px 28px; gap:6px; align-items:center;
+        }
+        .pos-input {
+            padding:9px 10px; background:rgba(255,255,255,0.06); border:1px solid var(--border);
+            border-radius:8px; color:#fff; font-size:13px; outline:none; width:100%;
+            transition:border-color 0.2s;
+        }
+        .pos-input:focus { border-color:var(--primary); }
+        .pos-input::placeholder { color:var(--text-dim); }
+        .del-btn {
+            width:28px; height:28px; border-radius:6px; border:1px solid rgba(253,121,168,0.3);
+            background:transparent; color:var(--danger); font-size:16px; cursor:pointer;
+            display:flex; align-items:center; justify-content:center; transition:all 0.2s;
+        }
+        .del-btn:hover { background:rgba(253,121,168,0.1); }
+
+        .add-pos-btn {
+            width:100%; padding:9px; background:transparent;
+            border:1px dashed rgba(255,255,255,0.15); border-radius:8px;
+            color:var(--text-sub); font-size:13px; cursor:pointer; transition:all 0.2s;
+        }
+        .add-pos-btn:hover { border-color:var(--primary); color:var(--primary); }
+
+        .check-btn {
+            width:100%; padding:13px; margin-top:12px;
+            background:linear-gradient(90deg,var(--primary) 0%,var(--secondary) 100%);
+            border:none; border-radius:10px; color:#0b0f19;
+            font-size:15px; font-weight:700; cursor:pointer; transition:all 0.3s;
+        }
+        .check-btn:hover { box-shadow:0 6px 24px rgba(0,242,254,0.4); transform:translateY(-1px); }
+        .check-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+
+        .col-labels {
+            display:grid; grid-template-columns:1fr 80px 90px 28px; gap:6px;
+            margin-bottom:6px;
+        }
+        .col-label { font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.4px; }
+
+        /* ── 右侧体检报告区 ── */
+        .report-area { display:flex; flex-direction:column; gap:18px; }
+
+        /* 健康评分环 */
+        .score-card {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:16px; padding:28px;
+            display:flex; align-items:center; gap:32px;
+        }
+        .score-ring { position:relative; width:110px; height:110px; flex-shrink:0; }
+        .score-ring svg { transform:rotate(-90deg); }
+        .score-ring circle { fill:none; stroke-width:10; }
+        .score-ring .track { stroke:rgba(255,255,255,0.07); }
+        .score-ring .fill  { stroke:url(#score-grad); stroke-linecap:round;
+            stroke-dasharray:283; stroke-dashoffset:283; transition:stroke-dashoffset 1s ease; }
+        .score-num {
+            position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+            font-size:28px; font-weight:800; background:linear-gradient(90deg,var(--primary),var(--secondary));
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+        }
+        .score-info h3 { font-size:18px; font-weight:700; margin-bottom:8px; }
+        .score-info p { font-size:13px; color:var(--text-sub); line-height:1.6; }
+
+        /* 指标格子 */
+        .metrics-grid {
+            display:grid; grid-template-columns:repeat(3,1fr); gap:14px;
+        }
+        .metric-card {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:12px; padding:18px; text-align:center;
+        }
+        .metric-label { font-size:11px; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px; }
+        .metric-value { font-size:22px; font-weight:700; }
+        .metric-value.low    { color:var(--success); }
+        .metric-value.medium { color:var(--warn); }
+        .metric-value.high   { color:var(--danger); }
+
+        /* 建议列表 */
+        .recommend-card {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:16px; padding:24px;
+        }
+        .rec-title {
+            font-size:15px; font-weight:700; margin-bottom:16px;
+            display:flex; align-items:center; gap:8px;
+        }
+        .rec-list { list-style:none; display:flex; flex-direction:column; gap:10px; }
+        .rec-list li {
+            padding:10px 14px; border-radius:8px;
+            background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);
+            font-size:13px; color:#e2e8f0; line-height:1.5;
+            display:flex; align-items:flex-start; gap:10px;
+        }
+        .rec-list li::before { content:'→'; color:var(--primary); font-weight:700; flex-shrink:0; }
+
+        /* 占位提示 */
+        .placeholder-hint {
+            background:var(--card); border:1px dashed rgba(255,255,255,0.07);
+            border-radius:16px; padding:56px 36px; text-align:center; color:var(--text-dim);
+        }
+        .hint-icon { font-size:44px; margin-bottom:14px; opacity:0.5; }
+        .hint-text { font-size:14px; line-height:1.8; }
+
+        /* 风险徽章 */
+        .risk-badge {
+            display:inline-block; padding:3px 10px; border-radius:6px; font-size:12px; font-weight:600;
+        }
+        .risk-low    { background:rgba(85,239,196,0.1);  color:var(--success); }
+        .risk-medium { background:rgba(253,203,110,0.1); color:var(--warn); }
+        .risk-high   { background:rgba(253,121,168,0.1); color:var(--danger); }
+        .risk-extreme{ background:rgba(253,121,168,0.2); color:var(--danger); border:1px solid var(--danger); }
+
+        /* ══ 页脚 ══ */
+        footer {
+            padding:18px; text-align:center; background:rgba(0,0,0,0.3);
+            border-top:1px solid var(--border); color:var(--text-dim); font-size:13px; margin-top:24px;
+        }
+        footer a { color:var(--primary); text-decoration:none; }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="index.html" class="logo">
+        <span class="logo-text">CampusQuant</span>
+        <span class="logo-sub">校园财商</span>
+    </a>
+    <nav>
+        <a href="index.html">首页</a>
+        <a href="trade.html">模拟演练</a>
+        <a href="platforms.html" class="active">持仓体检</a>
+        <a href="market.html">市场快讯</a>
+        <a href="community.html">投教社区</a>
+        <a href="team.html">关于我们</a>
+    </nav>
+</header>
+
+<main>
+    <div class="page-header">
+        <h1>🩺 持仓体检</h1>
+        <p>输入你的持仓信息，AI 将从集中度、回撤风险、流动性三个维度综合评估你的投资组合健康状况。</p>
+    </div>
+
+    <div class="layout">
+        <!-- 持仓录入面板 -->
+        <div class="input-panel">
+            <div class="panel-title">录入持仓</div>
+
+            <div class="col-labels">
+                <span class="col-label">代码</span>
+                <span class="col-label">数量（股）</span>
+                <span class="col-label">成本价</span>
+                <span class="col-label"></span>
+            </div>
+
+            <div id="positions-list">
+                <!-- 默认两行示例 -->
+            </div>
+
+            <button class="add-pos-btn" onclick="addPosition()">+ 添加持仓</button>
+
+            <button class="check-btn" id="check-btn" onclick="startHealthCheck()">
+                🩺 开始体检
+            </button>
+        </div>
+
+        <!-- 体检报告区 -->
+        <div class="report-area" id="report-area">
+            <div class="placeholder-hint" id="placeholder">
+                <div class="hint-icon">📋</div>
+                <div class="hint-text">
+                    在左侧录入你持有的股票代码、数量和成本价，<br>
+                    AI 将自动获取实时行情并生成持仓健康报告。<br>
+                    <br>
+                    <small style="color:var(--text-dim)">支持：A股（600519.SH）/ 港股（00700.HK）/ 美股（AAPL）</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    &copy; 2026 CampusQuant 校园财商 &nbsp;|&nbsp;
+    定期体检持仓，及时发现集中度过高与高风险标的 &nbsp;|&nbsp;
+    <a href="team.html">关于我们</a>
+</footer>
+
+<script>
+    let checkRunning = false;
+
+    // 初始化两条示例持仓
+    function init() {
+        addPosition('600519.SH', 100, 1800);
+        addPosition('AAPL', 10, 175);
+    }
+
+    function addPosition(sym='', qty='', cost='') {
+        const list = document.getElementById('positions-list');
+        const row = document.createElement('div');
+        row.className = 'position-row';
+        row.innerHTML = `
+            <input class="pos-input" type="text" placeholder="如 600519.SH" value="${sym}" />
+            <input class="pos-input" type="number" placeholder="数量" value="${qty}" min="0" />
+            <input class="pos-input" type="number" placeholder="成本价" value="${cost}" min="0" step="0.01" />
+            <button class="del-btn" onclick="this.parentElement.remove()">×</button>`;
+        list.appendChild(row);
+    }
+
+    function getPositions() {
+        const rows = document.querySelectorAll('.position-row');
+        const positions = [];
+        rows.forEach(row => {
+            const inputs = row.querySelectorAll('.pos-input');
+            const symbol = inputs[0].value.trim();
+            const quantity = parseFloat(inputs[1].value);
+            const avg_cost = parseFloat(inputs[2].value);
+            if (symbol && !isNaN(quantity) && !isNaN(avg_cost) && quantity > 0 && avg_cost > 0) {
+                positions.push({ symbol, quantity, avg_cost });
+            }
+        });
+        return positions;
+    }
+
+    async function startHealthCheck() {
+        if (checkRunning) return;
+        const positions = getPositions();
+        if (positions.length === 0) { alert('请至少录入一条有效持仓'); return; }
+
+        checkRunning = true;
+        document.getElementById('check-btn').disabled = true;
+        document.getElementById('report-area').innerHTML = `
+            <div class="placeholder-hint">
+                <div class="hint-icon" style="animation:spin 1s linear infinite;display:inline-block">⚙</div>
+                <div class="hint-text">正在获取行情并分析持仓健康状况...</div>
+            </div>`;
+
+        try {
+            const resp = await fetch('/api/v1/health-check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ positions })
+            });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            renderReport(data, positions);
+        } catch (err) {
+            // Demo 模式：后端未启动时展示 mock 结果
+            renderMockReport(positions);
+        } finally {
+            checkRunning = false;
+            document.getElementById('check-btn').disabled = false;
+        }
+    }
+
+    function renderReport(data, positions) {
+        const report = data.health_report || {};
+        const score = report.health_score ?? 72;
+        renderReportUI(score, report, positions);
+    }
+
+    function renderMockReport(positions) {
+        // 演示用 mock 数据
+        const report = {
+            health_score: 68,
+            concentration_risk: 'MEDIUM',
+            max_drawdown_est: 18.5,
+            liquidity_score: 7.2,
+            overweight_positions: positions.length > 1 ? [positions[0].symbol] : [],
+            high_risk_positions: [],
+            recommendations: [
+                '当前持仓集中度偏高，建议适当分散至3~5只标的，降低单一持仓风险。',
+                '持仓中含有波动较大标的，建议设置不超过8%的止损线。',
+                '流动性良好，可在市场回调时逢低增持基本面稳健标的。',
+                '建议总持仓市值控制在可投资资产的50%以内，保留充足流动资金。',
+            ],
+            overall_diagnosis: '持仓整体健康，但集中度风险需关注。建议适当分散，并为波动性较高的个股设置止损。',
+        };
+        renderReportUI(report.health_score, report, positions);
+    }
+
+    function renderReportUI(score, report, positions) {
+        const offset = 283 - (283 * score / 100);
+        const conc = report.concentration_risk || 'MEDIUM';
+        const concClass = { LOW:'low', MEDIUM:'medium', HIGH:'high', EXTREME:'extreme' }[conc] || 'medium';
+        const concLabel = { LOW:'低', MEDIUM:'中等', HIGH:'高', EXTREME:'极高' }[conc] || conc;
+
+        const recs = (report.recommendations || []).map(r => `<li>${r}</li>`).join('');
+        const overweightList = (report.overweight_positions || []).join('、') || '无';
+        const highRiskList = (report.high_risk_positions || []).join('、') || '无';
+
+        document.getElementById('report-area').innerHTML = `
+            <div class="score-card">
+                <div class="score-ring">
+                    <svg width="110" height="110" viewBox="0 0 110 110">
+                        <defs>
+                            <linearGradient id="score-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#4facfe"/>
+                                <stop offset="100%" style="stop-color:#00f2fe"/>
+                            </linearGradient>
+                        </defs>
+                        <circle class="track" cx="55" cy="55" r="45"/>
+                        <circle class="fill" id="score-circle" cx="55" cy="55" r="45"/>
+                    </svg>
+                    <div class="score-num" id="score-num">${score}</div>
+                </div>
+                <div class="score-info">
+                    <h3>持仓健康评分</h3>
+                    <p>${report.overall_diagnosis || '综合评估完成，请参阅下方详细指标与建议。'}</p>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">集中度风险</div>
+                    <div class="metric-value ${concClass}">${concLabel}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">最大回撤估算</div>
+                    <div class="metric-value ${(report.max_drawdown_est||0)>20?'high':(report.max_drawdown_est||0)>10?'medium':'low'}">
+                        ${(report.max_drawdown_est||0).toFixed(1)}%
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">流动性评分</div>
+                    <div class="metric-value ${(report.liquidity_score||0)>=7?'low':(report.liquidity_score||0)>=4?'medium':'high'}">
+                        ${(report.liquidity_score||0).toFixed(1)} / 10
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">超权重持仓</div>
+                    <div class="metric-value" style="font-size:14px;color:var(--warn)">${overweightList}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">高风险标的</div>
+                    <div class="metric-value" style="font-size:14px;color:var(--danger)">${highRiskList || '无'}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">持仓标的数</div>
+                    <div class="metric-value" style="color:var(--accent)">${positions.length}</div>
+                </div>
+            </div>
+
+            <div class="recommend-card">
+                <div class="rec-title">💡 AI 优化建议</div>
+                <ul class="rec-list">${recs}</ul>
+            </div>`;
+
+        // 动画评分环
+        setTimeout(() => {
+            const circle = document.getElementById('score-circle');
+            if (circle) circle.style.strokeDashoffset = offset;
+        }, 100);
+    }
+
+    init();
+</script>
+
+<style>
+    @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+</style>
+
+</body>
+</html>

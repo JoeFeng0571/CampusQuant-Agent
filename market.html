@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>市场快讯 · CampusQuant 校园财商</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box;
+            font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif; }
+        :root {
+            --primary:#4facfe; --secondary:#00f2fe; --accent:#a29bfe;
+            --danger:#fd79a8;  --success:#55efc4;  --warn:#fdcb6e;
+            --bg:#0b0f19; --card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.10);
+            --text-dim:#718096; --text-sub:#a0aec0;
+        }
+        body {
+            background-color:var(--bg); color:#fff; min-height:100vh;
+            display:flex; flex-direction:column; overflow-x:hidden;
+            background-image:
+                radial-gradient(circle at 15% 50%,rgba(0,242,254,0.07),transparent 32%),
+                radial-gradient(circle at 85% 28%,rgba(79,172,254,0.07),transparent 32%);
+        }
+
+        /* ══ 导航栏 ══ */
+        header {
+            position:fixed; top:0; left:0; width:100%;
+            display:flex; justify-content:space-between; align-items:center;
+            padding:16px 48px; background:rgba(11,15,25,0.78);
+            backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+            border-bottom:1px solid var(--border); z-index:1000;
+        }
+        .logo { display:flex; align-items:baseline; gap:8px; text-decoration:none; }
+        .logo-text { font-size:22px; font-weight:800;
+            background:linear-gradient(90deg,#4facfe 0%,#00f2fe 100%);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:0.5px; }
+        .logo-sub { font-size:12px; color:var(--text-dim); }
+        nav { display:flex; gap:28px; align-items:center; }
+        nav a { text-decoration:none; color:var(--text-sub); font-size:14px; font-weight:500;
+            transition:all 0.25s; position:relative; }
+        nav a:hover, nav a.active { color:var(--secondary); text-shadow:0 0 8px rgba(0,242,254,0.45); }
+        nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
+            background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width 0.3s; }
+        nav a:hover::after, nav a.active::after { width:100%; }
+
+        /* ══ 主体 ══ */
+        main { flex:1; margin-top:80px; padding:32px 48px; }
+
+        .page-header { margin-bottom:32px; display:flex; justify-content:space-between; align-items:flex-end; }
+        .page-header h1 { font-size:28px; font-weight:700; }
+        .page-header p { color:var(--text-sub); font-size:14px; }
+        .update-time { font-size:12px; color:var(--text-dim); }
+
+        /* 指数概览 */
+        .indices-grid {
+            display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:32px;
+        }
+        .index-card {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:12px; padding:16px 14px; text-align:center;
+            transition:all 0.25s; cursor:default;
+        }
+        .index-card:hover { border-color:rgba(79,172,254,0.3); transform:translateY(-3px); }
+        .index-name { font-size:11px; color:var(--text-sub); margin-bottom:8px; }
+        .index-value { font-size:18px; font-weight:700; color:#fff; margin-bottom:4px; }
+        .index-change { font-size:13px; font-weight:600; }
+        .up   { color:var(--success); }
+        .down { color:var(--danger); }
+        .flat { color:var(--text-sub); }
+
+        /* 主内容两栏 */
+        .content-grid { display:grid; grid-template-columns:1fr 340px; gap:24px; align-items:start; }
+
+        /* 市场行情表 */
+        .market-table-section {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:16px; overflow:hidden;
+        }
+        .section-header {
+            padding:18px 24px; border-bottom:1px solid var(--border);
+            display:flex; justify-content:space-between; align-items:center;
+        }
+        .section-title { font-size:16px; font-weight:700; }
+        .market-tabs { display:flex; gap:8px; }
+        .tab-btn {
+            padding:5px 14px; border-radius:20px; font-size:12px; font-weight:600;
+            border:1px solid var(--border); color:var(--text-sub); cursor:pointer;
+            background:transparent; transition:all 0.2s;
+        }
+        .tab-btn.active { border-color:var(--primary); color:var(--primary); background:rgba(79,172,254,0.09); }
+
+        table { width:100%; border-collapse:collapse; }
+        thead th {
+            padding:11px 16px; text-align:left; font-size:11px; font-weight:600;
+            color:var(--text-dim); text-transform:uppercase; letter-spacing:0.4px;
+            border-bottom:1px solid var(--border);
+        }
+        tbody tr { border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.2s; }
+        tbody tr:last-child { border-bottom:none; }
+        tbody tr:hover { background:rgba(255,255,255,0.02); }
+        tbody td { padding:13px 16px; font-size:14px; }
+        .td-sym { font-weight:600; color:#fff; }
+        .td-name { color:var(--text-sub); font-size:13px; }
+        .td-price { font-weight:600; color:#fff; }
+        .td-chg { font-weight:600; }
+
+        /* 右侧新闻卡 */
+        .news-panel {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:16px; overflow:hidden;
+        }
+        .news-list { padding:8px 0; }
+        .news-item {
+            padding:14px 20px; border-bottom:1px solid rgba(255,255,255,0.04);
+            cursor:pointer; transition:background 0.2s;
+        }
+        .news-item:last-child { border-bottom:none; }
+        .news-item:hover { background:rgba(79,172,254,0.05); }
+        .news-time { font-size:11px; color:var(--text-dim); margin-bottom:5px; }
+        .news-title { font-size:13px; color:#e2e8f0; line-height:1.5; }
+        .news-tag {
+            display:inline-block; margin-top:6px; padding:2px 8px;
+            border-radius:4px; font-size:11px;
+        }
+        .tag-a { background:rgba(79,172,254,0.15); color:var(--primary); }
+        .tag-hk { background:rgba(162,155,254,0.15); color:var(--accent); }
+        .tag-us { background:rgba(85,239,196,0.15); color:var(--success); }
+        .tag-macro { background:rgba(253,203,110,0.15); color:var(--warn); }
+
+        /* 市场情绪 */
+        .sentiment-bar {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:16px; padding:20px 24px; margin-top:24px;
+            display:grid; grid-template-columns:repeat(4,1fr); gap:20px;
+        }
+        .sentiment-item { text-align:center; }
+        .sentiment-label { font-size:11px; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px; }
+        .sentiment-value { font-size:22px; font-weight:700; }
+
+        /* 数据免责 */
+        .disclaimer {
+            margin-top:24px; padding:12px 16px;
+            background:rgba(113,128,150,0.08); border:1px solid rgba(113,128,150,0.2);
+            border-radius:8px; font-size:12px; color:var(--text-dim); line-height:1.6; text-align:center;
+        }
+
+        /* ══ 页脚 ══ */
+        footer {
+            padding:18px; text-align:center; background:rgba(0,0,0,0.3);
+            border-top:1px solid var(--border); color:var(--text-dim); font-size:13px; margin-top:24px;
+        }
+        footer a { color:var(--primary); text-decoration:none; }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="index.html" class="logo">
+        <span class="logo-text">CampusQuant</span>
+        <span class="logo-sub">校园财商</span>
+    </a>
+    <nav>
+        <a href="index.html">首页</a>
+        <a href="trade.html">模拟演练</a>
+        <a href="platforms.html">持仓体检</a>
+        <a href="market.html" class="active">市场快讯</a>
+        <a href="community.html">投教社区</a>
+        <a href="team.html">关于我们</a>
+    </nav>
+</header>
+
+<main>
+    <div class="page-header">
+        <div>
+            <h1>市场快讯</h1>
+            <p>A股 · 港股 · 美股 行情与资讯汇总</p>
+        </div>
+        <div class="update-time" id="update-time">数据仅供学习参考，非实时行情</div>
+    </div>
+
+    <!-- 主要指数 -->
+    <div class="indices-grid">
+        <div class="index-card">
+            <div class="index-name">上证指数</div>
+            <div class="index-value">3,312.56</div>
+            <div class="index-change up">+0.82%</div>
+        </div>
+        <div class="index-card">
+            <div class="index-name">深证成指</div>
+            <div class="index-value">10,628.34</div>
+            <div class="index-change up">+1.15%</div>
+        </div>
+        <div class="index-card">
+            <div class="index-name">创业板指</div>
+            <div class="index-value">2,184.72</div>
+            <div class="index-change up">+1.43%</div>
+        </div>
+        <div class="index-card">
+            <div class="index-name">恒生指数</div>
+            <div class="index-value">19,847.21</div>
+            <div class="index-change down">-0.36%</div>
+        </div>
+        <div class="index-card">
+            <div class="index-name">纳斯达克</div>
+            <div class="index-value">17,423.80</div>
+            <div class="index-change down">-0.52%</div>
+        </div>
+        <div class="index-card">
+            <div class="index-name">标普 500</div>
+            <div class="index-value">5,611.85</div>
+            <div class="index-change flat">+0.07%</div>
+        </div>
+    </div>
+
+    <!-- 主内容 -->
+    <div class="content-grid">
+        <!-- 行情表 -->
+        <div class="market-table-section">
+            <div class="section-header">
+                <div class="section-title">热门标的</div>
+                <div class="market-tabs">
+                    <button class="tab-btn active" onclick="switchTab(this,'a')">A 股</button>
+                    <button class="tab-btn" onclick="switchTab(this,'hk')">港 股</button>
+                    <button class="tab-btn" onclick="switchTab(this,'us')">美 股</button>
+                </div>
+            </div>
+            <div id="table-wrap">
+                <!-- 由 JS 渲染 -->
+            </div>
+        </div>
+
+        <!-- 快讯面板 -->
+        <div class="news-panel">
+            <div class="section-header">
+                <div class="section-title">市场资讯</div>
+            </div>
+            <div class="news-list">
+                <div class="news-item">
+                    <div class="news-time">2026-03-03 10:42</div>
+                    <div class="news-title">央行发布2026年一季度货币政策报告，维持稳健中性立场</div>
+                    <span class="news-tag tag-macro">宏观</span>
+                </div>
+                <div class="news-item">
+                    <div class="news-time">2026-03-03 09:58</div>
+                    <div class="news-title">贵州茅台公布2025年年报，净利润同比增长18.3%</div>
+                    <span class="news-tag tag-a">A股</span>
+                </div>
+                <div class="news-item">
+                    <div class="news-time">2026-03-02 22:15</div>
+                    <div class="news-title">苹果公司宣布新一代 iPhone 发布计划，预期带动消费电子产业链</div>
+                    <span class="news-tag tag-us">美股</span>
+                </div>
+                <div class="news-item">
+                    <div class="news-time">2026-03-02 17:30</div>
+                    <div class="news-title">腾讯控股发布2025年Q4财报，游戏业务收入同比回升12%</div>
+                    <span class="news-tag tag-hk">港股</span>
+                </div>
+                <div class="news-item">
+                    <div class="news-time">2026-03-02 10:20</div>
+                    <div class="news-title">科创板注册制进一步完善，上市门槛及信披要求优化</div>
+                    <span class="news-tag tag-a">A股</span>
+                </div>
+                <div class="news-item">
+                    <div class="news-time">2026-03-01 21:00</div>
+                    <div class="news-title">美联储议息会议纪要显示通胀改善，降息预期升温</div>
+                    <span class="news-tag tag-macro">宏观</span>
+                </div>
+                <div class="news-item">
+                    <div class="news-time">2026-03-01 15:40</div>
+                    <div class="news-title">沪深北交易所发布2025年度市场运行报告</div>
+                    <span class="news-tag tag-a">A股</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 市场情绪栏 -->
+    <div class="sentiment-bar">
+        <div class="sentiment-item">
+            <div class="sentiment-label">A股涨停家数</div>
+            <div class="sentiment-value up">86</div>
+        </div>
+        <div class="sentiment-item">
+            <div class="sentiment-label">A股跌停家数</div>
+            <div class="sentiment-value down">12</div>
+        </div>
+        <div class="sentiment-item">
+            <div class="sentiment-label">沪深两市成交额</div>
+            <div class="sentiment-value" style="color:var(--accent)">1.12万亿</div>
+        </div>
+        <div class="sentiment-item">
+            <div class="sentiment-label">北向资金净流入</div>
+            <div class="sentiment-value up">+38.4亿</div>
+        </div>
+    </div>
+
+    <div class="disclaimer">
+        ⚠ 以上数据为学习用示例数据，不代表真实实时行情。
+        投资有风险，决策需谨慎。本平台不提供任何证券投资建议，不承担任何投资损失责任。
+    </div>
+</main>
+
+<footer>
+    &copy; 2026 CampusQuant 校园财商 &nbsp;|&nbsp;
+    数据仅供学习参考，不构成投资建议 &nbsp;|&nbsp;
+    <a href="team.html">关于我们</a>
+</footer>
+
+<script>
+    const TABLES = {
+        a: [
+            ['600519.SH','贵州茅台','1,842.00','+18.50','+1.02%','up','机构重仓'],
+            ['000858.SZ','五粮液','145.20','+2.30','+1.61%','up','白酒龙头'],
+            ['601318.SH','中国平安','53.80','-0.40','-0.74%','down','保险蓝筹'],
+            ['002594.SZ','比亚迪','268.50','+4.10','+1.55%','up','新能源'],
+            ['300750.SZ','宁德时代','196.30','+3.60','+1.87%','up','电池龙头'],
+            ['600036.SH','招商银行','42.15','-0.25','-0.59%','down','银行蓝筹'],
+            ['601899.SH','紫金矿业','15.62','+0.38','+2.49%','up','资源'],
+            ['000001.SZ','平安银行','11.80','+0.10','+0.86%','up','银行'],
+        ],
+        hk: [
+            ['00700.HK','腾讯控股','375.20','-1.40','-0.37%','down','科技巨头'],
+            ['09988.HK','阿里巴巴','85.40','+1.20','+1.43%','up','电商平台'],
+            ['03690.HK','美团-W','132.80','+2.60','+2.00%','up','本地生活'],
+            ['02318.HK','中国平安','45.30','-0.30','-0.66%','down','金融'],
+            ['01398.HK','工商银行','5.42','+0.04','+0.74%','up','国有银行'],
+            ['09999.HK','网易','150.60','+2.80','+1.89%','up','游戏'],
+        ],
+        us: [
+            ['AAPL','苹果','$228.50','+$2.10','+0.93%','up','消费电子'],
+            ['MSFT','微软','$412.80','-$1.20','-0.29%','down','云计算'],
+            ['NVDA','英伟达','$875.30','+$18.40','+2.15%','up','AI芯片'],
+            ['GOOGL','Alphabet','$182.40','+$0.80','+0.44%','up','搜索/AI'],
+            ['AMZN','亚马逊','$210.60','+$3.20','+1.54%','up','电商/云'],
+            ['TSLA','特斯拉','$248.90','-$5.40','-2.12%','down','新能源车'],
+            ['META','Meta','$628.70','+$8.30','+1.34%','up','社交媒体'],
+        ],
+    };
+
+    let currentTab = 'a';
+
+    function switchTab(btn, tab) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentTab = tab;
+        renderTable(tab);
+    }
+
+    function renderTable(tab) {
+        const rows = TABLES[tab] || [];
+        const html = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>代码</th><th>名称</th><th>最新价</th>
+                        <th>涨跌额</th><th>涨跌幅</th><th>标签</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.map(([sym,name,price,chg,pct,dir,tag]) => `
+                        <tr>
+                            <td class="td-sym">${sym}</td>
+                            <td class="td-name">${name}</td>
+                            <td class="td-price">${price}</td>
+                            <td class="td-chg ${dir}">${chg}</td>
+                            <td class="td-chg ${dir}">${pct}</td>
+                            <td><span style="font-size:12px;color:var(--text-sub)">${tag}</span></td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>`;
+        document.getElementById('table-wrap').innerHTML = html;
+    }
+
+    // 初始化
+    renderTable('a');
+    document.getElementById('update-time').textContent =
+        '示例数据 · 仅供学习参考 · 更新于 ' + new Date().toLocaleString('zh-CN', {hour12:false});
+</script>
+
+</body>
+</html>

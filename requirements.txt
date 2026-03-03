@@ -10,7 +10,7 @@ numpy
 # ── Market Data Sources ──────────────────────────────────────
 akshare           # A股、港股数据
 yfinance          # 美股数据
-ccxt              # 加密货币数据 (Binance)
+# ccxt 已移除（加密货币不在支持范围内）
 
 # ── Technical Analysis ───────────────────────────────────────
 pandas-ta         # 技术指标库

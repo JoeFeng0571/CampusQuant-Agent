@@ -3,7 +3,12 @@
 *.key
 *.pem
 config_private.py
-
+.venv/
+venv/
+env/
+# ==================== 模拟盘本地数据库 ====================
+*.db
+*.sqlite3
 # ==================== Python ====================
 __pycache__/
 *.py[cod]

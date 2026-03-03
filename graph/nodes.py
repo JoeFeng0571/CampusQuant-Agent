@@ -13,12 +13,35 @@ graph/nodes.py — LangGraph 节点函数集合
                │   └─ portfolio_node  ← 辩论后重新决策
                └─ [无冲突] risk_node  ← 风控审核 (有条件循环)
                    ├─ [拒绝] portfolio_node ← 修订决策
-                   └─ [通过] trade_executor ← 生成交易指令
+                   └─ [通过] trade_executor ← 生成模拟交易指令
                        └─ END
+
+  持仓体检独立分支（可从 START 单独触发）:
+  START → health_node → END
+
+架构改进（来自 TradingAgents-CN-main 精华提取）:
+  A. 工具调用防死循环（Anti-Loop）
+     借鉴: agents/utils/agent_states.py 的 market_tool_call_count 模式
+     实现: _check_tool_limit() 在每次工具调用前检查 tool_call_counts[node]，
+           超过 MAX_TOOL_CALLS 后抛出 ToolLimitExceeded，触发降级路径。
+  B. Prompt 字典外化管理
+     借鉴: TradingAgents-CN 将各 analyst 的 system_prompt 集中管理
+     实现: 模块级 _PROMPTS 字典统一存放所有 System Prompt，
+           节点函数从 dict 中按 market_type 取值，避免代码中散布长字符串。
+  C. 持仓体检节点（health_node）
+     新增: 基于 PortfolioPosition 列表输入，输出 PortfolioHealthReport
+     特点: 支持大学生场景的严格风控上限（单仓 ≤ 15%），不依赖任何真实交易所 API
+  D. 错误分类
+     所有节点 except 块中写入 error_type 字段，便于前端 SSE 精准提示
 
 所有节点均为 async 函数，接收 TradingGraphState，返回 dict (部分状态更新)。
 LLM 输出全部通过 with_structured_output(PydanticModel) 产生，
 彻底消除正则/JSON 手动解析。
+
+严格红线:
+  - 绝不引入 Binance / CCXT / IBKR 等真实交易所 API
+  - 绝不处理加密货币业务逻辑（CRYPTO 已从系统移除）
+  - TradeOrder.simulated 始终为 True，执行指向本地模拟撮合引擎
 """
 from __future__ import annotations
 
@@ -34,8 +57,11 @@ from config import config
 from graph.state import (
     MAX_DEBATE_ROUNDS,
     MAX_RISK_RETRIES,
+    MAX_TOOL_CALLS,
     AnalystReport,
     DebateOutcome,
+    PortfolioHealthReport,
+    PortfolioPosition,
     RiskDecision,
     TradeOrder,
     TradingGraphState,
@@ -52,6 +78,9 @@ def _build_llm(temperature: float = 0.3):
     """
     根据 config.PRIMARY_LLM_PROVIDER 构建 LangChain ChatModel。
     默认使用阿里云百炼（DashScope/Qwen），备选 OpenAI / Anthropic。
+
+    架构说明: 与 TradingAgents-CN create_llm_by_provider() 对齐，
+    保持"单一工厂函数、环境变量驱动"的模式，方便切换 LLM 供应商。
     """
     provider = config.PRIMARY_LLM_PROVIDER.lower()
 
@@ -91,6 +120,137 @@ def _log_entry(node: str, msg: str) -> str:
 
 
 # ════════════════════════════════════════════════════════════════
+# Anti-Loop 工具调用计数器（借鉴 TradingAgents-CN-main）
+# ════════════════════════════════════════════════════════════════
+
+class _ToolLimitExceeded(Exception):
+    """工具调用次数超过上限，触发降级路径"""
+    pass
+
+
+def _check_tool_limit(state: TradingGraphState, node_name: str) -> int:
+    """
+    检查并返回当前节点的工具调用次数。
+    超过 MAX_TOOL_CALLS 时抛出 _ToolLimitExceeded。
+
+    借鉴来源: TradingAgents-CN agents/utils/agent_states.py
+      market_tool_call_count、news_tool_call_count 等字段 +
+      market_analyst.py 中的 max 3 tool calls 防死循环逻辑。
+
+    用法（在节点内调用工具前）:
+        count = _check_tool_limit(state, "data_node")
+    """
+    counts = state.get("tool_call_counts") or {}
+    count  = counts.get(node_name, 0)
+    if count >= MAX_TOOL_CALLS:
+        raise _ToolLimitExceeded(
+            f"[{node_name}] 工具调用次数已达上限 {MAX_TOOL_CALLS}，强制降级"
+        )
+    return count
+
+
+def _increment_tool_count(state_counts: dict, node_name: str) -> dict:
+    """返回更新后的 tool_call_counts 字典（不直接修改 state）"""
+    new_counts = dict(state_counts or {})
+    new_counts[node_name] = new_counts.get(node_name, 0) + 1
+    return new_counts
+
+
+# ════════════════════════════════════════════════════════════════
+# Prompt 字典外化管理（借鉴 TradingAgents-CN 集中管理模式）
+# ════════════════════════════════════════════════════════════════
+
+# 【CampusQuant 不可豁免规则】写在基础 Prompt 后，所有分析师节点共用
+_CAMPUS_RULES = """
+【CampusQuant 大学生用户特别规则 — 全部不可豁免】
+- 本金安全第一：优先推荐主板大盘蓝筹或宽基ETF，规避中小盘投机标的
+- 不建议高频盯盘：投资周期建议3个月以上，拒绝追涨杀跌
+- 置信度低于60%时直接建议 HOLD，宁可错过机会也不在不确定时下注
+- 严禁推荐杠杆交易、融资融券（Margin Trading）、期权投机
+- 定投宽基ETF（如沪深300ETF）是大学生首选入门工具，可作备选推荐
+"""
+
+_PROMPTS: Dict[str, Dict[str, str]] = {
+
+    # ── 基本面分析师 System Prompt（按市场类型区分）────────
+    "fundamental": {
+        "A_STOCK": (
+            "你是专注A股市场的景气度与政策驱动分析专家。\n"
+            "核心框架：行业景气度（30%）+ EPS增速/PEG（30%）+ 政策催化剂（25%）+ 资金热度（15%）\n"
+            "原则：不以低静态PE/PB作为主要买入理由；重视【业绩高增+政策利好+资金介入】三重共振。"
+            + _CAMPUS_RULES
+        ),
+        "HK_STOCK": (
+            "你是专注港股市场的价值投资分析专家，融合香港市场特色与全球视野。\n"
+            "核心框架：合理估值PE/PB（35%）+ 自由现金流FCF（25%）+ 分红/回购（20%）+ 宏观因素（20%）\n"
+            "原则：港股需更高安全边际；关注A/H溢价与南向资金；美联储降息是重要催化剂。"
+            + _CAMPUS_RULES
+        ),
+        "US_STOCK": (
+            "你是专注美股市场的成长价值双轨分析专家。\n"
+            "核心框架：EPS增速/PEG（30%）+ 自由现金流（25%）+ AI/科技主题（25%）+ 宏观Beta（20%）\n"
+            "原则：关注美联储降息周期对成长股估值扩张；AI算力主题享有估值溢价。"
+            + _CAMPUS_RULES
+        ),
+    },
+
+    # ── 技术分析师 System Prompt ─────────────────────────────
+    "technical": {
+        "DEFAULT": (
+            "你是拥有20年经验的量化技术分析专家，擅长多周期信号融合与量价关系分析。\n"
+            "核心框架: 趋势（MA系统 30%）+ 动量（MACD 30%）+ 超买超卖（RSI/BOLL 25%）+ 量价（量比 15%）\n"
+            "分析原则:\n"
+            "- 多重信号共振时才发出强信号；单一信号不足以支撑高置信度结论\n"
+            "- 量价背离（放量阴线、缩量阳线）是重要预警信号\n"
+            "- 技术面形态服从于大趋势方向（顺势交易）"
+        ),
+    },
+
+    # ── 舆情分析师 System Prompt ─────────────────────────────
+    "sentiment": {
+        "DEFAULT": (
+            "你是专业的金融市场舆情与资金面分析师，擅长从量价数据与宏观环境中读取市场情绪。\n"
+            "分析维度:\n"
+            "1. 资金热度（量比/换手率）: 判断主力资金行为\n"
+            "2. 市场情绪（宏观政策面）: 当前市场整体风险偏好\n"
+            "3. 板块轮动: 资金是否正在轮入/轮出本标的所在板块\n"
+            "4. 极端情绪信号: 是否存在恐慌性卖出或疯狂追涨\n"
+            "分析原则:\n"
+            "- 结合量能与价格形态识别'主力资金意图'\n"
+            "- 极端情绪（RSI>80 或 RSI<20）往往是反转信号\n"
+            "- 宏观政策利好是A股情绪的最强催化剂"
+        ),
+    },
+
+    # ── 持仓体检 System Prompt ──────────────────────────────
+    "health": {
+        "DEFAULT": (
+            "你是专为大学生服务的持仓健康度分析专家，擅长识别集中度风险、回撤风险与流动性风险。\n"
+            "评估框架:\n"
+            "1. 集中度风险: 单标的占比 > 15%（A股）或 > 10%（港/美股）即为超权重\n"
+            "2. 回撤风险: 各持仓浮亏情况 + ATR波动率评估最大可能亏损\n"
+            "3. 流动性: 中小盘流动性差，大学生优先选择流动性强的主板蓝筹\n"
+            "4. 市场分散: 单一市场集中度 > 70% 需提示分散风险\n"
+            "大学生专属评分规则:\n"
+            "- 全部持仓均为大盘蓝筹/宽基ETF + 合理分散 → 满分 100 分\n"
+            "- 含超权重标的每项扣 15 分\n"
+            "- 含高波动标的（ATR%>5%）每项扣 10 分\n"
+            "- 含中小盘投机股每项扣 20 分\n"
+            "- 严禁杠杆、加密，发现直接输出健康分 0 分"
+        ),
+    },
+
+    # ── 风控官 System Prompt（在 risk_node 中直接构建，此处存基础前缀）──
+    "risk": {
+        "BASE": (
+            "你是严格的风险控制官，专为在校大学生用户把关交易风险。\n"
+            "你有一票否决权，若方案对大学生风险不可接受，直接拒绝并给出教育性说明。"
+        ),
+    },
+}
+
+
+# ════════════════════════════════════════════════════════════════
 # NODE 1 — data_node
 # ════════════════════════════════════════════════════════════════
 
@@ -100,13 +260,25 @@ async def data_node(state: TradingGraphState) -> dict:
       - 调用 get_market_data @tool 获取 OHLCV 行情
       - 调用 calculate_technical_indicators @tool 预计算所有技术指标
       - 将结果写入 state.market_data，供后续并行节点使用
+
+    Anti-Loop: 使用 _check_tool_limit() 防止工具调用死循环
     """
     symbol = state["symbol"]
     logger.info(f"[data_node] 开始获取市场数据: {symbol}")
 
+    # 工具调用计数器初始化（首次进入此节点）
+    counts = state.get("tool_call_counts") or {}
+
     try:
-        # 调用工具（在节点内直接 invoke，不通过 ToolNode，简化异步链路）
+        # ── Anti-Loop 检查（借鉴 TradingAgents-CN market_analyst.py max 3 calls）
+        _check_tool_limit(state, "data_node")
+        counts = _increment_tool_count(counts, "data_node")
+
         raw_json  = get_market_data.invoke({"symbol": symbol, "days": 180})
+
+        _check_tool_limit({**state, "tool_call_counts": counts}, "data_node")
+        counts = _increment_tool_count(counts, "data_node")
+
         tech_json = calculate_technical_indicators.invoke({"market_data_json": raw_json})
 
         raw_data  = json.loads(raw_json)
@@ -122,10 +294,11 @@ async def data_node(state: TradingGraphState) -> dict:
         )
 
         return {
-            "market_data":   market_data,
-            "market_type":   raw_data.get("market_type", "UNKNOWN"),
-            "current_node":  "data_node",
-            "execution_log": [log_msg],
+            "market_data":      market_data,
+            "market_type":      raw_data.get("market_type", "UNKNOWN"),
+            "tool_call_counts": counts,
+            "current_node":     "data_node",
+            "execution_log":    [log_msg],
             "messages": [AIMessage(
                 content=f"市场数据已获取: {symbol} | 价格 {raw_data.get('latest_price')} | "
                         f"信号 {tech_data.get('indicators', {}).get('tech_signal')}",
@@ -133,14 +306,29 @@ async def data_node(state: TradingGraphState) -> dict:
             )],
         }
 
+    except _ToolLimitExceeded as e:
+        logger.warning(f"[data_node] {e}")
+        return {
+            "market_data":      {"status": "tool_limit", "error": str(e)},
+            "tool_call_counts": counts,
+            "current_node":     "data_node",
+            "execution_log":    [_log_entry("data_node", f"⚠️ 工具调用上限: {e}")],
+            "status":           "error",
+            "error_type":       "tool_limit",
+            "error_message":    str(e),
+            "messages": [AIMessage(content=f"工具调用上限: {e}", name="data_node")],
+        }
+
     except Exception as e:
         logger.error(f"[data_node] 失败: {e}")
         return {
-            "market_data":   {"status": "error", "error": str(e)},
-            "current_node":  "data_node",
-            "execution_log": [_log_entry("data_node", f"❌ 数据获取失败: {e}")],
-            "status":        "error",
-            "error_message": str(e),
+            "market_data":      {"status": "error", "error": str(e)},
+            "tool_call_counts": counts,
+            "current_node":     "data_node",
+            "execution_log":    [_log_entry("data_node", f"❌ 数据获取失败: {e}")],
+            "status":           "error",
+            "error_type":       "data_error",
+            "error_message":    str(e),
             "messages": [AIMessage(content=f"数据获取失败: {e}", name="data_node")],
         }
 
@@ -153,78 +341,53 @@ async def rag_node(state: TradingGraphState) -> dict:
     """
     RAG 知识检索节点:
       - 根据 symbol + market_type 构建检索 query
-      - 调用 FAISS search_knowledge_base @tool
+      - 调用 search_knowledge_base @tool
       - 将检索结果写入 state.rag_context，作为分析师的 RAG 上下文
     """
     symbol      = state["symbol"]
     market_type = state.get("market_type", "ALL")
     market_data = state.get("market_data", {})
-
     indicators  = market_data.get("indicators", {})
     tech_signal = indicators.get("tech_signal", "HOLD")
 
-    # 构建语义查询（结合当前技术信号）
     query = (
         f"{symbol} {market_type} 市场政策 行业景气度 宏观经济"
         f" 技术信号{tech_signal} 投资分析"
     )
 
     logger.info(f"[rag_node] 检索知识库: {query[:60]}...")
-    rag_text = search_knowledge_base.invoke({"query": query, "market_type": market_type})
 
-    return {
-        "rag_context":   rag_text,
-        "current_node":  "rag_node",
-        "execution_log": [_log_entry("rag_node", f"RAG 检索完成，返回 {len(rag_text)} 字符")],
-        "messages": [AIMessage(
-            content=f"RAG 知识检索完成: {len(rag_text)} 字符上下文已准备",
-            name="rag_node",
-        )],
-    }
+    try:
+        rag_text = search_knowledge_base.invoke({"query": query, "market_type": market_type})
+        return {
+            "rag_context":   rag_text,
+            "current_node":  "rag_node",
+            "execution_log": [_log_entry("rag_node", f"RAG 检索完成，返回 {len(rag_text)} 字符")],
+            "messages": [AIMessage(
+                content=f"RAG 知识检索完成: {len(rag_text)} 字符上下文已准备",
+                name="rag_node",
+            )],
+        }
+    except Exception as e:
+        logger.error(f"[rag_node] 失败: {e}")
+        return {
+            "rag_context":   "",
+            "current_node":  "rag_node",
+            "execution_log": [_log_entry("rag_node", f"⚠️ RAG 检索失败（降级为空）: {e}")],
+            "error_type":    "data_error",
+            "messages": [AIMessage(content=f"RAG 检索失败: {e}", name="rag_node")],
+        }
 
 
 # ════════════════════════════════════════════════════════════════
 # NODE 3 — fundamental_node（与其他分析师并行）
 # ════════════════════════════════════════════════════════════════
 
-_FUNDAMENTAL_PROMPTS = {
-    "A_STOCK": """你是专注A股市场的景气度与政策驱动分析专家。
-核心框架：行业景气度（30%）+ EPS增速/PEG（30%）+ 政策催化剂（25%）+ 资金热度（15%）
-原则：不以低静态PE/PB作为主要买入理由；重视"业绩高增+政策利好+资金介入"三重共振。
-
-【CampusQuant 大学生用户特别规则】
-- 本金安全第一：优先推荐主板大盘蓝筹或宽基ETF，规避中小盘投机标的
-- 不建议高频盯盘：投资周期以中长期（3个月以上）为宜，拒绝追涨杀跌
-- 置信度低于60%时直接建议 HOLD，宁可错过机会也不在不确定时下注
-- 定投宽基ETF（如沪深300ETF）是大学生首选入门工具，可作为备选推荐""",
-
-    "HK_STOCK": """你是专注港股市场的价值投资分析专家，融合香港市场特色与全球视野。
-核心框架：合理估值PE/PB（35%）+ 自由现金流FCF（25%）+ 分红/回购（20%）+ 宏观因素（20%）
-原则：港股需更高安全边际；关注A/H溢价与南向资金；美联储降息是重要催化剂。
-
-【CampusQuant 大学生用户特别规则】
-- 本金安全第一：港股流动性弱于A股，需更保守的安全边际（至少30%折价保护）
-- 不建议高频盯盘：港股受外资影响波动较大，建议长线持有优质标的
-- 置信度低于60%时直接建议 HOLD
-- 严禁使用杠杆或融资融券（Margin Trading）""",
-
-    "US_STOCK": """你是专注美股市场的成长价值双轨分析专家。
-核心框架：EPS增速/PEG（30%）+ 自由现金流（25%）+ AI/科技主题（25%）+ 宏观Beta（20%）
-原则：关注美联储降息周期对成长股估值扩张；AI算力主题享有估值溢价。
-
-【CampusQuant 大学生用户特别规则】
-- 本金安全第一：美股科技股波动大，仓位须更保守（单标的≤10%总资金）
-- 不建议高频盯盘：持仓周期建议3个月以上，关注季度财报而非日内波动
-- 置信度低于60%时直接建议 HOLD
-- 严禁任何形式的杠杆交易、期权投机（Options Trading）""",
-}
-
-
 async def fundamental_node(state: TradingGraphState) -> dict:
     """
     基本面分析师节点:
+      - Prompt 从 _PROMPTS["fundamental"] 字典按 market_type 取值（外化管理）
       - 调用 LLM + with_structured_output(AnalystReport)
-      - 基于市场类型差异化 System Prompt
       - 结合 RAG 上下文（state.rag_context）提升分析深度
     """
     symbol      = state["symbol"]
@@ -234,9 +397,10 @@ async def fundamental_node(state: TradingGraphState) -> dict:
 
     logger.info(f"[fundamental_node] 开始基本面分析: {symbol}")
 
-    system_prompt = _FUNDAMENTAL_PROMPTS.get(
+    # 从 Prompt 字典取 System Prompt（外化管理）
+    system_prompt = _PROMPTS["fundamental"].get(
         market_type,
-        _FUNDAMENTAL_PROMPTS["US_STOCK"]
+        _PROMPTS["fundamental"]["US_STOCK"]
     )
 
     user_prompt = f"""
@@ -286,8 +450,7 @@ async def fundamental_node(state: TradingGraphState) -> dict:
     except Exception as e:
         logger.error(f"[fundamental_node] 失败: {e}")
         fallback = {
-            "recommendation": "HOLD",
-            "confidence": 0.3,
+            "recommendation": "HOLD", "confidence": 0.3,
             "reasoning": f"基本面分析异常: {str(e)}",
             "key_factors": [], "risk_factors": [],
             "price_target": None, "signal_strength": "WEAK",
@@ -295,6 +458,7 @@ async def fundamental_node(state: TradingGraphState) -> dict:
         return {
             "fundamental_report": fallback,
             "execution_log":      [_log_entry("fundamental_node", f"⚠️ 降级处理: {e}")],
+            "error_type":         "llm_error",
             "messages": [AIMessage(content=f"基本面分析异常: {e}", name="fundamental_node")],
         }
 
@@ -307,6 +471,7 @@ async def technical_node(state: TradingGraphState) -> dict:
     """
     技术分析师节点:
       - 基于预计算的技术指标（MACD/RSI/BOLL/MA 等）进行信号解读
+      - Prompt 从 _PROMPTS["technical"] 字典取值（外化管理）
       - 使用 with_structured_output(AnalystReport) 输出结构化报告
     """
     symbol      = state["symbol"]
@@ -316,12 +481,7 @@ async def technical_node(state: TradingGraphState) -> dict:
 
     logger.info(f"[technical_node] 开始技术分析: {symbol}")
 
-    system_prompt = """你是拥有20年经验的量化技术分析专家，擅长多周期信号融合与量价关系分析。
-核心框架: 趋势（MA系统 30%）+ 动量（MACD 30%）+ 超买超卖（RSI/BOLL 25%）+ 量价（量比 15%）
-分析原则:
-- 多重信号共振时才发出强信号；单一信号不足以支撑高置信度结论
-- 量价背离（放量阴线、缩量阳线）是重要预警信号
-- 技术面形态服从于大趋势方向（顺势交易）"""
+    system_prompt = _PROMPTS["technical"]["DEFAULT"]
 
     # 格式化技术指标为可读形式
     ind_summary = "\n".join([
@@ -332,7 +492,7 @@ async def technical_node(state: TradingGraphState) -> dict:
         f"  BOLL %B: {indicators.get('BOLL_pct_B','N/A')} | 近上轨={indicators.get('near_boll_upper','N/A')} | 近下轨={indicators.get('near_boll_lower','N/A')}",
         f"  量比: {indicators.get('volume_ratio','N/A')} | 高量能={indicators.get('high_volume','N/A')}",
         f"  ATR%: {indicators.get('ATR_pct','N/A')}%",
-        f"  系统信号: {indicators.get('tech_signal','N/A')} (多头信号数={indicators.get('bull_signal_count',0)}, 空头信号数={indicators.get('bear_signal_count',0)})",
+        f"  系统信号: {indicators.get('tech_signal','N/A')} (多={indicators.get('bull_signal_count',0)}, 空={indicators.get('bear_signal_count',0)})",
     ])
 
     user_prompt = f"""
@@ -377,7 +537,6 @@ async def technical_node(state: TradingGraphState) -> dict:
 
     except Exception as e:
         logger.error(f"[technical_node] 失败: {e}")
-        # 降级：直接使用技术指标系统信号
         sig = indicators.get("tech_signal", "HOLD")
         rec = "BUY" if "BUY" in sig else ("SELL" if "SELL" in sig else "HOLD")
         fallback = {
@@ -389,6 +548,7 @@ async def technical_node(state: TradingGraphState) -> dict:
         return {
             "technical_report": fallback,
             "execution_log":    [_log_entry("technical_node", f"⚠️ 降级处理: {e}")],
+            "error_type":       "llm_error",
             "messages": [AIMessage(content=f"技术分析异常: {e}", name="technical_node")],
         }
 
@@ -401,7 +561,7 @@ async def sentiment_node(state: TradingGraphState) -> dict:
     """
     舆情分析师节点:
       - 基于市场数据量价特征与 RAG 宏观知识推断市场情绪
-      - 分析板块轮动、资金流向、宏观情绪三维度
+      - Prompt 从 _PROMPTS["sentiment"] 字典取值（外化管理）
     """
     symbol      = state["symbol"]
     market_type = state.get("market_type", "US_STOCK")
@@ -411,16 +571,7 @@ async def sentiment_node(state: TradingGraphState) -> dict:
 
     logger.info(f"[sentiment_node] 开始舆情分析: {symbol}")
 
-    system_prompt = """你是专业的金融市场舆情与资金面分析师，擅长从量价数据与宏观环境中读取市场情绪。
-分析维度:
-1. 资金热度（量比/换手率）: 判断主力资金行为
-2. 市场情绪（宏观政策面）: 当前市场整体风险偏好
-3. 板块轮动: 资金是否正在轮入/轮出本标的所在板块
-4. 极端情绪信号: 是否存在恐慌性卖出或疯狂追涨
-分析原则:
-- 结合量能与价格形态识别"主力资金意图"
-- 极端情绪（RSI>80 或 RSI<20）往往是反转信号
-- 宏观政策利好是A股情绪的最强催化剂"""
+    system_prompt = _PROMPTS["sentiment"]["DEFAULT"]
 
     user_prompt = f"""
 请对标的 **{symbol}** ({market_type}) 进行市场情绪与资金面研判。
@@ -435,8 +586,7 @@ async def sentiment_node(state: TradingGraphState) -> dict:
 【宏观情绪参考（RAG）】
 {rag_context[:800] if rag_context else '暂无宏观背景信息'}
 
-基于以上信息，判断当前市场情绪（资金热度、风险偏好、板块轮动方向），
-给出 BUY/SELL/HOLD 建议。
+基于以上信息，判断当前市场情绪，给出 BUY/SELL/HOLD 建议。
 """
 
     try:
@@ -477,6 +627,7 @@ async def sentiment_node(state: TradingGraphState) -> dict:
         return {
             "sentiment_report": fallback,
             "execution_log":    [_log_entry("sentiment_node", f"⚠️ 降级处理: {e}")],
+            "error_type":       "llm_error",
             "messages": [AIMessage(content=f"舆情分析异常: {e}", name="sentiment_node")],
         }
 
@@ -486,7 +637,6 @@ async def sentiment_node(state: TradingGraphState) -> dict:
 # ════════════════════════════════════════════════════════════════
 
 # 市场差异化权重配置（CampusQuant 版：加密货币已移除）
-# A股：政策/情绪驱动为主；港股/美股：基本面价值为主
 _MARKET_WEIGHTS = {
     "A_STOCK":  {"fundamental": 0.20, "technical": 0.35, "sentiment": 0.35, "risk": 0.10},
     "HK_STOCK": {"fundamental": 0.45, "technical": 0.20, "sentiment": 0.25, "risk": 0.10},
@@ -512,26 +662,22 @@ async def portfolio_node(state: TradingGraphState) -> dict:
     risk_rejection_count = state.get("risk_rejection_count", 0)
     rag_context          = state.get("rag_context", "")
 
-    logger.info(f"[portfolio_node] 开始综合决策: {symbol} | 风控拒绝次数={risk_rejection_count}")
+    logger.info(f"[portfolio_node] 综合决策: {symbol} | 风控拒绝次数={risk_rejection_count}")
 
-    # ── 冲突检测 ──────────────────────────────────────────────
-    # 仅在首次执行（无辩论结果、无风控拒绝）时检测冲突
     is_revision = risk_rejection_count > 0 and risk_decision is not None
     fund_rec    = fundamental.get("recommendation", "HOLD")
     tech_rec    = technical.get("recommendation", "HOLD")
 
     has_conflict = (
         not is_revision
-        and debate_outcome is None          # 辩论后不再检测
+        and debate_outcome is None
         and fund_rec in ("BUY", "SELL")
         and tech_rec in ("BUY", "SELL")
         and fund_rec != tech_rec
     )
 
-    # ── 权重配置 ──────────────────────────────────────────────
     weights = _MARKET_WEIGHTS.get(market_type, _MARKET_WEIGHTS["US_STOCK"])
 
-    # ── 构建 System Prompt ─────────────────────────────────────
     revision_instruction = ""
     if is_revision:
         rejection_reason = risk_decision.get("rejection_reason", "风险过高")
@@ -610,8 +756,6 @@ async def portfolio_node(state: TradingGraphState) -> dict:
         )
         logger.info(log_msg)
 
-        # 将 portfolio 决策暂存为 fundamental_report 的 override
-        # （debate_node 和 risk_node 会读取 fundamental_report 作为当前决策）
         portfolio_decision = decision.model_dump()
 
         return {
@@ -632,6 +776,7 @@ async def portfolio_node(state: TradingGraphState) -> dict:
         return {
             "has_conflict":  False,
             "execution_log": [_log_entry("portfolio_node", f"❌ 失败: {e}")],
+            "error_type":    "llm_error",
             "messages":      [AIMessage(content=f"基金经理异常: {e}", name="portfolio_node")],
         }
 
@@ -642,23 +787,23 @@ async def portfolio_node(state: TradingGraphState) -> dict:
 
 async def debate_node(state: TradingGraphState) -> dict:
     """
-    多空辩论节点（Debate Node）:
+    多空辩论节点:
       - 仅在 portfolio_node 检测到 has_conflict=True 时被路由触发
       - 模拟"多头方（基本面）vs 空头方（技术面）"的结构化辩论
-      - 由 LLM 担任裁判，输出辩论共识（DebateOutcome）
+      - DebateOutcome 新增 bull_history / bear_history（TradingAgents-CN InvestDebateState 模式）
       - debate_rounds 自增 1，防止无限循环
     """
-    symbol           = state["symbol"]
-    fundamental      = state.get("fundamental_report", {}) or {}
-    technical        = state.get("technical_report", {})   or {}
-    debate_rounds    = state.get("debate_rounds", 0)
+    symbol        = state["symbol"]
+    fundamental   = state.get("fundamental_report", {}) or {}
+    technical     = state.get("technical_report", {})   or {}
+    debate_rounds = state.get("debate_rounds", 0)
 
     logger.info(f"[debate_node] 启动辩论第 {debate_rounds + 1} 轮: {symbol}")
 
-    fund_rec    = fundamental.get("recommendation", "HOLD")
-    fund_logic  = fundamental.get("reasoning", "")[:300]
-    tech_rec    = technical.get("recommendation", "HOLD")
-    tech_logic  = technical.get("reasoning", "")[:300]
+    fund_rec   = fundamental.get("recommendation", "HOLD")
+    fund_logic = fundamental.get("reasoning", "")[:300]
+    tech_rec   = technical.get("recommendation", "HOLD")
+    tech_logic = technical.get("reasoning", "")[:300]
 
     system_prompt = """你是一位权威的投资决策委员会主席，负责主持并裁决多空方的投资辩论。
 你的职责:
@@ -668,22 +813,29 @@ async def debate_node(state: TradingGraphState) -> dict:
 4. 裁决后降低置信度以体现不确定性（通常降低0.1-0.2）
 裁决原则: 趋势性基本面 > 短期技术波动；但若技术信号极强（金叉+高量能），可优先技术面"""
 
+    # 构建辩论历史记录（TradingAgents-CN InvestDebateState bull_history/bear_history 模式）
+    bull_history = (
+        f"【第{debate_rounds + 1}轮多头发言】\n"
+        f"立场: {fund_rec} | 置信度: {fundamental.get('confidence', 0.5):.2f}\n"
+        f"论据: {fund_logic}\n"
+        f"关键因素: {', '.join(fundamental.get('key_factors', [])[:3])}"
+    )
+    bear_history = (
+        f"【第{debate_rounds + 1}轮空头发言】\n"
+        f"立场: {tech_rec} | 置信度: {technical.get('confidence', 0.5):.2f}\n"
+        f"论据: {tech_logic}\n"
+        f"关键因素: {', '.join(technical.get('key_factors', [])[:3])}"
+    )
+
     user_prompt = f"""
 【辩论议题】{symbol} 当前应该 BUY 还是 SELL？
 
-【多头方（基本面）论点】
-立场: {fund_rec}
-论据: {fund_logic}
-置信度: {fundamental.get('confidence', 0.5):.2f}
-关键支撑因素: {', '.join(fundamental.get('key_factors', [])[:3])}
+{bull_history}
 
-【空头方（技术面）论点】
-立场: {tech_rec}
-论据: {tech_logic}
-置信度: {technical.get('confidence', 0.5):.2f}
-关键支撑因素: {', '.join(technical.get('key_factors', [])[:3])}
+{bear_history}
 
 请主持本次辩论，总结双方核心论点，分析根本分歧，并给出裁决。
+请在 bull_history 和 bear_history 字段中记录本轮完整对话。
 """
 
     try:
@@ -695,8 +847,8 @@ async def debate_node(state: TradingGraphState) -> dict:
         ]
         outcome: DebateOutcome = await structured_llm.ainvoke(messages)
 
-        outcome_dict  = outcome.model_dump()
-        new_rounds    = debate_rounds + 1
+        outcome_dict = outcome.model_dump()
+        new_rounds   = debate_rounds + 1
         log_msg = _log_entry(
             "debate_node",
             f"辩论第{new_rounds}轮完成 | 裁决: {outcome.resolved_recommendation} "
@@ -708,7 +860,7 @@ async def debate_node(state: TradingGraphState) -> dict:
         return {
             "debate_outcome": outcome_dict,
             "debate_rounds":  new_rounds,
-            "has_conflict":   False,   # 辩论已消解冲突
+            "has_conflict":   False,
             "current_node":   "debate_node",
             "execution_log":  [log_msg],
             "messages": [AIMessage(
@@ -727,12 +879,15 @@ async def debate_node(state: TradingGraphState) -> dict:
                 "confidence_after_debate": 0.3,
                 "bull_core_argument": fund_logic[:100],
                 "bear_core_argument": tech_logic[:100],
+                "bull_history": bull_history,
+                "bear_history": bear_history,
                 "deciding_factor": "辩论异常，保守 HOLD",
                 "debate_summary": str(e),
             },
             "debate_rounds":  state.get("debate_rounds", 0) + 1,
             "has_conflict":   False,
             "execution_log":  [_log_entry("debate_node", f"⚠️ 降级处理: {e}")],
+            "error_type":     "llm_error",
             "messages":       [AIMessage(content=f"辩论异常: {e}", name="debate_node")],
         }
 
@@ -746,6 +901,7 @@ async def risk_node(state: TradingGraphState) -> dict:
     风控官审核节点:
       - 综合价格风险（ATR%）、仓位合规性、市场类型风控规则
       - 使用 with_structured_output(RiskDecision) 输出结构化风控决策
+      - Prompt 从 _PROMPTS["risk"] 取基础前缀，动态拼装市场规则
       - 若 REJECTED，risk_rejection_count += 1，触发 portfolio_node 修订
     """
     symbol               = state["symbol"]
@@ -756,7 +912,6 @@ async def risk_node(state: TradingGraphState) -> dict:
     portfolio_decision   = fundamental.get("_portfolio_decision", {})
     risk_rejection_count = state.get("risk_rejection_count", 0)
 
-    # 读取当前综合建议
     current_rec  = portfolio_decision.get("recommendation", "HOLD")
     current_conf = portfolio_decision.get("confidence", 0.5)
     atr_pct      = indicators.get("ATR_pct", 2.0)
@@ -764,7 +919,9 @@ async def risk_node(state: TradingGraphState) -> dict:
 
     logger.info(f"[risk_node] 风控审核: {symbol} | 建议={current_rec} | ATR%={atr_pct}")
 
-    system_prompt = f"""你是严格的风险控制官，专为在校大学生用户把关交易风险。
+    # 从 Prompt 字典取基础前缀，再动态拼装市场规则
+    base_prompt  = _PROMPTS["risk"]["BASE"]
+    system_prompt = f"""{base_prompt}
 
 【CampusQuant 大学生专属风控规则 — 全部不可豁免】
 1. 严禁任何形式的杠杆交易、融资融券（Margin Trading）、期权投机 — 发现立即拒绝
@@ -778,16 +935,10 @@ async def risk_node(state: TradingGraphState) -> dict:
 6. 止损：必须严格设置（A股≥5%，港股/美股≥7%），保护有限本金
 7. 大学生假设总本金 ≤ 5万元，单次最大亏损金额不超过 3000 元
 
-审核维度:
-1. 波动率合规: ATR% 是否超标
-2. 仓位合规: 是否超过市场上限
-3. 止损设置: 是否包含合理止损
-4. 置信度合规: 低置信度必须降仓或拒绝
-
-你有一票否决权，若方案对大学生风险不可接受，直接拒绝并给出教育性说明。"""
+审核维度: 波动率合规 | 仓位合规 | 止损设置 | 置信度合规"""
 
     user_prompt = f"""
-请审核以下交易方案的风险合规性。
+请审核以下交易方案的风险合规性（模拟交易，非真实交易所）。
 
 【标的基本信息】
 - 标的: {symbol} | 市场: {market_type}
@@ -815,7 +966,7 @@ async def risk_node(state: TradingGraphState) -> dict:
         ]
         decision: RiskDecision = await structured_llm.ainvoke(messages)
 
-        decision_dict = decision.model_dump()
+        decision_dict       = decision.model_dump()
         new_rejection_count = risk_rejection_count
         if decision.approval_status == "REJECTED":
             new_rejection_count += 1
@@ -855,19 +1006,21 @@ async def risk_node(state: TradingGraphState) -> dict:
             "risk_decision":        fallback_decision,
             "risk_rejection_count": risk_rejection_count,
             "execution_log":        [_log_entry("risk_node", f"⚠️ 降级处理: {e}")],
+            "error_type":           "llm_error",
             "messages":             [AIMessage(content=f"风控异常: {e}", name="risk_node")],
         }
 
 
 # ════════════════════════════════════════════════════════════════
-# NODE 9 — trade_executor（生成最终交易指令）
+# NODE 9 — trade_executor（生成最终模拟交易指令）
 # ════════════════════════════════════════════════════════════════
 
 async def trade_executor(state: TradingGraphState) -> dict:
     """
     交易指令生成节点:
       - 整合风控决策（仓位、止损、止盈）与基金经理决策
-      - 使用 with_structured_output(TradeOrder) 生成精确的结构化交易指令
+      - 使用 with_structured_output(TradeOrder) 生成精确结构化交易指令
+      - TradeOrder.simulated = True，指向本地模拟撮合引擎，不连接任何真实交易所
       - 填充 state.trade_order，标记 status = "completed"
     """
     symbol         = state["symbol"]
@@ -878,30 +1031,33 @@ async def trade_executor(state: TradingGraphState) -> dict:
     risk_decision  = state.get("risk_decision", {}) or {}
     debate_outcome = state.get("debate_outcome")
 
-    current_price    = market_data.get("latest_price", 0.0)
-    action           = portfolio_dec.get("recommendation", "HOLD")
-    confidence       = portfolio_dec.get("confidence", 0.5)
-    position_pct     = risk_decision.get("position_pct", 10.0)
-    stop_loss_pct    = risk_decision.get("stop_loss_pct", 7.0)
-    take_profit_pct  = risk_decision.get("take_profit_pct", 15.0)
+    current_price   = market_data.get("latest_price", 0.0)
+    action          = portfolio_dec.get("recommendation", "HOLD")
+    confidence      = portfolio_dec.get("confidence", 0.5)
+    position_pct    = risk_decision.get("position_pct", 10.0)
+    stop_loss_pct   = risk_decision.get("stop_loss_pct", 7.0)
+    take_profit_pct = risk_decision.get("take_profit_pct", 15.0)
 
-    logger.info(f"[trade_executor] 生成交易指令: {symbol} | {action} | 仓位={position_pct:.1f}%")
+    logger.info(f"[trade_executor] 生成模拟交易指令: {symbol} | {action} | 仓位={position_pct:.1f}%")
 
-    # 计算绝对价格
     if current_price and action == "BUY":
         stop_loss   = round(current_price * (1 - stop_loss_pct / 100), 4)
         take_profit = round(current_price * (1 + take_profit_pct / 100), 4)
-        limit_price = round(current_price * 1.002, 4)   # 略高于当前价的限价单
+        limit_price = round(current_price * 1.002, 4)
     elif current_price and action == "SELL":
-        stop_loss   = round(current_price * (1 + stop_loss_pct / 100), 4)   # 卖空止损
+        stop_loss   = round(current_price * (1 + stop_loss_pct / 100), 4)
         take_profit = round(current_price * (1 - take_profit_pct / 100), 4)
         limit_price = round(current_price * 0.998, 4)
     else:
         stop_loss = take_profit = limit_price = None
 
-    system_prompt = "你是执行层交易员，负责将研究决策转化为精确的交易指令。"
+    system_prompt = (
+        "你是执行层交易员，负责将研究决策转化为精确的模拟交易指令。\n"
+        "注意：所有指令仅用于本地模拟撮合引擎，不连接任何真实交易所（无 Binance/CCXT/IBKR）。"
+    )
+
     user_prompt = f"""
-请将以下投资决策转化为标准化交易指令。
+请将以下投资决策转化为标准化模拟交易指令。
 
 【决策信息】
 - 标的: {symbol} | 市场: {market_type}
@@ -914,8 +1070,10 @@ async def trade_executor(state: TradingGraphState) -> dict:
 - 基金经理推理: {portfolio_dec.get('reasoning', '')[:200]}
 {f"- 辩论共识: {debate_outcome.get('resolved_recommendation')} (决定因素: {debate_outcome.get('deciding_factor', '')[:100]})" if debate_outcome else ""}
 - 风控条件: {', '.join(risk_decision.get('conditions', [])[:3])}
+- 模拟交易: 是（指向本地撮合引擎）
 
-请生成完整的交易指令，rationale 需包含核心投资逻辑（不少于30字）。
+请生成完整的模拟交易指令，rationale 需包含核心投资逻辑（不少于30字）。
+simulated 字段必须为 true。
 """
 
     try:
@@ -928,11 +1086,13 @@ async def trade_executor(state: TradingGraphState) -> dict:
         order: TradeOrder = await structured_llm.ainvoke(messages)
 
         order_dict = order.model_dump()
+        order_dict["simulated"] = True   # 强制确保 simulated=True
+
         log_msg = _log_entry(
             "trade_executor",
-            f"🎯 交易指令生成: {order.action} {symbol} | 仓位 {order.quantity_pct:.1f}% "
+            f"🎯 模拟交易指令: {order.action} {symbol} | 仓位 {order.quantity_pct:.1f}% "
             f"| 止损 {order.stop_loss} | 止盈 {order.take_profit} "
-            f"| 置信度 {order.confidence:.2f}"
+            f"| 置信度 {order.confidence:.2f} | 模拟={order_dict['simulated']}"
         )
         logger.info(log_msg)
 
@@ -942,7 +1102,7 @@ async def trade_executor(state: TradingGraphState) -> dict:
             "status":        "completed",
             "execution_log": [log_msg],
             "messages": [AIMessage(
-                content=f"✅ 交易指令已生成: {order.action} {symbol} "
+                content=f"✅ 模拟交易指令已生成: {order.action} {symbol} "
                         f"仓位 {order.quantity_pct:.0f}% | "
                         f"止损 {order.stop_loss} | 止盈 {order.take_profit} | "
                         f"{order.rationale[:100]}",
@@ -959,14 +1119,130 @@ async def trade_executor(state: TradingGraphState) -> dict:
             "take_profit": take_profit,
             "rationale": f"系统异常，降级输出: {str(e)[:100]}",
             "confidence": confidence, "market_type": market_type,
-            "valid_until": None,
+            "valid_until": None, "simulated": True,
         }
         return {
             "trade_order":   fallback_order,
             "current_node":  "trade_executor",
             "status":        "completed",
             "execution_log": [_log_entry("trade_executor", f"⚠️ 降级处理: {e}")],
+            "error_type":    "llm_error",
             "messages": [AIMessage(content=f"交易指令生成异常（降级）: {e}", name="trade_executor")],
+        }
+
+
+# ════════════════════════════════════════════════════════════════
+# NODE 10 — health_node（持仓体检，独立分支）
+# ════════════════════════════════════════════════════════════════
+
+async def health_node(state: TradingGraphState) -> dict:
+    """
+    持仓体检节点（新增，完善"持仓体检"业务流）:
+      - 读取 state.portfolio_positions（PortfolioPosition 列表）
+      - 计算集中度风险、回撤风险、流动性评分
+      - 使用 with_structured_output(PortfolioHealthReport) 输出结构化诊断
+      - Prompt 从 _PROMPTS["health"] 字典取值（外化管理）
+      - 严格执行大学生风控规则：单仓 ≤ 15%，无杠杆，无加密
+
+    注意: health_node 是独立业务分支，不依赖 data_node / portfolio_node，
+    可由 builder.py 单独路由到 END。
+    """
+    positions_raw = state.get("portfolio_positions") or []
+    symbol        = state.get("symbol", "PORTFOLIO")  # 持仓体检时 symbol 为 "PORTFOLIO"
+
+    if not positions_raw:
+        logger.warning("[health_node] portfolio_positions 为空，无法执行体检")
+        empty_report = {
+            "health_score": 0.0, "concentration_risk": "EXTREME",
+            "max_drawdown_est": 100.0, "liquidity_score": 0.0,
+            "overweight_positions": [], "high_risk_positions": [],
+            "recommendations": ["请先输入持仓数据"],
+            "overall_diagnosis": "未提供持仓数据，无法执行体检。",
+        }
+        return {
+            "health_report": empty_report,
+            "current_node":  "health_node",
+            "status":        "completed",
+            "execution_log": [_log_entry("health_node", "⚠️ 持仓数据为空")],
+            "messages": [AIMessage(content="持仓数据为空，请先输入持仓", name="health_node")],
+        }
+
+    logger.info(f"[health_node] 开始持仓体检，持仓数: {len(positions_raw)}")
+
+    # 格式化持仓数据
+    positions_text = "\n".join([
+        f"  {i+1}. {p.get('symbol','?')} ({p.get('market_type','?')}) "
+        f"| 数量: {p.get('quantity','?')} | 成本: {p.get('avg_cost','?')} "
+        f"| 市价: {p.get('current_price','未获取')} "
+        f"| 权重: {p.get('weight_pct','?')}%"
+        for i, p in enumerate(positions_raw)
+    ])
+
+    system_prompt = _PROMPTS["health"]["DEFAULT"]
+
+    user_prompt = f"""
+请对以下持仓组合进行全面健康体检，输出 PortfolioHealthReport 格式报告。
+
+【持仓明细】
+{positions_text}
+
+【大学生风控规则】
+- 单标的权重上限: A股≤15%，港股/美股≤10%
+- 总本金假设: ≤5万元
+- 严禁杠杆与加密（发现则健康分=0）
+- 定投宽基ETF视为最健康的持仓选择
+
+请综合评估集中度风险、回撤风险、流动性，给出健康评分（0-100）和优化建议。
+"""
+
+    try:
+        llm = _build_llm(temperature=0.2)
+        structured_llm = llm.with_structured_output(PortfolioHealthReport)
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt),
+        ]
+        report: PortfolioHealthReport = await structured_llm.ainvoke(messages)
+
+        report_dict = report.model_dump()
+        log_msg = _log_entry(
+            "health_node",
+            f"持仓体检完成 | 健康分: {report.health_score:.1f}/100 "
+            f"| 集中度风险: {report.concentration_risk} "
+            f"| 最大回撤估算: {report.max_drawdown_est:.1f}%"
+        )
+        logger.info(log_msg)
+
+        return {
+            "health_report": report_dict,
+            "current_node":  "health_node",
+            "status":        "completed",
+            "execution_log": [log_msg],
+            "messages": [AIMessage(
+                content=f"🩺 持仓体检完成 | 健康分: {report.health_score:.0f}/100 "
+                        f"| 集中度: {report.concentration_risk} "
+                        f"| {report.overall_diagnosis[:80]}...",
+                name="health_node",
+            )],
+        }
+
+    except Exception as e:
+        logger.error(f"[health_node] 失败: {e}")
+        fallback = {
+            "health_score": 50.0, "concentration_risk": "MEDIUM",
+            "max_drawdown_est": 30.0, "liquidity_score": 5.0,
+            "overweight_positions": [], "high_risk_positions": [],
+            "recommendations": ["体检服务暂时异常，请稍后重试"],
+            "overall_diagnosis": f"持仓体检异常: {str(e)[:100]}",
+        }
+        return {
+            "health_report": fallback,
+            "current_node":  "health_node",
+            "status":        "error",
+            "execution_log": [_log_entry("health_node", f"⚠️ 降级处理: {e}")],
+            "error_type":    "llm_error",
+            "error_message": str(e),
+            "messages": [AIMessage(content=f"持仓体检异常: {e}", name="health_node")],
         }
 
 
@@ -976,7 +1252,7 @@ async def trade_executor(state: TradingGraphState) -> dict:
 
 def route_after_portfolio(state: TradingGraphState) -> str:
     """
-    portfolio_node → 下一节点路由逻辑:
+    portfolio_node → 下一节点路由:
       - has_conflict=True 且 debate_rounds < MAX_DEBATE_ROUNDS → debate_node
       - 否则 → risk_node
     """
@@ -992,8 +1268,8 @@ def route_after_portfolio(state: TradingGraphState) -> str:
 
 def route_after_risk(state: TradingGraphState) -> str:
     """
-    risk_node → 下一节点路由逻辑:
-      - REJECTED 且 risk_rejection_count < MAX_RISK_RETRIES → portfolio_node (修订)
+    risk_node → 下一节点路由:
+      - REJECTED 且 risk_rejection_count < MAX_RISK_RETRIES → portfolio_node
       - 否则（APPROVED / CONDITIONAL / 超出重试次数）→ trade_executor
     """
     risk    = state.get("risk_decision", {}) or {}
