@@ -473,22 +473,36 @@ with st.sidebar:
 """, unsafe_allow_html=True)
 
     # 渲染历史消息（最近 6 条，保持侧边栏简洁）
+    # 用自定义气泡代替 st.chat_message，sidebar 内更稳定
     recent_msgs = st.session_state.advisor_messages[-6:]
     for msg in recent_msgs:
-        with st.chat_message(msg["role"],
-                             avatar="🧑‍🎓" if msg["role"] == "user" else "🎓"):
-            st.write(msg["content"])
+        if msg["role"] == "user":
+            st.markdown(
+                f'<div class="chat-bubble-user">🧑‍🎓 {msg["content"]}</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                f'<div class="chat-bubble-assistant">🎓 {msg["content"]}</div>',
+                unsafe_allow_html=True,
+            )
 
-    # 聊天输入框（Streamlit >= 1.31 支持在 sidebar 内使用 chat_input）
-    advisor_input = st.chat_input(
-        "问问财财学长…（如：市盈率是啥？能满仓吗？）",
-        key="advisor_chat_input",
-    )
+    # 使用 st.form 替代 st.chat_input：
+    # st.chat_input 在 sidebar 内会渲染到主页面底部浮层而非侧边栏，
+    # 导致用户输入与消息显示分离（"自顾自说"现象）。
+    # st.form + clear_on_submit=True 在 sidebar 内可靠工作。
+    with st.form("advisor_form", clear_on_submit=True):
+        advisor_input = st.text_input(
+            "输入你的问题",
+            placeholder="如：市盈率是啥？能满仓吗？定投怎么选？",
+            label_visibility="collapsed",
+        )
+        submitted = st.form_submit_button("发送给财财学长 ↵", use_container_width=True)
 
-    if advisor_input:
+    if submitted and advisor_input.strip():
         # 1. 追加用户消息
         st.session_state.advisor_messages.append(
-            {"role": "user", "content": advisor_input}
+            {"role": "user", "content": advisor_input.strip()}
         )
 
         # 2. 调用 LLM（同步，不干扰 LangGraph 流程）
@@ -500,7 +514,7 @@ with st.sidebar:
             {"role": "assistant", "content": reply}
         )
 
-        # 4. Streamlit re-run 会自动刷新渲染
+        # 4. 触发重渲染以显示新消息
         st.rerun()
 
     # 清空对话按钮

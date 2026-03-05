@@ -2,8 +2,9 @@
 api/server.py — FastAPI SSE 流式分析后端
 
 端点列表:
-  POST /api/v1/analyze    → Server-Sent Events (SSE) 流式分析
-  GET  /api/v1/health     → 健康检查
+  POST /api/v1/analyze      → Server-Sent Events (SSE) 流式分析
+  POST /api/v1/health-check → 持仓体检（JSON 请求/响应）
+  GET  /api/v1/health       → 健康检查
   GET  /api/v1/graph/mermaid → 图拓扑 Mermaid 字符串
 
 SSE 事件格式:
@@ -103,7 +104,7 @@ async def startup_event():
 # ════════════════════════════════════════════════════════════════
 
 class AnalyzeRequest(BaseModel):
-    symbol: str = Field(..., description="交易标的代码 (如 AAPL / 600519.SH / BTC/USDT)")
+    symbol: str = Field(..., description="交易标的代码 (如 AAPL / 600519.SH)")
     days:   int = Field(default=180, ge=30, le=365, description="历史数据天数")
 
 
@@ -113,6 +114,18 @@ class HealthResponse(BaseModel):
     graph_ready: bool
     kb_ready:    bool
     timestamp:   str
+
+
+class PositionItem(BaseModel):
+    """持仓体检单条持仓（供 /api/v1/health-check 请求使用）"""
+    symbol:   str   = Field(..., description="标的代码，如 600519.SH / AAPL")
+    quantity: float = Field(..., ge=0, description="持仓数量（股/份）")
+    avg_cost: float = Field(..., ge=0, description="平均持仓成本价")
+
+
+class PortfolioCheckRequest(BaseModel):
+    """POST /api/v1/health-check 请求体"""
+    positions: list[PositionItem] = Field(..., min_length=1, description="持仓列表")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -481,6 +494,63 @@ async def get_graph_mermaid():
             pass  # 使用静态版本
 
     return {"mermaid": mermaid}
+
+
+# ════════════════════════════════════════════════════════════════
+# 持仓体检端点
+# ════════════════════════════════════════════════════════════════
+
+@app.post(
+    "/api/v1/health-check",
+    summary="持仓体检",
+    description=(
+        "接收持仓列表，启动 health_node 独立分支（START→health_node→END），\n"
+        "返回持仓健康评分、集中度/回撤/流动性指标与 AI 优化建议。"
+    ),
+)
+async def portfolio_health_check(request: PortfolioCheckRequest):
+    """POST /api/v1/health-check — 持仓健康诊断（JSON 请求/响应）"""
+    from graph.builder import build_health_graph, make_health_initial_state
+    from graph.state import PortfolioPosition
+    from utils.market_classifier import MarketClassifier
+
+    # 构建 PortfolioPosition 列表
+    positions = []
+    for item in request.positions:
+        market_type, _ = MarketClassifier.classify(item.symbol)
+        positions.append(
+            PortfolioPosition(
+                symbol=item.symbol,
+                market_type=market_type.value,
+                quantity=item.quantity,
+                avg_cost=item.avg_cost,
+            ).model_dump()
+        )
+
+    if not positions:
+        raise HTTPException(status_code=400, detail="持仓列表不能为空")
+
+    # 运行持仓体检图
+    try:
+        health_graph = build_health_graph()
+        initial_state = make_health_initial_state(positions)
+        result_state = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: health_graph.invoke(initial_state),
+        )
+    except Exception as e:
+        logger.error(f"[health-check] 体检图执行失败: {e}")
+        raise HTTPException(status_code=500, detail=f"持仓体检执行失败: {str(e)}")
+
+    health_report = result_state.get("health_report")
+    if not health_report:
+        raise HTTPException(status_code=500, detail="health_node 未返回体检报告，请检查 LLM 配置")
+
+    return {
+        "status": "ok",
+        "health_report": health_report,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 # ════════════════════════════════════════════════════════════════
