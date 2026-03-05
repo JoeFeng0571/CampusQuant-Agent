@@ -398,7 +398,10 @@ def _build_chroma_retriever(
 
     try:
         import chromadb
-        from langchain_community.vectorstores import Chroma
+        try:
+            from langchain_chroma import Chroma  # langchain >= 0.2.9 推荐路径
+        except ImportError:
+            from langchain_community.vectorstores import Chroma  # 旧版降级
 
         # 创建持久化客户端（数据存储于 data/chroma_db/）
         chroma_client = chromadb.PersistentClient(path=str(_CHROMA_DIR))
@@ -528,7 +531,10 @@ def _build_ensemble_retriever(
 
     if bm25_retriever and chroma_retriever:
         try:
-            from langchain.retrievers import EnsembleRetriever
+            try:
+                from langchain_classic.retrievers.ensemble import EnsembleRetriever  # LangChain >= 1.0
+            except ImportError:
+                from langchain.retrievers import EnsembleRetriever  # LangChain < 1.0 旧版
             ensemble = EnsembleRetriever(
                 retrievers=[bm25_retriever, chroma_retriever],
                 weights=[0.5, 0.5],   # BM25 关键词 50% + Chroma 语义 50%
