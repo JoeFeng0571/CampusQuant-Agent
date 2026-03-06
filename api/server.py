@@ -45,6 +45,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from pydantic import BaseModel, Field
+from utils.market_classifier import MarketClassifier
 
 # ════════════════════════════════════════════════════════════════
 # 应用初始化
@@ -434,13 +435,15 @@ async def _stream_graph_events(
 )
 async def analyze_symbol(request: AnalyzeRequest):
     """POST /api/v1/analyze — SSE 流式分析"""
-    symbol    = request.symbol.strip().upper()
+    raw_symbol = request.symbol.strip()
+    if not raw_symbol:
+        raise HTTPException(status_code=400, detail="symbol 不能为空")
+
+    # 模糊搜索拦截：中文/英文名称 → 标准交易代码
+    symbol    = MarketClassifier.fuzzy_match(raw_symbol)
     thread_id = str(uuid.uuid4())
 
-    logger.info(f"[API] 收到分析请求: {symbol} | thread_id={thread_id}")
-
-    if not symbol:
-        raise HTTPException(status_code=400, detail="symbol 不能为空")
+    logger.info(f"[API] 收到分析请求: 原始='{raw_symbol}' → 标准='{symbol}' | thread_id={thread_id}")
 
     return StreamingResponse(
         _stream_graph_events(symbol, thread_id),

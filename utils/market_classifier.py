@@ -14,6 +14,8 @@ utils/market_classifier.py — 市场分类工具 (CampusQuant 版)
 from enum import Enum
 from typing import Optional, Tuple
 import re
+import urllib.request
+import urllib.parse
 
 
 class MarketType(Enum):
@@ -203,19 +205,22 @@ class MarketClassifier:
         根据用户输入（中文名/英文名/代码）模糊匹配标准代码。
 
         匹配逻辑（按优先级）：
-          1. 直接精确匹配（不区分大小写）
-          2. 前缀匹配（用户输入是映射键的前缀）
-          3. 无匹配 → 返回原始输入（可能已是标准代码）
+          1. 直接精确匹配（不区分大小写）——命中 _FUZZY_NAME_MAP 快速缓存
+          2. 前缀匹配（用户输入是映射键的前缀，≥2字符）
+          3. HTTP 回退——调用新浪财经 Suggest API 全市场搜索（仅非标准代码触发）
+             URL: http://suggest3.sinajs.cn/suggest/type=&key={query}
+             超时 3 秒，任何异常静默降级
+          4. 无匹配 → 返回原始输入大写（可能已是标准代码如 AAPL/600519.SH）
 
         特殊情况：
           - "华为" 匹配后返回原始值并提示（华为未上市）
           - 若匹配结果为 "不上市"，返回原始查询
 
         Args:
-            query: 用户原始输入（如"英伟达"/"NVDA"/"苹果"）
+            query: 用户原始输入（如"英伟达"/"NVDA"/"苹果"/"光大银行"）
 
         Returns:
-            标准代码字符串（如 "NVDA"/"600519.SH"），或原始输入
+            标准代码字符串（如 "NVDA"/"600519.SH"/"601818.SH"），或原始输入大写
         """
         if not query:
             return query
@@ -233,7 +238,42 @@ class MarketClassifier:
                 if key.startswith(query_lower) and code != "不上市":
                     return code
 
-        # 3. 无匹配，直接返回原始输入（可能已是标准代码如 AAPL/600519.SH）
+        # 3. HTTP 回退：新浪财经 Suggest API
+        #    若输入已像标准代码（纯大写字母/数字/点），跳过网络请求
+        _STANDARD_CODE_RE = re.compile(r'^[A-Z0-9][A-Z0-9.\-]{1,11}$')
+        if not _STANDARD_CODE_RE.match(query.strip().upper()):
+            try:
+                url = (
+                    "http://suggest3.sinajs.cn/suggest/type=&key="
+                    + urllib.parse.quote(query.strip(), encoding="utf-8")
+                )
+                req = urllib.request.Request(
+                    url,
+                    headers={"User-Agent": "Mozilla/5.0 (compatible; CampusQuant/1.0)"},
+                )
+                with urllib.request.urlopen(req, timeout=3) as resp:
+                    raw = resp.read().decode("gbk", errors="replace")
+
+                # 响应格式: var suggestvalue="名称,类型,代码,简称,拼音,...|名称2,...";
+                m = re.search(r'"([^"]+)"', raw)
+                if m:
+                    first_entry = m.group(1).split("|")[0]
+                    fields = first_entry.split(",")
+                    if len(fields) >= 3:
+                        code = fields[2].strip()
+                        # 按代码格式推断交易所（比依赖 Sina 类型码更稳定）
+                        if re.match(r'^\d{6}$', code):
+                            if code.startswith(("60", "68", "90")):
+                                return f"{code}.SH"
+                            return f"{code}.SZ"
+                        if re.match(r'^\d{5}$', code):
+                            return f"{code}.HK"
+                        if re.match(r'^[A-Z]{1,5}$', code) or re.match(r'^[A-Z]{1,4}-[AB]$', code):
+                            return code
+            except Exception:
+                pass  # 网络超时或解析失败，静默降级到步骤 4
+
+        # 4. 无匹配，直接返回原始输入大写（可能已是标准代码如 AAPL/600519.SH）
         return query.strip().upper()
 
     @staticmethod

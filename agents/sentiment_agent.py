@@ -99,12 +99,7 @@ class SentimentAgent(BaseAgent):
         # 模拟新闻数据
         if market_type == MarketType.CRYPTO:
             mock_news = [
-                {
-                    "title": "比特币突破6万美元，机构投资者持续买入",
-                    "source": "CoinDesk",
-                    "timestamp": "2024-01-15 10:30:00",
-                    "sentiment": "positive",
-                },
+                
                 {
                     "title": "SEC 主席表示将加强对加密货币交易所的监管",
                     "source": "Bloomberg",
