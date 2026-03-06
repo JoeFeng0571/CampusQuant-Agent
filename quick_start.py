@@ -28,6 +28,7 @@ logger.add("logs/quick_start.log", rotation="10 MB", level="DEBUG")
 SEP = "=" * 60
 
 
+
 def _ok(msg: str):  print(f"  ✅ {msg}")
 def _fail(msg: str): print(f"  ❌ {msg}")
 def _info(msg: str): print(f"     {msg}")

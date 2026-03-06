@@ -66,7 +66,12 @@ from graph.state import (
     TradeOrder,
     TradingGraphState,
 )
-from tools.market_data import calculate_technical_indicators, get_market_data
+from tools.market_data import (
+    calculate_technical_indicators,
+    get_fundamental_data,
+    get_market_data,
+    get_stock_news,
+)
 from tools.knowledge_base import search_knowledge_base
 
 
@@ -294,11 +299,12 @@ async def data_node(state: TradingGraphState) -> dict:
         )
 
         return {
-            "market_data":      market_data,
-            "market_type":      raw_data.get("market_type", "UNKNOWN"),
-            "tool_call_counts": counts,
-            "current_node":     "data_node",
-            "execution_log":    [log_msg],
+            "market_data":        market_data,
+            "market_type":        raw_data.get("market_type", "UNKNOWN"),
+            "data_fetch_failed":  False,   # 【审计修复 P0-3】明确标记数据正常
+            "tool_call_counts":   {"data_node": counts.get("data_node", 0)},
+            "current_node":       "data_node",
+            "execution_log":      [log_msg],
             "messages": [AIMessage(
                 content=f"市场数据已获取: {symbol} | 价格 {raw_data.get('latest_price')} | "
                         f"信号 {tech_data.get('indicators', {}).get('tech_signal')}",
@@ -309,26 +315,28 @@ async def data_node(state: TradingGraphState) -> dict:
     except _ToolLimitExceeded as e:
         logger.warning(f"[data_node] {e}")
         return {
-            "market_data":      {"status": "tool_limit", "error": str(e)},
-            "tool_call_counts": counts,
-            "current_node":     "data_node",
-            "execution_log":    [_log_entry("data_node", f"⚠️ 工具调用上限: {e}")],
-            "status":           "error",
-            "error_type":       "tool_limit",
-            "error_message":    str(e),
+            "market_data":        {"status": "tool_limit", "error": str(e)},
+            "data_fetch_failed":  True,    # 【审计修复 P0-3】标记失败，触发并行节点早退
+            "tool_call_counts":   {"data_node": counts.get("data_node", 0)},
+            "current_node":       "data_node",
+            "execution_log":      [_log_entry("data_node", f"⚠️ 工具调用上限: {e}")],
+            "status":             "error",
+            "error_type":         "tool_limit",
+            "error_message":      str(e),
             "messages": [AIMessage(content=f"工具调用上限: {e}", name="data_node")],
         }
 
     except Exception as e:
         logger.error(f"[data_node] 失败: {e}")
         return {
-            "market_data":      {"status": "error", "error": str(e)},
-            "tool_call_counts": counts,
-            "current_node":     "data_node",
-            "execution_log":    [_log_entry("data_node", f"❌ 数据获取失败: {e}")],
-            "status":           "error",
-            "error_type":       "data_error",
-            "error_message":    str(e),
+            "market_data":        {"status": "error", "error": str(e)},
+            "data_fetch_failed":  True,    # 【审计修复 P0-3】标记失败，触发并行节点早退
+            "tool_call_counts":   {"data_node": counts.get("data_node", 0)},
+            "current_node":       "data_node",
+            "execution_log":      [_log_entry("data_node", f"❌ 数据获取失败: {e}")],
+            "status":             "error",
+            "error_type":         "data_error",
+            "error_message":      str(e),
             "messages": [AIMessage(content=f"数据获取失败: {e}", name="data_node")],
         }
 
@@ -350,6 +358,15 @@ async def rag_node(state: TradingGraphState) -> dict:
     indicators  = market_data.get("indicators", {})
     tech_signal = indicators.get("tech_signal", "HOLD")
 
+    # 【审计修复 P0-3】数据获取失败时早退，不调用工具
+    if state.get("data_fetch_failed"):
+        logger.warning(f"[rag_node] 数据获取失败，跳过 RAG 检索")
+        return {
+            "rag_context":   "",
+            "execution_log": [_log_entry("rag_node", "⏭️ 数据失败，RAG 跳过")],
+            "messages": [AIMessage(content="数据获取失败，RAG 检索已跳过", name="rag_node")],
+        }
+
     query = (
         f"{symbol} {market_type} 市场政策 行业景气度 宏观经济"
         f" 技术信号{tech_signal} 投资分析"
@@ -361,7 +378,6 @@ async def rag_node(state: TradingGraphState) -> dict:
         rag_text = search_knowledge_base.invoke({"query": query, "market_type": market_type})
         return {
             "rag_context":   rag_text,
-            "current_node":  "rag_node",
             "execution_log": [_log_entry("rag_node", f"RAG 检索完成，返回 {len(rag_text)} 字符")],
             "messages": [AIMessage(
                 content=f"RAG 知识检索完成: {len(rag_text)} 字符上下文已准备",
@@ -372,7 +388,6 @@ async def rag_node(state: TradingGraphState) -> dict:
         logger.error(f"[rag_node] 失败: {e}")
         return {
             "rag_context":   "",
-            "current_node":  "rag_node",
             "execution_log": [_log_entry("rag_node", f"⚠️ RAG 检索失败（降级为空）: {e}")],
             "error_type":    "data_error",
             "messages": [AIMessage(content=f"RAG 检索失败: {e}", name="rag_node")],
@@ -385,7 +400,10 @@ async def rag_node(state: TradingGraphState) -> dict:
 
 async def fundamental_node(state: TradingGraphState) -> dict:
     """
-    基本面分析师节点:
+    基本面分析师节点（审计修复版）:
+      【审计修复 P0-1】调用 get_fundamental_data @tool 获取真实 PE/PB/ROE 数据，
+        不再纯靠 OHLCV 价格数据推断基本面。
+      【审计修复 P0-3】data_fetch_failed=True 时早退，不调用 LLM，避免幻觉报告。
       - Prompt 从 _PROMPTS["fundamental"] 字典按 market_type 取值（外化管理）
       - 调用 LLM + with_structured_output(AnalystReport)
       - 结合 RAG 上下文（state.rag_context）提升分析深度
@@ -394,8 +412,49 @@ async def fundamental_node(state: TradingGraphState) -> dict:
     market_type = state.get("market_type", "US_STOCK")
     market_data = state.get("market_data", {})
     rag_context = state.get("rag_context", "")
+    counts      = state.get("tool_call_counts") or {}
+
+    # 【审计修复 P0-3】数据获取失败时早退
+    if state.get("data_fetch_failed"):
+        logger.warning(f"[fundamental_node] 数据获取失败，返回 HOLD 降级报告")
+        return {
+            "fundamental_report": {
+                "recommendation": "HOLD", "confidence": 0.1,
+                "reasoning": "上游数据获取失败，无法进行基本面分析",
+                "key_factors": ["数据缺失"], "risk_factors": ["数据不可用"],
+                "price_target": None, "signal_strength": "WEAK",
+            },
+            "execution_log": [_log_entry("fundamental_node", "⏭️ 数据失败，基本面跳过")],
+            "messages": [AIMessage(content="数据获取失败，基本面分析已跳过", name="fundamental_node")],
+        }
 
     logger.info(f"[fundamental_node] 开始基本面分析: {symbol}")
+
+    # 【审计修复 P0-1】获取真实基本面数据
+    fund_data_text = "（基本面数据获取失败，仅凭价格与教育资料分析）"
+    fundamental_data_dict = {}
+    try:
+        _check_tool_limit(state, "fundamental_node")
+        counts = _increment_tool_count(counts, "fundamental_node")
+
+        fund_json = get_fundamental_data.invoke({"symbol": symbol})
+        fund_parsed = json.loads(fund_json)
+
+        if fund_parsed.get("status") == "success":
+            data = fund_parsed.get("data", {})
+            fundamental_data_dict = data
+            # 格式化为可读文本注入 Prompt
+            fund_lines = [f"  {k}: {v}" for k, v in data.items() if v is not None]
+            fund_data_text = "\n".join(fund_lines[:20]) if fund_lines else "（无有效字段）"
+            logger.info(f"[fundamental_node] 基本面数据获取成功: {len(fund_lines)} 字段")
+        elif fund_parsed.get("status") == "partial":
+            fund_data_text = f"（{fund_parsed.get('message', '部分数据')}）"
+        else:
+            fund_data_text = f"（获取失败: {fund_parsed.get('error', '未知错误')[:60]}）"
+    except _ToolLimitExceeded:
+        logger.warning("[fundamental_node] 工具调用上限，跳过基本面数据获取")
+    except Exception as _e:
+        logger.warning(f"[fundamental_node] 基本面数据获取异常: {_e}")
 
     # 从 Prompt 字典取 System Prompt（外化管理）
     system_prompt = _PROMPTS["fundamental"].get(
@@ -406,17 +465,23 @@ async def fundamental_node(state: TradingGraphState) -> dict:
     user_prompt = f"""
 请对标的 **{symbol}** ({market_type}) 进行基本面研判，输出结构化报告。
 
-【市场数据摘要】
+【真实基本面数据（优先参考）】
+{fund_data_text}
+
+【价格与量能数据（辅助参考）】
 - 最新价格: {market_data.get('latest_price', 'N/A')}
 - 区间最高/最低: {market_data.get('period_high', 'N/A')} / {market_data.get('period_low', 'N/A')}
 - 价格变动: {market_data.get('price_change_pct', 'N/A')}%
 - 成交量比（10日均）: {market_data.get('indicators', {}).get('volume_ratio', 'N/A')}
+- ATR%(波动率): {market_data.get('indicators', {}).get('ATR_pct', 'N/A')}%
 
 【RAG 知识库参考】
-{rag_context[:1200] if rag_context else '暂无'}
+{rag_context[:1000] if rag_context else '暂无'}
 
-请基于以上信息，以你的专业框架分析该标的的基本面状况，给出 BUY/SELL/HOLD 建议。
-注意：price_target 使用绝对价格数值。
+请优先基于真实基本面数据（PE/PB/ROE 等），结合量价辅助，以你的专业框架分析
+该标的的基本面状况，给出 BUY/SELL/HOLD 建议。
+注意：若基本面数据缺失，请明确在 reasoning 中说明分析局限性，并降低置信度。
+price_target 使用绝对价格数值。
 """
 
     try:
@@ -432,13 +497,14 @@ async def fundamental_node(state: TradingGraphState) -> dict:
         log_msg = _log_entry(
             "fundamental_node",
             f"基本面分析: {report.recommendation} | 置信度: {report.confidence:.2f} | "
-            f"信号强度: {report.signal_strength}"
+            f"信号强度: {report.signal_strength} | 真实数据字段数: {len(fundamental_data_dict)}"
         )
         logger.info(log_msg)
 
         return {
             "fundamental_report": report_dict,
-            "current_node":       "fundamental_node",
+            "fundamental_data":   fundamental_data_dict if fundamental_data_dict else None,
+            "tool_call_counts":   {"fundamental_node": counts.get("fundamental_node", 0)},
             "execution_log":      [log_msg],
             "messages": [AIMessage(
                 content=f"基本面分析完成: {report.recommendation} "
@@ -457,6 +523,7 @@ async def fundamental_node(state: TradingGraphState) -> dict:
         }
         return {
             "fundamental_report": fallback,
+            "tool_call_counts":   {"fundamental_node": counts.get("fundamental_node", 0)},
             "execution_log":      [_log_entry("fundamental_node", f"⚠️ 降级处理: {e}")],
             "error_type":         "llm_error",
             "messages": [AIMessage(content=f"基本面分析异常: {e}", name="fundamental_node")],
@@ -478,6 +545,20 @@ async def technical_node(state: TradingGraphState) -> dict:
     market_type = state.get("market_type", "US_STOCK")
     market_data = state.get("market_data", {})
     indicators  = market_data.get("indicators", {})
+
+    # 【审计修复 P0-3】数据获取失败时早退
+    if state.get("data_fetch_failed"):
+        logger.warning(f"[technical_node] 数据获取失败，返回 HOLD 降级报告")
+        return {
+            "technical_report": {
+                "recommendation": "HOLD", "confidence": 0.1,
+                "reasoning": "上游数据获取失败，无法进行技术分析",
+                "key_factors": ["数据缺失"], "risk_factors": ["数据不可用"],
+                "price_target": None, "signal_strength": "WEAK",
+            },
+            "execution_log": [_log_entry("technical_node", "⏭️ 数据失败，技术分析跳过")],
+            "messages": [AIMessage(content="数据获取失败，技术分析已跳过", name="technical_node")],
+        }
 
     logger.info(f"[technical_node] 开始技术分析: {symbol}")
 
@@ -526,7 +607,6 @@ async def technical_node(state: TradingGraphState) -> dict:
 
         return {
             "technical_report": report_dict,
-            "current_node":     "technical_node",
             "execution_log":    [log_msg],
             "messages": [AIMessage(
                 content=f"技术分析完成: {report.recommendation} "
@@ -559,8 +639,11 @@ async def technical_node(state: TradingGraphState) -> dict:
 
 async def sentiment_node(state: TradingGraphState) -> dict:
     """
-    舆情分析师节点:
-      - 基于市场数据量价特征与 RAG 宏观知识推断市场情绪
+    舆情与资金面分析师节点（审计修复版）:
+      【审计修复 P0-2】调用 get_stock_news @tool 获取真实新闻资讯，
+        不再仅凭量价指标推断"情绪"（原来是技术面的二次包装）。
+      【审计修复 P0-3】data_fetch_failed=True 时早退，不调用 LLM。
+      - 仍保留量价动量特征作为辅助输入
       - Prompt 从 _PROMPTS["sentiment"] 字典取值（外化管理）
     """
     symbol      = state["symbol"]
@@ -568,25 +651,70 @@ async def sentiment_node(state: TradingGraphState) -> dict:
     market_data = state.get("market_data", {})
     rag_context = state.get("rag_context", "")
     indicators  = market_data.get("indicators", {})
+    counts      = state.get("tool_call_counts") or {}
+
+    # 【审计修复 P0-3】数据获取失败时早退
+    if state.get("data_fetch_failed"):
+        logger.warning(f"[sentiment_node] 数据获取失败，返回 HOLD 降级报告")
+        return {
+            "sentiment_report": {
+                "recommendation": "HOLD", "confidence": 0.1,
+                "reasoning": "上游数据获取失败，无法进行舆情分析",
+                "key_factors": ["数据缺失"], "risk_factors": ["数据不可用"],
+                "price_target": None, "signal_strength": "WEAK",
+            },
+            "execution_log": [_log_entry("sentiment_node", "⏭️ 数据失败，舆情分析跳过")],
+            "messages": [AIMessage(content="数据获取失败，舆情分析已跳过", name="sentiment_node")],
+        }
 
     logger.info(f"[sentiment_node] 开始舆情分析: {symbol}")
+
+    # 【审计修复 P0-2】获取真实新闻资讯
+    news_text = "（新闻数据获取失败，仅凭量价指标分析动量）"
+    news_data_str = None
+    try:
+        _check_tool_limit(state, "sentiment_node")
+        counts = _increment_tool_count(counts, "sentiment_node")
+
+        news_json   = get_stock_news.invoke({"symbol": symbol, "limit": 8})
+        news_parsed = json.loads(news_json)
+
+        if news_parsed.get("status") == "success" and news_parsed.get("news"):
+            news_items = news_parsed["news"]
+            lines = [f"  [{i+1}] {n.get('time','')} {n.get('title','')} （{n.get('source','')}）"
+                     for i, n in enumerate(news_items)]
+            news_text     = "\n".join(lines)
+            news_data_str = news_json
+            logger.info(f"[sentiment_node] 新闻获取成功: {len(news_items)} 条")
+        elif news_parsed.get("status") == "partial":
+            news_text = f"（{news_parsed.get('message', '暂无新闻数据')}）"
+        else:
+            news_text = f"（新闻获取失败: {news_parsed.get('error', '')[:60]}）"
+    except _ToolLimitExceeded:
+        logger.warning("[sentiment_node] 工具调用上限，跳过新闻获取")
+    except Exception as _e:
+        logger.warning(f"[sentiment_node] 新闻获取异常: {_e}")
 
     system_prompt = _PROMPTS["sentiment"]["DEFAULT"]
 
     user_prompt = f"""
 请对标的 **{symbol}** ({market_type}) 进行市场情绪与资金面研判。
 
-【量价数据】
+【最新新闻资讯（真实舆情，优先参考）】
+{news_text}
+
+【量价动量数据（辅助参考）】
 - 价格变动: {market_data.get('price_change_pct', 'N/A')}%
 - 量比（近10日均）: {indicators.get('volume_ratio', 'N/A')}
 - 高量能信号: {indicators.get('high_volume', 'N/A')}
 - RSI14: {indicators.get('RSI14', 'N/A')}（>70超买, <30超卖）
 - BOLL %B: {indicators.get('BOLL_pct_B', 'N/A')}（>0.85接近上轨，<0.15接近下轨）
 
-【宏观情绪参考（RAG）】
-{rag_context[:800] if rag_context else '暂无宏观背景信息'}
+【宏观背景参考（RAG）】
+{rag_context[:600] if rag_context else '暂无宏观背景信息'}
 
-基于以上信息，判断当前市场情绪，给出 BUY/SELL/HOLD 建议。
+请优先基于真实新闻事件分析市场情绪，结合量价动量特征，给出 BUY/SELL/HOLD 建议。
+若无新闻数据，请明确说明分析仅基于量价推断，并相应降低置信度（≤0.50）。
 """
 
     try:
@@ -599,15 +727,18 @@ async def sentiment_node(state: TradingGraphState) -> dict:
         report: AnalystReport = await structured_llm.ainvoke(messages)
 
         report_dict = report.model_dump()
+        has_real_news = "新闻获取失败" not in news_text and "获取失败" not in news_text and "暂无" not in news_text
         log_msg = _log_entry(
             "sentiment_node",
-            f"舆情分析: {report.recommendation} | 置信度: {report.confidence:.2f}"
+            f"舆情分析: {report.recommendation} | 置信度: {report.confidence:.2f} | "
+            f"真实新闻: {'有' if has_real_news else '无'}"
         )
         logger.info(log_msg)
 
         return {
             "sentiment_report": report_dict,
-            "current_node":     "sentiment_node",
+            "news_data":        news_data_str,
+            "tool_call_counts": {"sentiment_node": counts.get("sentiment_node", 0)},
             "execution_log":    [log_msg],
             "messages": [AIMessage(
                 content=f"舆情分析完成: {report.recommendation} "
@@ -626,6 +757,7 @@ async def sentiment_node(state: TradingGraphState) -> dict:
         }
         return {
             "sentiment_report": fallback,
+            "tool_call_counts": {"sentiment_node": counts.get("sentiment_node", 0)},
             "execution_log":    [_log_entry("sentiment_node", f"⚠️ 降级处理: {e}")],
             "error_type":       "llm_error",
             "messages": [AIMessage(content=f"舆情分析异常: {e}", name="sentiment_node")],
@@ -636,12 +768,68 @@ async def sentiment_node(state: TradingGraphState) -> dict:
 # NODE 6 — portfolio_node（汇聚分析、检测冲突）
 # ════════════════════════════════════════════════════════════════
 
-# 市场差异化权重配置（CampusQuant 版：加密货币已移除）
+# 市场差异化权重配置（审计修复版）
+# 【审计修复 P1-2】fundamental 权重提升（因已有真实 PE/PB 数据支撑），
+# sentiment 权重适当下调（仍可能受限于新闻数据可用性）
 _MARKET_WEIGHTS = {
-    "A_STOCK":  {"fundamental": 0.20, "technical": 0.35, "sentiment": 0.35, "risk": 0.10},
-    "HK_STOCK": {"fundamental": 0.45, "technical": 0.20, "sentiment": 0.25, "risk": 0.10},
-    "US_STOCK": {"fundamental": 0.35, "technical": 0.30, "sentiment": 0.25, "risk": 0.10},
+    # A股：技术面信号最强（量化交易主导），基本面权重提升（有真实财务数据）
+    "A_STOCK":  {"fundamental": 0.35, "technical": 0.40, "sentiment": 0.25},
+    # 港股：价值投资导向，基本面最重要
+    "HK_STOCK": {"fundamental": 0.50, "technical": 0.25, "sentiment": 0.25},
+    # 美股：成长+价值双轨，基本面与技术并重
+    "US_STOCK": {"fundamental": 0.40, "technical": 0.35, "sentiment": 0.25},
 }
+
+# 信号评分映射（用于数学预加权）
+_REC_SCORE = {"BUY": 1.0, "HOLD": 0.5, "SELL": 0.0}
+
+
+def _compute_weighted_score(
+    fundamental: dict, technical: dict, sentiment: dict,
+    weights: dict, market_type: str,
+) -> dict:
+    """
+    【审计修复 P1-2】在 LLM 调用前完成数学预加权计算。
+    将三份报告的建议和置信度转化为数值评分，计算加权结果。
+    此结果作为"锚点"注入 portfolio_node 的 Prompt，
+    防止 LLM 主观加权偏离预定权重。
+    """
+    fw = weights.get("fundamental", 0.35)
+    tw = weights.get("technical",   0.40)
+    sw = weights.get("sentiment",   0.25)
+
+    f_rec  = fundamental.get("recommendation", "HOLD")
+    t_rec  = technical.get("recommendation", "HOLD")
+    s_rec  = sentiment.get("recommendation", "HOLD")
+    f_conf = float(fundamental.get("confidence", 0.5))
+    t_conf = float(technical.get("confidence", 0.5))
+    s_conf = float(sentiment.get("confidence", 0.5))
+
+    # 加权信号评分（1.0=买，0.5=持，0.0=卖）× 置信度
+    f_score = _REC_SCORE.get(f_rec, 0.5) * f_conf
+    t_score = _REC_SCORE.get(t_rec, 0.5) * t_conf
+    s_score = _REC_SCORE.get(s_rec, 0.5) * s_conf
+
+    weighted_score = fw * f_score + tw * t_score + sw * s_score
+    avg_confidence = fw * f_conf + tw * t_conf + sw * s_conf
+
+    if weighted_score >= 0.60:
+        pre_signal = "BUY"
+    elif weighted_score <= 0.35:
+        pre_signal = "SELL"
+    else:
+        pre_signal = "HOLD"
+
+    return {
+        "weighted_score":  round(weighted_score, 3),
+        "avg_confidence":  round(avg_confidence, 3),
+        "pre_signal":      pre_signal,
+        "breakdown": {
+            f"基本面({fw:.0%})": f"{f_rec}×{f_conf:.2f}={fw*f_score:.3f}",
+            f"技术面({tw:.0%})": f"{t_rec}×{t_conf:.2f}={tw*t_score:.3f}",
+            f"舆情({sw:.0%})":   f"{s_rec}×{s_conf:.2f}={sw*s_score:.3f}",
+        },
+    }
 
 
 async def portfolio_node(state: TradingGraphState) -> dict:
@@ -678,6 +866,15 @@ async def portfolio_node(state: TradingGraphState) -> dict:
 
     weights = _MARKET_WEIGHTS.get(market_type, _MARKET_WEIGHTS["US_STOCK"])
 
+    # 【审计修复 P1-2】数学预加权计算（作为 LLM 决策锚点）
+    pre_weight = _compute_weighted_score(fundamental, technical, sentiment, weights, market_type)
+    pre_signal_text = (
+        f"数学预加权结果: {pre_weight['pre_signal']} "
+        f"(加权分={pre_weight['weighted_score']:.3f}, "
+        f"平均置信度={pre_weight['avg_confidence']:.2f})\n"
+        f"分项: {' | '.join(pre_weight['breakdown'].values())}"
+    )
+
     revision_instruction = ""
     if is_revision:
         rejection_reason = risk_decision.get("rejection_reason", "风险过高")
@@ -699,12 +896,15 @@ async def portfolio_node(state: TradingGraphState) -> dict:
     system_prompt = f"""你是拥有20年经验的基金经理，负责整合多路研究报告，做出最终投资决策。
 
 当前市场策略 ({market_type}):
-- 基本面权重: {weights['fundamental']:.0%}
+- 基本面权重: {weights['fundamental']:.0%}（已有真实PE/PB/ROE数据支撑）
 - 技术面权重: {weights['technical']:.0%}
-- 情绪面权重: {weights['sentiment']:.0%}
+- 舆情权重:   {weights['sentiment']:.0%}
+
+【量化预加权参考锚点】（请以此为基础，结合定性分析调整）
+{pre_signal_text}
 {revision_instruction}{debate_instruction}
 决策原则:
-1. 综合加权评分时，不同方向信号视置信度折扣
+1. 以上方数学预加权结果为锚点，除非定性分析发现明显错误，否则最终建议应与锚点方向一致
 2. 三方向高度一致 → 强信号；两方向一致一方向中性 → 中等信号
 3. 任何一方向极高置信度反向信号 → 须认真对待
 4. 存在辩论结果时，以辩论共识为重要参考
@@ -813,15 +1013,15 @@ async def debate_node(state: TradingGraphState) -> dict:
 4. 裁决后降低置信度以体现不确定性（通常降低0.1-0.2）
 裁决原则: 趋势性基本面 > 短期技术波动；但若技术信号极强（金叉+高量能），可优先技术面"""
 
-    # 构建辩论历史记录（TradingAgents-CN InvestDebateState bull_history/bear_history 模式）
-    bull_history = (
-        f"【第{debate_rounds + 1}轮多头发言】\n"
+    # 【审计修复 P2-2】论点摘要（非"对话历史"——这是 LLM 生成的摘要，非真实多轮日志）
+    bull_argument = (
+        f"【第{debate_rounds + 1}轮多头论点】\n"
         f"立场: {fund_rec} | 置信度: {fundamental.get('confidence', 0.5):.2f}\n"
         f"论据: {fund_logic}\n"
         f"关键因素: {', '.join(fundamental.get('key_factors', [])[:3])}"
     )
-    bear_history = (
-        f"【第{debate_rounds + 1}轮空头发言】\n"
+    bear_argument = (
+        f"【第{debate_rounds + 1}轮空头论点】\n"
         f"立场: {tech_rec} | 置信度: {technical.get('confidence', 0.5):.2f}\n"
         f"论据: {tech_logic}\n"
         f"关键因素: {', '.join(technical.get('key_factors', [])[:3])}"
@@ -830,12 +1030,12 @@ async def debate_node(state: TradingGraphState) -> dict:
     user_prompt = f"""
 【辩论议题】{symbol} 当前应该 BUY 还是 SELL？
 
-{bull_history}
+{bull_argument}
 
-{bear_history}
+{bear_argument}
 
 请主持本次辩论，总结双方核心论点，分析根本分歧，并给出裁决。
-请在 bull_history 和 bear_history 字段中记录本轮完整对话。
+请在 bull_argument_summary 和 bear_argument_summary 字段中展开各方论点。
 """
 
     try:
@@ -879,8 +1079,8 @@ async def debate_node(state: TradingGraphState) -> dict:
                 "confidence_after_debate": 0.3,
                 "bull_core_argument": fund_logic[:100],
                 "bear_core_argument": tech_logic[:100],
-                "bull_history": bull_history,
-                "bear_history": bear_history,
+                "bull_argument_summary": bull_argument,
+                "bear_argument_summary": bear_argument,
                 "deciding_factor": "辩论异常，保守 HOLD",
                 "debate_summary": str(e),
             },
@@ -966,18 +1166,38 @@ async def risk_node(state: TradingGraphState) -> dict:
         ]
         decision: RiskDecision = await structured_llm.ainvoke(messages)
 
-        decision_dict       = decision.model_dump()
+        decision_dict = decision.model_dump()
+
+        # 【审计修复 P1-3】代码层强制校验——LLM 输出可能仍不满足学生风控红线
+        max_pos = 15.0 if market_type == "A_STOCK" else 10.0
+        if decision_dict["position_pct"] > max_pos:
+            logger.warning(
+                f"[risk_node] 仓位超限 {decision_dict['position_pct']:.1f}% > {max_pos:.0f}%，强制截断"
+            )
+            decision_dict["position_pct"] = max_pos
+            if decision_dict["approval_status"] == "APPROVED":
+                decision_dict["approval_status"] = "CONDITIONAL"
+                decision_dict.setdefault("conditions", []).append(
+                    f"仓位已由系统截断至{max_pos:.0f}%（学生风控上限）"
+                )
+        if decision_dict["stop_loss_pct"] < 0.5:
+            logger.warning(
+                f"[risk_node] 止损比例过小 {decision_dict['stop_loss_pct']:.2f}%，强制设为5%"
+            )
+            decision_dict["stop_loss_pct"] = 5.0
+            decision_dict.setdefault("conditions", []).append("止损比例已由系统修正为5%（最低有效止损）")
+
         new_rejection_count = risk_rejection_count
-        if decision.approval_status == "REJECTED":
+        if decision_dict["approval_status"] == "REJECTED":
             new_rejection_count += 1
 
         status_emoji = {"APPROVED": "✅", "CONDITIONAL": "⚠️", "REJECTED": "❌"}
         log_msg = _log_entry(
             "risk_node",
-            f"{status_emoji.get(decision.approval_status, '?')} 风控审批: "
-            f"{decision.approval_status} | 风险级别: {decision.risk_level} "
-            f"| 仓位: {decision.position_pct:.1f}% "
-            f"| 止损: {decision.stop_loss_pct:.1f}%"
+            f"{status_emoji.get(decision_dict['approval_status'], '?')} 风控审批: "
+            f"{decision_dict['approval_status']} | 风险级别: {decision_dict['risk_level']} "
+            f"| 仓位: {decision_dict['position_pct']:.1f}% "
+            f"| 止损: {decision_dict['stop_loss_pct']:.1f}%（代码层校验后）"
         )
         logger.info(log_msg)
 
@@ -987,9 +1207,9 @@ async def risk_node(state: TradingGraphState) -> dict:
             "current_node":         "risk_node",
             "execution_log":        [log_msg],
             "messages": [AIMessage(
-                content=f"风控审批: {decision.approval_status} "
-                        f"({decision.risk_level} 风险) | 仓位 {decision.position_pct:.0f}% "
-                        + (f"| 拒绝原因: {decision.rejection_reason}" if decision.rejection_reason else ""),
+                content=f"风控审批: {decision_dict['approval_status']} "
+                        f"({decision_dict['risk_level']} 风险) | 仓位 {decision_dict['position_pct']:.0f}% "
+                        + (f"| 拒绝原因: {decision_dict['rejection_reason']}" if decision_dict.get("rejection_reason") else ""),
                 name="risk_node",
             )],
         }
@@ -1169,13 +1389,46 @@ async def health_node(state: TradingGraphState) -> dict:
 
     logger.info(f"[health_node] 开始持仓体检，持仓数: {len(positions_raw)}")
 
-    # 格式化持仓数据
+    # 【审计修复 P0-3/P1-3】获取各持仓的真实当前价格，计算真实市值权重
+    enriched_positions = []
+    for p in positions_raw:
+        pos = dict(p)
+        sym = pos.get("symbol", "")
+        if sym and pos.get("current_price") is None:
+            try:
+                raw_json = get_market_data.invoke({"symbol": sym, "days": 5})
+                raw_data = json.loads(raw_json)
+                if raw_data.get("status") == "success":
+                    pos["current_price"] = raw_data.get("latest_price")
+                    logger.info(f"[health_node] {sym} 实时价格: {pos['current_price']}")
+            except Exception as _pe:
+                logger.warning(f"[health_node] {sym} 价格获取失败: {_pe}")
+        enriched_positions.append(pos)
+
+    # 计算真实市值权重（需要当前价格）
+    total_value = sum(
+        (p.get("current_price") or p.get("avg_cost", 0)) * p.get("quantity", 0)
+        for p in enriched_positions
+    )
+    if total_value > 0:
+        for p in enriched_positions:
+            price = p.get("current_price") or p.get("avg_cost", 0)
+            qty   = p.get("quantity", 0)
+            p["weight_pct"] = round(price * qty / total_value * 100, 2)
+            p["market_value"] = round(price * qty, 2)
+            p["pnl_pct"] = round(
+                (price - p.get("avg_cost", price)) / max(p.get("avg_cost", price), 1e-9) * 100, 2
+            ) if p.get("avg_cost") else None
+
+    # 格式化持仓数据（含真实价格与盈亏）
     positions_text = "\n".join([
         f"  {i+1}. {p.get('symbol','?')} ({p.get('market_type','?')}) "
         f"| 数量: {p.get('quantity','?')} | 成本: {p.get('avg_cost','?')} "
-        f"| 市价: {p.get('current_price','未获取')} "
-        f"| 权重: {p.get('weight_pct','?')}%"
-        for i, p in enumerate(positions_raw)
+        f"| 市价: {p.get('current_price', '未获取')} "
+        f"| 市值: {p.get('market_value', 'N/A')} "
+        f"| 盈亏: {p.get('pnl_pct', 'N/A')}% "
+        f"| 权重: {p.get('weight_pct', 'N/A')}%"
+        for i, p in enumerate(enriched_positions)
     ])
 
     system_prompt = _PROMPTS["health"]["DEFAULT"]
@@ -1183,16 +1436,20 @@ async def health_node(state: TradingGraphState) -> dict:
     user_prompt = f"""
 请对以下持仓组合进行全面健康体检，输出 PortfolioHealthReport 格式报告。
 
-【持仓明细】
+【持仓明细（含真实价格与浮盈亏）】
 {positions_text}
+
+【持仓总市值】{f'{total_value:.2f} 元' if total_value > 0 else '未获取'}
 
 【大学生风控规则】
 - 单标的权重上限: A股≤15%，港股/美股≤10%
 - 总本金假设: ≤5万元
 - 严禁杠杆与加密（发现则健康分=0）
 - 定投宽基ETF视为最健康的持仓选择
+- 浮亏超15%的标的列为高风险持仓
 
 请综合评估集中度风险、回撤风险、流动性，给出健康评分（0-100）和优化建议。
+注意：liquidity_score 请使用 0-100 分制（100分=极佳流动性）。
 """
 
     try:
@@ -1214,10 +1471,11 @@ async def health_node(state: TradingGraphState) -> dict:
         logger.info(log_msg)
 
         return {
-            "health_report": report_dict,
-            "current_node":  "health_node",
-            "status":        "completed",
-            "execution_log": [log_msg],
+            "health_report":       report_dict,
+            "portfolio_positions": enriched_positions,   # 写回含实时价格的持仓数据
+            "current_node":        "health_node",
+            "status":              "completed",
+            "execution_log":       [log_msg],
             "messages": [AIMessage(
                 content=f"🩺 持仓体检完成 | 健康分: {report.health_score:.0f}/100 "
                         f"| 集中度: {report.concentration_risk} "

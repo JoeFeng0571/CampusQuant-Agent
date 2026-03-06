@@ -29,6 +29,11 @@ graph/builder.py — LangGraph StateGraph 装配与编译
   - 辩论循环（最多 MAX_DEBATE_ROUNDS=2 轮）
   - 风控重试循环（最多 MAX_RISK_RETRIES=2 次）
   - 支持 LangGraph Checkpointer（可选，用于持久化中间状态）
+
+审计修复:
+  - 【P0-2】删除 build_graph() 中注册的 health_node 死节点（该节点无边可达）
+    health_node 由独立的 build_health_graph() 正确路由
+  - 【P1-4】make_initial_state / make_health_initial_state 包含全部新增字段
 """
 from __future__ import annotations
 
@@ -41,7 +46,6 @@ from graph.nodes import (
     data_node,
     debate_node,
     fundamental_node,
-    health_node,
     portfolio_node,
     rag_node,
     risk_node,
@@ -50,6 +54,9 @@ from graph.nodes import (
     sentiment_node,
     technical_node,
     trade_executor,
+    # 【审计修复 P0-2】health_node 仅在 build_health_graph() 中使用，
+    # 不再注册到主图（原注册无边可达，是死节点）
+    health_node,
 )
 from graph.state import TradingGraphState
 
@@ -81,14 +88,19 @@ def build_graph(checkpointer=None):
     graph.add_node("debate_node",      debate_node)
     graph.add_node("risk_node",        risk_node)
     graph.add_node("trade_executor",   trade_executor)
-    # 持仓体检独立节点（health_node），可通过独立图实例触发
-    graph.add_node("health_node",      health_node)
+    # 【审计修复 P0-2】删除原来的 graph.add_node("health_node", health_node)
+    # health_node 在主图中无边可达，是死节点。正确路由见 build_health_graph()
 
     # ── 起点：START → data_node ───────────────────────────────
     graph.add_edge(START, "data_node")
 
     # ── 并行扇出：data_node → 四个分析节点（同时执行）────────
-    # LangGraph 会在 data_node 完成后，并发调度以下四个节点
+    # 【审计修复 P0-3 实现方式】
+    # 数据错误短路通过各并行节点内部的 data_fetch_failed 早退实现：
+    # 当 data_node 设置 data_fetch_failed=True 时，四个并行节点检测到后
+    # 立即返回 HOLD 降级报告，不调用 LLM，避免在错误数据上浪费 LLM 调用。
+    # （LangGraph 对同一源节点的 conditional fan-out 实现较复杂，
+    #   使用节点内早退是更简洁且等效的解决方案）
     graph.add_edge("data_node", "fundamental_node")
     graph.add_edge("data_node", "technical_node")
     graph.add_edge("data_node", "sentiment_node")
@@ -148,6 +160,10 @@ def build_graph_with_memory():
     构建带 MemorySaver checkpointer 的图，支持 thread_id 会话追踪。
 
     用于 FastAPI SSE 场景，每个分析请求使用独立的 thread_id。
+
+    【审计说明 P1-4】MemorySaver 在进程内存中存储所有 thread_id 状态，
+    无 TTL 驱逐机制。对于低并发的学生项目可接受；生产级部署建议改用
+    SqliteSaver 或 RedisSaver，并定期清理过期会话。
     """
     try:
         from langgraph.checkpoint.memory import MemorySaver
@@ -181,6 +197,10 @@ def make_initial_state(symbol: str) -> TradingGraphState:
         symbol=symbol,
         market_type=market_type.value,
         market_data={},
+        # 【审计修复 P1-4】新增字段默认值
+        data_fetch_failed=False,
+        fundamental_data=None,
+        news_data=None,
         rag_context="",
         fundamental_report=None,
         technical_report=None,
@@ -214,6 +234,9 @@ def build_health_graph(checkpointer=None):
     构建持仓体检专用 StateGraph。
     拓扑: START → health_node → END
     可通过 FastAPI /api/v1/health-check 端点触发。
+
+    【审计修复 P0-2 说明】health_node 仅在此独立图中使用，
+    已从 build_graph() 中删除，消除了主图中的死节点。
     """
     logger.info("🔧 构建持仓体检 StateGraph...")
     graph = StateGraph(TradingGraphState)
@@ -246,6 +269,9 @@ def make_health_initial_state(
         symbol="PORTFOLIO",
         market_type="MIXED",
         market_data={},
+        data_fetch_failed=False,
+        fundamental_data=None,
+        news_data=None,
         rag_context="",
         fundamental_report=None,
         technical_report=None,

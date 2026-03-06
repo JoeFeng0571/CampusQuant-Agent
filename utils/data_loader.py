@@ -9,7 +9,7 @@ utils/data_loader.py — 多市场历史行情加载器
 严格红线:
   - 不引入任何加密货币相关库（无 CCXT / Binance / ccxt）
   - 不连接任何真实交易所 API
-  - MarketType.CRYPTO 不在支持范围内，传入直接抛出 ValueError
+  - 仅支持 A_STOCK / HK_STOCK / US_STOCK，其余返回空 DataFrame
 
 统一输出格式 (DataFrame):
   timestamp | open | high | low | close | volume
@@ -23,7 +23,9 @@ utils/data_loader.py — 多市场历史行情加载器
 """
 from __future__ import annotations
 
+import os
 import time
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Dict, Optional, Tuple
@@ -39,6 +41,32 @@ from .market_classifier import MarketClassifier, MarketType
 # ── 简单 TTL 缓存（避免同一请求短时间内重复调用 API）────────────
 _CACHE: Dict[str, Tuple[float, pd.DataFrame]] = {}
 _CACHE_TTL_SECONDS = 300   # 5 分钟
+
+
+# ── 代理隔离上下文管理器 ─────────────────────────────────────────
+# 在 TUN/系统代理环境下，国内数据源（akshare 请求新浪/东方财富）的流量若被
+# 代理路由到海外出口，国内服务器会丢弃该连接，造成无限期挂起。
+# 通过临时设置 NO_PROXY=* 强制绕过代理直连，执行完毕后恢复原值。
+@contextmanager
+def _bypass_proxy():
+    """临时强制所有连接绕过代理直连（用于国内数据源请求）。"""
+    proxy_keys = ("NO_PROXY", "no_proxy", "HTTP_PROXY", "http_proxy",
+                  "HTTPS_PROXY", "https_proxy")
+    saved = {k: os.environ.get(k) for k in proxy_keys}
+    try:
+        os.environ["NO_PROXY"]    = "*"
+        os.environ["no_proxy"]    = "*"
+        os.environ.pop("HTTP_PROXY",  None)
+        os.environ.pop("http_proxy",  None)
+        os.environ.pop("HTTPS_PROXY", None)
+        os.environ.pop("https_proxy", None)
+        yield
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
 
 
 def _cache_key(symbol: str, days: int) -> str:
@@ -107,8 +135,9 @@ class DataLoader:
         """
         market_type, normalized = self.classifier.classify(symbol)
 
-        if market_type == MarketType.CRYPTO:
-            logger.error(f"❌ {symbol}: 加密货币不在支持范围内，系统已移除该市场")
+        # UNKNOWN 或不受支持的市场类型（加密货币已从系统移除）
+        if market_type not in (MarketType.A_STOCK, MarketType.HK_STOCK, MarketType.US_STOCK):
+            logger.error(f"❌ {symbol}: 不支持的市场类型 {market_type.value}（仅支持 A股/港股/美股）")
             return pd.DataFrame()
 
         # 命中缓存直接返回
@@ -170,64 +199,75 @@ class DataLoader:
 
     def _get_a_stock_data(self, symbol: str, days: int) -> pd.DataFrame:
         """
-        A股日线数据 — akshare.stock_zh_a_hist()
+        A股日线数据 — akshare.stock_zh_a_daily()  (前复权)
 
-        akshare 返回列（前复权）:
-          日期 | 股票代码 | 开盘 | 收盘 | 最高 | 最低 | 成交量 |
-          成交额 | 振幅 | 涨跌幅 | 涨跌额 | 换手率
+        说明：stock_zh_a_hist 接口已不稳定（RemoteDisconnected），
+        改用 stock_zh_a_daily，一次拉全量后本地截断日期范围。
+
+        akshare stock_zh_a_daily 返回列:
+          date | open | high | low | close | volume | amount | ...
+
+        symbol 格式：600519.SH → sh600519，002812.SZ → sz002812
         """
         import akshare as ak
 
-        # 去掉市场后缀：600519.SH → 600519
-        code = symbol.split(".")[0]
-        end_dt   = datetime.now()
-        start_dt = end_dt - timedelta(days=days)
+        # 去掉后缀并加交易所前缀：600519.SH → sh600519
+        parts = symbol.split(".")
+        code  = parts[0]
+        suffix = parts[1].upper() if len(parts) > 1 else ""
+        prefix = "sh" if suffix == "SH" else "sz"
+        ak_symbol = f"{prefix}{code}"
 
-        end_str   = end_dt.strftime("%Y%m%d")
-        start_str = start_dt.strftime("%Y%m%d")
+        cutoff = datetime.now() - timedelta(days=days)
 
-        logger.debug(f"[akshare A股] code={code} {start_str}~{end_str}")
+        logger.debug(f"[akshare A股 daily] ak_symbol={ak_symbol} cutoff={cutoff.date()}")
 
-        df = _retry(
-            ak.stock_zh_a_hist,
-            symbol=code,
-            period="daily",
-            start_date=start_str,
-            end_date=end_str,
-            adjust="qfq",
-        )
+        with _bypass_proxy():
+            logger.info(f"[A股] 👉 开始请求 akshare (stock_zh_a_daily): {ak_symbol}")
+            _t0 = time.time()
+            df = _retry(ak.stock_zh_a_daily, symbol=ak_symbol, adjust="qfq")
+            logger.info(f"[A股] ✅ akshare 请求完成，耗时 {time.time()-_t0:.2f}s，共 {len(df)} 行")
+
+        # 本地按日期截断
+        if df is not None and not df.empty:
+            date_col = _find_col(df, ["date", "Date", "日期"])
+            if date_col:
+                df[date_col] = pd.to_datetime(df[date_col])
+                df = df[df[date_col] >= cutoff].copy()
+
         return df
 
     def _get_hk_stock_data(self, symbol: str, days: int) -> pd.DataFrame:
         """
-        港股日线数据 — akshare.stock_hk_hist()
+        港股日线数据 — akshare.stock_hk_daily()  (前复权)
 
-        akshare 返回列:
-          日期 | 开盘 | 收盘 | 最高 | 最低 | 成交量 |
-          成交额 | 振幅 | 涨跌幅 | 涨跌额 | 换手率
+        说明：stock_hk_hist 接口已不稳定（RemoteDisconnected），
+        改用 stock_hk_daily，一次拉全量后本地截断日期范围。
+
+        akshare stock_hk_daily 返回列:
+          date | open | high | low | close | volume
 
         symbol 格式示例: 00700.HK → 传入 akshare 为 "00700"
         """
         import akshare as ak
 
         # 去掉市场后缀：00700.HK → 00700
-        code = symbol.split(".")[0]
+        code   = symbol.split(".")[0]
+        cutoff = datetime.now() - timedelta(days=days)
 
-        logger.debug(f"[akshare 港股] code={code} days={days}")
+        logger.debug(f"[akshare 港股 daily] code={code} cutoff={cutoff.date()}")
 
-        df = _retry(
-            ak.stock_hk_hist,
-            symbol=code,
-            period="daily",
-            adjust="qfq",
-        )
+        with _bypass_proxy():
+            logger.info(f"[港股] 👉 开始请求 akshare (stock_hk_daily): {code}")
+            _t0 = time.time()
+            df = _retry(ak.stock_hk_daily, symbol=code, adjust="qfq")
+            logger.info(f"[港股] ✅ akshare 请求完成，耗时 {time.time()-_t0:.2f}s，共 {len(df)} 行")
 
-        # akshare 港股接口一次返回全量，需要在本地截断日期
+        # 本地按日期截断
         if df is not None and not df.empty:
-            date_col = _find_col(df, ["日期", "date", "Date", "时间"])
+            date_col = _find_col(df, ["date", "Date", "日期", "时间"])
             if date_col:
                 df[date_col] = pd.to_datetime(df[date_col])
-                cutoff = datetime.now() - timedelta(days=days)
                 df = df[df[date_col] >= cutoff].copy()
 
         return df
@@ -249,6 +289,8 @@ class DataLoader:
 
         logger.debug(f"[yfinance 美股] symbol={symbol} {start_dt.date()}~{end_dt.date()}")
 
+        logger.info(f"[美股] 👉 开始请求 yfinance: symbol={symbol}")
+        _t0 = time.time()
         ticker = yf.Ticker(symbol)
         df = _retry(
             ticker.history,
@@ -256,6 +298,7 @@ class DataLoader:
             end=end_dt,
             auto_adjust=True,    # 自动复权（等价于前复权）
         )
+        logger.info(f"[美股] ✅ yfinance 请求完成，耗时 {time.time()-_t0:.2f}s")
 
         # yfinance 的日期在 index 里，需要 reset_index 变成列
         if df is not None and not df.empty:
