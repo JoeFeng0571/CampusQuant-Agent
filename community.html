@@ -41,6 +41,53 @@
         nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
             background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width 0.3s; }
         nav a:hover::after, nav a.active::after { width:100%; }
+        /* 导航小红点标签 */
+        .nav-dot {
+            display:inline-block; width:6px; height:6px; background:var(--danger);
+            border-radius:50%; margin-left:4px; vertical-align:top; margin-top:2px;
+            animation:blink-dot 2s ease-in-out infinite;
+        }
+        @keyframes blink-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* 侧边栏触发按钮 */
+        .sidebar-btn {
+            background:transparent; border:none; color:var(--text-sub);
+            cursor:pointer; display:flex; align-items:center; padding:4px;
+            margin-left:10px; transition:color 0.3s;
+        }
+        .sidebar-btn:hover { color:var(--secondary); }
+
+        /* ══ 侧边栏及遮罩层样式 ══ */
+        .sidebar-overlay {
+            position:fixed; top:0; left:0; right:0; bottom:0;
+            background:rgba(0,0,0,0.5); backdrop-filter:blur(3px);
+            z-index:1999; opacity:0; visibility:hidden; transition:all 0.3s ease;
+        }
+        .sidebar-overlay.open { opacity:1; visibility:visible; }
+        .sidebar {
+            position:fixed; top:0; right:-320px; width:320px; max-width:85vw; height:100vh;
+            background:rgba(11, 15, 25, 0.95); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+            border-left:1px solid var(--border); z-index:2000;
+            transition:right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display:flex; flex-direction:column; padding:30px 24px; box-shadow:-10px 0 30px rgba(0,0,0,0.5);
+        }
+        .sidebar.open { right:0; }
+        .sidebar-header {
+            display:flex; justify-content:space-between; align-items:center;
+            margin-bottom:30px; padding-bottom:16px; border-bottom:1px solid var(--border);
+        }
+        .sidebar-header h2 { font-size:18px; color:#fff; display:flex; align-items:center; gap:8px; }
+        .close-btn { background:none; border:none; color:var(--text-dim); font-size:28px; line-height:1; cursor:pointer; transition:color 0.2s; }
+        .close-btn:hover { color:var(--danger); }
+        .sidebar-content { display:flex; flex-direction:column; gap:16px; }
+        .sidebar-link {
+            text-decoration:none; color:var(--text-sub); padding:14px 18px;
+            background:var(--card); border:1px solid var(--border); border-radius:12px;
+            transition:all 0.25s ease; display:flex; align-items:center; justify-content:space-between; font-weight:500;
+        }
+        .sidebar-link:hover { background:rgba(79,172,254,0.1); border-color:rgba(79,172,254,0.3); color:var(--primary); transform:translateX(4px); }
+        .sidebar-link.featured { background:linear-gradient(135deg,rgba(79,172,254,0.15),rgba(0,242,254,0.05)); border-color:rgba(79,172,254,0.4); color:var(--secondary); }
+        .sidebar-link.featured:hover { background:linear-gradient(135deg,rgba(79,172,254,0.25),rgba(0,242,254,0.15)); box-shadow:0 4px 15px rgba(0,242,254,0.15); }
 
         /* ══ 主体 ══ */
         main { flex:1; margin-top:80px; padding:32px 48px; }
@@ -155,6 +202,69 @@
             border-top:1px solid var(--border); color:var(--text-dim); font-size:13px; margin-top:24px;
         }
         footer a { color:var(--primary); text-decoration:none; }
+        /* ══ 投教社区移动端深度优化 ════════════════════════════════════ */
+        
+        @media (max-width: 900px) {
+            /* 中等屏幕：右侧边栏掉到底部，资源卡片变成 2x2 排列 */
+            .content-grid { grid-template-columns: 1fr; }
+            .resource-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            /* 1. 导航栏：复用咱们调好的横向滑动与吸附菜单神仙体验 */
+            header { padding: 12px 16px; gap: 16px; }
+            .logo { flex-shrink: 0; }
+            nav {
+                flex: 1; min-width: 0; overflow-x: auto; flex-wrap: nowrap;
+                justify-content: flex-start; gap: 20px;
+                -webkit-overflow-scrolling: touch; padding-right: 4px;
+            }
+            nav::-webkit-scrollbar { display: none; }
+            nav a { display: inline-block !important; flex-shrink: 0; font-size: 14px; }
+            .sidebar-btn {
+                display: flex !important; position: sticky; right: 0; flex-shrink: 0;
+                background: rgba(11,15,25,0.95); box-shadow: -12px 0 10px rgba(11,15,25,0.95);
+                padding-left: 8px; z-index: 10;
+            }
+
+            /* 2. 页面主体释放空间 */
+            main { padding: 20px 16px; margin-top: 70px; }
+            .page-header { margin-bottom: 24px; }
+            .page-header h1 { font-size: 24px; margin-bottom: 8px; }
+            .page-header p { font-size: 13px; padding: 0 10px; }
+
+            /* 3. 学习资源卡片：手机上变成单列，且图标和文字左右横向排布，节省高度 */
+            .resource-grid { grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px; }
+            .res-card { 
+                flex-direction: row; /* 从上下结构改为左右结构 */
+                text-align: left; 
+                padding: 16px; 
+                gap: 16px; 
+            }
+            .res-icon { margin-bottom: 0; font-size: 28px; flex-shrink: 0; }
+            .res-title { font-size: 15px; margin-bottom: 4px; }
+            .res-desc { font-size: 12px; }
+
+            /* 4. 帖子列表：允许底部元信息（时间、作者、点赞）自然换行 */
+            .content-grid { gap: 20px; }
+            .section-header { padding: 14px 16px; }
+            .post-item { padding: 16px; }
+            .post-title { font-size: 15px; margin-bottom: 8px; }
+            .post-excerpt { font-size: 13px; margin-bottom: 12px; }
+            .post-footer { 
+                flex-wrap: wrap; /* 核心：空间不够时自动换行，不硬挤 */
+                gap: 10px; 
+            }
+            .post-meta { gap: 10px; }
+            .post-stats { margin-left: auto; } /* 确保点赞和评论始终靠右 */
+
+            /* 5. 侧边栏卡片及底部守则微调 */
+            .side-header { padding: 12px 16px; }
+            .side-body { padding: 12px 16px; }
+            .rules-card { padding: 16px; margin-top: 20px; }
+            .rules-title { font-size: 15px; margin-bottom: 12px; }
+            .rules-list li { font-size: 12px; margin-bottom: 8px; }
+        }
     </style>
 </head>
 <body>
@@ -166,13 +276,55 @@
     </a>
     <nav>
         <a href="index.html">首页</a>
-        <a href="trade.html">模拟演练</a>
+        <a href="dashboard.html">仪表盘</a>
+        <a href="trade.html">模拟演练<span class="nav-dot"></span></a>
+        <a href="analysis.html">个股分析</a>
         <a href="platforms.html">持仓体检</a>
         <a href="market.html">市场快讯</a>
-        <a href="community.html" class="active">投教社区</a>
+        <a href="community.html">投教社区</a>
         <a href="team.html">关于我们</a>
+        
+        <button id="sidebar-toggle" class="sidebar-btn" title="打开学习中心">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
     </nav>
 </header>
+
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h2>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            校园财商库
+        </h2>
+        <button id="sidebar-close" class="close-btn">&times;</button>
+    </div>
+    <div class="sidebar-content">
+        <a href="home.html" class="sidebar-link featured">
+            <span>📚 进入学习中心</span>
+            <span>→</span>
+        </a>
+        <a href="#" class="sidebar-link">
+            <span>📈 基础财商课程</span>
+        </a>
+        <a href="#" class="sidebar-link">
+            <span>🛡️ 大学生防骗指南</span>
+        </a>
+        <a href="#" class="sidebar-link">
+            <span>💡 投资策略锦囊</span>
+        </a>
+        <a href="#" class="sidebar-link">
+            <span>📝 我的模拟笔记</span>
+        </a>
+    </div>
+</aside>
 
 <main>
     <div class="page-header">
@@ -394,6 +546,30 @@
     投教社区 · 共同学习，理性投资 &nbsp;|&nbsp;
     <a href="team.html">关于我们</a>
 </footer>
+
+<script>
+    'use strict';
+    const sidebar        = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    const sidebarToggle  = document.getElementById('sidebar-toggle');
+    const sidebarClose   = document.getElementById('sidebar-close');
+
+    function openSidebar() {
+        sidebar.classList.add('open');
+        sidebarOverlay.classList.add('open');
+        document.body.style.overflow = 'hidden'; 
+    }
+
+    function closeSidebar() {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    sidebarToggle.addEventListener('click', openSidebar);
+    sidebarClose.addEventListener('click', closeSidebar);
+    sidebarOverlay.addEventListener('click', closeSidebar);
+</script>
 
 </body>
 </html>

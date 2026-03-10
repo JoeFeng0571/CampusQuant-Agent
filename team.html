@@ -41,6 +41,53 @@
         nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
             background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width 0.3s; }
         nav a:hover::after, nav a.active::after { width:100%; }
+        /* 导航小红点标签 */
+        .nav-dot {
+            display:inline-block; width:6px; height:6px; background:var(--danger);
+            border-radius:50%; margin-left:4px; vertical-align:top; margin-top:2px;
+            animation:blink-dot 2s ease-in-out infinite;
+        }
+        @keyframes blink-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* 侧边栏触发按钮 */
+        .sidebar-btn {
+            background:transparent; border:none; color:var(--text-sub);
+            cursor:pointer; display:flex; align-items:center; padding:4px;
+            margin-left:10px; transition:color 0.3s;
+        }
+        .sidebar-btn:hover { color:var(--secondary); }
+
+        /* ══ 侧边栏及遮罩层样式 ══ */
+        .sidebar-overlay {
+            position:fixed; top:0; left:0; right:0; bottom:0;
+            background:rgba(0,0,0,0.5); backdrop-filter:blur(3px);
+            z-index:1999; opacity:0; visibility:hidden; transition:all 0.3s ease;
+        }
+        .sidebar-overlay.open { opacity:1; visibility:visible; }
+        .sidebar {
+            position:fixed; top:0; right:-320px; width:320px; max-width:85vw; height:100vh;
+            background:rgba(11, 15, 25, 0.95); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+            border-left:1px solid var(--border); z-index:2000;
+            transition:right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display:flex; flex-direction:column; padding:30px 24px; box-shadow:-10px 0 30px rgba(0,0,0,0.5);
+        }
+        .sidebar.open { right:0; }
+        .sidebar-header {
+            display:flex; justify-content:space-between; align-items:center;
+            margin-bottom:30px; padding-bottom:16px; border-bottom:1px solid var(--border);
+        }
+        .sidebar-header h2 { font-size:18px; color:#fff; display:flex; align-items:center; gap:8px; }
+        .close-btn { background:none; border:none; color:var(--text-dim); font-size:28px; line-height:1; cursor:pointer; transition:color 0.2s; }
+        .close-btn:hover { color:var(--danger); }
+        .sidebar-content { display:flex; flex-direction:column; gap:16px; }
+        .sidebar-link {
+            text-decoration:none; color:var(--text-sub); padding:14px 18px;
+            background:var(--card); border:1px solid var(--border); border-radius:12px;
+            transition:all 0.25s ease; display:flex; align-items:center; justify-content:space-between; font-weight:500;
+        }
+        .sidebar-link:hover { background:rgba(79,172,254,0.1); border-color:rgba(79,172,254,0.3); color:var(--primary); transform:translateX(4px); }
+        .sidebar-link.featured { background:linear-gradient(135deg,rgba(79,172,254,0.15),rgba(0,242,254,0.05)); border-color:rgba(79,172,254,0.4); color:var(--secondary); }
+        .sidebar-link.featured:hover { background:linear-gradient(135deg,rgba(79,172,254,0.25),rgba(0,242,254,0.15)); box-shadow:0 4px 15px rgba(0,242,254,0.15); }
 
         /* ══ 主体 ══ */
         main { flex:1; margin-top:80px; padding:40px 48px; display:flex; flex-direction:column; align-items:center; }
@@ -141,6 +188,77 @@
             border-top:1px solid var(--border); color:var(--text-dim); font-size:13px; margin-top:24px;
         }
         footer a { color:var(--primary); text-decoration:none; }
+        /* ══ 关于我们移动端深度优化 ════════════════════════════════════ */
+        
+        @media (max-width: 900px) {
+            /* 中等屏幕：将 4列或 3列的网格统一降级为 2列，防止拥挤 */
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+            .team-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            /* 1. 导航栏：复用全站统一的横向滑动与菜单吸附体验 */
+            header { padding: 12px 16px; gap: 16px; }
+            .logo { flex-shrink: 0; }
+            nav {
+                flex: 1; min-width: 0; overflow-x: auto; flex-wrap: nowrap;
+                justify-content: flex-start; gap: 20px;
+                -webkit-overflow-scrolling: touch; padding-right: 4px;
+            }
+            nav::-webkit-scrollbar { display: none; }
+            nav a { display: inline-block !important; flex-shrink: 0; font-size: 14px; }
+            .sidebar-btn {
+                display: flex !important; position: sticky; right: 0; flex-shrink: 0;
+                background: rgba(11,15,25,0.95); box-shadow: -12px 0 10px rgba(11,15,25,0.95);
+                padding-left: 8px; z-index: 10;
+            }
+
+            /* 2. 页面主体空间释放 */
+            main { padding: 20px 16px; margin-top: 70px; }
+            .page-header { margin-bottom: 24px; }
+            .page-header h1 { font-size: 24px; margin-bottom: 8px; }
+            .page-header p { font-size: 13px; padding: 0 10px; }
+
+            /* 3. 使命卡片与数据亮点微调 */
+            .mission-card { padding: 24px 16px; margin-bottom: 32px; }
+            .mission-card h2 { font-size: 17px; margin-bottom: 12px; }
+            .mission-card p { font-size: 13px; text-align: justify; }
+            
+            .stats-row { gap: 12px; margin-bottom: 36px; }
+            .stat-card { padding: 16px 10px; }
+            .stat-num { font-size: 24px; }
+            .stat-label { font-size: 11px; }
+
+            /* 4. 时间轴保护：缩进距离减小，防止右侧文字空间太窄 */
+            .timeline-section { margin-bottom: 36px; }
+            .section-title { font-size: 20px; margin-bottom: 24px; }
+            .timeline { margin-left: 12px; padding-left: 20px; }
+            .tl-item::before { left: -27px; width: 12px; height: 12px; top: 2px; }
+            .tl-content { padding: 14px 16px; }
+            .tl-content h3 { font-size: 15px; }
+            .tl-content p { font-size: 13px; }
+
+            /* 5. 核心功能与团队成员重排 */
+            .features-section { margin-bottom: 36px; }
+            .features-grid { grid-template-columns: 1fr; gap: 12px; } /* 手机上功能卡片变单列 */
+            .feature-card { padding: 16px; }
+            .feature-icon { font-size: 24px; margin-bottom: 8px; }
+            .feature-title { font-size: 14px; }
+            
+            .team-section { margin-bottom: 16px; }
+            .team-grid { gap: 12px; }
+            .team-card { padding: 20px 12px; }
+            .avatar { width: 56px; height: 56px; font-size: 18px; margin-bottom: 12px; }
+            .member-name { font-size: 14px; }
+            .member-role { font-size: 10px; margin-bottom: 8px; }
+            .member-bio { font-size: 11px; text-align: left; }
+        }
+        
+        /* 针对超小屏幕（如 iPhone SE）的极限保护 */
+        @media (max-width: 400px) {
+            .team-grid { grid-template-columns: 1fr; } /* 超小屏幕团队卡片变为上下单列排布 */
+        }
     </style>
 </head>
 <body>
@@ -152,13 +270,55 @@
     </a>
     <nav>
         <a href="index.html">首页</a>
-        <a href="trade.html">模拟演练</a>
+        <a href="dashboard.html">仪表盘</a>
+        <a href="trade.html">模拟演练<span class="nav-dot"></span></a>
+        <a href="analysis.html">个股分析</a>
         <a href="platforms.html">持仓体检</a>
         <a href="market.html">市场快讯</a>
         <a href="community.html">投教社区</a>
-        <a href="team.html" class="active">关于我们</a>
+        <a href="team.html">关于我们</a>
+        
+        <button id="sidebar-toggle" class="sidebar-btn" title="打开学习中心">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
     </nav>
 </header>
+
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h2>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            校园财商库
+        </h2>
+        <button id="sidebar-close" class="close-btn">&times;</button>
+    </div>
+    <div class="sidebar-content">
+        <a href="home.html" class="sidebar-link featured">
+            <span>📚 进入学习中心</span>
+            <span>→</span>
+        </a>
+        <a href="#" class="sidebar-link">
+            <span>📈 基础财商课程</span>
+        </a>
+        <a href="#" class="sidebar-link">
+            <span>🛡️ 大学生防骗指南</span>
+        </a>
+        <a href="#" class="sidebar-link">
+            <span>💡 投资策略锦囊</span>
+        </a>
+        <a href="#" class="sidebar-link">
+            <span>📝 我的模拟笔记</span>
+        </a>
+    </div>
+</aside>
 
 <main>
     <div class="page-header">
@@ -303,6 +463,30 @@
     校园极客出品 · 非商业开源项目 &nbsp;|&nbsp;
     <a href="community.html">投教社区</a>
 </footer>
+
+<script>
+    'use strict';
+    const sidebar        = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    const sidebarToggle  = document.getElementById('sidebar-toggle');
+    const sidebarClose   = document.getElementById('sidebar-close');
+
+    function openSidebar() {
+        sidebar.classList.add('open');
+        sidebarOverlay.classList.add('open');
+        document.body.style.overflow = 'hidden'; 
+    }
+
+    function closeSidebar() {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    sidebarToggle.addEventListener('click', openSidebar);
+    sidebarClose.addEventListener('click', closeSidebar);
+    sidebarOverlay.addEventListener('click', closeSidebar);
+</script>
 
 </body>
 </html>

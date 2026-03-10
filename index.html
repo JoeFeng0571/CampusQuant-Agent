@@ -123,6 +123,118 @@
             0%,100% { opacity: 1; } 50% { opacity: 0.3; }
         }
 
+        /* ══ 侧边栏触发按钮 ══════════════════════════════════ */
+        .sidebar-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-sub);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            padding: 4px;
+            margin-left: 10px;
+            transition: color 0.3s;
+        }
+        .sidebar-btn:hover {
+            color: var(--secondary);
+        }
+
+        /* ══ 侧边栏及遮罩层样式 ══════════════════════════════ */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(3px);
+            z-index: 1999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .sidebar-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: -320px;
+            width: 320px;
+            max-width: 85vw;
+            height: 100vh;
+            background: rgba(11, 15, 25, 0.95);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-left: 1px solid var(--border);
+            z-index: 2000;
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            padding: 30px 24px;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+        }
+        .sidebar.open {
+            right: 0;
+        }
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .sidebar-header h2 {
+            font-size: 18px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 28px;
+            line-height: 1;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .close-btn:hover { color: var(--danger); }
+        .sidebar-content {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .sidebar-link {
+            text-decoration: none;
+            color: var(--text-sub);
+            padding: 14px 18px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 500;
+        }
+        .sidebar-link:hover {
+            background: rgba(79,172,254,0.1);
+            border-color: rgba(79,172,254,0.3);
+            color: var(--primary);
+            transform: translateX(4px);
+        }
+        .sidebar-link.featured {
+            background: linear-gradient(135deg, rgba(79,172,254,0.15), rgba(0,242,254,0.05));
+            border-color: rgba(79,172,254,0.4);
+            color: var(--secondary);
+        }
+        .sidebar-link.featured:hover {
+            background: linear-gradient(135deg, rgba(79,172,254,0.25), rgba(0,242,254,0.15));
+            box-shadow: 0 4px 15px rgba(0,242,254,0.15);
+        }
+
         /* ══ Hero 主区 ════════════════════════════════════ */
         main {
             flex: 1;
@@ -272,7 +384,7 @@
          * 接入时只需将 connectSSE() 中的模拟逻辑替换为真实 fetch + ReadableStream 解析即可。
          *
          * 事件格式来自 api/server.py / _make_sse_event()：
-         *   { event, node, message, data, timestamp, seq }
+         * { event, node, message, data, timestamp, seq }
          */
         #chat-area {
             width: 100%;
@@ -495,49 +607,171 @@
         }
         .footer-text a:hover { color: var(--secondary); }
 
-        /* ══ 响应式 ════════════════════════════════════ */
-        @media (max-width: 768px) {
-            header { padding: 14px 22px; }
-            nav { gap: 16px; }
-            nav a { font-size: 13px; }
-            .hero h1 { font-size: 36px; }
-            .hero p { font-size: 15px; }
-            .modules-grid { grid-template-columns: 1fr 1fr; }
+    /* ══ 移动端深度优化 ════════════════════════════════════ */
+        
+        /* 1. 修复长文字（如分析结果）撑破屏幕的问题 */
+        .result-row .val {
+            flex: 1;
+            text-align: right;
+            margin-left: 16px;
+            word-break: break-all; /* 允许长文字强制换行 */
         }
-        @media (max-width: 500px) {
+
+        /* ══ 手机端专属优化 ════════════════════════════════════ */
+        @media (max-width: 768px) {
+            /* 2. 导航栏：横向滑动保留所有链接，右侧菜单按钮固定不动 */
+            header { 
+                padding: 12px 16px; 
+                gap: 16px; 
+            }
+            .logo { flex-shrink: 0; }
+            nav { 
+                flex: 1; 
+                min-width: 0; 
+                overflow-x: auto; 
+                flex-wrap: nowrap; 
+                justify-content: flex-start;
+                gap: 20px; 
+                -webkit-overflow-scrolling: touch; 
+                padding-right: 4px;
+            }
+            nav::-webkit-scrollbar { display: none; }
+            nav a { 
+                display: inline-block !important; 
+                flex-shrink: 0; 
+                font-size: 14px; 
+            }
+            .sidebar-btn { 
+                display: flex !important; 
+                position: sticky; 
+                right: 0; 
+                flex-shrink: 0;
+                background: rgba(11,15,25,0.95); 
+                box-shadow: -12px 0 10px rgba(11,15,25,0.95); 
+                padding-left: 8px;
+                z-index: 10;
+            }
+
+            /* 3. 主区释放空间 */
+            main { padding: 85px 16px 40px; }
+            .hero h1 { font-size: 30px; margin-bottom: 12px; }
+            .hero p { font-size: 14px; margin-bottom: 20px; padding: 0 5px; }
+
+            /* 4. 搜索框：改为上下堆叠，大按钮更好点 */
+            .search-wrap {
+                flex-direction: column;
+                background: transparent;
+                box-shadow: none;
+                padding: 0;
+                gap: 12px;
+                border: none;
+            }
+            .search-wrap:focus-within { box-shadow: none; background: transparent; }
+            .search-wrap input {
+                width: 100%;
+                background: rgba(255,255,255,0.06);
+                border: 1px solid var(--border);
+                border-radius: 52px;
+                padding: 16px 20px;
+            }
+            .search-wrap input:focus {
+                border-color: var(--secondary);
+                box-shadow: 0 0 0 3px rgba(0,242,254,0.12);
+            }
+            .search-wrap button {
+                width: 100%;
+                padding: 15px;
+                justify-content: center;
+            }
+
+            /* 5. 快捷问题：横向滑动不占地方 */
+            .quick-hints {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                justify-content: flex-start;
+                padding-bottom: 4px;
+                -webkit-overflow-scrolling: touch;
+                mask-image: linear-gradient(to right, #000 85%, transparent 100%);
+                -webkit-mask-image: linear-gradient(to right, #000 85%, transparent 100%);
+            }
+            .quick-hints::-webkit-scrollbar { display: none; }
+            .hint-chip { flex-shrink: 0; padding: 6px 14px; }
+
+            /* 6. 卡片和底部横幅：单列排布，缩小留白 */
             .modules-grid { grid-template-columns: 1fr; }
+            .ai-bubble, .result-card, .module-card { padding: 16px; }
+            .risk-banner { padding: 12px; font-size: 12px; line-height: 1.5; gap: 8px; }
+            .risk-banner .ricon { font-size: 15px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- ══ 顶部导航栏 ══════════════════════════════════════ -->
     <header>
         <div class="logo">
             <span class="logo-text">CampusQuant</span>
             <span class="logo-sub">校园财商</span>
         </div>
         <nav>
-            <a href="#home" class="active">首页</a>
-            <a href="#paper-trading">模拟演练<span class="nav-dot"></span></a>
-            <a href="#portfolio-doctor">持仓体检</a>
-            <a href="#market">市场快讯</a>
-            <a href="#community">投教社区</a>
-            <a href="#about">关于我们</a>
+            <a href="index.html" class="active">首页</a>
+            <a href="dashboard.html">仪表盘</a>
+            <a href="trade.html">模拟演练<span class="nav-dot"></span></a>
+        <a href="analysis.html">个股分析</a>
+            <a href="platforms.html">持仓体检</a>
+            <a href="market.html">市场快讯</a>
+            <a href="community.html">投教社区</a>
+            <a href="team.html">关于我们</a>
+            
+            <button id="sidebar-toggle" class="sidebar-btn" title="打开学习中心">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
         </nav>
     </header>
 
-    <!-- ══ 页面主体 ════════════════════════════════════════ -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+                校园财商库
+            </h2>
+            <button id="sidebar-close" class="close-btn">&times;</button>
+        </div>
+        <div class="sidebar-content">
+            <a href="home.html" class="sidebar-link featured">
+                <span>📚 进入学习中心</span>
+                <span>→</span>
+            </a>
+            <a href="#" class="sidebar-link">
+                <span>📈 基础财商课程</span>
+            </a>
+            <a href="#" class="sidebar-link">
+                <span>🛡️ 大学生防骗指南</span>
+            </a>
+            <a href="#" class="sidebar-link">
+                <span>💡 投资策略锦囊</span>
+            </a>
+            <a href="#" class="sidebar-link">
+                <span>📝 我的模拟笔记</span>
+            </a>
+        </div>
+    </aside>
+
     <main>
         <div class="hero">
 
-            <!-- 活跃状态指示 -->
             <div class="hero-tag">多智能体分析引擎已就绪</div>
 
             <h1>你的 <span class="grad">AI 财商学长</span><br>随时待命</h1>
             <p>告别炒股焦虑与信息差。直接用大白话提问，财财学长为你深度解析，帮你做出更明智的投资决策。</p>
 
-            <!-- 提问输入框 -->
             <div class="search-wrap">
                 <input type="text" id="ai-input"
                     placeholder="学长，生活费还剩2000能全仓买股票吗？"
@@ -553,7 +787,6 @@
                 </button>
             </div>
 
-            <!-- 快捷示例问题芯片 -->
             <div class="quick-hints" id="quick-hints">
                 <span class="hint-chip" data-q="帮我分析一下腾讯最近的财报">腾讯财报解读</span>
                 <span class="hint-chip" data-q="定投沪深300ETF和主动型基金哪个更适合大学生？">ETF vs 主动基金</span>
@@ -562,28 +795,15 @@
                 <span class="hint-chip" data-q="比亚迪现在估值贵不贵，能买吗？">比亚迪估值</span>
             </div>
 
-            <!-- ══════════════════════════════════════════════════════
-                 SSE 流式输出区域 — Server-Sent Events DOM 框架
-                 ──────────────────────────────────────────────────────
-                 此区域已完整预留 SSE 接入所需的所有 DOM 节点。
-                 接入 api/server.py 的 SSE 流时，只需：
-                   1. 将 connectSSE() 内的 await simulateSSE() 替换为
-                      真实 fetch + ReadableStream 解析即可
-                   2. 各事件类型对应的处理逻辑已在 handleSSEEvent() 中实现
-                      事件格式参考：api/server.py / _make_sse_event()
-                 ══════════════════════════════════════════════════════ -->
             <div id="chat-area">
 
-                <!-- 状态条：显示当前执行节点名称 -->
                 <div class="status-bar" id="status-bar">
                     <div class="spinner" id="status-spinner"></div>
                     <span id="status-text">财财学长正在思考...</span>
                 </div>
 
-                <!-- 节点进度徽章区（SSE node_start / node_complete 事件动态注入）-->
                 <div id="node-progress" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
 
-                <!-- AI 回复气泡：打字机效果文本容器 -->
                 <div class="ai-bubble" id="ai-bubble" style="display:none;">
                     <div class="bubble-hd">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
@@ -594,13 +814,10 @@
                         </svg>
                         财财学长
                     </div>
-                    <!-- 打字机逐字注入此处 -->
                     <div id="typewriter-text"></div>
-                    <!-- 打字机光标（AI 回复完成后隐藏）-->
                     <span class="tw-cursor" id="tw-cursor"></span>
                 </div>
 
-                <!-- 最终结构化结果卡（SSE trade_order / complete 事件填充）-->
                 <div class="result-card" id="result-card">
                     <div class="rcard-hd">
                         <span>📊</span> 模拟分析结果摘要
@@ -609,12 +826,7 @@
                 </div>
 
             </div>
-            <!-- ══ /SSE 流式输出区域 ══════════════════════ -->
-
-        </div><!-- /.hero -->
-
-        <!-- ══ 业务模块卡片区 ════════════════════════════ -->
-        <div class="modules-section">
+            </div><div class="modules-section">
             <p class="sec-title">我能帮你做什么？</p>
             <div class="modules-grid">
 
@@ -653,7 +865,6 @@
             </div>
         </div>
 
-        <!-- ══ 大学生风控警示横幅 ══════════════════════ -->
         <div class="risk-banner">
             <span class="ricon">⚠️</span>
             <div>
@@ -665,30 +876,20 @@
 
     </main>
 
-    <!-- ══ 页脚 ════════════════════════════════════════════ -->
     <footer>
         <div class="footer-text">
             &copy; 2026 CampusQuant Team &nbsp;·&nbsp; 校园财商智能分析平台<br>
             致力于用 AI 帮助每位大学生建立正确的财富认知<br>
-            <a href="#about">关于团队</a> &nbsp;·&nbsp;
-            <a href="#community">加入社区</a>
+            <a href="team.html">关于团队</a> &nbsp;·&nbsp;
+            <a href="community.html">加入社区</a>
         </div>
     </footer>
 
 
-    <!-- ══════════════════════════════════════════════════════════
-         前端交互脚本
-         ──────────────────────────────────────────────────────────
-         SSE 接入说明：
-           - API_BASE 对应 api/server.py 启动后的地址
-           - handleSSEEvent() 按照 _make_sse_event() 的事件格式实现了全部事件类型处理
-           - connectSSE() 内预留了真实 fetch + ReadableStream 解析代码（注释形式）
-           - 后端就绪后：取消注释真实代码，删除 simulateSSE() 调用即可
-         ══════════════════════════════════════════════════════════ -->
     <script>
     'use strict';
 
-    const API_BASE = 'http://localhost:8000/api/v1';
+    const API_BASE = 'http://127.0.0.1:8000/api/v1';
 
     // ── DOM 引用 ────────────────────────────────────────────
     const inputEl       = document.getElementById('ai-input');
@@ -702,6 +903,29 @@
     const twCursor      = document.getElementById('tw-cursor');
     const resultCard    = document.getElementById('result-card');
     const resultRows    = document.getElementById('result-rows');
+
+    // ── 侧边栏逻辑 ──────────────────────────────────────────
+    const sidebar        = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    const sidebarToggle  = document.getElementById('sidebar-toggle');
+    const sidebarClose   = document.getElementById('sidebar-close');
+
+    function openSidebar() {
+        sidebar.classList.add('open');
+        sidebarOverlay.classList.add('open');
+        document.body.style.overflow = 'hidden'; 
+    }
+
+    function closeSidebar() {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    sidebarToggle.addEventListener('click', openSidebar);
+    sidebarClose.addEventListener('click', closeSidebar);
+    sidebarOverlay.addEventListener('click', closeSidebar);
+
 
     // ── 节点 → 中文标签映射（与 api/server.py _NODE_LABELS 保持同步）──
     const NODE_LABELS = {
@@ -842,8 +1066,36 @@
     // ══════════════════════════════════════════════════════════
     async function connectSSE(symbol, query) {
         statusText.textContent = `正在分析 ${symbol}，多智能体引擎启动...`;
-        // 演示模式（后端未就绪）
-        await simulateSSE(symbol, query);
+        try {
+            const resp = await fetch(`${API_BASE}/analyze`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ symbol }),
+            });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const reader  = resp.body.getReader();
+            const decoder = new TextDecoder();
+            let   buffer  = '';
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const chunks = buffer.split('\n\n');
+                buffer = chunks.pop();
+                for (const chunk of chunks) {
+                    const dataLine = chunk.split('\n').find(l => l.startsWith('data:'));
+                    if (!dataLine) continue;
+                    try {
+                        const payload = JSON.parse(dataLine.slice(5).trim());
+                        await handleSSEEvent(payload);
+                    } catch (err) { console.warn('[SSE] parse error:', err); }
+                }
+            }
+        } catch (err) {
+            console.warn('[SSE] 连接失败，切换演示模式:', err);
+            statusText.textContent = `后端未连接，进入演示模式...`;
+            await simulateSSE(symbol, query);
+        }
     }
 
     // ── SSE 事件处理（按 api/server.py _make_sse_event 格式）──

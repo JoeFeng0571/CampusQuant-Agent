@@ -45,6 +45,11 @@ LLM 输出全部通过 with_structured_output(PydanticModel) 产生，
 """
 from __future__ import annotations
 
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
+
+import asyncio
+import functools
 import json
 import os
 from datetime import datetime
@@ -89,6 +94,9 @@ def _build_llm(temperature: float = 0.3):
     """
     provider = config.PRIMARY_LLM_PROVIDER.lower()
 
+    # 硬超时：90s 适配高峰期大模型并发延迟，防止并行节点永久挂死
+    _LLM_TIMEOUT = 90
+
     if provider == "dashscope":
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(
@@ -97,6 +105,8 @@ def _build_llm(temperature: float = 0.3):
             base_url=config.DASHSCOPE_BASE_URL,
             temperature=temperature,
             max_tokens=2048,
+            timeout=_LLM_TIMEOUT,
+            request_timeout=_LLM_TIMEOUT,
         )
     elif provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
@@ -105,6 +115,7 @@ def _build_llm(temperature: float = 0.3):
             api_key=config.ANTHROPIC_API_KEY,
             temperature=temperature,
             max_tokens=2048,
+            timeout=_LLM_TIMEOUT,
         )
     else:
         from langchain_openai import ChatOpenAI
@@ -113,6 +124,8 @@ def _build_llm(temperature: float = 0.3):
             api_key=config.OPENAI_API_KEY,
             temperature=temperature,
             max_tokens=2048,
+            timeout=_LLM_TIMEOUT,
+            request_timeout=_LLM_TIMEOUT,
         )
 
 
@@ -152,6 +165,58 @@ def _check_tool_limit(state: TradingGraphState, node_name: str) -> int:
             f"[{node_name}] 工具调用次数已达上限 {MAX_TOOL_CALLS}，强制降级"
         )
     return count
+
+
+def _log_node_error(node_name: str, e: Exception) -> None:
+    """
+    统一节点错误日志：即使 str(e) 为空（如裸 asyncio.TimeoutError），
+    也能打印异常类型名称和完整 traceback，便于追踪死因。
+    """
+    type_name = type(e).__name__
+    msg_part  = f" - {e}" if str(e) else ""
+    logger.error(f"[{node_name}] 失败: {type_name}{msg_part}", exc_info=True)
+
+
+def _safe_fallback_report(node_name: str, key: str, err: Exception) -> dict:
+    """为并行分析节点生成符合 State Schema 的兜底字典（防止图死锁）。"""
+    type_name = type(err).__name__
+    msg = f"{node_name} 顶层异常({type_name})，安全降级: {str(err)[:200]}"
+    logger.critical(f"[{node_name}] 💀 {type_name}: {str(err)[:200]}", exc_info=True)
+    return {
+        key: {
+            "recommendation": "HOLD",
+            "confidence":     0.1,
+            "reasoning":      msg,
+            "key_factors":    ["系统异常"],
+            "risk_factors":   ["节点崩溃"],
+            "price_target":   None,
+            "signal_strength": "WEAK",
+            "key_metrics":    {},
+        },
+        "execution_log": [_log_entry(node_name, f"💀 顶层异常: {err}")],
+        "messages": [AIMessage(content=msg, name=node_name)],
+    }
+
+
+def _guard_node(state_key: str):
+    """
+    装饰器：为 LangGraph 节点添加顶层 try/except 安全兜底。
+    任何未被内层 except 捕获的异常（包括 asyncio.TimeoutError）都将被拦截，
+    返回符合 State Schema 的降级字典，避免并发节点崩溃导致整图死锁。
+
+    Usage:
+        @_guard_node("technical_report")
+        async def technical_node(state): ...
+    """
+    def decorator(fn):
+        @functools.wraps(fn)
+        async def wrapper(state):
+            try:
+                return await fn(state)
+            except Exception as _top_err:
+                return _safe_fallback_report(fn.__name__, state_key, _top_err)
+        return wrapper
+    return decorator
 
 
 def _increment_tool_count(state_counts: dict, node_name: str) -> dict:
@@ -327,7 +392,7 @@ async def data_node(state: TradingGraphState) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"[data_node] 失败: {e}")
+        _log_node_error("data_node", e)
         return {
             "market_data":        {"status": "error", "error": str(e)},
             "data_fetch_failed":  True,    # 【审计修复 P0-3】标记失败，触发并行节点早退
@@ -385,11 +450,10 @@ async def rag_node(state: TradingGraphState) -> dict:
             )],
         }
     except Exception as e:
-        logger.error(f"[rag_node] 失败: {e}")
+        _log_node_error("rag_node", e)
         return {
             "rag_context":   "",
             "execution_log": [_log_entry("rag_node", f"⚠️ RAG 检索失败（降级为空）: {e}")],
-            "error_type":    "data_error",
             "messages": [AIMessage(content=f"RAG 检索失败: {e}", name="rag_node")],
         }
 
@@ -398,6 +462,7 @@ async def rag_node(state: TradingGraphState) -> dict:
 # NODE 3 — fundamental_node（与其他分析师并行）
 # ════════════════════════════════════════════════════════════════
 
+@_guard_node("fundamental_report")
 async def fundamental_node(state: TradingGraphState) -> dict:
     """
     基本面分析师节点（审计修复版）:
@@ -491,9 +556,9 @@ price_target 使用绝对价格数值。
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: AnalystReport = await structured_llm.ainvoke(messages)
+        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=85.0)
 
-        report_dict = report.model_dump()
+        report_dict = report.model_dump(mode='json')
         log_msg = _log_entry(
             "fundamental_node",
             f"基本面分析: {report.recommendation} | 置信度: {report.confidence:.2f} | "
@@ -501,6 +566,9 @@ price_target 使用绝对价格数值。
         )
         logger.info(log_msg)
 
+        # 将 key_metrics 注入 fundamental_report，确保 server.py 能提取 financial_chart_data
+        # （无论成功还是降级路径，前端 ECharts 都能获得 revenue_history / profit_history）
+        report_dict["key_metrics"] = fundamental_data_dict if fundamental_data_dict else {}
         return {
             "fundamental_report": report_dict,
             "fundamental_data":   fundamental_data_dict if fundamental_data_dict else None,
@@ -514,18 +582,19 @@ price_target 使用绝对价格数值。
         }
 
     except Exception as e:
-        logger.error(f"[fundamental_node] 失败: {e}")
+        _log_node_error("fundamental_node", e)
         fallback = {
             "recommendation": "HOLD", "confidence": 0.3,
-            "reasoning": f"基本面分析异常: {str(e)}",
+            "reasoning": f"基本面分析异常（LLM 超时或解析失败）: {str(e)}",
             "key_factors": [], "risk_factors": [],
             "price_target": None, "signal_strength": "WEAK",
+            # 抢救已获取的财务数据，确保 server.py 能提取 financial_chart_data
+            "key_metrics": fundamental_data_dict if fundamental_data_dict else {},
         }
         return {
             "fundamental_report": fallback,
             "tool_call_counts":   {"fundamental_node": counts.get("fundamental_node", 0)},
             "execution_log":      [_log_entry("fundamental_node", f"⚠️ 降级处理: {e}")],
-            "error_type":         "llm_error",
             "messages": [AIMessage(content=f"基本面分析异常: {e}", name="fundamental_node")],
         }
 
@@ -534,6 +603,7 @@ price_target 使用绝对价格数值。
 # NODE 4 — technical_node（与其他分析师并行）
 # ════════════════════════════════════════════════════════════════
 
+@_guard_node("technical_report")
 async def technical_node(state: TradingGraphState) -> dict:
     """
     技术分析师节点:
@@ -595,9 +665,9 @@ async def technical_node(state: TradingGraphState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: AnalystReport = await structured_llm.ainvoke(messages)
+        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=85.0)
 
-        report_dict = report.model_dump()
+        report_dict = report.model_dump(mode='json')
         log_msg = _log_entry(
             "technical_node",
             f"技术分析: {report.recommendation} | 置信度: {report.confidence:.2f} | "
@@ -616,7 +686,7 @@ async def technical_node(state: TradingGraphState) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"[technical_node] 失败: {e}")
+        _log_node_error("technical_node", e)
         sig = indicators.get("tech_signal", "HOLD")
         rec = "BUY" if "BUY" in sig else ("SELL" if "SELL" in sig else "HOLD")
         fallback = {
@@ -628,7 +698,6 @@ async def technical_node(state: TradingGraphState) -> dict:
         return {
             "technical_report": fallback,
             "execution_log":    [_log_entry("technical_node", f"⚠️ 降级处理: {e}")],
-            "error_type":       "llm_error",
             "messages": [AIMessage(content=f"技术分析异常: {e}", name="technical_node")],
         }
 
@@ -637,6 +706,7 @@ async def technical_node(state: TradingGraphState) -> dict:
 # NODE 5 — sentiment_node（与其他分析师并行）
 # ════════════════════════════════════════════════════════════════
 
+@_guard_node("sentiment_report")
 async def sentiment_node(state: TradingGraphState) -> dict:
     """
     舆情与资金面分析师节点（审计修复版）:
@@ -724,9 +794,9 @@ async def sentiment_node(state: TradingGraphState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: AnalystReport = await structured_llm.ainvoke(messages)
+        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=85.0)
 
-        report_dict = report.model_dump()
+        report_dict = report.model_dump(mode='json')
         has_real_news = "新闻获取失败" not in news_text and "获取失败" not in news_text and "暂无" not in news_text
         log_msg = _log_entry(
             "sentiment_node",
@@ -748,7 +818,7 @@ async def sentiment_node(state: TradingGraphState) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"[sentiment_node] 失败: {e}")
+        _log_node_error("sentiment_node", e)
         fallback = {
             "recommendation": "HOLD", "confidence": 0.3,
             "reasoning": f"舆情分析异常: {str(e)}",
@@ -759,7 +829,6 @@ async def sentiment_node(state: TradingGraphState) -> dict:
             "sentiment_report": fallback,
             "tool_call_counts": {"sentiment_node": counts.get("sentiment_node", 0)},
             "execution_log":    [_log_entry("sentiment_node", f"⚠️ 降级处理: {e}")],
-            "error_type":       "llm_error",
             "messages": [AIMessage(content=f"舆情分析异常: {e}", name="sentiment_node")],
         }
 
@@ -956,7 +1025,7 @@ async def portfolio_node(state: TradingGraphState) -> dict:
         )
         logger.info(log_msg)
 
-        portfolio_decision = decision.model_dump()
+        portfolio_decision = decision.model_dump(mode='json')
 
         return {
             "fundamental_report": {**fundamental, "_portfolio_decision": portfolio_decision},
@@ -972,7 +1041,7 @@ async def portfolio_node(state: TradingGraphState) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"[portfolio_node] 失败: {e}")
+        _log_node_error("portfolio_node", e)
         return {
             "has_conflict":  False,
             "execution_log": [_log_entry("portfolio_node", f"❌ 失败: {e}")],
@@ -1045,9 +1114,9 @@ async def debate_node(state: TradingGraphState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        outcome: DebateOutcome = await structured_llm.ainvoke(messages)
+        outcome: DebateOutcome = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=85.0)
 
-        outcome_dict = outcome.model_dump()
+        outcome_dict = outcome.model_dump(mode='json')
         new_rounds   = debate_rounds + 1
         log_msg = _log_entry(
             "debate_node",
@@ -1072,7 +1141,7 @@ async def debate_node(state: TradingGraphState) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"[debate_node] 失败: {e}")
+        _log_node_error("debate_node", e)
         return {
             "debate_outcome": {
                 "resolved_recommendation": "HOLD",
@@ -1096,6 +1165,7 @@ async def debate_node(state: TradingGraphState) -> dict:
 # NODE 8 — risk_node（风控审核）
 # ════════════════════════════════════════════════════════════════
 
+@_guard_node("risk_decision")
 async def risk_node(state: TradingGraphState) -> dict:
     """
     风控官审核节点:
@@ -1164,12 +1234,22 @@ async def risk_node(state: TradingGraphState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        decision: RiskDecision = await structured_llm.ainvoke(messages)
+        decision: RiskDecision = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=85.0)
 
-        decision_dict = decision.model_dump()
+        decision_dict = decision.model_dump(mode='json')
+
+        # ── 量纲规范化：position_pct 统一为百分比（0-20），不允许小数形式 ──
+        # Pydantic 上限 le=20.0，LLM 若输出 0.10（本意 10%）会通过校验但量纲错误
+        raw_pos = decision_dict["position_pct"]
+        max_pos = 15.0 if market_type == "A_STOCK" else 10.0
+        if raw_pos < 1.0 and raw_pos > 0:
+            corrected_pos = round(raw_pos * 100, 1)
+            logger.warning(
+                f"[risk_node] position_pct 量纲修正(小数→百分比): {raw_pos} → {corrected_pos}%"
+            )
+            decision_dict["position_pct"] = min(corrected_pos, max_pos)
 
         # 【审计修复 P1-3】代码层强制校验——LLM 输出可能仍不满足学生风控红线
-        max_pos = 15.0 if market_type == "A_STOCK" else 10.0
         if decision_dict["position_pct"] > max_pos:
             logger.warning(
                 f"[risk_node] 仓位超限 {decision_dict['position_pct']:.1f}% > {max_pos:.0f}%，强制截断"
@@ -1215,7 +1295,7 @@ async def risk_node(state: TradingGraphState) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"[risk_node] 失败: {e}")
+        _log_node_error("risk_node", e)
         fallback_decision = {
             "approval_status": "CONDITIONAL", "risk_level": "MEDIUM",
             "position_pct": 10.0, "stop_loss_pct": 7.0, "take_profit_pct": 15.0,
@@ -1251,12 +1331,28 @@ async def trade_executor(state: TradingGraphState) -> dict:
     risk_decision  = state.get("risk_decision", {}) or {}
     debate_outcome = state.get("debate_outcome")
 
-    current_price   = market_data.get("latest_price", 0.0)
     action          = portfolio_dec.get("recommendation", "HOLD")
     confidence      = portfolio_dec.get("confidence", 0.5)
     position_pct    = risk_decision.get("position_pct", 10.0)
     stop_loss_pct   = risk_decision.get("stop_loss_pct", 7.0)
     take_profit_pct = risk_decision.get("take_profit_pct", 15.0)
+
+    # ── 实时现价获取（降级至日线收盘价）──────────────────────────
+    is_spot_price = False
+    try:
+        from tools.market_data import get_spot_price_raw
+        import asyncio as _asyncio
+        loop = _asyncio.get_event_loop()
+        spot_data    = await loop.run_in_executor(None, get_spot_price_raw, symbol)
+        current_price = spot_data.get("price") or market_data.get("latest_price", 0.0)
+        is_spot_price = not spot_data.get("is_fallback", True)
+        logger.info(
+            f"[trade_executor] 实时现价: {current_price} "
+            f"({'实时' if is_spot_price else '日线收盘'})"
+        )
+    except Exception as _e:
+        logger.warning(f"[trade_executor] 实时价格获取失败，使用历史收盘价: {_e}")
+        current_price = market_data.get("latest_price", 0.0)
 
     logger.info(f"[trade_executor] 生成模拟交易指令: {symbol} | {action} | 仓位={position_pct:.1f}%")
 
@@ -1303,14 +1399,38 @@ simulated 字段必须为 true。
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        order: TradeOrder = await structured_llm.ainvoke(messages)
+        order: TradeOrder = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=85.0)
 
-        order_dict = order.model_dump()
-        order_dict["simulated"] = True   # 强制确保 simulated=True
+        order_dict = order.model_dump(mode='json')
+        order_dict["simulated"]       = True            # 强制确保 simulated=True
+        order_dict["execution_price"] = current_price   # 注入实时/收盘现价
+        order_dict["is_spot_price"]   = is_spot_price   # 是否为实时现价
+
+        # ── 量纲规范化：统一以百分比（%）表示仓位，修复 LLM 量纲混乱 ──
+        # 风控 position_pct 已经过代码层校验（单位：%，如 10.0 = 10%）
+        # LLM 有时将其误输出为小数（0.10）或超大值（100.0），均需修正
+        if action in ("BUY", "SELL"):
+            raw_qty = order_dict.get("quantity_pct", position_pct)
+            if raw_qty < 1.0 and position_pct >= 1.0:
+                # 小数形式：0.10 → 10.0%
+                logger.warning(
+                    f"[trade_executor] quantity_pct 量纲修正(小数→百分比): "
+                    f"{raw_qty} → {position_pct}%"
+                )
+                order_dict["quantity_pct"] = position_pct
+            elif raw_qty > position_pct * 2.0 + 1.0:
+                # 超出风控给定仓位 2 倍以上：截断到 position_pct
+                logger.warning(
+                    f"[trade_executor] quantity_pct 量纲修正(超限截断): "
+                    f"{raw_qty}% → {position_pct}%"
+                )
+                order_dict["quantity_pct"] = position_pct
+        elif action == "HOLD":
+            order_dict["quantity_pct"] = 0.0  # HOLD 仓位统一为 0
 
         log_msg = _log_entry(
             "trade_executor",
-            f"🎯 模拟交易指令: {order.action} {symbol} | 仓位 {order.quantity_pct:.1f}% "
+            f"🎯 模拟交易指令: {order.action} {symbol} | 仓位 {order_dict['quantity_pct']:.1f}% "
             f"| 止损 {order.stop_loss} | 止盈 {order.take_profit} "
             f"| 置信度 {order.confidence:.2f} | 模拟={order_dict['simulated']}"
         )
@@ -1331,7 +1451,7 @@ simulated 字段必须为 true。
         }
 
     except Exception as e:
-        logger.error(f"[trade_executor] 失败: {e}")
+        _log_node_error("trade_executor", e)
         fallback_order = {
             "symbol": symbol, "action": action,
             "quantity_pct": position_pct, "order_type": "MARKET",
@@ -1340,6 +1460,7 @@ simulated 字段必须为 true。
             "rationale": f"系统异常，降级输出: {str(e)[:100]}",
             "confidence": confidence, "market_type": market_type,
             "valid_until": None, "simulated": True,
+            "execution_price": current_price, "is_spot_price": is_spot_price,
         }
         return {
             "trade_order":   fallback_order,
@@ -1459,9 +1580,9 @@ async def health_node(state: TradingGraphState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: PortfolioHealthReport = await structured_llm.ainvoke(messages)
+        report: PortfolioHealthReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=85.0)
 
-        report_dict = report.model_dump()
+        report_dict = report.model_dump(mode='json')
         log_msg = _log_entry(
             "health_node",
             f"持仓体检完成 | 健康分: {report.health_score:.1f}/100 "
@@ -1485,7 +1606,7 @@ async def health_node(state: TradingGraphState) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"[health_node] 失败: {e}")
+        _log_node_error("health_node", e)
         fallback = {
             "health_score": 50.0, "concentration_risk": "MEDIUM",
             "max_drawdown_est": 30.0, "liquidity_score": 5.0,

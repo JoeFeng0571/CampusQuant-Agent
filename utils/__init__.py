@@ -5,10 +5,11 @@
 
 from .llm_client import LLMClient
 from .data_loader import DataLoader
-from .market_classifier import MarketClassifier
+from .market_classifier import MarketClassifier, MarketType
 
 __all__ = [
     "LLMClient",
     "DataLoader",
     "MarketClassifier",
+    "MarketType",
 ]

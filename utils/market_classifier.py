@@ -362,6 +362,100 @@ class MarketClassifier:
 
         return "未知交易所"
 
+    @staticmethod
+    def search_stock_suggestions(query: str, limit: int = 8) -> list:
+        """
+        股票联想搜索：输入中文名/拼音缩写/代码，返回标准化建议列表。
+
+        搜索优先级：
+          1. 本地 _FUZZY_NAME_MAP 前缀匹配（零延迟，最多 5 条）
+          2. 新浪财经 Suggest API 补充（最多 limit 条，3s 超时）
+
+        Returns:
+            list of {"symbol": str, "name": str, "type": str}
+              type ∈ {"A股", "港股", "美股", "ETF", "其他"}
+        """
+        if not query or len(query.strip()) < 1:
+            return []
+
+        query_stripped = query.strip()
+        query_lower    = query_stripped.lower()
+        results: list[dict] = []
+        seen_symbols: set[str] = set()
+
+        # ── 1. 本地字典前缀匹配 ──────────────────────────────────────
+        for key, code in _FUZZY_NAME_MAP.items():
+            if code == "不上市":
+                continue
+            if key.startswith(query_lower) or query_lower in key:
+                if code not in seen_symbols:
+                    seen_symbols.add(code)
+                    market_type, norm_code = MarketClassifier.classify(code)
+                    type_label = market_type.value if market_type != MarketType.UNKNOWN else "其他"
+                    # 用 key 的标题化作为展示名（去掉拼音缩写类键）
+                    if not re.match(r'^[a-z]+$', key):
+                        results.append({"symbol": norm_code, "name": key, "type": type_label})
+                    if len(results) >= 5:
+                        break
+
+        # ── 2. 新浪财经 Suggest API ──────────────────────────────────
+        # 响应格式: var suggestvalue="名称,类型码,代码,简称,拼音,...|名称2,...";
+        # 类型码: 11=A股 31/33=ETF/基金 41=港股 71=美股
+        _TYPE_MAP = {
+            "11": "A股", "31": "ETF", "33": "基金",
+            "41": "港股", "71": "美股",
+        }
+        try:
+            url = (
+                "http://suggest3.sinajs.cn/suggest/type=&key="
+                + urllib.parse.quote(query_stripped, encoding="utf-8")
+            )
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; CampusQuant/1.0)"},
+            )
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                raw = resp.read().decode("gbk", errors="replace")
+
+            m = re.search(r'"([^"]+)"', raw)
+            if m and m.group(1):
+                for entry in m.group(1).split("|"):
+                    if not entry.strip():
+                        continue
+                    fields = entry.split(",")
+                    if len(fields) < 3:
+                        continue
+                    name      = fields[0].strip()
+                    type_code = fields[1].strip()
+                    raw_code  = fields[2].strip()
+                    if not raw_code or not name:
+                        continue
+
+                    # 规范化代码
+                    if re.match(r'^\d{6}$', raw_code):
+                        if raw_code.startswith(("60", "68", "90", "11")):
+                            symbol = f"{raw_code}.SH"
+                        else:
+                            symbol = f"{raw_code}.SZ"
+                    elif re.match(r'^\d{5}$', raw_code):
+                        symbol = f"{raw_code}.HK"
+                    elif re.match(r'^[A-Z]{1,5}$', raw_code.upper()):
+                        symbol = raw_code.upper()
+                    else:
+                        symbol = raw_code.upper()
+
+                    if symbol in seen_symbols:
+                        continue
+                    seen_symbols.add(symbol)
+                    type_label = _TYPE_MAP.get(type_code, "其他")
+                    results.append({"symbol": symbol, "name": name, "type": type_label})
+                    if len(results) >= limit:
+                        break
+        except Exception:
+            pass   # 网络超时或解析失败，静默降级至本地结果
+
+        return results[:limit]
+
 
 # ════════════════════════════════════════════════════════════════════
 # 测试

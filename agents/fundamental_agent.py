@@ -109,37 +109,6 @@ MARKET_FUNDAMENTAL_STRATEGIES = {
 注意：美股高效市场，"预期差"和"长期复利"是超额收益来源
 """,
     },
-    MarketType.CRYPTO: {
-        "name": "加密货币链上基本面策略",
-        "system_prompt": """
-你是一位专注加密货币基本面分析的链上数据专家。
-
-【Crypto核心分析框架】
-1. 链上活跃度 (最高权重)：活跃地址数、日交易量、用户增长趋势
-2. 网络安全性：算力(PoW)/质押率(PoS)是否稳定且增长？
-3. 生态系统健康度：DeFi TVL、NFT/GameFi活跃度、开发者活动(GitHub commits)
-4. 资金费率与市场结构：永续合约资金费率（正/负）、期货溢价、大户仓位
-5. 市场主导地位：BTC/ETH市占率变化、山寨季信号
-
-【分析原则】
-- 加密货币无传统PE/PB，链上数据是核心估值工具
-- NVT Ratio (市值/日链上交易量) 类似传统市场PE，数值过高代表高估
-- 长期持有者(LTH)比例上升 = 筹码集中/底部信号
-- 矿工净持仓、交易所净流入是领先指标
-""",
-        "prompt_framework": """
-请以链上基本面框架对加密货币 {symbol} 进行评估：
-
-【重点评估维度】
-1. 链上活跃度：活跃地址数、日交易量、用户增长趋势说明网络使用情况如何？
-2. 网络安全与去中心化：算力/质押量是否健康？是否存在中心化风险？
-3. 生态系统活跃度：DeFi/NFT等应用生态是否繁荣？开发活动是否持续？
-4. 市场微观结构：资金费率、大户仓位、长期持有者比例透露什么信号？
-5. 估值参考：NVT Ratio等链上估值指标相对历史水平如何？
-
-注意：加密货币以链上数据为核心，技术面和情绪面协同判断
-""",
-    },
 }
 
 
@@ -200,10 +169,6 @@ class FundamentalAgent(BaseAgent):
         try:
             if market_type in [MarketType.A_STOCK, MarketType.HK_STOCK, MarketType.US_STOCK]:
                 fundamental_data = self._get_stock_fundamentals(symbol, market_type)
-                result["fundamentals"] = fundamental_data
-
-            elif market_type == MarketType.CRYPTO:
-                fundamental_data = self._get_crypto_fundamentals(symbol)
                 result["fundamentals"] = fundamental_data
 
             else:

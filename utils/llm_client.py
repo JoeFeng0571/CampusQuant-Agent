@@ -25,6 +25,9 @@ class LLMClient:
         self.provider = provider or config.PRIMARY_LLM_PROVIDER
         self.model = model or self._get_default_model()
 
+        # 硬超时：连接层 + 读取层双重保障，适配高峰期大模型并发延迟
+        _HTTP_TIMEOUT = 90.0   # 秒
+
         # 初始化对应的客户端
         if self.provider == "dashscope":
             # DashScope 使用 OpenAI 兼容端点，直接复用 openai SDK
@@ -32,13 +35,20 @@ class LLMClient:
             self.client = OpenAI(
                 api_key=config.DASHSCOPE_API_KEY,
                 base_url=config.DASHSCOPE_BASE_URL,
+                timeout=_HTTP_TIMEOUT,
             )
         elif self.provider == "openai":
             from openai import OpenAI
-            self.client = OpenAI(api_key=config.OPENAI_API_KEY)
+            self.client = OpenAI(
+                api_key=config.OPENAI_API_KEY,
+                timeout=_HTTP_TIMEOUT,
+            )
         elif self.provider == "anthropic":
             from anthropic import Anthropic
-            self.client = Anthropic(api_key=config.ANTHROPIC_API_KEY)
+            self.client = Anthropic(
+                api_key=config.ANTHROPIC_API_KEY,
+                timeout=_HTTP_TIMEOUT,
+            )
         else:
             raise ValueError(f"不支持的 LLM 提供商: {self.provider}")
 
@@ -119,7 +129,7 @@ class LLMClient:
         if response_format == "json":
             kwargs["response_format"] = {"type": "json_object"}
 
-        response = self.client.chat.completions.create(**kwargs)
+        response = self.client.chat.completions.create(**kwargs, timeout=90.0)
         return response.choices[0].message.content
 
     def _generate_anthropic(
@@ -146,9 +156,14 @@ class LLMClient:
                 f"{prompt}\n\n请以 JSON 格式返回结果。"
             )
 
-        response = self.client.messages.create(**kwargs)
+        response = self.client.messages.create(**kwargs, timeout=90.0)
         return response.content[0].text
 
+    @retry(
+        stop=stop_after_attempt(2),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        reraise=True,
+    )
     def generate_structured(
         self,
         prompt: str,
@@ -166,13 +181,21 @@ class LLMClient:
         Returns:
             解析后的 JSON 对象
         """
+        # 在系统提示末尾追加最严厉的 JSON 格式约束，防止 LLM 输出单引号/Markdown 代码块
+        _json_mandate = (
+            "\n\n【强制要求】你必须输出合法的 JSON 格式，"
+            "绝对不能包含任何 Markdown 标记（如 ```json），"
+            "所有的键名必须使用双引号！"
+        )
+        effective_system = (system_prompt or "") + _json_mandate
+
         enhanced_prompt = prompt
         if schema:
             enhanced_prompt += f"\n\n请严格按照以下 JSON Schema 返回结果:\n{json.dumps(schema, ensure_ascii=False, indent=2)}"
 
         response_text = self.generate(
             prompt=enhanced_prompt,
-            system_prompt=system_prompt,
+            system_prompt=effective_system,
             temperature=0.3,
             response_format="json",
         )
@@ -180,21 +203,72 @@ class LLMClient:
         try:
             return json.loads(response_text)
         except json.JSONDecodeError as e:
-            logger.error(f"❌ JSON 解析失败: {e}\n原始响应: {response_text}")
+            logger.warning(f"⚠️ JSON 初次解析失败，尝试强力清洗: {e}\n原始响应: {response_text[:300]}")
             return self._extract_json_from_text(response_text)
 
+    @staticmethod
+    def _sanitize_json_str(s: str) -> str:
+        """
+        对 LLM 输出的 JSON 字符串进行强力清洗:
+          1. 移除 ```json ... ``` 代码块包裹
+          2. 移除 JSON 值/对象/数组末尾的多余逗号（trailing comma）
+          3. 将单引号键名/字符串值替换为双引号（仅处理简单键值对场景）
+        """
+        import re
+        # 1. 剥去 Markdown 代码块包裹
+        s = re.sub(r'^```(?:json)?\s*', '', s.strip(), flags=re.MULTILINE)
+        s = re.sub(r'\s*```$', '', s.strip(), flags=re.MULTILINE)
+        # 2. 移除对象/数组闭合符前的尾随逗号
+        s = re.sub(r',\s*([}\]])', r'\1', s)
+        # 3. 单引号键名替换为双引号（不替换文本内容内部的单引号，只替换作为分隔符的引号对）
+        #    匹配形如  'key': 或 : 'value' 的模式
+        s = re.sub(r"(?<=[{,\[])\s*'([^']+)'\s*:", r' "\1":', s)
+        s = re.sub(r":\s*'([^']*)'", r': "\1"', s)
+        return s
+
     def _extract_json_from_text(self, text: str) -> Dict[str, Any]:
-        """从文本中提取 JSON（应对 LLM 返回额外说明文字的情况）"""
+        """
+        从文本中提取 JSON，按以下步骤逐级尝试（应对 LLM 非标准输出）:
+          Step 1: 提取 ```json``` 代码块内的 JSON → 直接解析
+          Step 2: 直接解析整段文本
+          Step 3: 对代码块内容做强力清洗后重试
+          Step 4: 提取裸 {...} 片段 → 直接解析
+          Step 5: 对裸 {...} 做强力清洗后重试
+          Step 6: 全量清洗整段文本后重试
+        """
         import re
 
-        json_match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
-        if json_match:
-            return json.loads(json_match.group(1))
+        # Step 1 & 3: Markdown 代码块
+        code_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', text)
+        if code_match:
+            raw = code_match.group(1).strip()
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                try:
+                    return json.loads(self._sanitize_json_str(raw))
+                except json.JSONDecodeError:
+                    pass  # 继续后续步骤
 
-        json_match = re.search(r'\{.*\}', text, re.DOTALL)
-        if json_match:
-            return json.loads(json_match.group(0))
+        # Step 2 & 4 & 5: 裸 JSON 对象
+        brace_match = re.search(r'\{[\s\S]*\}', text)
+        if brace_match:
+            raw = brace_match.group(0)
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                try:
+                    return json.loads(self._sanitize_json_str(raw))
+                except json.JSONDecodeError:
+                    pass
 
+        # Step 6: 对全文清洗后重试
+        try:
+            return json.loads(self._sanitize_json_str(text))
+        except json.JSONDecodeError:
+            pass
+
+        logger.error(f"❌ JSON 所有解析策略均失败，返回错误占位: {text[:200]}")
         return {"error": "无法解析 JSON", "raw_text": text}
 
     def analyze_sentiment(self, text: str) -> Dict[str, Any]:
