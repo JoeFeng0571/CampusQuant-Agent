@@ -45,6 +45,17 @@ def _get_loader():
     return _data_loader
 
 
+def _hk_symbol_to_yfinance(symbol: str) -> str:
+    """
+    将港股代码转换为 yfinance 格式。
+    规则：取数字部分，去掉前导零后左填充到4位，加 .HK 后缀。
+    示例: "00700.HK" → "0700.HK", "09988.HK" → "9988.HK", "01398.HK" → "1398.HK"
+    """
+    numeric = symbol.split(".")[0].lstrip("0") or "0"
+    padded  = numeric.zfill(4)
+    return f"{padded}.HK"
+
+
 # ════════════════════════════════════════════════════════════════
 # @tool  1 — get_market_data
 # ════════════════════════════════════════════════════════════════
@@ -339,9 +350,9 @@ def get_fundamental_data(symbol: str) -> str:
         JSON 字符串，包含基本面指标；无法获取时返回 partial/error 状态。
 
     数据来源:
-        - A股: akshare stock_individual_info_em（东方财富个股信息）
+        - A股: akshare stock_financial_abstract_ths（同花顺年度财务摘要）
         - 美股: yfinance Ticker.info（含 PE/PB/ROE/EPS/sector 等）
-        - 港股: 暂无自动获取，返回 partial 状态提示
+        - 港股: yfinance Ticker.info + financials（代码转换为 yfinance 格式）
     """
     logger.info(f"[Tool] get_fundamental_data: {symbol}")
 
@@ -509,15 +520,84 @@ def get_fundamental_data(symbol: str) -> str:
                     _done.set()
 
         else:
-            # HK_STOCK — 暂无可靠自动获取方式
-            logger.info(f"[Tool] get_fundamental_data: 港股 {symbol} 暂不支持")
-            return json.dumps({
-                "status":  "partial",
-                "symbol":  symbol,
-                "market":  "HK_STOCK",
-                "message": "港股基本面数据暂不支持自动获取，请参考港交所披露或 hkex.com.hk",
-                "data":    {},
-            }, ensure_ascii=False)
+            # HK_STOCK — 使用 yfinance 获取港股基本面数据
+            yf_sym = _hk_symbol_to_yfinance(symbol)
+            logger.info(f"[Tool] get_fundamental_data: 港股 {symbol} → yfinance {yf_sym}")
+
+            def _fetch():
+                try:
+                    import yfinance as yf
+                    import numpy as _np
+                    ticker = yf.Ticker(yf_sym)
+                    info   = ticker.info
+
+                    # ── 近5年财务历史（年度损益表）──────────────────────
+                    rev_hist, pft_hist, yrs = [], [], []
+                    try:
+                        fin_df = ticker.financials  # rows=指标, cols=日期(近→远)
+                        if fin_df is not None and not fin_df.empty:
+                            rev_row = None
+                            pft_row = None
+                            for idx in fin_df.index:
+                                idx_s = str(idx).lower()
+                                if "total revenue" in idx_s:
+                                    rev_row = idx
+                                if "net income" in idx_s and "minority" not in idx_s and "common" not in idx_s:
+                                    pft_row = idx
+                            cols_fin = list(fin_df.columns)[:5]
+                            for col in cols_fin:
+                                yrs.append(str(col.year))
+                                rv = fin_df.loc[rev_row, col] if (rev_row is not None) else None
+                                nt = fin_df.loc[pft_row, col] if (pft_row is not None) else None
+                                def _safe(v):
+                                    try:
+                                        f = float(v)
+                                        return 0.0 if _np.isnan(f) else round(f / 1e8, 2)
+                                    except Exception:
+                                        return 0.0
+                                rev_hist.append(_safe(rv))
+                                pft_hist.append(_safe(nt))
+                            yrs      = yrs[::-1]
+                            rev_hist = rev_hist[::-1]
+                            pft_hist = pft_hist[::-1]
+                    except Exception as _fe:
+                        logger.warning(f"[get_fundamental_data] HK yfinance financials 失败: {_fe}")
+
+                    _result[0] = {
+                        "status": "success",
+                        "symbol": symbol,
+                        "source": "yfinance",
+                        "market": "HK_STOCK",
+                        "data": {
+                            "PE(TTM)":        info.get("trailingPE"),
+                            "PE(Forward)":    info.get("forwardPE"),
+                            "PB":             info.get("priceToBook"),
+                            "PS(TTM)":        info.get("priceToSalesTrailing12Months"),
+                            "ROE":            info.get("returnOnEquity"),
+                            "ROA":            info.get("returnOnAssets"),
+                            "EPS(TTM)":       info.get("trailingEps"),
+                            "EPS(Forward)":   info.get("forwardEps"),
+                            "营收增速YoY":     info.get("revenueGrowth"),
+                            "净利润率":        info.get("profitMargins"),
+                            "毛利率":          info.get("grossMargins"),
+                            "市值(亿港元)":    round(info.get("marketCap", 0) / 1e8, 2) if info.get("marketCap") else None,
+                            "所属行业":        info.get("sector"),
+                            "细分板块":        info.get("industry"),
+                            "员工人数":        info.get("fullTimeEmployees"),
+                            "52周最高":        info.get("fiftyTwoWeekHigh"),
+                            "52周最低":        info.get("fiftyTwoWeekLow"),
+                            # 财务历史（用于 ECharts 图表）
+                            "revenue_history": rev_hist,
+                            "profit_history":  pft_hist,
+                            "years":           yrs,
+                            "revenue_label":   "营业收入（亿港元）",
+                            "profit_label":    "净利润（亿港元）",
+                        },
+                    }
+                except Exception as _e:
+                    _exc[0] = _e
+                finally:
+                    _done.set()
 
         _t = threading.Thread(target=_fetch, daemon=True, name=f"fund-fetch-{symbol}")
         _t.start()
@@ -562,7 +642,7 @@ def get_stock_news(symbol: str, limit: int = 8) -> str:
     数据来源:
         - A股: akshare stock_news_em（东方财富个股新闻）
         - 美股: yfinance Ticker.news
-        - 港股: 降级返回 partial 状态
+        - 港股: yfinance Ticker.news（代码转换为 yfinance 格式）
     """
     logger.info(f"[Tool] get_stock_news: {symbol}, limit={limit}")
 
@@ -612,14 +692,14 @@ def get_stock_news(symbol: str, limit: int = 8) -> str:
                 try:
                     import yfinance as yf
                     raw_news = yf.Ticker(symbol).news or []
-                    news_list = [
-                        {
-                            "title":  n.get("title", ""),
-                            "time":   str(n.get("providerPublishTime", "")),
-                            "source": n.get("publisher", ""),
-                        }
-                        for n in raw_news[:limit]
-                    ]
+                    news_list = []
+                    for n in raw_news[:limit]:
+                        content = n.get("content", {}) or {}
+                        title   = content.get("title") or n.get("title", "")
+                        time_   = content.get("pubDate") or str(n.get("providerPublishTime", ""))
+                        source  = (content.get("provider") or {}).get("displayName") or n.get("publisher", "")
+                        if title:
+                            news_list.append({"title": title, "time": time_, "source": source})
                     _result[0] = {
                         "status": "success",
                         "symbol": symbol,
@@ -633,15 +713,33 @@ def get_stock_news(symbol: str, limit: int = 8) -> str:
                     _done.set()
 
         else:
-            # HK_STOCK
-            logger.info(f"[Tool] get_stock_news: 港股 {symbol} 暂不支持")
-            return json.dumps({
-                "status":  "partial",
-                "symbol":  symbol,
-                "message": "港股新闻暂不支持自动获取，请参考 hkex.com.hk 或东方财富港股频道",
-                "news":    [],
-                "count":   0,
-            }, ensure_ascii=False)
+            # HK_STOCK — 使用 yfinance 获取港股新闻
+            yf_sym = _hk_symbol_to_yfinance(symbol)
+            logger.info(f"[Tool] get_stock_news: 港股 {symbol} → yfinance {yf_sym}")
+
+            def _fetch():
+                try:
+                    import yfinance as yf
+                    raw_news = yf.Ticker(yf_sym).news or []
+                    news_list = []
+                    for n in raw_news[:limit]:
+                        content = n.get("content", {}) or {}
+                        title   = content.get("title") or n.get("title", "")
+                        time_   = content.get("pubDate") or str(n.get("providerPublishTime", ""))
+                        source  = (content.get("provider") or {}).get("displayName") or n.get("publisher", "")
+                        if title:
+                            news_list.append({"title": title, "time": time_, "source": source})
+                    _result[0] = {
+                        "status": "success",
+                        "symbol": symbol,
+                        "source": "yfinance",
+                        "news":   news_list,
+                        "count":  len(news_list),
+                    }
+                except Exception as _e:
+                    _exc[0] = _e
+                finally:
+                    _done.set()
 
         _t = threading.Thread(target=_fetch, daemon=True, name=f"news-fetch-{symbol}")
         _t.start()
@@ -775,16 +873,46 @@ def get_spot_price_raw(symbol: str) -> dict:
                 row = df[df["代码"] == code]
                 if not row.empty:
                     r = row.iloc[0]
+                    price = float(r.get("最新价", 0) or 0)
+                    if price > 0:
+                        _result[0] = {
+                            "symbol":     symbol,
+                            "name":       str(r.get("名称", "") or r.get("股票名称", "") or code),
+                            "price":      price,
+                            "change_pct": float(r.get("涨跌幅", 0) or 0),
+                            "is_fallback": False,
+                            "source":     "akshare/eastmoney-hk-realtime",
+                        }
+                        return
+                    # akshare 返回价格为0，尝试 yfinance 备用
+                    raise ValueError(f"akshare stock_hk_spot_em 返回价格为0，切换 yfinance")
+                else:
+                    raise ValueError(f"akshare stock_hk_spot_em 未找到代码 {code}")
+            except Exception as _e1:
+                # 主接口失败 → yfinance 二次兜底
+                logger.warning(
+                    f"[get_spot_price_raw] HK akshare 失败 ({type(_e1).__name__}: {_e1})，"
+                    f"切换 yfinance {_hk_symbol_to_yfinance(symbol)}"
+                )
+                try:
+                    import yfinance as yf
+                    yf_sym = _hk_symbol_to_yfinance(symbol)
+                    fi     = yf.Ticker(yf_sym).fast_info
+                    price  = float(fi.last_price or 0)
+                    prev   = float(getattr(fi, 'previous_close', None) or
+                                   getattr(fi, 'regular_market_previous_close', None) or 0)
+                    chg_pct = round((price - prev) / prev * 100, 2) if prev else 0.0
                     _result[0] = {
-                        "symbol":     symbol,
-                        "name":       str(r.get("名称", "") or r.get("股票名称", "") or code),
-                        "price":      float(r.get("最新价", 0) or 0),
-                        "change_pct": float(r.get("涨跌幅", 0) or 0),
+                        "symbol":      symbol,
+                        "name":        _SYMBOL_NAMES.get(symbol, code),
+                        "price":       price,
+                        "change_pct":  chg_pct,
                         "is_fallback": False,
-                        "source":     "akshare/eastmoney-hk-realtime",
+                        "source":      "yfinance/fast_info",
                     }
-            except Exception as _e:
-                _exc[0] = _e
+                except Exception as _e2:
+                    logger.error(f"[get_spot_price_raw] HK yfinance 也失败: {_e2}")
+                    _exc[0] = _e2
             finally:
                 _done.set()
 

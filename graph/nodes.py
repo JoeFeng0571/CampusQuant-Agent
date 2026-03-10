@@ -94,8 +94,8 @@ def _build_llm(temperature: float = 0.3):
     """
     provider = config.PRIMARY_LLM_PROVIDER.lower()
 
-    # 硬超时：90s 适配高峰期大模型并发延迟，防止并行节点永久挂死
-    _LLM_TIMEOUT = 90
+    # 硬超时：120s 适配高峰期大模型并发延迟，防止并行节点永久挂死
+    _LLM_TIMEOUT = 120
 
     if provider == "dashscope":
         from langchain_openai import ChatOpenAI
@@ -355,7 +355,18 @@ async def data_node(state: TradingGraphState) -> dict:
         tech_data = json.loads(tech_json)
 
         market_data = {**raw_data, **tech_data}
-        market_data.pop("_ohlcv_json", None)  # 移除大块原始数据节省状态空间
+
+        # 提取最近15行OHLCV数据供 technical_node 构建精简提示词（指标基于全量180天计算）
+        _ohlcv_raw = market_data.pop("_ohlcv_json", None)  # 移除大块原始数据节省状态空间
+        if _ohlcv_raw:
+            try:
+                import pandas as _pd
+                _df_full = _pd.DataFrame(json.loads(_ohlcv_raw))
+                _df_full.columns = [c.lower() for c in _df_full.columns]
+                _recent = _df_full.tail(15)[["open", "high", "low", "close", "volume"]]
+                market_data["recent_ohlcv"] = _recent.round(4).to_dict(orient="records")
+            except Exception as _oe:
+                logger.warning(f"[data_node] recent_ohlcv 提取失败（非致命）: {_oe}")
 
         log_msg = _log_entry(
             "data_node",
@@ -556,7 +567,7 @@ price_target 使用绝对价格数值。
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=85.0)
+        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=115.0)
 
         report_dict = report.model_dump(mode='json')
         log_msg = _log_entry(
@@ -646,13 +657,31 @@ async def technical_node(state: TradingGraphState) -> dict:
         f"  系统信号: {indicators.get('tech_signal','N/A')} (多={indicators.get('bull_signal_count',0)}, 空={indicators.get('bear_signal_count',0)})",
     ])
 
+    # 最近15日量价数据（指标基于180天计算）——仅展示给LLM，不用于指标计算
+    # 使用 .tail(15) 截取最近15行；指标本身已在 data_node 中基于180天全量数据计算完毕
+    import pandas as _pd_tech
+    recent_rows = market_data.get("recent_ohlcv", [])
+    if recent_rows:
+        recent_rows = _pd_tech.DataFrame(recent_rows).tail(15).to_dict(orient="records")
+    if recent_rows:
+        header = "  日期序号 |  开盘   |  最高   |  最低   |  收盘   |   成交量"
+        rows_txt = "\n".join(
+            f"  [{i+1:>2}]     | {r.get('open','N/A'):>7} | {r.get('high','N/A'):>7} | "
+            f"{r.get('low','N/A'):>7} | {r.get('close','N/A'):>7} | {r.get('volume','N/A'):>10}"
+            for i, r in enumerate(recent_rows)
+        )
+        recent_price_section = f"\n【最近15日量价数据（指标基于180天计算）】\n{header}\n{rows_txt}"
+    else:
+        recent_price_section = ""
+
     user_prompt = f"""
 请对标的 **{symbol}** ({market_type}) 进行技术面研判。
 
 【当前价格】{market_data.get('latest_price', 'N/A')}
 
-【技术指标详情】
+【技术指标详情（基于180日数据计算）】
 {ind_summary}
+{recent_price_section}
 
 基于上述多维度技术信号，综合判断当前价格所处的趋势位置与动量状态，
 给出 BUY/SELL/HOLD 建议，并量化置信度。
@@ -665,7 +694,7 @@ async def technical_node(state: TradingGraphState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=85.0)
+        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=115.0)
 
         report_dict = report.model_dump(mode='json')
         log_msg = _log_entry(
@@ -794,7 +823,7 @@ async def sentiment_node(state: TradingGraphState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=85.0)
+        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=115.0)
 
         report_dict = report.model_dump(mode='json')
         has_real_news = "新闻获取失败" not in news_text and "获取失败" not in news_text and "暂无" not in news_text
@@ -1114,7 +1143,7 @@ async def debate_node(state: TradingGraphState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        outcome: DebateOutcome = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=85.0)
+        outcome: DebateOutcome = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=115.0)
 
         outcome_dict = outcome.model_dump(mode='json')
         new_rounds   = debate_rounds + 1
@@ -1234,7 +1263,7 @@ async def risk_node(state: TradingGraphState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        decision: RiskDecision = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=85.0)
+        decision: RiskDecision = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=115.0)
 
         decision_dict = decision.model_dump(mode='json')
 
@@ -1399,7 +1428,7 @@ simulated 字段必须为 true。
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        order: TradeOrder = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=85.0)
+        order: TradeOrder = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=115.0)
 
         order_dict = order.model_dump(mode='json')
         order_dict["simulated"]       = True            # 强制确保 simulated=True
@@ -1580,7 +1609,7 @@ async def health_node(state: TradingGraphState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: PortfolioHealthReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=85.0)
+        report: PortfolioHealthReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=115.0)
 
         report_dict = report.model_dump(mode='json')
         log_msg = _log_entry(

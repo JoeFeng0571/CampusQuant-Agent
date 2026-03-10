@@ -3,7 +3,9 @@ LLM 客户端封装
 提供统一的 LLM 调用接口，默认使用阿里云百炼（DashScope/Qwen），
 备选支持 OpenAI 和 Anthropic Claude。
 """
+import ast
 import json
+import re
 from typing import Optional, Dict, Any, List
 from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -26,7 +28,7 @@ class LLMClient:
         self.model = model or self._get_default_model()
 
         # 硬超时：连接层 + 读取层双重保障，适配高峰期大模型并发延迟
-        _HTTP_TIMEOUT = 90.0   # 秒
+        _HTTP_TIMEOUT = 120.0   # 秒
 
         # 初始化对应的客户端
         if self.provider == "dashscope":
@@ -129,7 +131,7 @@ class LLMClient:
         if response_format == "json":
             kwargs["response_format"] = {"type": "json_object"}
 
-        response = self.client.chat.completions.create(**kwargs, timeout=90.0)
+        response = self.client.chat.completions.create(**kwargs, timeout=120.0)
         return response.choices[0].message.content
 
     def _generate_anthropic(
@@ -156,11 +158,11 @@ class LLMClient:
                 f"{prompt}\n\n请以 JSON 格式返回结果。"
             )
 
-        response = self.client.messages.create(**kwargs, timeout=90.0)
+        response = self.client.messages.create(**kwargs, timeout=120.0)
         return response.content[0].text
 
     @retry(
-        stop=stop_after_attempt(2),
+        stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         reraise=True,
     )
@@ -200,8 +202,10 @@ class LLMClient:
             response_format="json",
         )
 
+        # Step 0: strip markdown code blocks before first parse attempt
+        clean_text = re.sub(r'```(?:json)?\s*|\s*```', '', response_text).strip()
         try:
-            return json.loads(response_text)
+            return json.loads(clean_text)
         except json.JSONDecodeError as e:
             logger.warning(f"⚠️ JSON 初次解析失败，尝试强力清洗: {e}\n原始响应: {response_text[:300]}")
             return self._extract_json_from_text(response_text)
@@ -229,16 +233,23 @@ class LLMClient:
     def _extract_json_from_text(self, text: str) -> Dict[str, Any]:
         """
         从文本中提取 JSON，按以下步骤逐级尝试（应对 LLM 非标准输出）:
-          Step 1: 提取 ```json``` 代码块内的 JSON → 直接解析
-          Step 2: 直接解析整段文本
+          Step 1: 剥离 Markdown 代码块后直接解析
+          Step 2: 提取 ```json``` 代码块内的 JSON → 直接解析
           Step 3: 对代码块内容做强力清洗后重试
           Step 4: 提取裸 {...} 片段 → 直接解析
           Step 5: 对裸 {...} 做强力清洗后重试
           Step 6: 全量清洗整段文本后重试
+          Step 7: ast.literal_eval 作为最终回退（处理单引号 dict）
+          Step 8: 返回安全默认字典（不抛出异常）
         """
-        import re
+        # Step 1: 全量剥离 Markdown 代码块标记后尝试解析
+        stripped = re.sub(r'```(?:json)?\s*|\s*```', '', text).strip()
+        try:
+            return json.loads(stripped)
+        except json.JSONDecodeError:
+            pass
 
-        # Step 1 & 3: Markdown 代码块
+        # Step 2 & 3: Markdown 代码块
         code_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', text)
         if code_match:
             raw = code_match.group(1).strip()
@@ -250,7 +261,7 @@ class LLMClient:
                 except json.JSONDecodeError:
                     pass  # 继续后续步骤
 
-        # Step 2 & 4 & 5: 裸 JSON 对象
+        # Step 4 & 5: 裸 JSON 对象
         brace_match = re.search(r'\{[\s\S]*\}', text)
         if brace_match:
             raw = brace_match.group(0)
@@ -268,8 +279,17 @@ class LLMClient:
         except json.JSONDecodeError:
             pass
 
-        logger.error(f"❌ JSON 所有解析策略均失败，返回错误占位: {text[:200]}")
-        return {"error": "无法解析 JSON", "raw_text": text}
+        # Step 7: ast.literal_eval 作为最终回退（处理单引号 Python dict 字面量）
+        try:
+            result = ast.literal_eval(stripped if stripped else text)
+            if isinstance(result, dict):
+                return result
+        except Exception:
+            pass
+
+        # Step 8: 所有策略均失败 — 返回安全默认字典，不抛出异常
+        logger.error(f"❌ JSON 所有解析策略均失败，返回安全默认占位: {text[:200]}")
+        return {"error": "无法解析 JSON", "raw_text": text[:500]}
 
     def analyze_sentiment(self, text: str) -> Dict[str, Any]:
         """情感分析快捷方法"""
