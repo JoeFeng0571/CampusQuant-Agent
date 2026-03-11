@@ -217,6 +217,41 @@
         #chart-placeholder { text-align:center; padding:48px; color:var(--text-dim);
             font-size:13px; }
 
+        /* 图表卡片 */
+        .chart-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px; padding: 20px; margin-top: 20px;
+        }
+        .chart-card-header {
+            display: flex; align-items: center; gap: 14px;
+            margin-bottom: 16px; flex-wrap: wrap;
+        }
+        .chart-title { font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0; }
+        .chart-tab-group { display: flex; gap: 6px; }
+        .chart-tab {
+            padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.12); background: transparent;
+            color: #718096; cursor: pointer; transition: all 0.2s;
+        }
+        .chart-tab.active {
+            border-color: #4facfe; color: #4facfe;
+            background: rgba(79,172,254,0.10);
+        }
+        .chart-period { font-size: 11px; color: #718096; margin-left: auto; }
+        /* 主营构成布局 */
+        .comp-body { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+        .comp-legend { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 200px; }
+        .comp-legend-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 12px; border-radius: 8px;
+            background: rgba(255,255,255,0.03);
+        }
+        .comp-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .comp-name { flex: 1; font-size: 13px; color: #e2e8f0; }
+        .comp-rev { font-size: 12px; color: #a0aec0; min-width: 70px; text-align: right; }
+        .comp-pct { font-size: 13px; font-weight: 700; min-width: 48px; text-align: right; }
+
         /* ── 右侧分析区 ── */
         .analysis-area { display:flex; flex-direction:column; gap:18px; }
 
@@ -445,12 +480,6 @@
             </div>
         </div>
 
-        <div class="form-group">
-            <label class="form-label">分析周期（天）</label>
-            <input id="days-input" class="form-input" type="number"
-                   value="90" min="30" max="365" />
-        </div>
-
         <button class="analyze-btn" id="analyze-btn" onclick="startAnalysis()">
             ▶ 开始 AI 分析
         </button>
@@ -531,6 +560,36 @@
             <div id="chart-pane">
                 <div id="chart-placeholder">📊 分析完成后，财务数据图表将在此渲染</div>
                 <div id="finance-chart"></div>
+
+                <!-- 主营收入构成卡片 -->
+                <div class="chart-card" id="composition-card" style="display:none">
+                    <div class="chart-card-header">
+                        <span class="chart-title">主营收入构成</span>
+                        <div class="chart-tab-group" id="comp-tabs">
+                            <button class="chart-tab active" data-mode="product">按产品</button>
+                            <button class="chart-tab" data-mode="industry">按行业</button>
+                        </div>
+                        <span class="chart-period" id="comp-period"></span>
+                    </div>
+                    <div class="comp-body">
+                        <div id="comp-donut" style="width:220px;height:220px;flex-shrink:0"></div>
+                        <div class="comp-legend" id="comp-legend"></div>
+                    </div>
+                </div>
+
+                <!-- 业绩趋势 Combo Chart 卡片 -->
+                <div class="chart-card" id="trend-card" style="display:none">
+                    <div class="chart-card-header">
+                        <span class="chart-title">业绩趋势</span>
+                        <div class="chart-tab-group" id="trend-tabs">
+                            <button class="chart-tab active" data-metric="net_profit">归母净利润</button>
+                            <button class="chart-tab" data-metric="deducted_profit">扣非净利润</button>
+                            <button class="chart-tab" data-metric="revenue">营业收入</button>
+                            <button class="chart-tab" data-metric="eps">每股收益</button>
+                        </div>
+                    </div>
+                    <div id="trend-chart" style="width:100%;height:340px"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -547,7 +606,11 @@
     let currentMarket = 'A_STOCK';
     let analysisRunning = false;
     let _searchTimer   = null;
-    let _echartsInst   = null;   // ECharts 实例
+    let _echartsInst   = null;   // 原始财务柱状图 ECharts 实例
+    let _donutInst     = null;   // 主营构成圆环图 ECharts 实例
+    let _trendChart    = null;   // 业绩趋势组合图 ECharts 实例
+    let _perfData      = null;   // 当前业绩趋势数据（供 tab 切换）
+    let _compData      = null;   // 当前主营构成数据（供 tab 切换）
 
     // ══ 输出标签切换 ════════════════════════════════════════════
     function switchOutTab(tab) {
@@ -555,9 +618,13 @@
             document.getElementById('pane-'  + t).classList.toggle('active', t === tab);
             document.getElementById('tab-'   + t).classList.toggle('active', t === tab);
         });
-        // 图表首次切换时触发 resize
-        if (tab === 'chart' && _echartsInst) {
-            setTimeout(() => _echartsInst.resize(), 50);
+        // 图表首次切换时触发 resize（所有 ECharts 实例）
+        if (tab === 'chart') {
+            setTimeout(() => {
+                if (_echartsInst) _echartsInst.resize();
+                if (_donutInst)   _donutInst.resize();
+                if (_trendChart)  _trendChart.resize();
+            }, 50);
         }
     }
 
@@ -675,6 +742,171 @@
         _echartsInst.setOption(option);
     }
 
+    // ══ 主营收入构成圆环图 ════════════════════════════════════════
+    const _COMP_COLORS = ['#4facfe','#00f2fe','#a29bfe','#55efc4','#fdcb6e','#fd79a8','#74b9ff','#0984e3','#e17055','#6c5ce7'];
+
+    function renderCompositionDonut(data, mode) {
+        // data: [{name, revenue_yi, pct}, ...]
+        if (!data || data.length === 0) return;
+        const donutEl = document.getElementById('comp-donut');
+        if (!donutEl) return;
+        if (_donutInst) { _donutInst.dispose(); _donutInst = null; }
+        _donutInst = echarts.init(donutEl, null, {renderer: 'canvas'});
+        _donutInst.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'item', formatter: '{b}: {d}%' },
+            series: [{
+                type: 'pie', radius: ['55%','82%'],
+                data: data.map((d, i) => ({
+                    name: d.name,
+                    value: d.pct != null ? d.pct : d.revenue_yi,
+                    itemStyle: { color: _COMP_COLORS[i % _COMP_COLORS.length] }
+                })),
+                label: { show: false },
+                emphasis: { scale: true, scaleSize: 6 },
+            }]
+        });
+        // 渲染右侧图例
+        const legendEl = document.getElementById('comp-legend');
+        if (!legendEl) return;
+        legendEl.innerHTML = data.slice(0, 8).map((d, i) => `
+            <div class="comp-legend-item">
+                <div class="comp-dot" style="background:${_COMP_COLORS[i % _COMP_COLORS.length]}"></div>
+                <div class="comp-name">${d.name}</div>
+                <div class="comp-rev">${d.revenue_yi != null ? d.revenue_yi.toFixed(1) + '亿' : '--'}</div>
+                <div class="comp-pct" style="color:${_COMP_COLORS[i % _COMP_COLORS.length]}">${d.pct != null ? d.pct.toFixed(1) + '%' : '--'}</div>
+            </div>`).join('');
+    }
+
+    function renderFinancialCharts(chartData, revComp, perfTrend) {
+        // revComp: { product:[...], industry:[...], period:"..." }
+        // perfTrend: { years, revenue, net_profit, deducted_profit, eps, yoy_*, quarterly:{...} }
+
+        // -- 主营构成卡片 --
+        const compCard = document.getElementById('composition-card');
+        if (compCard && revComp && ((revComp.product && revComp.product.length > 0) || (revComp.industry && revComp.industry.length > 0))) {
+            compCard.style.display = 'block';
+            _compData = revComp;
+            // 设置报告期
+            const periodEl = document.getElementById('comp-period');
+            if (periodEl && revComp.period) periodEl.textContent = revComp.period;
+            // 默认渲染按产品；若产品为空则按行业
+            const initMode = (revComp.product && revComp.product.length > 0) ? 'product' : 'industry';
+            // 同步 tab 状态
+            document.querySelectorAll('#comp-tabs .chart-tab').forEach(b => {
+                b.classList.toggle('active', b.dataset.mode === initMode);
+            });
+            renderCompositionDonut(revComp[initMode] || [], initMode);
+        }
+
+        // -- 业绩趋势卡片 --
+        const trendCard = document.getElementById('trend-card');
+        if (trendCard && perfTrend && perfTrend.years && perfTrend.years.length > 0) {
+            trendCard.style.display = 'block';
+            renderTrendChart(perfTrend, 'net_profit');
+        }
+    }
+
+    // ══ 业绩趋势双 Y 轴组合图 ════════════════════════════════════
+    function renderTrendChart(perf, metric) {
+        _perfData = perf;
+        const years = perf.years || [];
+        const vals  = perf[metric] || [];
+        const yoys  = perf['yoy_' + metric] || [];
+
+        // 季度堆叠数据
+        const qSuffix = (metric === 'revenue') ? 'rev' : (metric === 'deducted_profit') ? 'dnp' : 'net';
+        const q1 = (perf.quarterly || {})['q1_' + qSuffix] || [];
+        const q2 = (perf.quarterly || {})['q2_' + qSuffix] || [];
+        const q3 = (perf.quarterly || {})['q3_' + qSuffix] || [];
+        const q4 = (perf.quarterly || {})['q4_' + qSuffix] || [];
+        const hasQuarterly = q1.length > 0 && q1.some(v => v != null && v !== 0);
+        const barData = hasQuarterly ? [q1, q2, q3, q4] : [vals, [], [], []];
+        const QCOLORS = ['#4facfe', '#00c9ff', '#74b9ff', '#0984e3'];
+        const unit = metric === 'eps' ? '元' : '亿元';
+
+        const option = {
+            backgroundColor: 'transparent',
+            grid: { top: 36, bottom: 40, left: 60, right: 60 },
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            legend: {
+                data: hasQuarterly ? ['Q1', 'Q2', 'Q3', 'Q4', '同比增速'] : ['年度值', '同比增速'],
+                textStyle: { color: '#a0aec0', fontSize: 12 }, bottom: 0
+            },
+            xAxis: {
+                type: 'category', data: years,
+                axisLabel: { color: '#718096', fontSize: 11 },
+                axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
+            },
+            yAxis: [
+                {
+                    type: 'value', name: unit,
+                    nameTextStyle: { color: '#718096', fontSize: 11 },
+                    axisLabel: {
+                        color: '#718096', fontSize: 11,
+                        formatter: v => metric === 'eps' ? v.toFixed(2) : (Math.abs(v) >= 1 ? v.toFixed(0) : v.toFixed(1))
+                    },
+                    splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
+                },
+                {
+                    type: 'value', name: '%',
+                    nameTextStyle: { color: '#718096', fontSize: 11 },
+                    axisLabel: { color: '#718096', fontSize: 11, formatter: v => v.toFixed(0) + '%' },
+                    splitLine: { show: false }
+                },
+            ],
+            series: [
+                ...(hasQuarterly ? ['Q1', 'Q2', 'Q3', 'Q4'] : ['年度值']).map((qname, qi) => ({
+                    name: qname, type: 'bar', stack: 'total',
+                    yAxisIndex: 0,
+                    data: barData[qi],
+                    itemStyle: {
+                        color: QCOLORS[qi],
+                        borderRadius: qi === (hasQuarterly ? 3 : 0) ? [4, 4, 0, 0] : 0
+                    },
+                    barMaxWidth: 36,
+                })),
+                {
+                    name: '同比增速', type: 'line', yAxisIndex: 1,
+                    data: yoys,
+                    lineStyle: { color: '#a0aec0', width: 2, type: 'solid' },
+                    itemStyle: { color: '#a0aec0' },
+                    symbol: 'circle', symbolSize: 5,
+                    connectNulls: true,
+                }
+            ]
+        };
+
+        const el = document.getElementById('trend-chart');
+        if (!el) return;
+        if (!_trendChart) _trendChart = echarts.init(el, null, {renderer: 'canvas'});
+        _trendChart.setOption(option, true);
+    }
+
+    // ══ Tab 切换事件绑定（业绩趋势 + 主营构成）══════════════════
+    document.addEventListener('DOMContentLoaded', () => {
+        const trendTabsEl = document.getElementById('trend-tabs');
+        if (trendTabsEl) {
+            trendTabsEl.addEventListener('click', e => {
+                const btn = e.target.closest('.chart-tab');
+                if (!btn || !_perfData) return;
+                document.querySelectorAll('#trend-tabs .chart-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                renderTrendChart(_perfData, btn.dataset.metric);
+            });
+        }
+        const compTabsEl = document.getElementById('comp-tabs');
+        if (compTabsEl) {
+            compTabsEl.addEventListener('click', e => {
+                const btn = e.target.closest('.chart-tab');
+                if (!btn || !_compData) return;
+                document.querySelectorAll('#comp-tabs .chart-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                renderCompositionDonut(_compData[btn.dataset.mode] || [], btn.dataset.mode);
+            });
+        }
+    });
+
     // ══ Markdown 研报渲染 ════════════════════════════════════════
     function renderReport(markdown) {
         const pane = document.getElementById('report-pane');
@@ -733,6 +965,15 @@
         document.getElementById('report-placeholder').style.display = '';
         document.getElementById('chart-placeholder').style.display = '';
         document.getElementById('finance-chart').style.display = 'none';
+        // 隐藏深度图表卡片并销毁 ECharts 实例
+        const compCard = document.getElementById('composition-card');
+        if (compCard) compCard.style.display = 'none';
+        const trendCard = document.getElementById('trend-card');
+        if (trendCard) trendCard.style.display = 'none';
+        if (_donutInst)  { _donutInst.dispose();  _donutInst  = null; }
+        if (_trendChart) { _trendChart.dispose(); _trendChart = null; }
+        _perfData = null;
+        _compData = null;
         // 切回日志 tab
         switchOutTab('log');
         // 显示输出标签栏
@@ -802,11 +1043,10 @@
         statusText.textContent = `正在分析 ${symbol} ...`;
 
         try {
-            const days = parseInt(document.getElementById('days-input').value) || 90;
             const resp = await fetch(`${API_BASE}/api/v1/analyze`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-                body: JSON.stringify({ symbol, days }),
+                body: JSON.stringify({ symbol, days: 180 }),
             });
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
@@ -880,12 +1120,12 @@
                 appendText('\n\n' + ev.message);
                 break;
             // backend emits 'complete' (not 'analysis_complete')
-            case 'complete':
+            case 'complete': {
                 if (inner.trade_order) showResult(inner.trade_order, null);
                 // ── 渲染深度研报 ──────────────────────────────────────
                 const mdText = inner.final_markdown_report || '> 研报数据暂未返回，请重试。';
                 renderReport(mdText);
-                // ── 渲染财务图表 ──────────────────────────────────────
+                // ── 渲染财务图表（原始柱状图） ─────────────────────────
                 const cd = inner.financial_chart_data;
                 // 严苛空值保护：cd 必须存在、years 必须为非空数组、has_data 必须为 true（数据非全零）
                 const hasChartData = cd != null &&
@@ -912,11 +1152,20 @@
                     ph.style.display = 'block';
                     ph.textContent = '📊 暂无该市场（如港股）的历年财务数据支持';
                 }
+                // ── 渲染深度图表（主营构成 + 业绩趋势） ──────────────
+                try {
+                    const revComp  = (cd && cd.revenue_composition) ? cd.revenue_composition : {};
+                    const perfTrend = (cd && cd.performance_trend)  ? cd.performance_trend  : {};
+                    renderFinancialCharts(cd, revComp, perfTrend);
+                } catch (deepChartErr) {
+                    console.warn('深度图表渲染失败（非致命）:', deepChartErr);
+                }
                 // 提示用户可以切换标签
                 appendText('\n\n✅ 分析完成！可点击上方「深度研报」或「财务图表」标签查看详情。');
                 document.getElementById('status-dot').className = 'status-dot done';
                 document.getElementById('status-text').textContent = '分析完成';
                 break;
+            }
             case 'error':
                 appendText(`\n\n⚠ ${ev.message || '未知错误'}`);
                 setNodeStatus(ev.node || 'system', 'error');

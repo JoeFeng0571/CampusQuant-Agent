@@ -1317,3 +1317,440 @@ def get_market_news_raw(limit: int = 20) -> list[dict]:
     # 超时或失败时返回空列表，前端显示占位提示
     logger.warning("[get_market_news_raw] 快讯获取超时/失败，返回空列表")
     return []
+
+
+# ════════════════════════════════════════════════════════════════
+# 深度财务数据抓取（供 fundamental_node 注入 key_metrics）
+# 包含：主营收入构成 + 多维业绩趋势（年度+季度）
+# ════════════════════════════════════════════════════════════════
+
+_DEEP_FINANCIAL_TIMEOUT = 20   # 深度数据获取总超时（s）
+
+
+def get_deep_financial_data(symbol: str) -> dict:
+    """
+    获取标的深度财务数据，用于前端 ECharts 精细化可视化。
+
+    返回结构:
+        {
+          "revenue_composition": {
+              "product":  [{name, revenue_yi, pct}, ...],   # 按产品主营构成
+              "industry": [{name, revenue_yi, pct}, ...],   # 按行业主营构成
+              "period":   "2024-09-30",                     # 最新报告期
+          },
+          "performance_trend": {
+              "years":              ["2020", ..., "2024"],
+              "revenue":            [...],   # 年度营收（亿）
+              "net_profit":         [...],   # 年度归母净利润（亿）
+              "deducted_profit":    [...],   # 年度扣非净利润（亿）
+              "eps":                [...],   # 年度每股收益
+              "yoy_revenue":        [...],   # 营收同比增速%（第一年 None）
+              "yoy_net_profit":     [...],
+              "yoy_deducted_profit":[...],
+              "yoy_eps":            [...],
+              "quarterly": {
+                  "years":  ["2020", ..., "2024"],
+                  "q1_net": [...], "q2_net": [...], "q3_net": [...], "q4_net": [...],
+                  "q1_rev": [...], "q2_rev": [...], "q3_rev": [...], "q4_rev": [...],
+              }
+          }
+        }
+
+    数据来源:
+        A股: akshare.stock_zygc_em (主营构成) + stock_financial_abstract_ths (趋势)
+        港股/美股: revenue_composition 返回空 {}，趋势使用 yfinance quarterly_financials
+    """
+    logger.info(f"[get_deep_financial_data] 开始抓取深度财务数据: {symbol}")
+
+    # 空结构兜底
+    _empty_rc = {"product": [], "industry": [], "period": ""}
+    _empty_pt = {
+        "years": [], "revenue": [], "net_profit": [], "deducted_profit": [], "eps": [],
+        "yoy_revenue": [], "yoy_net_profit": [], "yoy_deducted_profit": [], "yoy_eps": [],
+        "quarterly": {
+            "years": [],
+            "q1_net": [], "q2_net": [], "q3_net": [], "q4_net": [],
+            "q1_rev": [], "q2_rev": [], "q3_rev": [], "q4_rev": [],
+        },
+    }
+
+    try:
+        market_type, _ = MarketClassifier.classify(symbol)
+        code = symbol.split(".")[0]  # "600519.SH" → "600519"
+    except Exception as _ce:
+        logger.error(f"[get_deep_financial_data] 市场分类失败: {_ce}")
+        return {"revenue_composition": _empty_rc, "performance_trend": _empty_pt}
+
+    # ── 内部辅助：解析 THS 财务字符串值为亿元浮点 ──────────────────
+    def _to_yi_local(val) -> float:
+        try:
+            s = str(val).replace(",", "").strip()
+            if "亿" in s:
+                s = s.replace("亿", "").replace("--", "").strip()
+            else:
+                s = s.replace("--", "").strip()
+                if s:
+                    return round(float(s) / 1e8, 4)
+                return 0.0
+            return round(float(s or "0"), 4)
+        except Exception:
+            return 0.0
+
+    def _to_float_local(val) -> float:
+        try:
+            return float(str(val).replace("%", "").replace(",", "").replace("--", "").strip() or "0")
+        except Exception:
+            return 0.0
+
+    def _calc_yoy(vals: list) -> list:
+        """计算同比增速列表，第一年填 None"""
+        result = [None]
+        for i in range(1, len(vals)):
+            try:
+                prev = vals[i - 1]
+                curr = vals[i]
+                if prev and prev != 0:
+                    result.append(round((curr - prev) / abs(prev) * 100, 2))
+                else:
+                    result.append(None)
+            except Exception:
+                result.append(None)
+        return result
+
+    # ────────────────────────────────────────────────────────────
+    # A 股逻辑
+    # ────────────────────────────────────────────────────────────
+    if market_type == MarketType.A_STOCK:
+        _rc_result:  list = [None]
+        _pt_result:  list = [None]
+        _rc_done = threading.Event()
+        _pt_done = threading.Event()
+
+        # 1A — 主营收入构成（东方财富 stock_zygc_em）
+        def _fetch_rc():
+            try:
+                import akshare as ak
+                df = ak.stock_zygc_em(symbol=code)
+                if df is None or df.empty:
+                    _rc_result[0] = _empty_rc
+                    return
+                cols = list(df.columns)
+                # 自适应列名
+                period_col = next((c for c in cols if "报告期" in c or "期" in c), cols[0])
+                type_col   = next((c for c in cols if "分类类型" in c or "类型" in c), None)
+                name_col   = next((c for c in cols if "主营构成" in c or "名称" in c or "构成" in c), None)
+                rev_col    = next((c for c in cols if "主营收入" in c and "比例" not in c), None)
+                pct_col    = next((c for c in cols if "收入比例" in c or ("收入" in c and "比例" in c)), None)
+
+                if not name_col or not rev_col:
+                    _rc_result[0] = _empty_rc
+                    return
+
+                # 取最新报告期（最大值）
+                latest_period = str(df[period_col].max())
+                df_latest = df[df[period_col].astype(str) == latest_period]
+
+                def _parse_items(sub_df) -> list:
+                    items = []
+                    for _, row in sub_df.iterrows():
+                        name = str(row[name_col]).strip()
+                        if not name or name in ("nan", "None", ""):
+                            continue
+                        rev_raw = row[rev_col]
+                        pct_raw = row[pct_col] if pct_col else None
+                        # 主营收入可能是原始元值，除以1e8转亿
+                        try:
+                            rev_val = float(str(rev_raw).replace(",", "").replace("--", "").strip() or "0")
+                            rev_yi  = round(rev_val / 1e8, 2)
+                        except Exception:
+                            rev_yi = 0.0
+                        try:
+                            pct_val = float(str(pct_raw).replace("%", "").replace("--", "").strip() or "0") if pct_raw is not None else 0.0
+                        except Exception:
+                            pct_val = 0.0
+                        items.append({"name": name, "revenue_yi": rev_yi, "pct": pct_val})
+                    # 按收入降序排列
+                    items.sort(key=lambda x: x["revenue_yi"], reverse=True)
+                    return items[:10]  # 最多10项
+
+                product_items  = []
+                industry_items = []
+                if type_col:
+                    df_prod = df_latest[df_latest[type_col].astype(str).str.contains("产品", na=False)]
+                    df_ind  = df_latest[df_latest[type_col].astype(str).str.contains("行业", na=False)]
+                    product_items  = _parse_items(df_prod)
+                    industry_items = _parse_items(df_ind)
+                    # 若按产品/行业都为空，则全部当作产品类型
+                    if not product_items and not industry_items:
+                        product_items = _parse_items(df_latest)
+                else:
+                    product_items = _parse_items(df_latest)
+
+                _rc_result[0] = {
+                    "product":  product_items,
+                    "industry": industry_items,
+                    "period":   latest_period,
+                }
+            except Exception as _e:
+                logger.warning(f"[get_deep_financial_data] A股主营构成获取失败: {_e}")
+                _rc_result[0] = _empty_rc
+            finally:
+                _rc_done.set()
+
+        # 1B — 年度+季度业绩趋势（同花顺 stock_financial_abstract_ths）
+        def _fetch_pt():
+            try:
+                import akshare as ak
+
+                # ── 年度数据 ─────────────────────────────────────
+                yrs_list, rev_list, np_list, dnp_list, eps_list = [], [], [], [], []
+                try:
+                    df_yr = ak.stock_financial_abstract_ths(symbol=code, indicator="按年度")
+                    if df_yr is not None and not df_yr.empty:
+                        cols = list(df_yr.columns)
+                        year_col    = cols[0]
+                        rev_col_    = next((c for c in cols if "营业" in c and "收入" in c), None)
+                        np_col_     = next((c for c in cols if "净利润" in c and "扣非" not in c), None)
+                        dnp_col_    = next((c for c in cols if "扣非" in c), None)
+                        eps_col_    = next((c for c in cols if "每股收益" in c or "EPS" in c.upper()), None)
+                        rows5 = df_yr.tail(5)
+                        for _, row in rows5.iterrows():
+                            yrs_list.append(str(row[year_col])[:4])
+                            rev_list.append(_to_yi_local(row[rev_col_])  if rev_col_  else 0.0)
+                            np_list.append(_to_yi_local(row[np_col_])    if np_col_   else 0.0)
+                            dnp_list.append(_to_yi_local(row[dnp_col_])  if dnp_col_  else 0.0)
+                            eps_list.append(_to_float_local(row[eps_col_]) if eps_col_ else 0.0)
+                except Exception as _ye:
+                    logger.warning(f"[get_deep_financial_data] A股年度财务获取失败: {_ye}")
+
+                # ── 季度数据 ─────────────────────────────────────
+                quarterly = {
+                    "years": [], "q1_net": [], "q2_net": [], "q3_net": [], "q4_net": [],
+                    "q1_rev": [], "q2_rev": [], "q3_rev": [], "q4_rev": [],
+                }
+                try:
+                    df_q = ak.stock_financial_abstract_ths(symbol=code, indicator="按单季度")
+                    if df_q is not None and not df_q.empty:
+                        cols_q  = list(df_q.columns)
+                        qdate_col = cols_q[0]
+                        qrev_col  = next((c for c in cols_q if "营业" in c and "收入" in c), None)
+                        qnp_col   = next((c for c in cols_q if "净利润" in c and "扣非" not in c), None)
+
+                        # 解析报告期 → 年份和季度
+                        import re as _re_q
+                        df_q = df_q.copy()
+                        df_q["_year_"] = df_q[qdate_col].astype(str).str[:4]
+                        df_q["_qnum_"] = df_q[qdate_col].astype(str).apply(
+                            lambda s: (
+                                1 if "03-31" in s or "3-31" in s else
+                                2 if "06-30" in s or "6-30" in s else
+                                3 if "09-30" in s or "9-30" in s else
+                                4 if "12-31" in s else 0
+                            )
+                        )
+                        df_q = df_q[df_q["_qnum_"] > 0]
+
+                        # 取目标年份集合（与年度数据保持一致）
+                        target_years = yrs_list if yrs_list else sorted(df_q["_year_"].unique())[-5:]
+                        quarterly["years"] = list(target_years)
+
+                        for yr in target_years:
+                            yr_df = df_q[df_q["_year_"] == str(yr)]
+                            for qn, qkey_net, qkey_rev in [
+                                (1, "q1_net", "q1_rev"), (2, "q2_net", "q2_rev"),
+                                (3, "q3_net", "q3_rev"), (4, "q4_net", "q4_rev"),
+                            ]:
+                                row_q = yr_df[yr_df["_qnum_"] == qn]
+                                if not row_q.empty:
+                                    quarterly[qkey_net].append(
+                                        _to_yi_local(row_q.iloc[0][qnp_col]) if qnp_col else None
+                                    )
+                                    quarterly[qkey_rev].append(
+                                        _to_yi_local(row_q.iloc[0][qrev_col]) if qrev_col else None
+                                    )
+                                else:
+                                    quarterly[qkey_net].append(None)
+                                    quarterly[qkey_rev].append(None)
+                except Exception as _qe:
+                    logger.warning(f"[get_deep_financial_data] A股季度财务获取失败: {_qe}")
+
+                _pt_result[0] = {
+                    "years":              yrs_list,
+                    "revenue":            rev_list,
+                    "net_profit":         np_list,
+                    "deducted_profit":    dnp_list,
+                    "eps":                eps_list,
+                    "yoy_revenue":        _calc_yoy(rev_list),
+                    "yoy_net_profit":     _calc_yoy(np_list),
+                    "yoy_deducted_profit": _calc_yoy(dnp_list),
+                    "yoy_eps":            _calc_yoy(eps_list),
+                    "quarterly":          quarterly,
+                }
+            except Exception as _e:
+                logger.warning(f"[get_deep_financial_data] A股业绩趋势总体失败: {_e}")
+                _pt_result[0] = _empty_pt
+            finally:
+                _pt_done.set()
+
+        # 并发执行两个抓取任务
+        threading.Thread(target=_fetch_rc, daemon=True, name=f"deep-rc-{code}").start()
+        threading.Thread(target=_fetch_pt, daemon=True, name=f"deep-pt-{code}").start()
+
+        _rc_done.wait(timeout=_DEEP_FINANCIAL_TIMEOUT)
+        _pt_done.wait(timeout=_DEEP_FINANCIAL_TIMEOUT)
+
+        rc = _rc_result[0] if _rc_result[0] is not None else _empty_rc
+        pt = _pt_result[0] if _pt_result[0] is not None else _empty_pt
+        logger.info(
+            f"[get_deep_financial_data] A股完成: {symbol} "
+            f"构成产品={len(rc.get('product', []))}项 "
+            f"趋势年份={len(pt.get('years', []))}年"
+        )
+        return {"revenue_composition": rc, "performance_trend": pt}
+
+    # ────────────────────────────────────────────────────────────
+    # 港股 / 美股 — revenue_composition 返回空，趋势用 yfinance
+    # ────────────────────────────────────────────────────────────
+    else:
+        _pt_result2: list = [None]
+        _pt_done2 = threading.Event()
+
+        if market_type == MarketType.HK_STOCK:
+            yf_sym = _hk_symbol_to_yfinance(symbol)
+        else:
+            yf_sym = symbol
+
+        def _fetch_pt_yf():
+            try:
+                import yfinance as yf
+                import numpy as _np2
+                ticker = yf.Ticker(yf_sym)
+
+                # ── 年度损益表 ────────────────────────────────────
+                yrs_list, rev_list, np_list, eps_list = [], [], [], []
+                try:
+                    fin_df = ticker.financials  # rows=指标, cols=日期(近→远)
+                    inc_df = ticker.income_stmt
+                    use_df = fin_df if (fin_df is not None and not fin_df.empty) else inc_df
+                    if use_df is not None and not use_df.empty:
+                        rev_row = next(
+                            (idx for idx in use_df.index if "total revenue" in str(idx).lower()), None)
+                        np_row  = next(
+                            (idx for idx in use_df.index
+                             if "net income" in str(idx).lower()
+                             and "minority" not in str(idx).lower()
+                             and "common" not in str(idx).lower()), None)
+                        eps_row = next(
+                            (idx for idx in use_df.index
+                             if "diluted eps" in str(idx).lower() or "basic eps" in str(idx).lower()), None)
+
+                        def _safe_yi(v):
+                            try:
+                                f = float(v)
+                                return 0.0 if _np2.isnan(f) else round(f / 1e8, 4)
+                            except Exception:
+                                return 0.0
+
+                        def _safe_f(v):
+                            try:
+                                f = float(v)
+                                return None if _np2.isnan(f) else round(f, 4)
+                            except Exception:
+                                return None
+
+                        cols_yr = list(use_df.columns)[:5]  # 近5年，列为近→远
+                        for col in reversed(cols_yr):       # 反转为旧→新
+                            yrs_list.append(str(col.year))
+                            rev_list.append(_safe_yi(use_df.loc[rev_row, col]) if rev_row is not None else 0.0)
+                            np_list.append(_safe_yi(use_df.loc[np_row, col])   if np_row  is not None else 0.0)
+                            eps_list.append(_safe_f(use_df.loc[eps_row, col])  if eps_row is not None else None)
+                except Exception as _ye2:
+                    logger.warning(f"[get_deep_financial_data] yfinance 年度财务失败: {_ye2}")
+
+                # ── 季度损益表 ────────────────────────────────────
+                quarterly = {
+                    "years": [], "q1_net": [], "q2_net": [], "q3_net": [], "q4_net": [],
+                    "q1_rev": [], "q2_rev": [], "q3_rev": [], "q4_rev": [],
+                }
+                try:
+                    qfin = ticker.quarterly_financials
+                    qinc = ticker.quarterly_income_stmt
+                    quse = qfin if (qfin is not None and not qfin.empty) else qinc
+                    if quse is not None and not quse.empty:
+                        qrev_row = next(
+                            (idx for idx in quse.index if "total revenue" in str(idx).lower()), None)
+                        qnp_row  = next(
+                            (idx for idx in quse.index
+                             if "net income" in str(idx).lower()
+                             and "minority" not in str(idx).lower()
+                             and "common" not in str(idx).lower()), None)
+
+                        # 按年份分组
+                        import pandas as _pd_q
+                        q_cols = list(quse.columns)
+                        # 建 {year: {quarter: col}} 映射
+                        yr_q_map: dict = {}
+                        for col in q_cols:
+                            try:
+                                yr   = str(col.year)
+                                mon  = col.month
+                                qnum = 1 if mon <= 3 else 2 if mon <= 6 else 3 if mon <= 9 else 4
+                                yr_q_map.setdefault(yr, {})[qnum] = col
+                            except Exception:
+                                pass
+
+                        target_years = yrs_list if yrs_list else sorted(yr_q_map.keys())[-5:]
+                        quarterly["years"] = list(target_years)
+
+                        def _safe_yi2(v):
+                            try:
+                                f = float(v)
+                                return None if _np2.isnan(f) else round(f / 1e8, 4)
+                            except Exception:
+                                return None
+
+                        for yr in target_years:
+                            q_map = yr_q_map.get(str(yr), {})
+                            for qn, qkey_net, qkey_rev in [
+                                (1, "q1_net", "q1_rev"), (2, "q2_net", "q2_rev"),
+                                (3, "q3_net", "q3_rev"), (4, "q4_net", "q4_rev"),
+                            ]:
+                                col_q = q_map.get(qn)
+                                if col_q is not None:
+                                    quarterly[qkey_net].append(
+                                        _safe_yi2(quse.loc[qnp_row, col_q]) if qnp_row else None)
+                                    quarterly[qkey_rev].append(
+                                        _safe_yi2(quse.loc[qrev_row, col_q]) if qrev_row else None)
+                                else:
+                                    quarterly[qkey_net].append(None)
+                                    quarterly[qkey_rev].append(None)
+                except Exception as _qe2:
+                    logger.warning(f"[get_deep_financial_data] yfinance 季度财务失败: {_qe2}")
+
+                _pt_result2[0] = {
+                    "years":              yrs_list,
+                    "revenue":            rev_list,
+                    "net_profit":         np_list,
+                    "deducted_profit":    np_list,   # 港美股无扣非，用归母净利润代替
+                    "eps":                eps_list,
+                    "yoy_revenue":        _calc_yoy(rev_list),
+                    "yoy_net_profit":     _calc_yoy(np_list),
+                    "yoy_deducted_profit": _calc_yoy(np_list),
+                    "yoy_eps":            _calc_yoy([e or 0.0 for e in eps_list]),
+                    "quarterly":          quarterly,
+                }
+            except Exception as _e2:
+                logger.warning(f"[get_deep_financial_data] yfinance 港美股业绩趋势失败: {_e2}")
+                _pt_result2[0] = _empty_pt
+            finally:
+                _pt_done2.set()
+
+        threading.Thread(target=_fetch_pt_yf, daemon=True, name=f"deep-yf-{yf_sym}").start()
+        _pt_done2.wait(timeout=_DEEP_FINANCIAL_TIMEOUT)
+
+        pt2 = _pt_result2[0] if _pt_result2[0] is not None else _empty_pt
+        logger.info(
+            f"[get_deep_financial_data] 港美股完成: {symbol} "
+            f"趋势年份={len(pt2.get('years', []))}年"
+        )
+        return {"revenue_composition": _empty_rc, "performance_trend": pt2}

@@ -73,6 +73,7 @@ from graph.state import (
 )
 from tools.market_data import (
     calculate_technical_indicators,
+    get_deep_financial_data,
     get_fundamental_data,
     get_market_data,
     get_stock_news,
@@ -532,6 +533,23 @@ async def fundamental_node(state: TradingGraphState) -> dict:
     except Exception as _e:
         logger.warning(f"[fundamental_node] 基本面数据获取异常: {_e}")
 
+    # 【深度财务数据】获取主营构成 + 多维业绩趋势，注入 key_metrics 供前端 ECharts 渲染
+    try:
+        deep = await asyncio.get_event_loop().run_in_executor(
+            None, get_deep_financial_data, symbol
+        )
+        fundamental_data_dict["revenue_composition"] = deep.get("revenue_composition", {})
+        fundamental_data_dict["performance_trend"]   = deep.get("performance_trend", {})
+        logger.info(
+            f"[fundamental_node] 深度财务注入完成: "
+            f"构成产品={len(deep.get('revenue_composition', {}).get('product', []))}项 "
+            f"趋势年份={len(deep.get('performance_trend', {}).get('years', []))}年"
+        )
+    except Exception as _de:
+        logger.warning(f"[fundamental_node] 深度财务数据获取失败（非致命）: {_de}")
+        fundamental_data_dict.setdefault("revenue_composition", {})
+        fundamental_data_dict.setdefault("performance_trend", {})
+
     # 从 Prompt 字典取 System Prompt（外化管理）
     system_prompt = _PROMPTS["fundamental"].get(
         market_type,
@@ -657,12 +675,12 @@ async def technical_node(state: TradingGraphState) -> dict:
         f"  系统信号: {indicators.get('tech_signal','N/A')} (多={indicators.get('bull_signal_count',0)}, 空={indicators.get('bear_signal_count',0)})",
     ])
 
-    # 最近15日量价数据（指标基于180天计算）——仅展示给LLM，不用于指标计算
-    # 使用 .tail(15) 截取最近15行；指标本身已在 data_node 中基于180天全量数据计算完毕
+    # 最近10日量价数据（指标基于180天计算）——仅展示给LLM，不用于指标计算
+    # 严格截断至 10 行，防止 prompt 过长导致超时
     import pandas as _pd_tech
     recent_rows = market_data.get("recent_ohlcv", [])
     if recent_rows:
-        recent_rows = _pd_tech.DataFrame(recent_rows).tail(15).to_dict(orient="records")
+        recent_rows = _pd_tech.DataFrame(recent_rows).tail(10).to_dict(orient="records")
     if recent_rows:
         header = "  日期序号 |  开盘   |  最高   |  最低   |  收盘   |   成交量"
         rows_txt = "\n".join(
@@ -670,7 +688,7 @@ async def technical_node(state: TradingGraphState) -> dict:
             f"{r.get('low','N/A'):>7} | {r.get('close','N/A'):>7} | {r.get('volume','N/A'):>10}"
             for i, r in enumerate(recent_rows)
         )
-        recent_price_section = f"\n【最近15日量价数据（指标基于180天计算）】\n{header}\n{rows_txt}"
+        recent_price_section = f"\n【最近10日量价数据（指标基于180天计算）】\n{header}\n{rows_txt}"
     else:
         recent_price_section = ""
 
@@ -775,12 +793,12 @@ async def sentiment_node(state: TradingGraphState) -> dict:
         _check_tool_limit(state, "sentiment_node")
         counts = _increment_tool_count(counts, "sentiment_node")
 
-        news_json   = get_stock_news.invoke({"symbol": symbol, "limit": 8})
+        news_json   = get_stock_news.invoke({"symbol": symbol, "limit": 5})
         news_parsed = json.loads(news_json)
 
         if news_parsed.get("status") == "success" and news_parsed.get("news"):
-            news_items = news_parsed["news"]
-            lines = [f"  [{i+1}] {n.get('time','')} {n.get('title','')} （{n.get('source','')}）"
+            news_items = news_parsed["news"][:5]
+            lines = [f"  [{i+1}] {n.get('time','')} {n.get('title','')[:150]} （{n.get('source','')}）"
                      for i, n in enumerate(news_items)]
             news_text     = "\n".join(lines)
             news_data_str = news_json

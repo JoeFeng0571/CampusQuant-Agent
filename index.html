@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CampusQuant · 校园财商智能平台</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         /* 基础重置 */
         * {
@@ -457,6 +458,52 @@
             line-height: 1.85;
             color: #e2e8f0;
             text-align: left;
+        }
+        /* ── Markdown 内容样式 ─────────────────────────── */
+        .md-content p  { margin: 0 0 10px; }
+        .md-content p:last-child { margin-bottom: 0; }
+        .md-content strong { color: #00f2fe; font-weight: 700; }
+        .md-content em     { color: #a29bfe; font-style: italic; }
+        .md-content h1,.md-content h2,.md-content h3 {
+            color: #fff; font-weight: 700; margin: 14px 0 8px;
+        }
+        .md-content ul,.md-content ol {
+            padding-left: 20px; margin: 8px 0;
+        }
+        .md-content li { margin: 4px 0; }
+        .md-content code {
+            background: rgba(79,172,254,0.12); color: #4facfe;
+            padding: 1px 6px; border-radius: 4px; font-size: 13px;
+            font-family: 'Fira Code', 'Consolas', monospace;
+        }
+        .md-content pre {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px; padding: 12px 16px; overflow-x: auto; margin: 10px 0;
+        }
+        .md-content pre code { background: transparent; padding: 0; color: #a8d8ea; }
+        .md-content blockquote {
+            border-left: 3px solid #4facfe; padding: 6px 14px;
+            margin: 10px 0; color: #a0aec0; font-style: italic;
+        }
+        /* 表格 */
+        .md-content table {
+            width: 100%; border-collapse: collapse;
+            margin: 14px 0; font-size: 13px;
+        }
+        .md-content th {
+            background: rgba(79,172,254,0.12); color: #4facfe;
+            padding: 8px 12px; text-align: left; font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.12);
+        }
+        .md-content td {
+            padding: 7px 12px; border: 1px solid rgba(255,255,255,0.08);
+            color: #e2e8f0; vertical-align: top;
+        }
+        .md-content tr:nth-child(even) td {
+            background: rgba(255,255,255,0.02);
+        }
+        .md-content hr {
+            border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 14px 0;
         }
         .ai-bubble .bubble-hd {
             display: flex;
@@ -992,7 +1039,8 @@
     // ── UI 状态管理 ─────────────────────────────────────────
     function resetUI() {
         nodeProgress.innerHTML  = '';
-        typewriterEl.textContent = '';
+        typewriterEl.innerHTML  = '';
+        typewriterEl.className  = '';
         aiBubble.style.display  = 'none';
         resultCard.classList.remove('show');
         resultRows.innerHTML    = '';
@@ -1175,38 +1223,32 @@
         `;
     }
 
-    // ── 顾问回复（无股票代码场景）──────────────────────────
+    // ── 顾问回复（泛理财问题 → 真实 LLM 调用）──────────────
     async function simulateAdvisorResponse(query) {
-        const q = query.toLowerCase();
-        let advice;
-        if (q.includes('全仓') || q.includes('生活费')) {
-            advice =
-                '学长来了！先说结论：把生活费「全仓」买股票，是高度危险的操作。\n\n' +
-                '【原因分析】股市短期波动不可预测，即便是优质股票也可能在几个月内下跌30%-50%。' +
-                '一旦你需要用钱却被套，只能被迫割肉亏损卖出。\n\n' +
-                '【学长建议】生活费是"刚需资金"，必须随时可用。' +
-                '可以考虑用每月结余（非必需支出）中拿出10%-20%进行定投，这才是大学生参与市场的正确姿势。';
-        } else if (q.includes('财报') || q.includes('基本面') || q.includes('分析')) {
-            advice =
-                '收到！我来帮你解读财报关键指标。\n\n' +
-                '通常看财报要抓这几个核心：营收增速、净利润率、自由现金流、资产负债率。' +
-                '如果你告诉我股票代码（如 600519 或 00700），我可以启动多智能体引擎给你更精准的分析。';
-        } else if (q.includes('止损') || q.includes('补仓') || q.includes('跌了')) {
-            advice =
-                '这是个很好的问题，也是大学生最常遇到的两难局面。\n\n' +
-                '【止损 vs 补仓的判断框架】\n' +
-                '① 跌跌跌的原因是业绩变差？→ 大概率应止损，避免陷入"价值陷阱"。\n' +
-                '② 只是市场整体波动带跌？→ 可以考虑分批补仓，但注意总仓位不要超限。\n\n' +
-                '告诉我具体持仓，我可以做更精准的持仓体检。';
-        } else {
-            advice =
-                '收到你的问题！我是财财学长，专门帮大学生解答投资理财问题。\n\n' +
-                '如果你想分析某只股票，可以告诉我股票代码（如 600519 或 AAPL），' +
-                '我会启动多智能体引擎为你深度分析基本面、技术面和市场情绪。';
+        statusText.textContent = '财财学长正在思考...';
+        try {
+            const resp = await fetch(`${API_BASE}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: query, history: [] }),
+            });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            const advice = data.reply || '抱歉，学长暂时无法回答，请稍后重试。';
+            aiBubble.style.display = 'block';
+            // Markdown 渲染：LLM 回复直接解析为 HTML，支持表格/加粗/列表等
+            typewriterEl.className = 'md-content';
+            typewriterEl.innerHTML = (typeof marked !== 'undefined')
+                ? marked.parse(advice)
+                : advice.replace(/\n/g, '<br>');
+            statusText.textContent = '财财学长回复完毕';
+        } catch (err) {
+            console.warn('[chat] 学长接口调用失败:', err);
+            aiBubble.style.display = 'block';
+            typewriterEl.className = '';
+            typewriterEl.textContent = '抱歉，财财学长暂时无法连线（后端未启动？）。请确认 uvicorn 已运行在 8000 端口后重试。';
+            statusText.textContent = '⚠️ 学长连线失败';
         }
-        aiBubble.style.display = 'block';
-        await typewrite(advice, typewriterEl, 22);
-        statusText.textContent = '财财学长回复完毕';
         finishUI();
     }
 

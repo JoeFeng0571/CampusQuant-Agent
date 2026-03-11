@@ -50,6 +50,7 @@ from fastapi.responses import StreamingResponse
 from loguru import logger
 from pydantic import BaseModel, Field
 from utils.market_classifier import MarketClassifier
+from config import config as _cfg
 
 # ════════════════════════════════════════════════════════════════
 # Proxy Monkey Patch — 国内金融域名强制绕过 TUN/全局代理
@@ -586,6 +587,8 @@ async def _stream_graph_events(
         "has_data":      has_chart_data,
         "revenue_label": key_metrics.get("revenue_label", "营业收入（亿元）"),
         "profit_label":  key_metrics.get("profit_label",  "净利润（亿元）"),
+        "revenue_composition": key_metrics.get("revenue_composition", {}),
+        "performance_trend":   key_metrics.get("performance_trend", {}),
     }
     yield _make_sse_event(
         event="complete",
@@ -763,16 +766,21 @@ _MOCK_PORTFOLIO: list[dict] = [
 # ════════════════════════════════════════════════════════════════
 
 _CAISHANG_SYSTEM_PROMPT = (
-    "你是 CampusQuant 财商学长，一位专门服务于中国在校大学生的投资理财助手。\n"
-    "你的职责：\n"
-    "1. 用简明易懂的语言解答大学生关于股票、基金、债券、理财、风险管理的基础问题\n"
-    "2. 强调模拟演练和风险教育，不鼓励高杠杆或投机行为\n"
-    "3. 引导用户使用 CampusQuant 平台的分析工具学习投资\n"
-    "禁止事项：\n"
-    "- 禁止回答与投资、理财、经济无关的任何话题\n"
-    "- 禁止给出具体买卖建议或价格预测\n"
-    "- 禁止推荐任何真实券商、平台或产品\n"
-    "如被问及无关话题，礼貌说明你只专注于投资教育领域。"
+    "你叫财财学长，是 CampusQuant 的 AI 财商导师，专门服务中国在校大学生。\n"
+    "请用亲切、通俗的语言，结合大学生的实际情况（资金有限、没有收入、需要学费生活费），"
+    "认真解答他们关于理财、基金、股票、债券、风险管理、经济常识等泛金融问题。\n\n"
+    "回答要求：\n"
+    "1. 直接给出实质性回答，不要说'我无法给出建议'——要像一个懂行的学长一样帮人分析利弊。\n"
+    "2. 用大学生听得懂的语言，结合具体场景举例，避免纯理论堆砌。\n"
+    "3. 强调风险教育：提醒止损、仓位控制、不用生活费炒股等大学生守则。\n"
+    "4. 如涉及具体标的（如沪深300ETF、主动基金），可客观对比优缺点，但不做最终买卖决定。\n"
+    "5. 禁止推荐任何具体真实券商或第三方平台。\n"
+    "6. 非金融无关话题礼貌拒绝，说明只专注投资教育。\n"
+    "7. 【严格边界】严禁强行分析实时行情或最新财报！"
+    "当用户要求分析某只具体股票（如腾讯、茅台、苹果）、解读最新财报或预测近期走势时，"
+    "必须明确告知：你作为答疑学长不具备实时联网看盘的能力，你的知识存在截止日期，无法保证数据准确。"
+    "然后亲切引导用户：'你可以在本平台的【个股分析】页面，输入股票代码（如 00700.HK / 600519.SH / AAPL），"
+    "召唤多智能体引擎获取基于实时数据的深度研报，那比我靠谱多了！'"
 )
 
 
@@ -804,7 +812,7 @@ async def chat_with_advisor(request: ChatRequest):
             )
 
         reply = await loop.run_in_executor(None, _call_llm)
-        return {"reply": reply, "model": "qwen-plus", "timestamp": datetime.now(timezone.utc).isoformat()}
+        return {"reply": reply, "model": _cfg.DASHSCOPE_MODEL, "timestamp": datetime.now(timezone.utc).isoformat()}
 
     except Exception as e:
         logger.error(f"[chat] LLM 调用失败: {e}")

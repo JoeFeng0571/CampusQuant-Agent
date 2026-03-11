@@ -8,7 +8,8 @@ import json
 import re
 from typing import Optional, Dict, Any, List
 from loguru import logger
-from tenacity import retry, stop_after_attempt, wait_exponential
+import asyncio
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from config import config
 
@@ -69,6 +70,7 @@ class LLMClient:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((TimeoutError, asyncio.TimeoutError, Exception)),
         reraise=True
     )
     def generate(
