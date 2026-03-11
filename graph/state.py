@@ -97,8 +97,8 @@ class RiskDecision(BaseModel):
         description="建议仓位占总资金的百分比（上限20%）"
     )
     stop_loss_pct: float = Field(
-        ge=0.5, le=30.0,  # 【审计修复 P1-1】下限 0.5%，强制有效止损
-        description="止损比例（相对入场价的百分比，最低0.5%）"
+        ge=0.0, le=50.0,  # 允许 0（HOLD 场景），上限 50%
+        description="止损比例（相对入场价的百分比）"
     )
     take_profit_pct: float = Field(
         ge=0.0, le=200.0,

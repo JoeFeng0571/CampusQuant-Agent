@@ -94,9 +94,23 @@ def _build_llm(temperature: float = 0.3):
     保持"单一工厂函数、环境变量驱动"的模式，方便切换 LLM 供应商。
     """
     provider = config.PRIMARY_LLM_PROVIDER.lower()
+    # 启动时打印实际使用的模型名称，便于排查环境变量未正确加载的问题
+    logger.info(
+        f"[_build_llm] provider={provider} | model={config.DASHSCOPE_MODEL!r} "
+        f"| QWEN_MODEL_NAME env={os.getenv('QWEN_MODEL_NAME', '<未设置>')!r}"
+    )
 
-    # 硬超时：120s 适配高峰期大模型并发延迟，防止并行节点永久挂死
-    _LLM_TIMEOUT = 120
+    # 确保 DashScope 域名绕过本地 TUN 全局代理（防止 RemoteProtocolError 长连接被切断）
+    _dashscope_no_proxy = "dashscope.aliyuncs.com,aliyuncs.com"
+    _cur_no_proxy = os.environ.get("NO_PROXY", os.environ.get("no_proxy", ""))
+    if _dashscope_no_proxy not in _cur_no_proxy:
+        os.environ["NO_PROXY"] = (
+            _cur_no_proxy + "," + _dashscope_no_proxy if _cur_no_proxy else _dashscope_no_proxy
+        )
+        os.environ["no_proxy"] = os.environ["NO_PROXY"]
+
+    # 硬超时：200s 适配高峰期大模型并发延迟，防止并行节点永久挂死
+    _LLM_TIMEOUT = 200
 
     if provider == "dashscope":
         from langchain_openai import ChatOpenAI
@@ -105,7 +119,7 @@ def _build_llm(temperature: float = 0.3):
             api_key=config.DASHSCOPE_API_KEY,
             base_url=config.DASHSCOPE_BASE_URL,
             temperature=temperature,
-            max_tokens=2048,
+            max_tokens=4096,          # 防止长 JSON 被提前截断导致 ValidationError
             timeout=_LLM_TIMEOUT,
             request_timeout=_LLM_TIMEOUT,
         )
@@ -115,7 +129,7 @@ def _build_llm(temperature: float = 0.3):
             model=config.ANTHROPIC_MODEL,
             api_key=config.ANTHROPIC_API_KEY,
             temperature=temperature,
-            max_tokens=2048,
+            max_tokens=4096,
             timeout=_LLM_TIMEOUT,
         )
     else:
@@ -124,7 +138,7 @@ def _build_llm(temperature: float = 0.3):
             model=config.OPENAI_MODEL,
             api_key=config.OPENAI_API_KEY,
             temperature=temperature,
-            max_tokens=2048,
+            max_tokens=4096,
             timeout=_LLM_TIMEOUT,
             request_timeout=_LLM_TIMEOUT,
         )
@@ -172,31 +186,65 @@ def _log_node_error(node_name: str, e: Exception) -> None:
     """
     统一节点错误日志：即使 str(e) 为空（如裸 asyncio.TimeoutError），
     也能打印异常类型名称和完整 traceback，便于追踪死因。
+    注意：使用 {} 位置占位符传参，避免 loguru 对含花括号的异常消息二次格式化
+    导致 KeyError（如 LangChain 抛出含 {field} 的错误消息时）。
     """
     type_name = type(e).__name__
-    msg_part  = f" - {e}" if str(e) else ""
-    logger.error(f"[{node_name}] 失败: {type_name}{msg_part}", exc_info=True)
+    err_str   = str(e) or repr(e)
+    logger.error("[{}] 失败: {} - {}", node_name, type_name, err_str, exc_info=True)
 
 
-def _safe_fallback_report(node_name: str, key: str, err: Exception) -> dict:
-    """为并行分析节点生成符合 State Schema 的兜底字典（防止图死锁）。"""
-    type_name = type(err).__name__
-    msg = f"{node_name} 顶层异常({type_name})，安全降级: {str(err)[:200]}"
-    logger.critical(f"[{node_name}] 💀 {type_name}: {str(err)[:200]}", exc_info=True)
-    return {
-        key: {
-            "recommendation": "HOLD",
-            "confidence":     0.1,
-            "reasoning":      msg,
-            "key_factors":    ["系统异常"],
-            "risk_factors":   ["节点崩溃"],
-            "price_target":   None,
-            "signal_strength": "WEAK",
-            "key_metrics":    {},
-        },
-        "execution_log": [_log_entry(node_name, f"💀 顶层异常: {err}")],
-        "messages": [AIMessage(content=msg, name=node_name)],
-    }
+def _safe_fallback_report(node_name: str, key: str, err: BaseException) -> dict:
+    """
+    极简安全兜底函数——绝对不会抛出任何异常。
+    规则：
+      1. 不访问任何外部对象的属性或键（无 e['x']、无 obj.attr）
+      2. 只使用字符串字面量和内置函数
+      3. 双层 try/except 保证次生崩溃也有出路
+    """
+    # ── 第一层：尽力记录日志 ──────────────────────────────────
+    try:
+        _node  = str(node_name)[:50]   if node_name  else "unknown_node"
+        _key   = str(key)[:100]        if key        else "unknown_report"
+        _etype = type(err).__name__
+        _emsg  = ""
+        try:
+            _emsg = str(err)[:150]
+        except Exception:
+            try:
+                _emsg = repr(err)[:150]
+            except Exception:
+                _emsg = "unserializable_error"
+        logger.critical(
+            f"[{_node}] 💀 安全降级触发 | {_etype}: {_emsg}",
+            exc_info=True,
+        )
+    except Exception:
+        _node  = "unknown_node"
+        _key   = "unknown_report"
+        _etype = "UnknownError"
+        _emsg  = ""
+
+    # ── 第二层：构建并返回硬编码安全字典 ──────────────────────
+    try:
+        _reasoning = f"{_node} 节点异常降级 [{_etype}]: {_emsg}" if _emsg else f"{_node} 节点异常降级"
+        return {
+            _key: {
+                "recommendation":  "HOLD",
+                "confidence":      0.1,
+                "reasoning":       _reasoning,
+                "key_factors":     [],
+                "risk_factors":    [],
+                "price_target":    None,
+                "signal_strength": "WEAK",
+                "key_metrics":     {},
+            },
+            "execution_log": [],
+            "messages":      [],
+        }
+    except Exception:
+        # 极端情况：连 dict 都构建不了，返回绝对最小结构
+        return {"execution_log": [], "messages": []}
 
 
 def _guard_node(state_key: str):
@@ -214,7 +262,7 @@ def _guard_node(state_key: str):
         async def wrapper(state):
             try:
                 return await fn(state)
-            except Exception as _top_err:
+            except BaseException as _top_err:
                 return _safe_fallback_report(fn.__name__, state_key, _top_err)
         return wrapper
     return decorator
@@ -231,6 +279,34 @@ def _increment_tool_count(state_counts: dict, node_name: str) -> dict:
 # Prompt 字典外化管理（借鉴 TradingAgents-CN 集中管理模式）
 # ════════════════════════════════════════════════════════════════
 
+# ── AnalystReport JSON 答题卡（所有输出此模型的节点共用）──────────────
+# 与 graph/state.py 中 AnalystReport 字段严格对齐
+_ANALYST_REPORT_SKELETON = """
+【强制置信度计算规则 — 必须像计算器一样输出精准小数】
+1. confidence 必须是 0.00~1.00 之间的两位小数，严禁输出 0.60 / 0.65 等敷衍默认值。
+2. 基础分 0.50（完全中性信号）。
+3. 动态加减规则（可叠加）：
+   - 多项核心指标高度一致且强烈看涨/看跌：+0.25 ~ +0.35
+   - 单一利好/利空信号明确：+0.10 ~ +0.20
+   - 信号轻微矛盾或噪音：-0.05 ~ -0.10
+   - 核心数据极度恶化或极强反转信号：+0.30 ~ +0.40
+   - 信号严重矛盾或数据不足：-0.15 ~ -0.25
+4. 示例：基础 0.50 + 技术金叉 +0.15 + 业绩超预期 +0.12 = 0.77；你必须给出类似 0.42、0.78、0.88 的叠加结果。
+
+【强制 JSON 输出结构 — 必须完整填写，绝不遗漏任何字段】
+你必须且只能输出以下 JSON 对象，不加任何 Markdown 包裹或额外说明：
+{
+  "recommendation": "BUY或SELL或HOLD（三选一，必填）",
+  "confidence": 0.73,
+  "reasoning": "你的完整分析推导过程，不少于50字（必填）",
+  "key_factors": ["支撑建议的关键因素1", "因素2", "因素3"],
+  "price_target": null,
+  "risk_factors": ["主要风险1", "风险2"],
+  "signal_strength": "STRONG或MODERATE或WEAK（三选一，默认MODERATE）"
+}
+规则：recommendation 只能是 BUY/SELL/HOLD；confidence 必须是经过上述加减法计算的精准小数；reasoning 不得为空。
+"""
+
 # 【CampusQuant 不可豁免规则】写在基础 Prompt 后，所有分析师节点共用
 _CAMPUS_RULES = """
 【CampusQuant 大学生用户特别规则 — 全部不可豁免】
@@ -239,7 +315,7 @@ _CAMPUS_RULES = """
 - 置信度低于60%时直接建议 HOLD，宁可错过机会也不在不确定时下注
 - 严禁推荐杠杆交易、融资融券（Margin Trading）、期权投机
 - 定投宽基ETF（如沪深300ETF）是大学生首选入门工具，可作备选推荐
-"""
+""" + _ANALYST_REPORT_SKELETON
 
 _PROMPTS: Dict[str, Dict[str, str]] = {
 
@@ -273,7 +349,8 @@ _PROMPTS: Dict[str, Dict[str, str]] = {
             "分析原则:\n"
             "- 多重信号共振时才发出强信号；单一信号不足以支撑高置信度结论\n"
             "- 量价背离（放量阴线、缩量阳线）是重要预警信号\n"
-            "- 技术面形态服从于大趋势方向（顺势交易）"
+            "- 技术面形态服从于大趋势方向（顺势交易）\n"
+            + _ANALYST_REPORT_SKELETON
         ),
     },
 
@@ -289,7 +366,8 @@ _PROMPTS: Dict[str, Dict[str, str]] = {
             "分析原则:\n"
             "- 结合量能与价格形态识别'主力资金意图'\n"
             "- 极端情绪（RSI>80 或 RSI<20）往往是反转信号\n"
-            "- 宏观政策利好是A股情绪的最强催化剂"
+            "- 宏观政策利好是A股情绪的最强催化剂\n"
+            + _ANALYST_REPORT_SKELETON
         ),
     },
 
@@ -307,7 +385,8 @@ _PROMPTS: Dict[str, Dict[str, str]] = {
             "- 含超权重标的每项扣 15 分\n"
             "- 含高波动标的（ATR%>5%）每项扣 10 分\n"
             "- 含中小盘投机股每项扣 20 分\n"
-            "- 严禁杠杆、加密，发现直接输出健康分 0 分"
+            "- 严禁杠杆、加密，发现直接输出健康分 0 分\n"
+            "【输出格式】必须严格按照给定的 JSON 格式输出结果，不得输出任何 Markdown 包裹或额外说明文字。"
         ),
     },
 
@@ -315,7 +394,8 @@ _PROMPTS: Dict[str, Dict[str, str]] = {
     "risk": {
         "BASE": (
             "你是严格的风险控制官，专为在校大学生用户把关交易风险。\n"
-            "你有一票否决权，若方案对大学生风险不可接受，直接拒绝并给出教育性说明。"
+            "你有一票否决权，若方案对大学生风险不可接受，直接拒绝并给出教育性说明。\n"
+            "【输出格式】必须严格按照给定的 JSON 格式输出结果，不得输出任何 Markdown 包裹或额外说明文字。"
         ),
     },
 }
@@ -334,7 +414,7 @@ async def data_node(state: TradingGraphState) -> dict:
 
     Anti-Loop: 使用 _check_tool_limit() 防止工具调用死循环
     """
-    symbol = state["symbol"]
+    symbol = state.get("symbol") or state.get("stock_code", "UNKNOWN")
     logger.info(f"[data_node] 开始获取市场数据: {symbol}")
 
     # 工具调用计数器初始化（首次进入此节点）
@@ -429,7 +509,7 @@ async def rag_node(state: TradingGraphState) -> dict:
       - 调用 search_knowledge_base @tool
       - 将检索结果写入 state.rag_context，作为分析师的 RAG 上下文
     """
-    symbol      = state["symbol"]
+    symbol      = state.get("symbol") or state.get("stock_code", "UNKNOWN")
     market_type = state.get("market_type", "ALL")
     market_data = state.get("market_data", {})
     indicators  = market_data.get("indicators", {})
@@ -485,7 +565,7 @@ async def fundamental_node(state: TradingGraphState) -> dict:
       - 调用 LLM + with_structured_output(AnalystReport)
       - 结合 RAG 上下文（state.rag_context）提升分析深度
     """
-    symbol      = state["symbol"]
+    symbol      = state.get("symbol") or state.get("stock_code", "UNKNOWN")
     market_type = state.get("market_type", "US_STOCK")
     market_data = state.get("market_data", {})
     rag_context = state.get("rag_context", "")
@@ -520,9 +600,14 @@ async def fundamental_node(state: TradingGraphState) -> dict:
         if fund_parsed.get("status") == "success":
             data = fund_parsed.get("data", {})
             fundamental_data_dict = data
-            # 格式化为可读文本注入 Prompt
-            fund_lines = [f"  {k}: {v}" for k, v in data.items() if v is not None]
-            fund_data_text = "\n".join(fund_lines[:20]) if fund_lines else "（无有效字段）"
+            # 格式化为可读文本注入 Prompt（最多 10 个字段，单值截 80 字符）
+            fund_lines = [
+                f"  {k}: {str(v)[:80]}" for k, v in data.items()
+                if v is not None
+            ]
+            fund_data_text = "\n".join(fund_lines[:10]) if fund_lines else "（无有效字段）"
+            # 极严厉截断：800 字符上限，确保 LLM 快速处理
+            fund_data_text = fund_data_text[:800]
             logger.info(f"[fundamental_node] 基本面数据获取成功: {len(fund_lines)} 字段")
         elif fund_parsed.get("status") == "partial":
             fund_data_text = f"（{fund_parsed.get('message', '部分数据')}）"
@@ -534,6 +619,7 @@ async def fundamental_node(state: TradingGraphState) -> dict:
         logger.warning(f"[fundamental_node] 基本面数据获取异常: {_e}")
 
     # 【深度财务数据】获取主营构成 + 多维业绩趋势，注入 key_metrics 供前端 ECharts 渲染
+    # 深度财务数据仅供前端图表，不注入 LLM prompt，故不受截断约束
     try:
         deep = await asyncio.get_event_loop().run_in_executor(
             None, get_deep_financial_data, symbol
@@ -570,7 +656,7 @@ async def fundamental_node(state: TradingGraphState) -> dict:
 - ATR%(波动率): {market_data.get('indicators', {}).get('ATR_pct', 'N/A')}%
 
 【RAG 知识库参考】
-{rag_context[:1000] if rag_context else '暂无'}
+{rag_context[:500] if rag_context else '暂无'}
 
 请优先基于真实基本面数据（PE/PB/ROE 等），结合量价辅助，以你的专业框架分析
 该标的的基本面状况，给出 BUY/SELL/HOLD 建议。
@@ -579,13 +665,13 @@ price_target 使用绝对价格数值。
 """
 
     try:
-        llm = _build_llm(temperature=0.3)
+        llm = _build_llm(temperature=0.1)
         structured_llm = llm.with_structured_output(AnalystReport)
         messages = [
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=115.0)
+        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=180.0)
 
         report_dict = report.model_dump(mode='json')
         log_msg = _log_entry(
@@ -611,6 +697,7 @@ price_target 使用绝对价格数值。
         }
 
     except Exception as e:
+        logger.exception("[fundamental_node] 节点执行遭遇致命异常，完整堆栈如下：")
         _log_node_error("fundamental_node", e)
         fallback = {
             "recommendation": "HOLD", "confidence": 0.3,
@@ -640,7 +727,7 @@ async def technical_node(state: TradingGraphState) -> dict:
       - Prompt 从 _PROMPTS["technical"] 字典取值（外化管理）
       - 使用 with_structured_output(AnalystReport) 输出结构化报告
     """
-    symbol      = state["symbol"]
+    symbol      = state.get("symbol") or state.get("stock_code", "UNKNOWN")
     market_type = state.get("market_type", "US_STOCK")
     market_data = state.get("market_data", {})
     indicators  = market_data.get("indicators", {})
@@ -706,13 +793,13 @@ async def technical_node(state: TradingGraphState) -> dict:
 """
 
     try:
-        llm = _build_llm(temperature=0.2)
+        llm = _build_llm(temperature=0.1)
         structured_llm = llm.with_structured_output(AnalystReport)
         messages = [
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=115.0)
+        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=180.0)
 
         report_dict = report.model_dump(mode='json')
         log_msg = _log_entry(
@@ -733,6 +820,7 @@ async def technical_node(state: TradingGraphState) -> dict:
         }
 
     except Exception as e:
+        logger.exception("[technical_node] 节点执行遭遇致命异常，完整堆栈如下：")
         _log_node_error("technical_node", e)
         sig = indicators.get("tech_signal", "HOLD")
         rec = "BUY" if "BUY" in sig else ("SELL" if "SELL" in sig else "HOLD")
@@ -763,7 +851,7 @@ async def sentiment_node(state: TradingGraphState) -> dict:
       - 仍保留量价动量特征作为辅助输入
       - Prompt 从 _PROMPTS["sentiment"] 字典取值（外化管理）
     """
-    symbol      = state["symbol"]
+    symbol      = state.get("symbol") or state.get("stock_code", "UNKNOWN")
     market_type = state.get("market_type", "US_STOCK")
     market_data = state.get("market_data", {})
     rag_context = state.get("rag_context", "")
@@ -797,10 +885,10 @@ async def sentiment_node(state: TradingGraphState) -> dict:
         news_parsed = json.loads(news_json)
 
         if news_parsed.get("status") == "success" and news_parsed.get("news"):
-            news_items = news_parsed["news"][:5]
-            lines = [f"  [{i+1}] {n.get('time','')} {n.get('title','')[:150]} （{n.get('source','')}）"
+            news_items = news_parsed["news"][:3]   # 最多 3 条，进一步减负
+            lines = [f"  [{i+1}] {n.get('time','')[:10]} {n.get('title','')[:80]}"
                      for i, n in enumerate(news_items)]
-            news_text     = "\n".join(lines)
+            news_text     = "\n".join(lines)[:600]  # 强制截断 600 字符
             news_data_str = news_json
             logger.info(f"[sentiment_node] 新闻获取成功: {len(news_items)} 条")
         elif news_parsed.get("status") == "partial":
@@ -828,20 +916,20 @@ async def sentiment_node(state: TradingGraphState) -> dict:
 - BOLL %B: {indicators.get('BOLL_pct_B', 'N/A')}（>0.85接近上轨，<0.15接近下轨）
 
 【宏观背景参考（RAG）】
-{rag_context[:600] if rag_context else '暂无宏观背景信息'}
+{rag_context[:300] if rag_context else '暂无宏观背景信息'}
 
 请优先基于真实新闻事件分析市场情绪，结合量价动量特征，给出 BUY/SELL/HOLD 建议。
 若无新闻数据，请明确说明分析仅基于量价推断，并相应降低置信度（≤0.50）。
 """
 
     try:
-        llm = _build_llm(temperature=0.4)
+        llm = _build_llm(temperature=0.1)
         structured_llm = llm.with_structured_output(AnalystReport)
         messages = [
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=115.0)
+        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=180.0)
 
         report_dict = report.model_dump(mode='json')
         has_real_news = "新闻获取失败" not in news_text and "获取失败" not in news_text and "暂无" not in news_text
@@ -865,6 +953,7 @@ async def sentiment_node(state: TradingGraphState) -> dict:
         }
 
     except Exception as e:
+        logger.exception("[sentiment_node] 节点执行遭遇致命异常，完整堆栈如下：")
         _log_node_error("sentiment_node", e)
         fallback = {
             "recommendation": "HOLD", "confidence": 0.3,
@@ -948,6 +1037,7 @@ def _compute_weighted_score(
     }
 
 
+@_guard_node("fundamental_report")
 async def portfolio_node(state: TradingGraphState) -> dict:
     """
     基金经理综合决策节点:
@@ -956,7 +1046,7 @@ async def portfolio_node(state: TradingGraphState) -> dict:
       - 若 risk_rejection_count > 0，进入风控修订模式（降仓/调仓）
       - 输出最终投资建议（供后续辩论或风控使用）
     """
-    symbol               = state["symbol"]
+    symbol               = state.get("symbol") or state.get("stock_code", "UNKNOWN")
     market_type          = state.get("market_type", "US_STOCK")
     fundamental          = state.get("fundamental_report", {}) or {}
     technical            = state.get("technical_report", {})   or {}
@@ -1031,7 +1121,23 @@ async def portfolio_node(state: TradingGraphState) -> dict:
 3. 严禁推荐任何形式的杠杆操作、融资融券（Margin Trading）
 4. 投资周期建议≥3个月，不推荐短线高频操作
 5. 单标的建议仓位：A股≤15%，港股/美股≤10%（大学生本金有限）
-6. 若综合置信度<0.60，recommendation 必须输出 HOLD，不强行找入场理由"""
+6. 若综合置信度<0.60，recommendation 必须输出 HOLD，不强行找入场理由
+
+【强制置信度计算规则 — 必须像计算器一样输出精准小数】
+1. confidence 必须是 0.00~1.00 之间的两位小数，严禁输出 0.60 / 0.65 等敷衍默认值。
+2. 基础分 0.50（完全中性信号）。
+3. 动态加减规则（可叠加）：多项核心指标高度一致 +0.25~+0.35；单一明确信号 +0.10~+0.20；信号轻微矛盾 -0.05~-0.10；核心数据极度恶化 +0.30~+0.40；信号严重矛盾或数据不足 -0.15~-0.25。
+4. 示例：基础 0.50 + 三方向一致看涨 +0.20 + 辩论共识强 +0.10 = 0.80；你必须给出类似 0.42、0.78、0.88 的叠加结果。
+
+【强制 JSON 输出结构 — 必须完整填写所有字段，不得遗漏】
+你必须且只能输出以下 JSON 对象，不加任何 Markdown 包裹或额外说明：
+{{
+  "recommendation": "BUY或SELL或HOLD（三选一，必填）",
+  "confidence": 0.73,
+  "reasoning": "综合分析推理过程（必填，不少于50字）",
+  "key_factors": ["因素1", "因素2", "因素3"]
+}}
+规则：recommendation 只能是 BUY/SELL/HOLD；confidence 为0~1之间的浮点数；reasoning 不得为空。"""
 
     user_prompt = f"""
 请综合以下研究报告，对 **{symbol}** 做出投资决策。
@@ -1056,7 +1162,7 @@ async def portfolio_node(state: TradingGraphState) -> dict:
 """
 
     try:
-        llm = _build_llm(temperature=0.3)
+        llm = _build_llm(temperature=0.1)
         structured_llm = llm.with_structured_output(AnalystReport)
         messages = [
             SystemMessage(content=system_prompt),
@@ -1109,7 +1215,7 @@ async def debate_node(state: TradingGraphState) -> dict:
       - DebateOutcome 新增 bull_history / bear_history（TradingAgents-CN InvestDebateState 模式）
       - debate_rounds 自增 1，防止无限循环
     """
-    symbol        = state["symbol"]
+    symbol        = state.get("symbol") or state.get("stock_code", "UNKNOWN")
     fundamental   = state.get("fundamental_report", {}) or {}
     technical     = state.get("technical_report", {})   or {}
     debate_rounds = state.get("debate_rounds", 0)
@@ -1127,7 +1233,8 @@ async def debate_node(state: TradingGraphState) -> dict:
 2. 识别双方论点的根本分歧所在
 3. 基于证据和逻辑权重，裁决出合理的投资方向
 4. 裁决后降低置信度以体现不确定性（通常降低0.1-0.2）
-裁决原则: 趋势性基本面 > 短期技术波动；但若技术信号极强（金叉+高量能），可优先技术面"""
+裁决原则: 趋势性基本面 > 短期技术波动；但若技术信号极强（金叉+高量能），可优先技术面
+【输出格式】必须严格按照给定的 JSON 格式输出结果，不得输出任何 Markdown 包裹或额外说明文字。"""
 
     # 【审计修复 P2-2】论点摘要（非"对话历史"——这是 LLM 生成的摘要，非真实多轮日志）
     bull_argument = (
@@ -1155,13 +1262,13 @@ async def debate_node(state: TradingGraphState) -> dict:
 """
 
     try:
-        llm = _build_llm(temperature=0.5)
+        llm = _build_llm(temperature=0.1)
         structured_llm = llm.with_structured_output(DebateOutcome)
         messages = [
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        outcome: DebateOutcome = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=115.0)
+        outcome: DebateOutcome = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=180.0)
 
         outcome_dict = outcome.model_dump(mode='json')
         new_rounds   = debate_rounds + 1
@@ -1221,7 +1328,7 @@ async def risk_node(state: TradingGraphState) -> dict:
       - Prompt 从 _PROMPTS["risk"] 取基础前缀，动态拼装市场规则
       - 若 REJECTED，risk_rejection_count += 1，触发 portfolio_node 修订
     """
-    symbol               = state["symbol"]
+    symbol               = state.get("symbol") or state.get("stock_code", "UNKNOWN")
     market_type          = state.get("market_type", "US_STOCK")
     market_data          = state.get("market_data", {})
     indicators           = market_data.get("indicators", {})
@@ -1252,7 +1359,21 @@ async def risk_node(state: TradingGraphState) -> dict:
 6. 止损：必须严格设置（A股≥5%，港股/美股≥7%），保护有限本金
 7. 大学生假设总本金 ≤ 5万元，单次最大亏损金额不超过 3000 元
 
-审核维度: 波动率合规 | 仓位合规 | 止损设置 | 置信度合规"""
+审核维度: 波动率合规 | 仓位合规 | 止损设置 | 置信度合规
+
+【强制 JSON 输出结构 — 必须完整填写，绝不遗漏任何字段】
+你必须且只能输出以下 JSON 对象，不加任何 Markdown 包裹或额外说明：
+{{
+  "approval_status": "APPROVED或CONDITIONAL或REJECTED（三选一，必填）",
+  "risk_level": "LOW或MEDIUM或HIGH或EXTREME（四选一，必填）",
+  "position_pct": 10.0,
+  "stop_loss_pct": 7.0,
+  "take_profit_pct": 15.0,
+  "rejection_reason": null,
+  "conditions": [],
+  "max_loss_amount": null
+}}
+规则：approval_status 只能是 APPROVED/CONDITIONAL/REJECTED；position_pct 单位为百分比（如10.0表示10%）。"""
 
     user_prompt = f"""
 请审核以下交易方案的风险合规性（模拟交易，非真实交易所）。
@@ -1281,7 +1402,7 @@ async def risk_node(state: TradingGraphState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        decision: RiskDecision = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=115.0)
+        decision: RiskDecision = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=180.0)
 
         decision_dict = decision.model_dump(mode='json')
 
@@ -1370,7 +1491,7 @@ async def trade_executor(state: TradingGraphState) -> dict:
       - TradeOrder.simulated = True，指向本地模拟撮合引擎，不连接任何真实交易所
       - 填充 state.trade_order，标记 status = "completed"
     """
-    symbol         = state["symbol"]
+    symbol         = state.get("symbol") or state.get("stock_code", "UNKNOWN")
     market_type    = state.get("market_type", "US_STOCK")
     market_data    = state.get("market_data", {})
     fundamental    = state.get("fundamental_report", {}) or {}
@@ -1416,7 +1537,26 @@ async def trade_executor(state: TradingGraphState) -> dict:
 
     system_prompt = (
         "你是执行层交易员，负责将研究决策转化为精确的模拟交易指令。\n"
-        "注意：所有指令仅用于本地模拟撮合引擎，不连接任何真实交易所（无 Binance/CCXT/IBKR）。"
+        "注意：所有指令仅用于本地模拟撮合引擎，不连接任何真实交易所（无 Binance/CCXT/IBKR）。\n\n"
+        "【强制 JSON 输出结构 — 所有字段必须完整填写，绝不遗漏】\n"
+        "你必须且只能输出以下 JSON 对象，不加任何 Markdown 包裹或额外说明：\n"
+        "{\n"
+        '  "symbol": "交易标的代码，如 600519.SH / AAPL / 00700.HK（必填）",\n'
+        '  "action": "BUY或SELL或HOLD（三选一，必填）",\n'
+        '  "quantity_pct": 10.0,\n'
+        '  "order_type": "LIMIT或MARKET（二选一，默认LIMIT）",\n'
+        '  "limit_price": null,\n'
+        '  "stop_loss": null,\n'
+        '  "take_profit": null,\n'
+        '  "rationale": "核心交易逻辑说明，不少于30字（必填）",\n'
+        '  "confidence": 0.70,\n'
+        '  "market_type": "A_STOCK或HK_STOCK或US_STOCK（三选一，必填）",\n'
+        '  "valid_until": null,\n'
+        '  "simulated": true\n'
+        "}\n"
+        "规则：quantity_pct 单位为百分比（如10.0表示10%，HOLD时填0.0）；"
+        "market_type 必须从 A_STOCK / HK_STOCK / US_STOCK 三选一；"
+        "simulated 必须为 true；confidence 为0~1之间的浮点数。"
     )
 
     user_prompt = f"""
@@ -1446,7 +1586,7 @@ simulated 字段必须为 true。
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        order: TradeOrder = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=115.0)
+        order: TradeOrder = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=180.0)
 
         order_dict = order.model_dump(mode='json')
         order_dict["simulated"]       = True            # 强制确保 simulated=True
@@ -1627,7 +1767,7 @@ async def health_node(state: TradingGraphState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: PortfolioHealthReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=115.0)
+        report: PortfolioHealthReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=180.0)
 
         report_dict = report.model_dump(mode='json')
         log_msg = _log_entry(

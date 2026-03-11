@@ -73,7 +73,20 @@ _CN_FINANCIAL_DOMAINS = [
     "gtimg.com",
     "sse.com.cn",
     "szse.cn",
+    # DashScope / 阿里百炼：防止 TUN 全局代理切断长连接
+    "dashscope.aliyuncs.com",
+    "aliyuncs.com",
 ]
+
+# 同步设置 NO_PROXY 环境变量，覆盖系统级代理配置
+import os as _os
+_no_proxy_extra = "dashscope.aliyuncs.com,aliyuncs.com"
+_existing_no_proxy = _os.environ.get("NO_PROXY", _os.environ.get("no_proxy", ""))
+if _no_proxy_extra not in _existing_no_proxy:
+    _os.environ["NO_PROXY"] = (
+        _existing_no_proxy + "," + _no_proxy_extra if _existing_no_proxy else _no_proxy_extra
+    )
+    _os.environ["no_proxy"] = _os.environ["NO_PROXY"]
 
 
 def _proxy_bypass_request(self, method, url, **kwargs):
@@ -311,12 +324,15 @@ async def _stream_graph_events(
 
             # ── 节点完成 ──────────────────────────────────────
             elif kind == "on_chain_end" and node_name in _NODE_LABELS:
-                output    = event.get("data", {}).get("output", {})
+                output    = event.get("data", {}).get("output") or {}
                 label     = _NODE_LABELS[node_name]
 
-                # 更新最新 state 快照（合并节点输出）
+                # 更新最新 state 快照（合并节点输出），用 .get() 防止非 dict output
                 if isinstance(output, dict):
                     last_state.update(output)
+                    # 确保 symbol 始终可从 state 还原（兼容 stock_code 旧键名）
+                    if "symbol" not in last_state and "stock_code" in last_state:
+                        last_state["symbol"] = last_state["stock_code"]
 
                 # 根据节点类型构建特定消息与数据
                 sse_event_type = "node_complete"
@@ -451,40 +467,50 @@ async def _stream_graph_events(
                 )
                 await asyncio.sleep(0)
 
-    except Exception as e:
-        logger.error(f"[stream] 图执行异常: {e}", exc_info=True)
-        _graph_error = str(e)
+    except BaseException as e:
+        # 安全地序列化异常信息：str(KeyError('error')) = "'error'"，
+        # 使用 type(e).__name__ + str(e) 组合避免误导性单引号输出
+        _err_type = type(e).__name__
+        _err_msg  = str(e) or repr(e)
+        logger.error(
+            f"[stream] 图执行异常 [{_err_type}]: {_err_msg}",
+            exc_info=True,
+        )
+        _graph_error = f"{_err_type}: {_err_msg}"
         seq += 1
         yield _make_sse_event(
             event="error",
             node="system",
-            message=f"分析过程异常: {str(e)}",
-            data={"error": str(e)},
+            message=f"分析过程异常 [{_err_type}]: {_err_msg}",
+            data={"error": _err_msg, "error_type": _err_type},
             seq=seq,
         )
         # 不 return：继续构建降级完成事件，确保前端能渲染出部分结果
 
     # ── 发送完成事件（附最终 trade_order + 研报 + 图表数据）──────
-    # Phase 3 兜底：无论图执行是否成功，final_order 永远为 dict（不为 None）
+    # complete 事件构建包裹在独立 try/except 内，避免 f-string None 值等次生错误断流
     seq += 1
-    final_order = last_state.get("trade_order") or {}
+    # 安全提取 symbol：优先用函数参数，再从 last_state 降级，最终回退 "UNKNOWN"
+    symbol = symbol or last_state.get("symbol") or last_state.get("stock_code") or "UNKNOWN"
+    try:
+        final_order = last_state.get("trade_order") or {}
 
-    # 编译 Markdown 深度研报
-    fundamental = last_state.get("fundamental_report") or {}
-    technical   = last_state.get("technical_report")   or {}
-    sentiment   = last_state.get("sentiment_report")   or {}
-    debate      = last_state.get("debate_outcome")      or {}
-    risk        = last_state.get("risk_decision")       or {}
+        # 编译 Markdown 深度研报（所有字段全部使用 .get() 安全提取）
+        fundamental = last_state.get("fundamental_report") or {}
+        technical   = last_state.get("technical_report")   or {}
+        sentiment   = last_state.get("sentiment_report")   or {}
+        debate      = last_state.get("debate_outcome")      or {}
+        risk        = last_state.get("risk_decision")       or {}
 
-    def _pct(v):
-        try: return f"{float(v):.1%}"
-        except: return str(v)
+        def _pct(v):
+            try: return f"{float(v):.1%}"
+            except: return str(v)
 
-    _error_banner = (
-        f"\n> ⚠ **分析流程异常中断**（{_graph_error}）。以下为各节点已完成的部分结果，供参考。\n\n---\n\n"
-        if _graph_error else ""
-    )
-    markdown_report = f"""# {symbol} · 多智能体深度研报
+        _error_banner = (
+            f"\n> ⚠ **分析流程异常中断**（{_graph_error}）。以下为各节点已完成的部分结果，供参考。\n\n---\n\n"
+            if _graph_error else ""
+        )
+        markdown_report = f"""# {symbol} · 多智能体深度研报
 
 > 生成时间：{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}　｜　分析引擎：LangGraph Multi-Agent
 {_error_banner}
@@ -530,9 +556,9 @@ async def _stream_graph_events(
 | 指标 | 数值 |
 |------|------|
 | 审批状态 | **{risk.get('approval_status', 'N/A')}** |
-| 建议仓位 | {risk.get('position_pct', 0):.1f}% |
-| 止损线   | {risk.get('stop_loss_pct', 0):.1f}% |
-| 止盈线   | {risk.get('take_profit_pct', 0):.1f}% |
+| 建议仓位 | {_pct(risk.get('position_pct') or 0)} |
+| 止损线   | {_pct(risk.get('stop_loss_pct') or 0)} |
+| 止盈线   | {_pct(risk.get('take_profit_pct') or 0)} |
 | 风险等级 | {risk.get('risk_level', 'N/A')} |
 
 {f"> 辩论裁决：{debate.get('resolved_recommendation','N/A')} | 决定因素：{debate.get('deciding_factor','')}" if debate else ""}
@@ -544,7 +570,7 @@ async def _stream_graph_events(
 | 字段 | 值 |
 |------|----|
 | 操作方向 | **{final_order.get('action', 'N/A')}** |
-| 建议仓位 | {final_order.get('quantity_pct', 0):.1f}% |
+| 建议仓位 | {_pct(final_order.get('quantity_pct') or 0)} |
 | 止损价   | {final_order.get('stop_loss', 'N/A')} |
 | 止盈价   | {final_order.get('take_profit', 'N/A')} |
 | 置信度   | {_pct(final_order.get('confidence', 0))} |
@@ -556,54 +582,67 @@ async def _stream_graph_events(
 ⚠ *本研报由 AI 多智能体自动生成，仅供学习参考，不构成投资建议。请遵守大学生守则：单股仓位 ≤ 15%，务必设置止损，切勿加杠杆。*
 """
 
-    # 图表数据：从基本面 key_metrics 中提取实际历年数据
-    key_metrics  = fundamental.get("key_metrics") or {}
-    revenue_data = key_metrics.get("revenue_history") or []
-    profit_data  = key_metrics.get("profit_history")  or []
-    data_years   = key_metrics.get("years") or []
-    # 优先使用真实历史年份；无数据时回退到近5年占位
-    if data_years and revenue_data:
-        chart_years  = [str(y) for y in data_years[-5:]]
-        revenue_vals = [(v or 0) for v in revenue_data[-5:]]
-        profit_vals  = [(v or 0) for v in profit_data[-5:]] if profit_data else [0] * len(chart_years)
-        # 长度对齐
-        n = len(chart_years)
-        revenue_vals = (revenue_vals + [0] * n)[:n]
-        profit_vals  = (profit_vals  + [0] * n)[:n]
-    else:
-        current_year = datetime.now(timezone.utc).year
-        # 使用上一年往前推 4 年（当年财报通常未出齐）
-        chart_years  = [str(current_year - 5 + i) for i in range(5)]
-        revenue_vals = [0, 0, 0, 0, 0]
-        profit_vals  = [0, 0, 0, 0, 0]
-    # 若全为 0，提示前端"数据不足"
-    has_chart_data = any(v != 0 for v in revenue_vals + profit_vals)
+        # 图表数据：从基本面 key_metrics 中提取实际历年数据
+        key_metrics  = fundamental.get("key_metrics") or {}
+        revenue_data = key_metrics.get("revenue_history") or []
+        profit_data  = key_metrics.get("profit_history")  or []
+        data_years   = key_metrics.get("years") or []
+        # 优先使用真实历史年份；无数据时回退到近5年占位
+        if data_years and revenue_data:
+            chart_years  = [str(y) for y in data_years[-5:]]
+            revenue_vals = [(v or 0) for v in revenue_data[-5:]]
+            profit_vals  = [(v or 0) for v in profit_data[-5:]] if profit_data else [0] * len(chart_years)
+            # 长度对齐
+            n = len(chart_years)
+            revenue_vals = (revenue_vals + [0] * n)[:n]
+            profit_vals  = (profit_vals  + [0] * n)[:n]
+        else:
+            current_year = datetime.now(timezone.utc).year
+            # 使用上一年往前推 4 年（当年财报通常未出齐）
+            chart_years  = [str(current_year - 5 + i) for i in range(5)]
+            revenue_vals = [0, 0, 0, 0, 0]
+            profit_vals  = [0, 0, 0, 0, 0]
+        # 若全为 0，提示前端"数据不足"
+        has_chart_data = any(v != 0 for v in revenue_vals + profit_vals)
 
-    # Phase 3 兜底：financial_chart_data / final_markdown_report 始终下发，前端无需防 undefined
-    _chart_payload = {
-        "years":         chart_years,
-        "revenue":       revenue_vals,
-        "profit":        profit_vals,
-        "has_data":      has_chart_data,
-        "revenue_label": key_metrics.get("revenue_label", "营业收入（亿元）"),
-        "profit_label":  key_metrics.get("profit_label",  "净利润（亿元）"),
-        "revenue_composition": key_metrics.get("revenue_composition", {}),
-        "performance_trend":   key_metrics.get("performance_trend", {}),
-    }
-    yield _make_sse_event(
-        event="complete",
-        node="system",
-        message=f"✅ 分析完成: {symbol} → {final_order.get('action', 'N/A')} "
-                f"(仓位 {final_order.get('quantity_pct', 0):.0f}%)",
-        data={
-            "symbol":                symbol,
-            "trade_order":           final_order,
-            "status":                "completed",
-            "final_markdown_report": markdown_report or "> 研报生成失败，请重试。",
-            "financial_chart_data":  _chart_payload,
-        },
-        seq=seq,
-    )
+        # Phase 3 兜底：financial_chart_data / final_markdown_report 始终下发，前端无需防 undefined
+        _chart_payload = {
+            "years":         chart_years,
+            "revenue":       revenue_vals,
+            "profit":        profit_vals,
+            "has_data":      has_chart_data,
+            "revenue_label": key_metrics.get("revenue_label", "营业收入（亿元）"),
+            "profit_label":  key_metrics.get("profit_label",  "净利润（亿元）"),
+            "revenue_composition": key_metrics.get("revenue_composition", {}),
+            "performance_trend":   key_metrics.get("performance_trend", {}),
+        }
+        yield _make_sse_event(
+            event="complete",
+            node="system",
+            message=f"✅ 分析完成: {symbol} → {final_order.get('action', 'N/A')} "
+                    f"(仓位 {float(final_order.get('quantity_pct') or 0):.0f}%)",
+            data={
+                "symbol":                symbol,
+                "trade_order":           final_order,
+                "status":                "completed",
+                "final_markdown_report": markdown_report or "> 研报生成失败，请重试。",
+                "financial_chart_data":  _chart_payload,
+            },
+            seq=seq,
+        )
+    except Exception as _complete_err:
+        logger.error(
+            f"[stream] complete 事件构建失败: {type(_complete_err).__name__}: {_complete_err}",
+            exc_info=True,
+        )
+        yield _make_sse_event(
+            event="complete",
+            node="system",
+            message=f"✅ 分析完成（部分数据渲染失败）: {symbol}",
+            data={"symbol": symbol, "trade_order": {}, "status": "completed_partial",
+                  "final_markdown_report": "> 研报渲染异常，请重试。", "financial_chart_data": {}},
+            seq=seq,
+        )
 
 
 # ════════════════════════════════════════════════════════════════

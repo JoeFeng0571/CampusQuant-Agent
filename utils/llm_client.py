@@ -70,8 +70,9 @@ class LLMClient:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((TimeoutError, asyncio.TimeoutError, Exception)),
-        reraise=True
+        # 只对网络/超时类错误重试；逻辑错误（KeyError/ValueError/API模型不存在）不重试
+        retry=retry_if_exception_type((TimeoutError, asyncio.TimeoutError, ConnectionError, OSError)),
+        reraise=True,
     )
     def generate(
         self,
@@ -104,7 +105,12 @@ class LLMClient:
                     prompt, system_prompt, temperature, max_tokens, response_format
                 )
         except Exception as e:
-            logger.error(f"❌ LLM 生成失败: {e}")
+            # 暴露完整 traceback，不被上层掩盖，便于定位 API / 模型名错误
+            logger.error(
+                f"❌ LLM 生成失败 [provider={self.provider} model={self.model}]: "
+                f"{type(e).__name__}: {e}",
+                exc_info=True,
+            )
             raise
 
     def _generate_openai_compat(
