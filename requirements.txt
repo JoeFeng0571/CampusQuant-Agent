@@ -50,5 +50,14 @@ tenacity          # 重试机制
 # ── Logging & Monitoring ─────────────────────────────────────
 loguru            # 日志管理
 
+# ── Database (async SQLite / PostgreSQL) ─────────────────────
+sqlalchemy[asyncio]   # SQLAlchemy 2.x 异步 ORM
+aiosqlite             # 异步 SQLite 驱动
+
+# ── Auth ─────────────────────────────────────────────────────
+python-jose[cryptography]  # JWT 编解码
+passlib[bcrypt]            # bcrypt 密码哈希（需 bcrypt==4.0.1，新版与 passlib 不兼容）
+bcrypt==4.0.1              # 固定版本避免 passlib 兼容性问题
+
 # ── Web UI ───────────────────────────────────────────────────
 streamlit         # 可视化交互界面

@@ -44,13 +44,22 @@ import uuid
 from datetime import datetime, timezone
 from typing import AsyncGenerator, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from utils.market_classifier import MarketClassifier
 from config import config as _cfg
+
+# ── DB & Auth 延迟导入（避免启动前引用未初始化的 engine）─────
+def _get_db_dep():
+    from db.engine import get_db
+    return get_db()
+
+# 实际 Depends 需要 callable，用 lambda 包装
+from db.engine import get_db as _db_get
+_get_db_dep = _db_get
 
 # ════════════════════════════════════════════════════════════════
 # Proxy Monkey Patch — 国内金融域名强制绕过 TUN/全局代理
@@ -141,6 +150,14 @@ async def startup_event():
     global _compiled_graph
     logger.info("🚀 Trading System API 启动中...")
 
+    # 0. 初始化数据库（建表，幂等）
+    try:
+        from db.engine import init_db
+        await init_db()
+        logger.info("✅ 数据库初始化完成（campusquant.db）")
+    except Exception as e:
+        logger.error(f"❌ 数据库初始化失败: {e}")
+
     # 1. 初始化 FAISS 知识库
     try:
         from tools.knowledge_base import init_knowledge_base
@@ -191,8 +208,9 @@ class PortfolioCheckRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     """POST /api/v1/chat 请求体"""
-    message:  str = Field(..., min_length=1, description="用户消息")
-    history:  list[dict] = Field(default_factory=list, description="历史对话（可选）")
+    message:     str            = Field(..., min_length=1, description="用户消息")
+    session_key: Optional[str]  = Field(default=None, description="对话 Session UUID（localStorage 存储，持久记忆）")
+    history:     list[dict]     = Field(default_factory=list, description="历史对话（兼容旧版，有 session_key 时忽略）")
 
 
 class TradeOrderRequest(BaseModel):
@@ -804,54 +822,92 @@ _MOCK_PORTFOLIO: list[dict] = [
 # 财商学长 AI 对话
 # ════════════════════════════════════════════════════════════════
 
+# 财商学长专属极速模型（独立于主链路，不影响 LangGraph 分析节点）
+_CHAT_MODEL = "qwen3.5-flash"
+
 _CAISHANG_SYSTEM_PROMPT = (
-    "你叫财财学长，是 CampusQuant 的 AI 财商导师，专门服务中国在校大学生。\n"
-    "请用亲切、通俗的语言，结合大学生的实际情况（资金有限、没有收入、需要学费生活费），"
-    "认真解答他们关于理财、基金、股票、债券、风险管理、经济常识等泛金融问题。\n\n"
-    "回答要求：\n"
-    "1. 直接给出实质性回答，不要说'我无法给出建议'——要像一个懂行的学长一样帮人分析利弊。\n"
-    "2. 用大学生听得懂的语言，结合具体场景举例，避免纯理论堆砌。\n"
-    "3. 强调风险教育：提醒止损、仓位控制、不用生活费炒股等大学生守则。\n"
-    "4. 如涉及具体标的（如沪深300ETF、主动基金），可客观对比优缺点，但不做最终买卖决定。\n"
+    "你现在是本量化沙盘系统的'财商学长'。\n"
+    "你的角色：一个懂金融、精通量化交易的高年级学长。\n"
+    "你的目标：用容易理解的语言解答同学们的金融疑问。\n\n"
+    "【核心工作守则】\n"
+    "1. 反应快速：回答控制在200字以内，直击要点，禁止废话铺垫。\n"
+    "2. 语言风格：称呼对方'同学'，自称'学长'。用生活案例解释枯燥的金融术语。\n"
+    "3. 合规红线：只做财商教育和逻辑科普，绝对禁止提供任何确定的买卖建议或荐股指令。"
+    "遇到推荐股票的问题，请巧妙婉拒，并引导多看系统的基础面分析。\n"
+    "4. 强调风险教育：提醒止损、仓位控制、不用生活费炒股等大学生守则。\n"
     "5. 禁止推荐任何具体真实券商或第三方平台。\n"
     "6. 非金融无关话题礼貌拒绝，说明只专注投资教育。\n"
     "7. 【严格边界】严禁强行分析实时行情或最新财报！"
-    "当用户要求分析某只具体股票（如腾讯、茅台、苹果）、解读最新财报或预测近期走势时，"
-    "必须明确告知：你作为答疑学长不具备实时联网看盘的能力，你的知识存在截止日期，无法保证数据准确。"
-    "然后亲切引导用户：'你可以在本平台的【个股分析】页面，输入股票代码（如 00700.HK / 600519.SH / AAPL），"
-    "召唤多智能体引擎获取基于实时数据的深度研报，那比我靠谱多了！'"
+    "当同学要求分析某只具体股票时，亲切引导：'同学，你可以在本平台的【个股分析】页面输入股票代码"
+    "（如 00700.HK / 600519.SH / AAPL），召唤多智能体引擎获取基于实时数据的深度研报，那比学长靠谱多了！'"
 )
 
 
-@app.post("/api/v1/chat", summary="财商学长 AI 对话（Qwen）")
-async def chat_with_advisor(request: ChatRequest):
+@app.post("/api/v1/chat", summary="财商学长 AI 对话（Qwen + 持久记忆）")
+async def chat_with_advisor(
+    request: ChatRequest,
+    db=Depends(_get_db_dep),
+):
     """
     POST /api/v1/chat
 
-    调用 LLMClient（DashScope/Qwen）生成财商教育回复。
-    强制注入 System Prompt，确保回答聚焦于投资理财教育。
+    持久记忆逻辑:
+      1. 前端在 localStorage 生成并持久保存一个 UUID 作为 session_key
+      2. 每次对话携带 session_key → 后端从 DB 取最近 10 条消息作上下文
+      3. 用户消息 + AI 回复均写入 chat_messages 表
+      4. 无 session_key 时退化为无状态模式（兼容旧版 history 字段）
     """
     try:
         from utils.llm_client import LLMClient
+        from db.crud import (
+            get_or_create_chat_session,
+            get_chat_history,
+            append_chat_message,
+            count_chat_messages,
+        )
         loop = asyncio.get_event_loop()
 
+        # ── 构建上下文 ─────────────────────────────────────────
+        session_key   = request.session_key
+        db_history    = []
+        session_obj   = None
+
+        if session_key:
+            session_obj = await get_or_create_chat_session(db, session_key)
+            db_messages = await get_chat_history(db, session_obj.id, limit=10)
+            for m in db_messages:
+                db_history.append({"role": m.role, "content": m.content})
+
+        # 无 session_key 降级：使用客户端传来的 history（旧版兼容）
+        context_turns = db_history if session_key else request.history[-6:]
+
         def _call_llm():
-            client = LLMClient(provider="dashscope")
-            # 将 history 拼到 prompt 前
+            client = LLMClient(provider="dashscope", model=_CHAT_MODEL)
             history_text = ""
-            for turn in request.history[-6:]:   # 最多保留 6 轮上下文
-                role = "用户" if turn.get("role") == "user" else "学长"
+            for turn in context_turns:
+                role = "同学" if turn.get("role") == "user" else "学长"
                 history_text += f"{role}：{turn.get('content', '')}\n"
-            prompt = history_text + f"用户：{request.message}"
+            prompt = history_text + f"同学：{request.message}"
             return client.generate(
                 prompt=prompt,
                 system_prompt=_CAISHANG_SYSTEM_PROMPT,
-                temperature=0.6,
-                max_tokens=800,
+                temperature=0.7,
+                max_tokens=400,
             )
 
         reply = await loop.run_in_executor(None, _call_llm)
-        return {"reply": reply, "model": _cfg.DASHSCOPE_MODEL, "timestamp": datetime.now(timezone.utc).isoformat()}
+
+        # ── 持久化本轮对话 ──────────────────────────────────────
+        if session_obj:
+            await append_chat_message(db, session_obj.id, "user",      request.message)
+            await append_chat_message(db, session_obj.id, "assistant", reply)
+
+        return {
+            "reply":       reply,
+            "model":       _CHAT_MODEL,
+            "session_key": session_key,
+            "timestamp":   datetime.now(timezone.utc).isoformat(),
+        }
 
     except Exception as e:
         logger.error(f"[chat] LLM 调用失败: {e}")
@@ -859,17 +915,90 @@ async def chat_with_advisor(request: ChatRequest):
 
 
 # ════════════════════════════════════════════════════════════════
+# 用户认证端点
+# ════════════════════════════════════════════════════════════════
+
+class RegisterRequest(BaseModel):
+    username: str = Field(..., min_length=2, max_length=50, description="用户名")
+    email:    str = Field(..., description="邮箱")
+    password: str = Field(..., min_length=6, description="密码（至少6位）")
+
+
+class LoginRequest(BaseModel):
+    email:    str = Field(..., description="邮箱")
+    password: str = Field(..., description="密码")
+
+
+@app.post("/api/v1/auth/register", summary="用户注册")
+async def register(request: RegisterRequest, db=Depends(_get_db_dep)):
+    from db.crud import create_user, get_user_by_email, get_user_by_username
+    from api.auth import create_access_token
+
+    if await get_user_by_email(db, request.email):
+        raise HTTPException(status_code=400, detail="该邮箱已被注册")
+    if await get_user_by_username(db, request.username):
+        raise HTTPException(status_code=400, detail="该用户名已被使用")
+
+    user  = await create_user(db, request.username, request.email, request.password)
+    token = create_access_token(user.id, user.username)
+    return {
+        "token":    token,
+        "user_id":  user.id,
+        "username": user.username,
+        "message":  "注册成功，欢迎加入 CampusQuant！",
+    }
+
+
+@app.post("/api/v1/auth/login", summary="用户登录")
+async def login(request: LoginRequest, db=Depends(_get_db_dep)):
+    from db.crud import get_user_by_email, verify_password
+    from api.auth import create_access_token
+
+    user = await get_user_by_email(db, request.email)
+    if not user or not verify_password(request.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="邮箱或密码错误")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="账号已被禁用")
+
+    token = create_access_token(user.id, user.username)
+    return {
+        "token":    token,
+        "user_id":  user.id,
+        "username": user.username,
+        "message":  "登录成功",
+    }
+
+
+from api.auth import get_current_user as _get_current_user, get_optional_user as _get_optional_user
+
+
+@app.get("/api/v1/auth/me", summary="获取当前用户信息（需 Token）")
+async def get_me(current_user=Depends(_get_current_user)):
+    return {
+        "user_id":    current_user.id,
+        "username":   current_user.username,
+        "email":      current_user.email,
+        "bio":        current_user.bio,
+        "avatar_url": current_user.avatar_url,
+        "created_at": current_user.created_at.isoformat(),
+    }
+
+
+# ════════════════════════════════════════════════════════════════
 # 模拟撮合下单
 # ════════════════════════════════════════════════════════════════
 
-@app.post("/api/v1/trade/order", summary="模拟撮合下单")
-async def place_trade_order(request: TradeOrderRequest):
+@app.post("/api/v1/trade/order", summary="模拟撮合下单（登录后持久化）")
+async def place_trade_order(
+    request: TradeOrderRequest,
+    current_user=Depends(_get_optional_user),
+    db=Depends(_get_db_dep),
+):
     """
     POST /api/v1/trade/order
 
-    从虚拟账户买入或卖出指定标的。
-    后端调用 get_spot_price_raw() 获取实时现价作为成交价。
-    Phase 4 兜底：价格获取失败时返回明确错误，不崩溃。
+    - 未登录：使用内存全局账户（游客模式，重启清零）
+    - 已登录：使用 DB 持久账户，订单写入数据库，重启不丢失
     """
     from api.mock_exchange import get_account
     from utils.market_classifier import MarketClassifier
@@ -896,7 +1025,6 @@ async def place_trade_order(request: TradeOrderRequest):
         raise HTTPException(status_code=502, detail=f"撮合引擎异常: {str(e)}")
 
     if not result.success:
-        # Phase 4: 明确错误提示，HTTP 200 + success=False（前端可展示）
         return {
             "success":   False,
             "error":     result.error,
@@ -904,6 +1032,53 @@ async def place_trade_order(request: TradeOrderRequest):
             "action":    request.action,
             "timestamp": result.timestamp,
         }
+
+    # ── 已登录：持久化到 DB ──────────────────────────────────
+    if current_user:
+        try:
+            from db.crud import (
+                get_or_create_virtual_account,
+                create_order as db_create_order,
+                upsert_position,
+                delete_position,
+                update_account_cash,
+            )
+            db_account = await get_or_create_virtual_account(db, current_user.id)
+
+            # 写成交记录
+            await db_create_order(
+                db, db_account.id,
+                symbol=result.symbol, name="",
+                action=result.action, quantity=result.quantity,
+                exec_price=result.exec_price, amount=result.amount,
+                fee=result.fee, cash_before=result.cash_before,
+                cash_after=result.cash_after,
+                is_spot_price=result.is_spot_price,
+                market_type=market_type.value,
+            )
+
+            # 同步资金
+            await update_account_cash(db, db_account.id, result.cash_after)
+
+            # 同步持仓（从内存账户读取最新状态写入 DB）
+            snap = account.snapshot()
+            for p in snap["positions"]:
+                await upsert_position(
+                    db, db_account.id,
+                    symbol=p["symbol"], name=p["name"],
+                    quantity=p["quantity"], avg_cost=p["avg_cost"],
+                    market_type=p.get("market_type", "UNKNOWN"),
+                )
+            # 清理已卖空的持仓
+            all_syms = {p["symbol"] for p in snap["positions"]}
+            from db.crud import get_positions
+            db_positions = await get_positions(db, db_account.id)
+            for dp in db_positions:
+                if dp.symbol not in all_syms:
+                    await delete_position(db, db_account.id, dp.symbol)
+
+        except Exception as e:
+            logger.warning(f"[trade/order] DB 持久化失败（不影响撮合结果）: {e}")
 
     return {
         "success":       True,
@@ -1096,6 +1271,211 @@ async def get_market_news(limit: int = 20):
         "news":      news,
         "count":     len(news),
         "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# ════════════════════════════════════════════════════════════════
+# 成交记录（需登录）
+# ════════════════════════════════════════════════════════════════
+
+@app.get("/api/v1/trade/orders", summary="查询历史成交记录（需 Token）")
+async def get_trade_orders(
+    limit: int = 50,
+    current_user=Depends(_get_current_user),
+    db=Depends(_get_db_dep),
+):
+    from db.crud import get_or_create_virtual_account, get_orders
+
+    db_account = await get_or_create_virtual_account(db, current_user.id)
+    orders     = await get_orders(db, db_account.id, limit=min(limit, 100))
+
+    return {
+        "orders": [
+            {
+                "id":          o.id,
+                "symbol":      o.symbol,
+                "name":        o.name,
+                "action":      o.action,
+                "quantity":    o.quantity,
+                "exec_price":  o.exec_price,
+                "amount":      o.amount,
+                "fee":         o.fee,
+                "cash_after":  o.cash_after,
+                "is_spot_price": o.is_spot_price,
+                "market_type": o.market_type,
+                "created_at":  o.created_at.isoformat(),
+            }
+            for o in orders
+        ],
+        "count":     len(orders),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# ════════════════════════════════════════════════════════════════
+# 投教社区端点
+# ════════════════════════════════════════════════════════════════
+
+class CreatePostRequest(BaseModel):
+    title:   str = Field(..., min_length=5, max_length=200, description="帖子标题")
+    content: str = Field(..., min_length=10, description="帖子正文")
+    tag:     str = Field(default="learn", description="标签: learn|analysis|risk|exp")
+
+    @field_validator("tag")
+    @classmethod
+    def validate_tag(cls, v: str) -> str:
+        if v not in {"learn", "analysis", "risk", "exp"}:
+            return "learn"
+        return v
+
+
+class CreateCommentRequest(BaseModel):
+    content: str = Field(..., min_length=1, max_length=1000, description="评论内容")
+
+
+def _format_post(post, username: str = "", liked: bool = False) -> dict:
+    return {
+        "id":          post.id,
+        "title":       post.title,
+        "content":     post.content,
+        "tag":         post.tag,
+        "like_count":  post.like_count,
+        "view_count":  post.view_count,
+        "author":      username or f"user_{post.user_id}",
+        "user_id":     post.user_id,
+        "liked":       liked,
+        "created_at":  post.created_at.isoformat(),
+        "updated_at":  post.updated_at.isoformat() if post.updated_at else None,
+        # 摘要（前120字）
+        "excerpt":     post.content[:120] + "…" if len(post.content) > 120 else post.content,
+        "comment_count": len(post.comments) if hasattr(post, "comments") else 0,
+    }
+
+
+@app.get("/api/v1/community/posts", summary="获取社区帖子列表")
+async def list_posts(
+    sort:   str = "latest",
+    tag:    str = "",
+    limit:  int = 20,
+    offset: int = 0,
+    current_user=Depends(_get_optional_user),
+    db=Depends(_get_db_dep),
+):
+    from db.crud import get_posts, has_liked
+    from db.crud import get_user_by_id as _get_user
+
+    posts = await get_posts(
+        db,
+        tag_filter=tag if tag else None,
+        sort=sort,
+        limit=min(limit, 50),
+        offset=offset,
+    )
+
+    result = []
+    for post in posts:
+        author_user = await _get_user(db, post.user_id)
+        liked = False
+        if current_user:
+            liked = await has_liked(db, current_user.id, post.id)
+        result.append(_format_post(post, username=author_user.username if author_user else "", liked=liked))
+
+    return {"posts": result, "count": len(result), "timestamp": datetime.now(timezone.utc).isoformat()}
+
+
+@app.post("/api/v1/community/posts", summary="发布帖子（需 Token）")
+async def create_post(
+    request: CreatePostRequest,
+    current_user=Depends(_get_current_user),
+    db=Depends(_get_db_dep),
+):
+    from db.crud import create_post as db_create_post
+
+    post = await db_create_post(db, current_user.id, request.title, request.content, request.tag)
+    return {
+        "message": "发帖成功",
+        "post": _format_post(post, username=current_user.username),
+    }
+
+
+@app.get("/api/v1/community/posts/{post_id}", summary="获取帖子详情 + 评论")
+async def get_post_detail(
+    post_id: int,
+    current_user=Depends(_get_optional_user),
+    db=Depends(_get_db_dep),
+):
+    from db.crud import get_post, get_comments, has_liked
+    from db.crud import get_user_by_id as _get_user
+
+    post = await get_post(db, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="帖子不存在")
+
+    # 浏览量 +1
+    post.view_count += 1
+
+    author_user = await _get_user(db, post.user_id)
+    liked = False
+    if current_user:
+        liked = await has_liked(db, current_user.id, post_id)
+
+    comments_raw = await get_comments(db, post_id)
+    comments = []
+    for c in comments_raw:
+        cu = await _get_user(db, c.user_id)
+        comments.append({
+            "id":         c.id,
+            "content":    c.content,
+            "author":     cu.username if cu else f"user_{c.user_id}",
+            "created_at": c.created_at.isoformat(),
+        })
+
+    post_data = _format_post(post, username=author_user.username if author_user else "", liked=liked)
+    post_data["comment_count"] = len(comments)
+    return {"post": post_data, "comments": comments}
+
+
+@app.post("/api/v1/community/posts/{post_id}/comments", summary="发表评论（需 Token）")
+async def add_comment(
+    post_id: int,
+    request: CreateCommentRequest,
+    current_user=Depends(_get_current_user),
+    db=Depends(_get_db_dep),
+):
+    from db.crud import get_post, create_comment
+
+    post = await get_post(db, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="帖子不存在")
+
+    comment = await create_comment(db, post_id, current_user.id, request.content)
+    return {
+        "message": "评论成功",
+        "comment": {
+            "id":         comment.id,
+            "content":    comment.content,
+            "author":     current_user.username,
+            "created_at": comment.created_at.isoformat(),
+        },
+    }
+
+
+@app.post("/api/v1/community/posts/{post_id}/like", summary="点赞/取消赞（需 Token）")
+async def toggle_post_like(
+    post_id: int,
+    current_user=Depends(_get_current_user),
+    db=Depends(_get_db_dep),
+):
+    from db.crud import get_post, toggle_like
+
+    post = await get_post(db, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="帖子不存在")
+
+    liked = await toggle_like(db, current_user.id, post_id)
+    return {
+        "liked":      liked,
+        "like_count": post.like_count,
     }
 
 

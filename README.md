@@ -2,7 +2,7 @@
 
 > 专为**在校大学生**设计的多智能体量化分析系统——本金安全第一，财商教育优先。
 
-基于 **LangGraph + LLM** 的多 Agent 协作分析平台，覆盖 **A股、港股、美股**三大市场。内置大学生专属风控守则与 AI 财商助手，帮助大学生建立正确的投资认知，识别金融风险，远离高危杠杆产品。
+基于 **LangGraph + LLM** 的多 Agent 协作分析平台，覆盖 **A股、港股、美股**三大市场。9 个智能体节点全链路已端对端验证贯通，通过 FastAPI SSE 实时流式输出分析进度与深度研报。内置大学生专属风控守则与 AI 财商助手，帮助大学生建立正确的投资认知，识别金融风险，远离高危杠杆产品。
 
 > **红线声明**：本项目已全面移除加密货币（Crypto）支持。高波动、高杠杆、诈骗高发，不适合本金有限的大学生。所有交易指令均指向**本地模拟撮合引擎**，不接入任何真实交易所 API。
 
@@ -380,6 +380,8 @@ FastAPI 后端（默认 `http://localhost:8000`）：
 |------|------|------|
 | `/api/v1/analyze` | `POST` | SSE 流式分析（主端点） |
 | `/api/v1/health-check` | `POST` | 持仓体检（JSON 请求/响应） |
+| `/api/v1/market/indices` | `GET` | 8 路实时大盘指数（沪深港美，akshare） |
+| `/api/v1/market/news` | `GET` | 财联社 7×24 快讯（`?limit=N`，默认 20 条） |
 | `/api/v1/health` | `GET` | 服务健康检查 |
 | `/api/v1/graph/mermaid` | `GET` | 返回图拓扑 Mermaid 字符串 |
 | `/docs` | `GET` | Swagger 交互式 API 文档 |
@@ -393,7 +395,7 @@ FastAPI 后端（默认 `http://localhost:8000`）：
   "message": "📈 基本面分析师完成",
   "data": {
     "recommendation": "BUY",
-    "confidence": 0.75,
+    "confidence": 0.78,
     "reasoning": "...",
     "key_factors": ["ROE 连续5年超25%", "..."],
     "price_target": 2000.0,
@@ -404,7 +406,12 @@ FastAPI 后端（默认 `http://localhost:8000`）：
 }
 ```
 
-事件类型：`node_start` / `node_complete` / `conflict` / `debate` / `risk_check` / `risk_retry` / `trade_order` / `complete` / `error`
+`complete` 事件的 `data` 字段还包含：
+- `trade_order`：最终 TradeOrder（含 action / quantity_pct / stop_loss / take_profit）
+- `final_markdown_report`：Markdown 格式完整深度研报（六节：基本面→技术→情绪→风控→辩论→指令）
+- `financial_chart_data`：近5年营收/净利润图表数据（`years / revenue / profit` 数组）
+
+事件类型：`start` / `node_start` / `node_complete` / `conflict` / `debate` / `risk_check` / `risk_retry` / `trade_order` / `complete` / `error`
 
 ### `/api/v1/health-check` 请求示例
 
@@ -423,11 +430,11 @@ FastAPI 后端（默认 `http://localhost:8000`）：
 
 **仓位上限**（比通用版更保守）：
 
-| 市场 | 最大仓位 | 止损线 | 高波动拒绝阈值 |
-|------|----------|--------|----------------|
-| A股  | 15%      | 5%     | ATR% > 8%      |
-| 港股 | 10%      | 7%     | ATR% > 8%      |
-| 美股 | 10%      | 7%     | ATR% > 8%      |
+| 市场 | 最大仓位 | 建议止损 | 止损范围 | 高波动拒绝阈值 |
+|------|----------|----------|----------|----------------|
+| A股  | 15%      | 5%       | 0~50%    | ATR% > 8%      |
+| 港股 | 10%      | 7%       | 0~50%    | ATR% > 8%      |
+| 美股 | 10%      | 7%       | 0~50%    | ATR% > 8%      |
 
 **不可豁免的拒绝条件**：
 - 任何形式的杠杆/融资融券（Margin Trading）
@@ -442,9 +449,9 @@ FastAPI 后端（默认 `http://localhost:8000`）：
 主 LLM 为**阿里云百炼 Qwen**（国内直连，无需代理）：
 
 ```python
-# config.py
+# config.py / .env
 PRIMARY_LLM_PROVIDER = "dashscope"
-DASHSCOPE_MODEL = "qwen-plus"              # 推理模型
+QWEN_MODEL_NAME = "qwen3.5-plus"           # 推理模型（默认，可覆盖）
 DASHSCOPE_EMBEDDING_MODEL = "text-embedding-v3"  # RAG 向量化
 ```
 
@@ -453,12 +460,14 @@ DASHSCOPE_EMBEDDING_MODEL = "text-embedding-v3"  # RAG 向量化
 ```python
 # 备选 A：OpenAI GPT
 PRIMARY_LLM_PROVIDER = "openai"
-OPENAI_MODEL = "gpt-4-turbo-preview"
+OPENAI_MODEL = "gpt-4o"
 
 # 备选 B：Anthropic Claude
 PRIMARY_LLM_PROVIDER = "anthropic"
-ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
+ANTHROPIC_MODEL = "claude-sonnet-4-6"
 ```
+
+> **代理注意**：若使用系统代理（TUN 模式），请在 `.env` 中配置 `NO_PROXY=dashscope.aliyuncs.com,aliyuncs.com` 避免 DashScope 请求被拦截。
 
 ---
 
@@ -556,12 +565,12 @@ init_knowledge_base(force_rebuild=True)
 
 ## TODO
 
-- [ ] 接入真实新闻 API（NewsAPI、财联社、东方财富）
 - [ ] 支持更多技术指标（Ichimoku、Fibonacci 回撤位）
 - [ ] 添加历史回测引擎（基于历史数据模拟交易记录）
 - [ ] 财商教育题库（选择题测验大学生金融知识水平）
 - [ ] 多语言支持（English version for overseas students）
 - [ ] 移动端响应式适配（HTML 前端）
+- [ ] LangGraph 持久化升级（MemorySaver → SqliteSaver，支持多并发）
 
 ---
 

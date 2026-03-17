@@ -1223,6 +1223,19 @@
         `;
     }
 
+    // ── 财商学长 Session Key（localStorage 持久化，跨刷新记忆）──
+    function getChatSessionKey() {
+        let key = localStorage.getItem('cq_chat_session');
+        if (!key) {
+            key = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = Math.random() * 16 | 0;
+                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            });
+            localStorage.setItem('cq_chat_session', key);
+        }
+        return key;
+    }
+
     // ── 顾问回复（泛理财问题 → 真实 LLM 调用）──────────────
     async function simulateAdvisorResponse(query) {
         statusText.textContent = '财财学长正在思考...';
@@ -1230,7 +1243,11 @@
             const resp = await fetch(`${API_BASE}/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: query, history: [] }),
+                body: JSON.stringify({
+                    message:     query,
+                    session_key: getChatSessionKey(),
+                    history:     [],
+                }),
             });
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();

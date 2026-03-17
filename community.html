@@ -281,9 +281,10 @@
         <a href="analysis.html">个股分析</a>
         <a href="platforms.html">持仓体检</a>
         <a href="market.html">市场快讯</a>
-        <a href="community.html">投教社区</a>
+        <a href="community.html" class="active">投教社区</a>
         <a href="team.html">关于我们</a>
-        
+        <div id="auth-widget" style="display:flex;align-items:center;gap:8px;margin-left:8px;flex-shrink:0;"></div>
+
         <button id="sidebar-toggle" class="sidebar-btn" title="打开学习中心">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -362,102 +363,20 @@
         <div class="posts-section">
             <div class="section-header">
                 <div class="section-title">讨论广场</div>
-                <div class="filter-tabs">
-                    <button class="filter-btn active">最新</button>
-                    <button class="filter-btn">精选</button>
-                    <button class="filter-btn">问答</button>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="filter-tabs">
+                        <button class="filter-btn active" data-sort="latest" onclick="filterPosts(this,'latest')">最新</button>
+                        <button class="filter-btn" data-sort="featured" onclick="filterPosts(this,'featured')">精选</button>
+                        <button class="filter-btn" data-sort="qa" onclick="filterPosts(this,'qa')">问答</button>
+                    </div>
+                    <button onclick="openPostModal()" style="padding:4px 14px;border-radius:16px;font-size:12px;font-weight:600;border:1px solid var(--primary);color:var(--primary);background:rgba(79,172,254,0.08);cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(79,172,254,0.18)'" onmouseout="this.style.background='rgba(79,172,254,0.08)'">＋ 发帖</button>
                 </div>
             </div>
-            <div class="post-list">
-                <div class="post-item">
-                    <div class="post-top">
-                        <div class="post-title">【分享】用 CampusQuant AI 分析了贵州茅台，结果让我很惊喜</div>
-                    </div>
-                    <div class="post-excerpt">基本面 Agent 从 ROE 稳定性、护城河、现金流三个角度给出了详细分析，技术面提示近期均线金叉，最终综合建议持有…</div>
-                    <div class="post-footer">
-                        <span class="post-tag tag-exp">实战分享</span>
-                        <div class="post-meta">
-                            <span class="post-author">📍 @量化小白Leo</span>
-                            <span class="post-time">2小时前</span>
-                        </div>
-                        <div class="post-stats"><span>👍 48</span><span>💬 12</span></div>
-                    </div>
-                </div>
-
-                <div class="post-item">
-                    <div class="post-top">
-                        <div class="post-title">【问题】PE 估值方法中，对于周期股为什么不能直接用 PE？</div>
-                    </div>
-                    <div class="post-excerpt">最近在学习价值投资，发现很多分析师说周期股不能用静态 PE，但具体原因没太搞清楚，希望有大佬解释一下…</div>
-                    <div class="post-footer">
-                        <span class="post-tag tag-learn">基础知识</span>
-                        <div class="post-meta">
-                            <span class="post-author">📍 @金融小白Amber</span>
-                            <span class="post-time">5小时前</span>
-                        </div>
-                        <div class="post-stats"><span>👍 23</span><span>💬 31</span></div>
-                    </div>
-                </div>
-
-                <div class="post-item">
-                    <div class="post-top">
-                        <div class="post-title">【分析】港股腾讯估值拆解：游戏+广告+金融科技分部估值法</div>
-                    </div>
-                    <div class="post-excerpt">用 SOTP 分部估值把腾讯拆成三块：网络游戏 5,000 亿港元，网络广告 3,200 亿港元，金融科技 2,800 亿港元，合计…</div>
-                    <div class="post-footer">
-                        <span class="post-tag tag-analysis">深度分析</span>
-                        <div class="post-meta">
-                            <span class="post-author">📍 @港股研究所</span>
-                            <span class="post-time">昨天 20:15</span>
-                        </div>
-                        <div class="post-stats"><span>👍 112</span><span>💬 45</span></div>
-                    </div>
-                </div>
-
-                <div class="post-item">
-                    <div class="post-top">
-                        <div class="post-title">【经验】我踩过的五个大坑：大学期间炒股不能做的事</div>
-                    </div>
-                    <div class="post-excerpt">1. 不做止损，一跌再跌越套越深；2. 用生活费炒股，影响日常；3. 听消息买股票；4. 频繁交易摩擦成本高…</div>
-                    <div class="post-footer">
-                        <span class="post-tag tag-risk">风险警示</span>
-                        <div class="post-meta">
-                            <span class="post-author">📍 @三年老韭菜</span>
-                            <span class="post-time">2天前</span>
-                        </div>
-                        <div class="post-stats"><span>👍 289</span><span>💬 67</span></div>
-                    </div>
-                </div>
-
-                <div class="post-item">
-                    <div class="post-top">
-                        <div class="post-title">【教程】如何用 Python 抓取 A股财报数据并生成 ROE 趋势图</div>
-                    </div>
-                    <div class="post-excerpt">分享一段 akshare + matplotlib 的代码，可以一键拉取任意 A股公司的历史净资产收益率并可视化…</div>
-                    <div class="post-footer">
-                        <span class="post-tag tag-learn">编程入门</span>
-                        <div class="post-meta">
-                            <span class="post-author">📍 @Python量化入门</span>
-                            <span class="post-time">3天前</span>
-                        </div>
-                        <div class="post-stats"><span>👍 156</span><span>💬 28</span></div>
-                    </div>
-                </div>
-
-                <div class="post-item">
-                    <div class="post-top">
-                        <div class="post-title">【问题】美股期权买 Call 和直接买股票有什么区别？适合大学生吗？</div>
-                    </div>
-                    <div class="post-excerpt">期权杠杆大，收益可以翻倍，但时间价值损耗怎么理解？有没有简单的方式学习期权定价…</div>
-                    <div class="post-footer">
-                        <span class="post-tag tag-learn">基础知识</span>
-                        <div class="post-meta">
-                            <span class="post-author">📍 @美股新人Max</span>
-                            <span class="post-time">4天前</span>
-                        </div>
-                        <div class="post-stats"><span>👍 41</span><span>💬 53</span></div>
-                    </div>
-                </div>
+            <div class="post-list" id="post-list">
+                <div style="text-align:center;padding:32px;color:var(--text-dim);font-size:13px;">加载中…</div>
+            </div>
+            <div id="post-load-more" style="text-align:center;padding:16px;display:none;">
+                <button onclick="loadMorePosts()" style="background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text-sub);font-size:13px;padding:8px 24px;cursor:pointer;">加载更多</button>
             </div>
         </div>
 
@@ -541,6 +460,37 @@
     </div>
 </main>
 
+<!-- 发帖 Modal -->
+<div id="post-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:3000;align-items:center;justify-content:center;">
+    <div style="background:rgba(15,20,35,0.98);border:1px solid var(--border);border-radius:20px;padding:32px 36px;width:100%;max-width:540px;margin:16px;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+            <h3 style="font-size:18px;">✍️ 发布帖子</h3>
+            <button onclick="closePostModal()" style="background:none;border:none;color:var(--text-dim);font-size:26px;cursor:pointer;line-height:1;">&times;</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+            <div>
+                <label style="font-size:12px;color:var(--text-sub);display:block;margin-bottom:6px;">标题</label>
+                <input id="post-title" type="text" maxlength="200" placeholder="一个吸引人的标题…" style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:10px;color:#fff;font-size:14px;outline:none;">
+            </div>
+            <div>
+                <label style="font-size:12px;color:var(--text-sub);display:block;margin-bottom:6px;">标签</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;" id="tag-selector">
+                    <button class="tag-sel active" data-tag="learn"    onclick="selectTag(this)" style="padding:5px 14px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--primary);color:var(--primary);background:rgba(79,172,254,0.12);">基础知识</button>
+                    <button class="tag-sel" data-tag="analysis" onclick="selectTag(this)" style="padding:5px 14px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--text-sub);background:transparent;">深度分析</button>
+                    <button class="tag-sel" data-tag="risk"     onclick="selectTag(this)" style="padding:5px 14px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--text-sub);background:transparent;">风险警示</button>
+                    <button class="tag-sel" data-tag="exp"      onclick="selectTag(this)" style="padding:5px 14px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--text-sub);background:transparent;">实战分享</button>
+                </div>
+            </div>
+            <div>
+                <label style="font-size:12px;color:var(--text-sub);display:block;margin-bottom:6px;">正文</label>
+                <textarea id="post-content" rows="6" placeholder="分享你的投资心得、学习笔记或疑问…" style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:10px;color:#fff;font-size:13px;outline:none;resize:vertical;line-height:1.6;"></textarea>
+            </div>
+            <div id="post-modal-msg" style="display:none;padding:8px 12px;border-radius:8px;font-size:13px;text-align:center;"></div>
+            <button onclick="submitPost()" id="btn-post-submit" style="padding:12px;border-radius:12px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;font-size:14px;font-weight:700;">发 布</button>
+        </div>
+    </div>
+</div>
+
 <footer>
     &copy; 2026 CampusQuant 校园财商 &nbsp;|&nbsp;
     投教社区 · 共同学习，理性投资 &nbsp;|&nbsp;
@@ -549,26 +499,217 @@
 
 <script>
     'use strict';
+    const API_BASE = 'http://127.0.0.1:8000';
+
+    // ══ 认证辅助 ═══════════════════════════════════════════════
+    function getToken()    { return localStorage.getItem('cq_token') || ''; }
+    function getUsername() { return localStorage.getItem('cq_username') || ''; }
+    function authHeaders(json = true) {
+        const h = json ? { 'Content-Type': 'application/json' } : {};
+        const t = getToken();
+        if (t) h['Authorization'] = 'Bearer ' + t;
+        return h;
+    }
+    function renderAuthWidget() {
+        const w = document.getElementById('auth-widget');
+        const u = getUsername();
+        if (u) {
+            w.innerHTML = `<span style="font-size:12px;color:var(--text-sub);">👤 ${u}</span>
+                <button onclick="logout()" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;
+        } else {
+            w.innerHTML = `<a href="auth.html?redirect=community.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
+        }
+    }
+    function logout() {
+        ['cq_token','cq_username','cq_user_id'].forEach(k => localStorage.removeItem(k));
+        renderAuthWidget();
+    }
+
+    // ══ 侧边栏 ═════════════════════════════════════════════════
     const sidebar        = document.getElementById('sidebar');
     const sidebarOverlay = document.getElementById('sidebar-overlay');
     const sidebarToggle  = document.getElementById('sidebar-toggle');
     const sidebarClose   = document.getElementById('sidebar-close');
 
-    function openSidebar() {
-        sidebar.classList.add('open');
-        sidebarOverlay.classList.add('open');
-        document.body.style.overflow = 'hidden'; 
-    }
-
-    function closeSidebar() {
-        sidebar.classList.remove('open');
-        sidebarOverlay.classList.remove('open');
-        document.body.style.overflow = '';
-    }
+    function openSidebar()  { sidebar.classList.add('open'); sidebarOverlay.classList.add('open'); document.body.style.overflow='hidden'; }
+    function closeSidebar() { sidebar.classList.remove('open'); sidebarOverlay.classList.remove('open'); document.body.style.overflow=''; }
 
     sidebarToggle.addEventListener('click', openSidebar);
     sidebarClose.addEventListener('click', closeSidebar);
     sidebarOverlay.addEventListener('click', closeSidebar);
+
+    // ══ 帖子加载 ═══════════════════════════════════════════════
+    let _currentSort   = 'latest';
+    let _currentOffset = 0;
+    const PAGE_SIZE    = 20;
+
+    const TAG_MAP = {
+        learn:    { label:'基础知识', cls:'tag-learn' },
+        analysis: { label:'深度分析', cls:'tag-analysis' },
+        risk:     { label:'风险警示', cls:'tag-risk' },
+        exp:      { label:'实战分享', cls:'tag-exp' },
+    };
+
+    function timeAgo(isoStr) {
+        const diff = (Date.now() - new Date(isoStr)) / 1000;
+        if (diff < 60)   return '刚刚';
+        if (diff < 3600) return Math.floor(diff/60) + '分钟前';
+        if (diff < 86400)return Math.floor(diff/3600) + '小时前';
+        if (diff < 172800) return '昨天';
+        return new Date(isoStr).toLocaleDateString('zh-CN',{month:'2-digit',day:'2-digit'});
+    }
+
+    function renderPost(p) {
+        const tag  = TAG_MAP[p.tag] || TAG_MAP['learn'];
+        return `<div class="post-item" onclick="openPostDetail(${p.id})">
+            <div class="post-top">
+                <div class="post-title">${escHtml(p.title)}</div>
+            </div>
+            <div class="post-excerpt">${escHtml(p.excerpt || '')}</div>
+            <div class="post-footer">
+                <span class="post-tag ${tag.cls}">${tag.label}</span>
+                <div class="post-meta">
+                    <span class="post-author">📍 @${escHtml(p.author)}</span>
+                    <span class="post-time">${timeAgo(p.created_at)}</span>
+                </div>
+                <div class="post-stats">
+                    <span onclick="event.stopPropagation();likePost(${p.id},this)" data-liked="${p.liked}" style="cursor:pointer;" title="点赞">${p.liked?'❤️':'👍'} ${p.like_count}</span>
+                    <span>💬 ${p.comment_count||0}</span>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function escHtml(s) {
+        return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    async function loadPosts(reset = true) {
+        if (reset) _currentOffset = 0;
+        const wrap = document.getElementById('post-list');
+        if (reset) wrap.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-dim);font-size:13px;">加载中…</div>';
+
+        try {
+            const url = `${API_BASE}/api/v1/community/posts?sort=${_currentSort}&limit=${PAGE_SIZE}&offset=${_currentOffset}`;
+            const resp = await fetch(url, { headers: authHeaders(false) });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+
+            if (reset) wrap.innerHTML = '';
+            if (!data.posts.length && reset) {
+                wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px;">暂无帖子，成为第一个发帖的同学吧！</div>';
+            } else {
+                wrap.insertAdjacentHTML('beforeend', data.posts.map(renderPost).join(''));
+                _currentOffset += data.posts.length;
+            }
+            document.getElementById('post-load-more').style.display = data.posts.length === PAGE_SIZE ? 'block' : 'none';
+        } catch(e) {
+            if (reset) wrap.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-dim);font-size:13px;">加载失败（请确认后端已启动）：${e.message}</div>`;
+        }
+    }
+
+    function loadMorePosts() { loadPosts(false); }
+
+    function filterPosts(btn, sort) {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        _currentSort = sort;
+        loadPosts(true);
+    }
+
+    async function likePost(postId, span) {
+        if (!getToken()) { location.href = 'auth.html?redirect=community.html'; return; }
+        try {
+            const resp = await fetch(`${API_BASE}/api/v1/community/posts/${postId}/like`, {
+                method: 'POST', headers: authHeaders(),
+            });
+            if (!resp.ok) return;
+            const data = await resp.json();
+            span.dataset.liked = data.liked ? 'true' : 'false';
+            span.innerHTML     = `${data.liked?'❤️':'👍'} ${data.like_count}`;
+        } catch(e) { console.warn('点赞失败:', e); }
+    }
+
+    function openPostDetail(postId) {
+        window.location.href = `post_detail.html?id=${postId}`;
+    }
+
+    // ══ 发帖 Modal ══════════════════════════════════════════════
+    let _selectedTag = 'learn';
+
+    function openPostModal() {
+        if (!getToken()) { location.href = 'auth.html?redirect=community.html'; return; }
+        document.getElementById('post-modal-overlay').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+    function closePostModal() {
+        document.getElementById('post-modal-overlay').style.display = 'none';
+        document.body.style.overflow = '';
+        document.getElementById('post-modal-msg').style.display = 'none';
+    }
+    function selectTag(btn) {
+        document.querySelectorAll('.tag-sel').forEach(b => {
+            b.style.borderColor = 'var(--border)';
+            b.style.color       = 'var(--text-sub)';
+            b.style.background  = 'transparent';
+            b.classList.remove('active');
+        });
+        btn.style.borderColor = 'var(--primary)';
+        btn.style.color       = 'var(--primary)';
+        btn.style.background  = 'rgba(79,172,254,0.12)';
+        btn.classList.add('active');
+        _selectedTag = btn.dataset.tag;
+    }
+
+    async function submitPost() {
+        const title   = document.getElementById('post-title').value.trim();
+        const content = document.getElementById('post-content').value.trim();
+        const msgEl   = document.getElementById('post-modal-msg');
+
+        if (!title || title.length < 5)   { showModalMsg('标题至少5个字符', 'danger'); return; }
+        if (!content || content.length < 10) { showModalMsg('正文至少10个字符', 'danger'); return; }
+
+        const btn = document.getElementById('btn-post-submit');
+        btn.disabled = true; btn.textContent = '发布中…';
+
+        try {
+            const resp = await fetch(`${API_BASE}/api/v1/community/posts`, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({ title, content, tag: _selectedTag }),
+            });
+            const data = await resp.json();
+            if (!resp.ok) { showModalMsg(data.detail || '发布失败', 'danger'); return; }
+
+            showModalMsg('发布成功！', 'success');
+            document.getElementById('post-title').value   = '';
+            document.getElementById('post-content').value = '';
+            setTimeout(() => { closePostModal(); loadPosts(true); }, 800);
+        } catch(e) {
+            showModalMsg('网络错误：' + e.message, 'danger');
+        } finally {
+            btn.disabled = false; btn.textContent = '发 布';
+        }
+    }
+
+    function showModalMsg(text, type) {
+        const el = document.getElementById('post-modal-msg');
+        el.textContent = text;
+        el.style.cssText = `display:block;padding:8px 12px;border-radius:8px;font-size:13px;text-align:center;` +
+            (type === 'success'
+                ? 'background:rgba(85,239,196,0.12);border:1px solid rgba(85,239,196,0.3);color:var(--success);'
+                : 'background:rgba(253,121,168,0.12);border:1px solid rgba(253,121,168,0.3);color:var(--danger);');
+    }
+
+    // ══ 初始化 ═════════════════════════════════════════════════
+    document.addEventListener('DOMContentLoaded', () => {
+        renderAuthWidget();
+        loadPosts(true);
+        // 点击 modal 遮罩关闭
+        document.getElementById('post-modal-overlay').addEventListener('click', e => {
+            if (e.target === e.currentTarget) closePostModal();
+        });
+    });
 </script>
 
 </body>

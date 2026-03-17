@@ -225,6 +225,7 @@
         <a href="market.html">市场快讯</a>
         <a href="community.html">投教社区</a>
         <a href="team.html">关于我们</a>
+        <div id="auth-widget" style="display:flex;align-items:center;gap:8px;margin-left:8px;flex-shrink:0;"></div>
     </nav>
 </header>
 
@@ -289,6 +290,11 @@
     <div class="account-panel">
         <div class="account-header">
             <h3>📊 虚拟账户 · 持仓总览</h3>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button onclick="loadPortfolio()" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-sub);font-size:12px;padding:3px 10px;cursor:pointer;" title="刷新">↻ 刷新</button>
+                <button onclick="switchAccountTab('positions')" id="tab-pos" style="background:rgba(79,172,254,0.15);border:1px solid var(--primary);border-radius:6px;color:var(--primary);font-size:12px;padding:3px 10px;cursor:pointer;">持仓</button>
+                <button onclick="switchAccountTab('orders')" id="tab-orders" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-sub);font-size:12px;padding:3px 10px;cursor:pointer;">成交记录</button>
+            </div>
             <div class="account-stats">
                 <div class="stat-item">
                     <div class="stat-label">可用资金</div>
@@ -315,6 +321,7 @@
         <div id="pos-table-wrap">
             <div class="empty-pos">暂无持仓，通过上方下单面板买入标的后，持仓将在此显示</div>
         </div>
+        <div id="orders-table-wrap" style="display:none;"></div>
     </div>
 </main>
 
@@ -480,6 +487,86 @@
         }
     }
 
+    // ══ 认证辅助 ════════════════════════════════════════════════
+    function getToken() { return localStorage.getItem('cq_token') || ''; }
+    function getUsername() { return localStorage.getItem('cq_username') || ''; }
+    function authHeaders() {
+        const h = { 'Content-Type': 'application/json' };
+        const t = getToken();
+        if (t) h['Authorization'] = 'Bearer ' + t;
+        return h;
+    }
+    function renderAuthWidget() {
+        const w = document.getElementById('auth-widget');
+        const u = getUsername();
+        if (u) {
+            w.innerHTML = `<span style="font-size:12px;color:var(--text-sub);">👤 ${u}</span>
+                <button onclick="logout()" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;
+        } else {
+            w.innerHTML = `<a href="auth.html?redirect=trade.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
+        }
+    }
+    function logout() {
+        localStorage.removeItem('cq_token');
+        localStorage.removeItem('cq_username');
+        localStorage.removeItem('cq_user_id');
+        renderAuthWidget();
+    }
+
+    // ══ 账户 Tab 切换 ═══════════════════════════════════════════
+    function switchAccountTab(tab) {
+        const isPos = tab === 'positions';
+        document.getElementById('pos-table-wrap').style.display    = isPos ? '' : 'none';
+        document.getElementById('orders-table-wrap').style.display = isPos ? 'none' : '';
+        document.getElementById('tab-pos').style.background    = isPos ? 'rgba(79,172,254,0.15)' : 'transparent';
+        document.getElementById('tab-pos').style.color         = isPos ? 'var(--primary)' : 'var(--text-sub)';
+        document.getElementById('tab-pos').style.borderColor   = isPos ? 'var(--primary)' : 'var(--border)';
+        document.getElementById('tab-orders').style.background = isPos ? 'transparent' : 'rgba(79,172,254,0.15)';
+        document.getElementById('tab-orders').style.color      = isPos ? 'var(--text-sub)' : 'var(--primary)';
+        document.getElementById('tab-orders').style.borderColor= isPos ? 'var(--border)' : 'var(--primary)';
+        if (!isPos) loadOrders();
+    }
+
+    async function loadOrders() {
+        const wrap = document.getElementById('orders-table-wrap');
+        if (!getToken()) {
+            wrap.innerHTML = '<div class="empty-pos">请<a href="auth.html?redirect=trade.html" style="color:var(--primary);">登录</a>后查看成交记录</div>';
+            return;
+        }
+        try {
+            const resp = await fetch(`${API_BASE}/api/v1/trade/orders?limit=50`, { headers: authHeaders() });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            if (!data.orders.length) {
+                wrap.innerHTML = '<div class="empty-pos">暂无成交记录</div>';
+                return;
+            }
+            const rows = data.orders.map(o => {
+                const sym    = String(o.symbol || '');
+                const prefix = currencyPrefix(sym);
+                const dir    = o.action === 'BUY' ? 'up' : 'down';
+                const ts     = new Date(o.created_at).toLocaleString('zh-CN', {hour12:false,month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+                return `<tr>
+                    <td class="td-sym">${sym}</td>
+                    <td class="${dir}" style="font-weight:700;">${o.action === 'BUY' ? '买入' : '卖出'}</td>
+                    <td>${o.quantity}</td>
+                    <td>${prefix}${Number(o.exec_price).toFixed(3)}</td>
+                    <td>${prefix}${Number(o.amount).toFixed(2)}</td>
+                    <td style="color:var(--text-dim);font-size:11px;">${prefix}${Number(o.fee).toFixed(4)}</td>
+                    <td style="font-size:11px;color:var(--text-sub);">${ts}</td>
+                </tr>`;
+            }).join('');
+            wrap.innerHTML = `<table>
+                <thead><tr>
+                    <th>代码</th><th>方向</th><th>数量</th><th>成交价</th><th>金额</th><th>手续费</th><th>时间</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+        } catch(e) {
+            wrap.innerHTML = '<div class="empty-pos">加载失败：' + e.message + '</div>';
+        }
+    }
+
     // ══ 提交下单 ════════════════════════════════════════════════
     async function submitOrder() {
         const symbol   = currentSymbol;
@@ -498,7 +585,7 @@
         try {
             const resp = await fetch(`${API_BASE}/api/v1/trade/order`, {
                 method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders(),
                 body:    JSON.stringify({ symbol, action, quantity }),
             });
             const data = await resp.json();
@@ -534,7 +621,7 @@
     // ══ 账户持仓面板 ════════════════════════════════════════════
     async function loadPortfolio() {
         try {
-            const resp = await fetch(`${API_BASE}/api/v1/portfolio/summary`);
+            const resp = await fetch(`${API_BASE}/api/v1/portfolio/summary`, { headers: authHeaders() });
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
 
@@ -600,6 +687,7 @@
 
     // ══ 初始化 ══════════════════════════════════════════════════
     document.addEventListener('DOMContentLoaded', () => {
+        renderAuthWidget();
         // URL 参数预填
         const urlSym = new URLSearchParams(location.search).get('sym');
         if (urlSym) {
