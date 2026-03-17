@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import (
     ChatMessage, ChatSession,
     CommunityComment, CommunityPost, PostLike,
-    Order, Position, User, VirtualAccount,
+    NewsCache, Order, Position, User, VirtualAccount,
 )
 
 # ── 密码哈希 ───────────────────────────────────────────────────
@@ -177,6 +177,7 @@ async def create_order(
 
 
 async def update_account_cash(db: AsyncSession, account_id: int, cash: float) -> None:
+    """更新遗留单账户 cash 字段（游客模式兼容）"""
     result = await db.execute(
         select(VirtualAccount).where(VirtualAccount.id == account_id)
     )
@@ -184,6 +185,85 @@ async def update_account_cash(db: AsyncSession, account_id: int, cash: float) ->
     if account:
         account.cash       = cash
         account.updated_at = datetime.now(timezone.utc)
+
+
+# V1.2: 三币种市场映射
+_MARKET_CASH_FIELD = {
+    "A":       ("cash_cnh", "init_cnh"),
+    "CNH":     ("cash_cnh", "init_cnh"),
+    "HK":      ("cash_hkd", "init_hkd"),
+    "HKD":     ("cash_hkd", "init_hkd"),
+    "US":      ("cash_usd", "init_usd"),
+    "USD":     ("cash_usd", "init_usd"),
+    "UNKNOWN": ("cash_cnh", "init_cnh"),   # 默认归 A 股账户
+}
+
+
+async def update_account_cash_by_market(
+    db: AsyncSession,
+    account_id: int,
+    market_type: str,
+    cash: float,
+) -> None:
+    """按市场更新对应币种的可用资金"""
+    field_name, _ = _MARKET_CASH_FIELD.get(market_type.upper(), ("cash_cnh", "init_cnh"))
+    result = await db.execute(
+        select(VirtualAccount).where(VirtualAccount.id == account_id)
+    )
+    account = result.scalar_one_or_none()
+    if account:
+        setattr(account, field_name, cash)
+        account.updated_at = datetime.now(timezone.utc)
+
+
+async def get_account_balances(db: AsyncSession, account_id: int) -> dict:
+    """返回三币种余额快照"""
+    result = await db.execute(
+        select(VirtualAccount).where(VirtualAccount.id == account_id)
+    )
+    acc = result.scalar_one_or_none()
+    if not acc:
+        return {}
+    return {
+        "cash_cnh": acc.cash_cnh,
+        "cash_hkd": acc.cash_hkd,
+        "cash_usd": acc.cash_usd,
+        "init_cnh": acc.init_cnh,
+        "init_hkd": acc.init_hkd,
+        "init_usd": acc.init_usd,
+    }
+
+
+async def get_positions_by_market(
+    db: AsyncSession,
+    account_id: int,
+    market_type: Optional[str] = None,
+) -> list[Position]:
+    """查询持仓，可按 market_type 过滤"""
+    q = select(Position).where(Position.account_id == account_id)
+    if market_type:
+        q = q.where(Position.market_type == market_type.upper())
+    result = await db.execute(q)
+    return list(result.scalars().all())
+
+
+async def get_orders_by_market(
+    db: AsyncSession,
+    account_id: int,
+    market_type: Optional[str] = None,
+    limit: int = 50,
+) -> list[Order]:
+    """查询交易流水，可按 market_type 过滤"""
+    q = (
+        select(Order)
+        .where(Order.account_id == account_id)
+        .order_by(desc(Order.created_at))
+        .limit(limit)
+    )
+    if market_type:
+        q = q.where(Order.market_type == market_type.upper())
+    result = await db.execute(q)
+    return list(result.scalars().all())
 
 
 async def get_orders(
@@ -370,3 +450,39 @@ async def has_liked(db: AsyncSession, user_id: int, post_id: int) -> bool:
         )
     )
     return result.scalar_one_or_none() is not None
+
+
+# ════════════════════════════════════════════════════════════════
+# V1.2 热榜缓存 CRUD
+# ════════════════════════════════════════════════════════════════
+
+async def upsert_news_cache(
+    db: AsyncSession,
+    source: str,
+    items: list[dict],  # [{"title": ..., "url": ..., "rank": ...}]
+) -> None:
+    """
+    替换某平台的热榜缓存（先删后插）。
+    items 每项需有 title / url / rank 字段。
+    """
+    await db.execute(
+        delete(NewsCache).where(NewsCache.source == source)
+    )
+    now = datetime.now(timezone.utc)
+    for item in items[:3]:   # 每平台最多 3 条
+        db.add(NewsCache(
+            source=source,
+            title=item.get("title", "")[:500],
+            url=item.get("url", "")[:1000],
+            rank=item.get("rank", 1),
+            fetched_at=now,
+        ))
+    await db.flush()
+
+
+async def get_news_cache(db: AsyncSession) -> list[NewsCache]:
+    """返回所有平台最新缓存条目"""
+    result = await db.execute(
+        select(NewsCache).order_by(NewsCache.source, NewsCache.rank)
+    )
+    return list(result.scalars().all())

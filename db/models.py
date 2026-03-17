@@ -60,8 +60,16 @@ class VirtualAccount(Base):
 
     id:           Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id:      Mapped[int]      = mapped_column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    # ── 遗留单账户字段（保留防止旧代码 AttributeError）──────────
     cash:         Mapped[float]    = mapped_column(Float, default=100_000.0)
     initial_cash: Mapped[float]    = mapped_column(Float, default=100_000.0)
+    # ── V1.2 三币种独立账户 ─────────────────────────────────────
+    cash_cnh:     Mapped[float]    = mapped_column(Float, default=100_000.0)   # A股  人民币
+    cash_hkd:     Mapped[float]    = mapped_column(Float, default=100_000.0)   # 港股 港币
+    cash_usd:     Mapped[float]    = mapped_column(Float, default=10_000.0)    # 美股 美元
+    init_cnh:     Mapped[float]    = mapped_column(Float, default=100_000.0)
+    init_hkd:     Mapped[float]    = mapped_column(Float, default=100_000.0)
+    init_usd:     Mapped[float]    = mapped_column(Float, default=10_000.0)
     created_at:   Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at:   Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 
@@ -188,3 +196,24 @@ class PostLike(Base):
     post_id: Mapped[int] = mapped_column(Integer, ForeignKey("community_posts.id"), nullable=False)
 
     post: Mapped["CommunityPost"] = relationship("CommunityPost", back_populates="likes")
+
+
+# ════════════════════════════════════════════════════════════════
+# V1.2 热榜缓存（后端定时刷新，无外键，全局共享）
+# ════════════════════════════════════════════════════════════════
+
+class NewsCache(Base):
+    """
+    多平台热榜聚合缓存。
+    每次刷新：先 DELETE WHERE source=?, 再批量 INSERT TOP-3 条目。
+    TTL 由应用层控制（15 分钟）。
+    """
+    __tablename__ = "news_cache"
+
+    id:         Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source:     Mapped[str]      = mapped_column(String(30), nullable=False,
+                                                 index=True)  # bilibili|cailian|zhihu|phoenix|thepaper
+    title:      Mapped[str]      = mapped_column(String(500), nullable=False)
+    url:        Mapped[str]      = mapped_column(String(1000), nullable=False)
+    rank:       Mapped[int]      = mapped_column(Integer, default=1)   # 1-3
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

@@ -307,6 +307,31 @@
             margin-left:2px; vertical-align:middle; animation:blink-cur 0.8s step-end infinite; }
         @keyframes blink-cur { 0%,100%{opacity:1}50%{opacity:0} }
 
+        /* ── 倒计时 ── */
+        .countdown-wrap {
+            display:none; align-items:center; gap:10px; margin-left:auto; flex-shrink:0;
+        }
+        .countdown-wrap.show { display:flex; }
+        .countdown-ring { position:relative; width:44px; height:44px; }
+        .countdown-ring svg { transform:rotate(-90deg); }
+        .countdown-circle-bg { fill:none; stroke:rgba(255,255,255,.08); stroke-width:3; }
+        .countdown-circle { fill:none; stroke:var(--secondary); stroke-width:3;
+            stroke-linecap:round; stroke-dasharray:126; stroke-dashoffset:0;
+            transition:stroke-dashoffset .8s linear; }
+        .countdown-circle.warn { stroke:var(--warn); }
+        .countdown-circle.crit { stroke:var(--danger); }
+        .countdown-text {
+            position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+            font-size:11px; font-weight:800; color:#fff; letter-spacing:-.3px;
+        }
+        .countdown-label { font-size:12px; color:var(--text-sub); }
+        .progress-bar-wrap { flex:1; min-width:80px; display:none; }
+        .progress-bar-wrap.show { display:block; }
+        .progress-bar-bg { height:4px; background:rgba(255,255,255,.06); border-radius:2px; overflow:hidden; }
+        .progress-bar-fill { height:100%; border-radius:2px;
+            background:linear-gradient(90deg,var(--primary),var(--secondary));
+            transition:width .4s ease; width:0%; }
+
         /* 占位提示 */
         .placeholder-hint {
             background:var(--card); border:1px dashed rgba(255,255,255,0.07);
@@ -393,12 +418,11 @@
 <body>
 
 <header>
-    <a href="index.html" class="logo">
+    <a href="dashboard.html" class="logo">
         <span class="logo-text">CampusQuant</span>
         <span class="logo-sub">校园财商</span>
     </a>
     <nav>
-        <a href="index.html">首页</a>
         <a href="dashboard.html">仪表盘</a>
         <a href="trade.html">模拟演练<span class="nav-dot"></span></a>
         <a href="analysis.html" class="active">个股分析</a>
@@ -497,6 +521,19 @@
             <div class="status-indicator">
                 <div class="status-dot" id="status-dot"></div>
                 <span id="status-text" style="color:var(--text-sub)">等待分析...</span>
+            </div>
+            <div class="progress-bar-wrap" id="progress-bar-wrap">
+                <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-bar"></div></div>
+            </div>
+            <div class="countdown-wrap" id="countdown-wrap">
+                <span class="countdown-label">预计剩余</span>
+                <div class="countdown-ring">
+                    <svg width="44" height="44" viewBox="0 0 44 44">
+                        <circle class="countdown-circle-bg" cx="22" cy="22" r="20"/>
+                        <circle class="countdown-circle" id="countdown-circle" cx="22" cy="22" r="20"/>
+                    </svg>
+                    <div class="countdown-text" id="countdown-text">3:00</div>
+                </div>
             </div>
             <div id="node-progress"></div>
         </div>
@@ -948,10 +985,66 @@
         debate_node:'多空辩论', risk_node:'风控审核', trade_executor:'指令生成',
     };
 
+    // ══ 倒计时 ═══════════════════════════════════════════════════
+    let _cdTimer = null;
+    const CD_TOTAL = 180; // 3 minutes
+    function startCountdown() {
+        stopCountdown();
+        let remaining = CD_TOTAL;
+        const wrapEl  = document.getElementById('countdown-wrap');
+        const textEl  = document.getElementById('countdown-text');
+        const circEl  = document.getElementById('countdown-circle');
+        const pbEl    = document.getElementById('progress-bar');
+        const pbWrap  = document.getElementById('progress-bar-wrap');
+        wrapEl.classList.add('show');
+        pbWrap.classList.add('show');
+        const circumference = 2 * Math.PI * 20; // 125.66
+
+        function tick() {
+            const m = Math.floor(remaining / 60);
+            const s = remaining % 60;
+            textEl.textContent = m + ':' + String(s).padStart(2,'0');
+            const progress = (CD_TOTAL - remaining) / CD_TOTAL;
+            circEl.style.strokeDashoffset = circumference * (1 - (remaining / CD_TOTAL));
+            pbEl.style.width = (progress * 100).toFixed(1) + '%';
+            if (remaining <= 30) {
+                circEl.className = 'countdown-circle crit';
+            } else if (remaining <= 60) {
+                circEl.className = 'countdown-circle warn';
+            } else {
+                circEl.className = 'countdown-circle';
+            }
+            if (remaining > 0) remaining--;
+        }
+        tick();
+        _cdTimer = setInterval(tick, 1000);
+    }
+    function stopCountdown() {
+        if (_cdTimer) { clearInterval(_cdTimer); _cdTimer = null; }
+        const wrapEl = document.getElementById('countdown-wrap');
+        const pbWrap = document.getElementById('progress-bar-wrap');
+        if (wrapEl) wrapEl.classList.remove('show');
+        if (pbWrap) pbWrap.classList.remove('show');
+    }
+    function completeProgress() {
+        stopCountdown();
+        const pbEl = document.getElementById('progress-bar');
+        if (pbEl) pbEl.style.width = '100%';
+        // briefly show full bar then hide
+        setTimeout(() => {
+            const pbWrap = document.getElementById('progress-bar-wrap');
+            if (pbWrap) pbWrap.classList.remove('show');
+        }, 800);
+    }
+    // ══ end countdown ════════════════════════════════════════════
+
     function resetUI() {
         document.getElementById('status-dot').className = 'status-dot';
         document.getElementById('status-text').textContent = '准备中...';
         document.getElementById('node-progress').innerHTML = '';
+        stopCountdown();
+        const pbEl = document.getElementById('progress-bar');
+        if (pbEl) pbEl.style.width = '0%';
         const card = document.getElementById('result-card');
         card.className = ''; card.style.display = 'none';
         document.getElementById('chat-area').innerHTML = `
@@ -1041,6 +1134,7 @@
         const statusText = document.getElementById('status-text');
         dot.className = 'status-dot running';
         statusText.textContent = `正在分析 ${symbol} ...`;
+        startCountdown();
 
         try {
             const resp = await fetch(`${API_BASE}/api/v1/analyze`, {
@@ -1072,9 +1166,11 @@
             }
             dot.className = 'status-dot done';
             statusText.textContent = `${symbol} 分析完成`;
+            completeProgress();
         } catch (err) {
             dot.className = 'status-dot error';
             statusText.textContent = `出错：${err.message}`;
+            stopCountdown();
             appendText(`\n\n❌ 无法连接分析服务：${err.message}\n请确认后端已启动：python api/server.py`);
         } finally {
             analysisRunning = false;
@@ -1164,6 +1260,7 @@
                 appendText('\n\n✅ 分析完成！可点击上方「深度研报」或「财务图表」标签查看详情。');
                 document.getElementById('status-dot').className = 'status-dot done';
                 document.getElementById('status-text').textContent = '分析完成';
+                completeProgress();
                 break;
             }
             case 'error':

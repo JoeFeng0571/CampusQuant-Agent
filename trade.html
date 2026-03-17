@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>模拟演练 · CampusQuant 交易大厅</title>
+    <title>模拟演练 · CampusQuant 三市场交易大厅</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box;
             font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif; }
@@ -14,21 +14,17 @@
             --text-dim:#718096; --text-sub:#a0aec0;
             --buy:#00b894; --sell:#d63031;
         }
-        body {
-            background-color:var(--bg); color:#fff; min-height:100vh;
+        body { background-color:var(--bg); color:#fff; min-height:100vh;
             display:flex; flex-direction:column; overflow-x:hidden;
             background-image:
-                radial-gradient(circle at 15% 50%,rgba(0,242,254,0.06),transparent 32%),
-                radial-gradient(circle at 85% 28%,rgba(79,172,254,0.06),transparent 32%);
-        }
+                radial-gradient(circle at 15% 50%,rgba(0,242,254,.06),transparent 32%),
+                radial-gradient(circle at 85% 28%,rgba(79,172,254,.06),transparent 32%); }
 
-        /* ══ 导航栏 ══ */
-        header {
-            position:fixed; top:0; left:0; width:100%;
+        /* ══ NAV ══ */
+        header { position:fixed; top:0; left:0; width:100%;
             display:flex; justify-content:space-between; align-items:center;
-            padding:14px 40px; background:rgba(11,15,25,0.85);
-            backdrop-filter:blur(14px); border-bottom:1px solid var(--border); z-index:1000;
-        }
+            padding:14px 40px; background:rgba(11,15,25,.85);
+            backdrop-filter:blur(14px); border-bottom:1px solid var(--border); z-index:1000; }
         .logo { display:flex; align-items:baseline; gap:8px; text-decoration:none; }
         .logo-text { font-size:20px; font-weight:800;
             background:linear-gradient(90deg,#4facfe,#00f2fe);
@@ -37,188 +33,204 @@
         nav { display:flex; gap:22px; align-items:center; flex-wrap:nowrap; overflow-x:auto; }
         nav::-webkit-scrollbar { display:none; }
         nav a { text-decoration:none; color:var(--text-sub); font-size:13px; font-weight:500;
-            transition:color 0.2s; white-space:nowrap; }
+            transition:color .2s; white-space:nowrap; }
         nav a:hover, nav a.active { color:var(--secondary); }
         .nav-dot { display:inline-block; width:6px; height:6px; background:var(--danger);
             border-radius:50%; margin-left:3px; vertical-align:top; margin-top:2px;
             animation:blink 2s ease-in-out infinite; }
-        @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.3} }
+        @keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
 
-        /* ══ 主布局 ══ */
-        main {
-            margin-top:64px; padding:24px 32px; flex:1;
-            display:grid;
-            grid-template-columns: 1fr 360px;
-            grid-template-rows: auto 1fr;
-            gap:20px;
-        }
+        /* ══ PAGE ══ */
+        .page-wrap { margin-top:64px; padding:24px 32px; flex:1;
+            display:flex; flex-direction:column; gap:20px; max-width:1400px;
+            margin-left:auto; margin-right:auto; width:100%; }
 
-        /* ── 行情面板（左上） ─── */
-        .quote-panel {
-            background:var(--card); border:1px solid var(--border); border-radius:16px;
-            padding:24px 28px;
+        /* ══ MARKET ACCOUNT TABS ══ */
+        .mkt-header { display:flex; gap:14px; align-items:stretch; flex-wrap:wrap; }
+        .mkt-acct-tab {
+            flex:1; min-width:200px; background:var(--card); border:1px solid var(--border);
+            border-radius:16px; padding:18px 20px; cursor:pointer; transition:all .25s;
+            display:flex; flex-direction:column; gap:6px; position:relative; overflow:hidden;
         }
-        /* 搜索联想下拉 */
+        .mkt-acct-tab.active {
+            background:rgba(79,172,254,.08); border-color:rgba(79,172,254,.45);
+            box-shadow:0 4px 20px rgba(79,172,254,.12);
+        }
+        .mkt-acct-tab:hover:not(.active) { border-color:rgba(255,255,255,.2); }
+        .mkt-acct-tab::before {
+            content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
+            opacity:0; transition:opacity .25s;
+        }
+        .mkt-acct-tab[data-mkt="A"]::before  { background:linear-gradient(90deg,#e74c3c,#c0392b); }
+        .mkt-acct-tab[data-mkt="HK"]::before { background:linear-gradient(90deg,#2ecc71,#27ae60); }
+        .mkt-acct-tab[data-mkt="US"]::before { background:linear-gradient(90deg,#3498db,#2980b9); }
+        .mkt-acct-tab.active::before { opacity:1; }
+        .mat-flag { font-size:20px; }
+        .mat-name { font-size:13px; font-weight:700; color:#e2e8f0; display:flex; align-items:center; gap:6px; }
+        .mat-ccy  { font-size:10px; padding:2px 7px; border-radius:8px;
+            background:rgba(255,255,255,.07); color:var(--text-sub); }
+        .mat-cash { font-size:20px; font-weight:800; color:#fff; }
+        .mat-init { font-size:11px; color:var(--text-dim); }
+        .mat-pnl  { font-size:12px; font-weight:600; }
+        .mat-pnl.up   { color:var(--success); }
+        .mat-pnl.down { color:var(--danger); }
+        .mat-pnl.flat { color:var(--text-sub); }
+
+        /* ══ TRADING AREA ══ */
+        .trade-grid { display:grid; grid-template-columns:1fr 340px; gap:20px; align-items:start; }
+
+        /* quote panel */
+        .quote-panel { background:var(--card); border:1px solid var(--border);
+            border-radius:16px; padding:24px 28px; }
+        .panel-label { font-size:11px; color:var(--text-dim); font-weight:600; letter-spacing:.5px;
+            text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+        .panel-label::after { content:''; flex:1; height:1px; background:var(--border); }
+        .mkt-hint { font-size:12px; color:var(--warn); background:rgba(253,203,110,.1);
+            border:1px solid rgba(253,203,110,.2); border-radius:8px; padding:6px 12px;
+            margin-bottom:14px; display:none; }
+        .mkt-hint.show { display:block; }
+
         .search-wrap { position:relative; flex:1; }
-        .trade-dropdown {
-            position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:9999;
-            background:rgba(15,20,35,0.97); border:1px solid rgba(79,172,254,0.3);
+        .trade-dropdown { position:absolute; top:calc(100%+4px); left:0; right:0; z-index:9999;
+            background:rgba(15,20,35,.97); border:1px solid rgba(79,172,254,.3);
             border-radius:10px; overflow:hidden; list-style:none;
-            backdrop-filter:blur(16px); box-shadow:0 8px 32px rgba(0,0,0,0.5);
-            display:none;
-        }
+            backdrop-filter:blur(16px); box-shadow:0 8px 32px rgba(0,0,0,.5); display:none; }
         .trade-dropdown.open { display:block; }
-        .trade-di {
-            padding:9px 13px; cursor:pointer; display:flex; align-items:center; gap:9px;
-            border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.15s; font-size:13px;
-        }
+        .trade-di { padding:9px 13px; cursor:pointer; display:flex; align-items:center; gap:9px;
+            border-bottom:1px solid rgba(255,255,255,.04); transition:background .15s; font-size:13px; }
         .trade-di:last-child { border-bottom:none; }
-        .trade-di:hover { background:rgba(79,172,254,0.12); }
+        .trade-di:hover { background:rgba(79,172,254,.12); }
         .tdi-sym  { font-weight:700; color:var(--primary); min-width:85px; font-size:12px; }
         .tdi-name { flex:1; color:#e2e8f0; }
         .tdi-type { font-size:11px; padding:2px 6px; border-radius:4px; color:var(--text-dim);
-                    background:rgba(255,255,255,0.06); }
+            background:rgba(255,255,255,.06); }
 
         .quote-search { display:flex; gap:10px; margin-bottom:20px; }
-        .quote-search input {
-            flex:1; background:rgba(255,255,255,0.06); border:1px solid var(--border);
-            border-radius:10px; padding:10px 16px; color:#fff; font-size:14px;
-            outline:none; transition:border-color 0.2s;
-        }
+        .quote-search input { flex:1; background:rgba(255,255,255,.06); border:1px solid var(--border);
+            border-radius:10px; padding:10px 16px; color:#fff; font-size:14px; outline:none;
+            transition:border-color .2s; }
         .quote-search input:focus { border-color:var(--primary); }
-        .quote-search button {
-            padding:10px 20px; border-radius:10px; border:none; cursor:pointer;
+        .quote-search button { padding:10px 20px; border-radius:10px; border:none; cursor:pointer;
             background:linear-gradient(135deg,var(--primary),var(--secondary));
-            color:#fff; font-size:13px; font-weight:600; transition:opacity 0.2s;
-        }
-        .quote-search button:hover { opacity:0.85; }
+            color:#fff; font-size:13px; font-weight:600; transition:opacity .2s; }
+        .quote-search button:hover { opacity:.85; }
 
-        .price-display { display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; }
+        .price-display { display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:10px; }
         .price-symbol { font-size:13px; color:var(--text-sub); margin-bottom:4px; }
-        .price-big {
-            font-size:52px; font-weight:800; line-height:1;
+        .price-big { font-size:50px; font-weight:800; line-height:1;
             background:linear-gradient(135deg,#fff 60%,var(--primary));
-            -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-        }
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
         .price-big.up   { background:linear-gradient(135deg,#fff 60%,var(--buy));  -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
         .price-big.down { background:linear-gradient(135deg,#fff 60%,var(--sell)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
         .price-meta { display:flex; flex-direction:column; gap:4px; }
-        .price-chg { font-size:18px; font-weight:700; }
+        .price-chg { font-size:17px; font-weight:700; }
         .price-chg.up   { color:var(--buy); }
         .price-chg.down { color:var(--sell); }
-        .price-label { font-size:11px; color:var(--text-dim); }
-        .price-src   { font-size:11px; color:var(--text-dim); margin-top:8px; }
-        #price-timer { font-size:11px; color:var(--text-dim); margin-top:6px; }
+        .price-src { font-size:11px; color:var(--text-dim); }
+        #price-timer { font-size:11px; color:var(--text-dim); margin-top:4px; }
 
-        /* ── 下单面板（右上） ─── */
-        .order-panel {
-            background:var(--card); border:1px solid var(--border); border-radius:16px;
-            padding:24px;
-        }
-        .order-panel h3 { font-size:15px; font-weight:700; margin-bottom:18px;
-            color:var(--primary); letter-spacing:0.3px; }
-        .order-tabs { display:flex; border-radius:10px; overflow:hidden; margin-bottom:18px; }
-        .order-tab {
-            flex:1; padding:9px; text-align:center; font-size:13px; font-weight:600;
-            cursor:pointer; transition:background 0.2s; border:none; color:#fff;
-            background:rgba(255,255,255,0.07);
-        }
+        /* order panel */
+        .order-panel { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px; }
+        .order-panel h3 { font-size:15px; font-weight:700; margin-bottom:16px; color:var(--primary); }
+        .order-tabs { display:flex; border-radius:10px; overflow:hidden; margin-bottom:16px; }
+        .order-tab { flex:1; padding:9px; text-align:center; font-size:13px; font-weight:600;
+            cursor:pointer; transition:background .2s; border:none; color:#fff;
+            background:rgba(255,255,255,.07); }
         .order-tab.buy.active  { background:var(--buy); }
         .order-tab.sell.active { background:var(--sell); }
-        .form-row { margin-bottom:14px; }
-        .form-label { font-size:12px; color:var(--text-sub); margin-bottom:6px; }
-        .form-input {
-            width:100%; background:rgba(255,255,255,0.06); border:1px solid var(--border);
+        .form-row { margin-bottom:13px; }
+        .form-label { font-size:12px; color:var(--text-sub); margin-bottom:5px; }
+        .form-input { width:100%; background:rgba(255,255,255,.06); border:1px solid var(--border);
             border-radius:9px; padding:10px 14px; color:#fff; font-size:14px;
-            outline:none; transition:border-color 0.2s;
-        }
+            outline:none; transition:border-color .2s; }
         .form-input:focus { border-color:var(--primary); }
-        .form-input[readonly] { opacity:0.6; cursor:default; }
-        .estimated-cost {
-            background:rgba(79,172,254,0.08); border:1px solid rgba(79,172,254,0.2);
-            border-radius:9px; padding:10px 14px; margin-bottom:16px;
-            display:flex; justify-content:space-between; align-items:center;
-        }
+        .form-input[readonly] { opacity:.6; cursor:default; }
+        .balance-hint { font-size:11px; color:var(--text-dim); margin-top:4px; }
+        .estimated-cost { background:rgba(79,172,254,.08); border:1px solid rgba(79,172,254,.2);
+            border-radius:9px; padding:10px 14px; margin-bottom:14px;
+            display:flex; justify-content:space-between; align-items:center; }
         .est-label { font-size:12px; color:var(--text-sub); }
-        .est-value { font-size:15px; font-weight:700; color:var(--primary); }
-        .btn-order {
-            width:100%; padding:13px; border-radius:10px; border:none; cursor:pointer;
-            font-size:14px; font-weight:700; letter-spacing:0.5px;
-            transition:opacity 0.2s, transform 0.1s;
-        }
-        .btn-order:active { transform:scale(0.98); }
-        .btn-order:hover  { opacity:0.9; }
+        .est-value { font-size:14px; font-weight:700; color:var(--primary); }
+        .btn-order { width:100%; padding:13px; border-radius:10px; border:none; cursor:pointer;
+            font-size:14px; font-weight:700; letter-spacing:.5px; transition:opacity .2s,transform .1s; }
+        .btn-order:active { transform:scale(.98); }
+        .btn-order:hover  { opacity:.9; }
         .btn-order.buy    { background:linear-gradient(135deg,var(--buy),#00cec9); color:#fff; }
         .btn-order.sell   { background:linear-gradient(135deg,var(--sell),#e17055); color:#fff; }
-        .btn-order:disabled { opacity:0.4; cursor:not-allowed; }
-        #order-result {
-            margin-top:14px; border-radius:9px; padding:10px 14px; font-size:12px;
-            display:none; line-height:1.6;
-        }
-        #order-result.success { background:rgba(0,184,148,0.15); border:1px solid rgba(0,184,148,0.3); color:var(--buy); }
-        #order-result.error   { background:rgba(214,48,49,0.15);  border:1px solid rgba(214,48,49,0.3);  color:var(--sell); }
+        .btn-order:disabled { opacity:.4; cursor:not-allowed; }
+        #order-result { margin-top:12px; border-radius:9px; padding:10px 14px; font-size:12px;
+            display:none; line-height:1.6; white-space:pre-wrap; }
+        #order-result.success { background:rgba(0,184,148,.15); border:1px solid rgba(0,184,148,.3); color:var(--buy); }
+        #order-result.error   { background:rgba(214,48,49,.15);  border:1px solid rgba(214,48,49,.3);  color:var(--sell); }
 
-        /* ── 账户面板（底部跨两列） ─── */
-        .account-panel {
-            grid-column: 1 / -1;
-            background:var(--card); border:1px solid var(--border); border-radius:16px;
-            padding:24px 28px;
-        }
-        .account-header {
-            display:flex; justify-content:space-between; align-items:center;
-            margin-bottom:18px; flex-wrap:wrap; gap:12px;
-        }
+        /* ══ ACCOUNT BOTTOM ══ */
+        .account-panel { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px 28px; }
+        .account-header { display:flex; justify-content:space-between; align-items:center;
+            margin-bottom:18px; flex-wrap:wrap; gap:12px; }
         .account-header h3 { font-size:15px; font-weight:700; color:var(--primary); }
-        .account-stats { display:flex; gap:32px; flex-wrap:wrap; }
+        .acct-tabs-row { display:flex; gap:6px; align-items:center; }
+        .acct-sub-tab { padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600;
+            cursor:pointer; border:1px solid var(--border); background:transparent;
+            color:var(--text-sub); transition:all .2s; }
+        .acct-sub-tab.active { background:rgba(79,172,254,.18); border-color:rgba(79,172,254,.5); color:var(--primary); }
+        .account-stats { display:flex; gap:28px; flex-wrap:wrap; }
         .stat-label { font-size:11px; color:var(--text-sub); margin-bottom:3px; }
-        .stat-value { font-size:18px; font-weight:800; }
+        .stat-value { font-size:17px; font-weight:800; }
         .stat-value.primary { color:var(--primary); }
         .stat-value.success { color:var(--buy); }
         .stat-value.danger  { color:var(--sell); }
         .stat-value.neutral { color:#fff; }
 
-        /* 持仓表格 */
         table { width:100%; border-collapse:collapse; margin-top:6px; }
-        thead th { font-size:11px; color:var(--text-dim); text-transform:uppercase;
-            letter-spacing:0.4px; padding:8px 12px; text-align:left;
-            border-bottom:1px solid var(--border); }
-        tbody tr { border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.15s; }
+        thead th { font-size:11px; color:var(--text-dim); letter-spacing:.4px; padding:8px 12px;
+            text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
+        tbody tr { border-bottom:1px solid rgba(255,255,255,.04); transition:background .15s; }
         tbody tr:last-child { border-bottom:none; }
-        tbody tr:hover { background:rgba(255,255,255,0.02); }
-        tbody td { padding:11px 12px; font-size:13px; }
+        tbody tr:hover { background:rgba(255,255,255,.02); }
+        tbody td { padding:10px 12px; font-size:13px; }
         .td-sym { font-weight:700; color:var(--primary); }
         .up   { color:var(--buy); }
         .down { color:var(--sell); }
-        .quick-sell {
-            padding:5px 12px; border-radius:6px; border:1px solid var(--sell);
-            background:transparent; color:var(--sell); font-size:12px; cursor:pointer;
-            transition:background 0.15s;
-        }
-        .quick-sell:hover { background:rgba(214,48,49,0.15); }
-        .empty-pos { text-align:center; padding:32px; color:var(--text-dim); font-size:13px; }
+        .quick-sell { padding:4px 10px; border-radius:6px; border:1px solid var(--sell);
+            background:transparent; color:var(--sell); font-size:11px; cursor:pointer; transition:background .15s; }
+        .quick-sell:hover { background:rgba(214,48,49,.15); }
+        .empty-pos { text-align:center; padding:30px; color:var(--text-dim); font-size:13px; }
+        .mkt-badge { font-size:10px; padding:2px 6px; border-radius:4px; }
+        .mkt-badge.A  { background:rgba(231,76,60,.15);  color:#e74c3c; }
+        .mkt-badge.HK { background:rgba(46,204,113,.12); color:#2ecc71; }
+        .mkt-badge.US { background:rgba(52,152,219,.12); color:#3498db; }
 
-        /* ══ 响应式 ══ */
-        @media (max-width:900px) {
-            main { grid-template-columns:1fr; padding:16px; }
-            .account-panel { grid-column:1; }
-            .price-big { font-size:38px; }
-        }
+        /* ══ RESPONSIVE ══ */
+        @media(max-width:1100px) { .trade-grid { grid-template-columns:1fr; } }
+        @media(max-width:900px)  { .page-wrap { padding:16px; } .mkt-header { gap:10px; } .mkt-acct-tab { min-width:150px; } }
+        @media(max-width:600px)  { header { padding:12px 16px; } .mkt-acct-tab { min-width:120px; padding:14px; } .mat-cash { font-size:16px; } }
 
         footer { text-align:center; padding:20px; font-size:12px; color:var(--text-dim);
             border-top:1px solid var(--border); margin-top:auto; }
         footer a { color:var(--text-dim); text-decoration:none; }
+
+        /* ══ KLINE CHART ══ */
+        .kline-section { margin-top:18px; }
+        .kline-period-tabs { display:flex; gap:6px; margin-bottom:10px; }
+        .kline-ptab { padding:4px 12px; border-radius:6px; border:1px solid var(--border);
+            background:transparent; color:var(--text-sub); font-size:12px; cursor:pointer; transition:all .2s; }
+        .kline-ptab.active { background:rgba(79,172,254,.18); border-color:rgba(79,172,254,.5); color:var(--primary); }
+        #trade-kline-chart { width:100%; height:400px; min-height:400px; position:relative;
+            border-radius:10px; overflow:hidden; display:block; }
+        .kline-msg { display:flex; align-items:center; justify-content:center; height:280px;
+            color:var(--text-dim); font-size:13px; }
     </style>
+    <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
 
 <header>
-    <a href="index.html" class="logo">
+    <a href="dashboard.html" class="logo">
         <span class="logo-text">CampusQuant</span>
         <span class="logo-sub">校园财商</span>
     </a>
     <nav>
-        <a href="index.html">首页</a>
-        <a href="dashboard.html">仪表盘</a>
+        <a href="dashboard.html">控制台</a>
         <a href="trade.html" class="active">模拟演练<span class="nav-dot"></span></a>
         <a href="analysis.html">个股分析</a>
         <a href="platforms.html">持仓体检</a>
@@ -229,93 +241,137 @@
     </nav>
 </header>
 
-<main>
-    <!-- 左：行情面板 -->
-    <div class="quote-panel">
-        <div class="quote-search">
-            <div class="search-wrap">
-                <input id="sym-input" type="text" placeholder="股票代码或中文名，如 600519.SH / 茅台 / AAPL" value="600519.SH" autocomplete="off">
-                <ul id="trade-dropdown" class="trade-dropdown"></ul>
-            </div>
-            <button onclick="lookupSymbol()">查询</button>
+<div class="page-wrap">
+
+    <!-- ① 三市场账户 Tab ── -->
+    <div class="mkt-header">
+        <div class="mkt-acct-tab active" data-mkt="A" onclick="selectMkt(this,'A')">
+            <div class="mat-flag">🇨🇳</div>
+            <div class="mat-name">A 股市场 <span class="mat-ccy">CNH</span></div>
+            <div class="mat-cash" id="mat-cash-A">¥ 100,000</div>
+            <div class="mat-init">初始: ¥100,000</div>
+            <div class="mat-pnl flat" id="mat-pnl-A">+0.00%</div>
         </div>
-        <div class="price-display">
-            <div>
-                <div class="price-symbol" id="price-name">-- · --</div>
-                <div class="price-big" id="price-big">--</div>
-            </div>
-            <div class="price-meta">
-                <div class="price-chg" id="price-chg">--</div>
-                <div class="price-label">今日涨跌幅</div>
-            </div>
+        <div class="mkt-acct-tab" data-mkt="HK" onclick="selectMkt(this,'HK')">
+            <div class="mat-flag">🇭🇰</div>
+            <div class="mat-name">港 股市场 <span class="mat-ccy">HKD</span></div>
+            <div class="mat-cash" id="mat-cash-HK">HK$ 100,000</div>
+            <div class="mat-init">初始: HK$100,000</div>
+            <div class="mat-pnl flat" id="mat-pnl-HK">+0.00%</div>
         </div>
-        <div class="price-src" id="price-src"></div>
-        <div id="price-timer">行情每 5 秒自动刷新</div>
-        <p style="font-size:11px;color:var(--text-dim);margin-top:16px;">
-            ⚠ 纯模拟演练环境，所有交易不连接任何真实交易所。初始虚拟资金 100,000 元，仅用于学习目的。
-            如需 AI 多智能体深度研报，请前往
-            <a href="analysis.html" style="color:var(--primary);">个股分析</a> 页面。
-        </p>
+        <div class="mkt-acct-tab" data-mkt="US" onclick="selectMkt(this,'US')">
+            <div class="mat-flag">🇺🇸</div>
+            <div class="mat-name">美 股市场 <span class="mat-ccy">USD</span></div>
+            <div class="mat-cash" id="mat-cash-US">$ 10,000</div>
+            <div class="mat-init">初始: $10,000</div>
+            <div class="mat-pnl flat" id="mat-pnl-US">+0.00%</div>
+        </div>
     </div>
 
-    <!-- 右：下单面板 -->
-    <div class="order-panel">
-        <h3>💹 下单委托</h3>
-        <div class="order-tabs">
-            <button class="order-tab buy active" id="tab-buy" onclick="switchSide('BUY')">买 入</button>
-            <button class="order-tab sell"        id="tab-sell" onclick="switchSide('SELL')">卖 出</button>
+    <!-- ② 行情 + 下单 ── -->
+    <div class="trade-grid">
+
+        <!-- 左: 行情面板 -->
+        <div class="quote-panel">
+            <div class="panel-label">📡 行情查询</div>
+            <div class="mkt-hint" id="mkt-hint"></div>
+            <div class="quote-search">
+                <div class="search-wrap">
+                    <input id="sym-input" type="text" placeholder="如 600519.SH / 00700.HK / AAPL" autocomplete="off">
+                    <ul id="trade-dropdown" class="trade-dropdown"></ul>
+                </div>
+                <button onclick="lookupSymbol()">查询</button>
+            </div>
+            <div class="price-display">
+                <div>
+                    <div class="price-symbol" id="price-name">-- · --</div>
+                    <div class="price-big" id="price-big">--</div>
+                </div>
+                <div class="price-meta">
+                    <div class="price-chg" id="price-chg">--</div>
+                    <div style="font-size:11px;color:var(--text-dim)">今日涨跌幅</div>
+                </div>
+            </div>
+            <div class="price-src" id="price-src"></div>
+            <div id="price-timer">输入代码后自动刷新行情</div>
+
+            <!-- K线图 -->
+            <div class="kline-section" id="kline-section" style="display:none;">
+                <div class="kline-period-tabs">
+                    <button class="kline-ptab active" data-period="daily"   onclick="switchTradePeriod('daily')">日K</button>
+                    <button class="kline-ptab"        data-period="weekly"  onclick="switchTradePeriod('weekly')">周K</button>
+                    <button class="kline-ptab"        data-period="monthly" onclick="switchTradePeriod('monthly')">月K</button>
+                </div>
+                <div id="trade-kline-chart" style="width:100%;height:400px;min-height:400px;position:relative;display:block;"></div>
+            </div>
+
+            <p style="font-size:11px;color:var(--text-dim);margin-top:14px;line-height:1.7;">
+                ⚠ 纯模拟演练环境，所有交易不连接任何真实交易所。<br>
+                三市场独立资金池：A股 10万CNH · 港股 10万HKD · 美股 1万USD。<br>
+                AI深度研报请前往 <a href="analysis.html" style="color:var(--primary);">个股分析</a>。
+            </p>
         </div>
-        <div class="form-row">
-            <div class="form-label">标的代码</div>
-            <input class="form-input" id="order-symbol" type="text" value="600519.SH" readonly>
+
+        <!-- 右: 下单面板 -->
+        <div class="order-panel">
+            <h3>💹 下单委托 · <span id="order-mkt-label" style="font-size:13px;color:var(--text-sub)">A股 (CNH)</span></h3>
+            <div class="order-tabs">
+                <button class="order-tab buy active" id="tab-buy"  onclick="switchSide('BUY')">买 入</button>
+                <button class="order-tab sell"        id="tab-sell" onclick="switchSide('SELL')">卖 出</button>
+            </div>
+            <div class="form-row">
+                <div class="form-label">标的代码</div>
+                <input class="form-input" id="order-symbol" type="text" readonly placeholder="从左侧查询填入">
+            </div>
+            <div class="form-row">
+                <div class="form-label">参考现价 <span style="font-size:10px;color:var(--text-dim)">(EOD收盘价)</span></div>
+                <input class="form-input" id="order-price" type="text" value="--" readonly>
+            </div>
+            <div class="form-row">
+                <div class="form-label">委托数量（股）</div>
+                <input class="form-input" id="order-qty" type="number" min="1" step="1" value="100"
+                    oninput="updateEstimate()">
+                <div class="balance-hint" id="balance-hint">可用: --</div>
+            </div>
+            <div class="estimated-cost">
+                <span class="est-label" id="est-label">预估买入金额</span>
+                <span class="est-value" id="est-value">--</span>
+            </div>
+            <button class="btn-order buy" id="btn-order" onclick="submitOrder()">买入委托（模拟）</button>
+            <div id="order-result"></div>
         </div>
-        <div class="form-row">
-            <div class="form-label">参考现价</div>
-            <input class="form-input" id="order-price" type="text" value="--" readonly>
-        </div>
-        <div class="form-row">
-            <div class="form-label">委托数量（股）</div>
-            <input class="form-input" id="order-qty" type="number" min="1" step="1" value="100"
-                   oninput="updateEstimate()">
-        </div>
-        <div class="estimated-cost">
-            <span class="est-label" id="est-label">预估买入金额</span>
-            <span class="est-value" id="est-value">-- </span>
-        </div>
-        <button class="btn-order buy" id="btn-order" onclick="submitOrder()">买入委托（模拟）</button>
-        <div id="order-result"></div>
     </div>
 
-    <!-- 底：账户总览 -->
+    <!-- ③ 账户总览（持仓/成交） ── -->
     <div class="account-panel">
         <div class="account-header">
-            <h3>📊 虚拟账户 · 持仓总览</h3>
-            <div style="display:flex;gap:8px;align-items:center;">
-                <button onclick="loadPortfolio()" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-sub);font-size:12px;padding:3px 10px;cursor:pointer;" title="刷新">↻ 刷新</button>
-                <button onclick="switchAccountTab('positions')" id="tab-pos" style="background:rgba(79,172,254,0.15);border:1px solid var(--primary);border-radius:6px;color:var(--primary);font-size:12px;padding:3px 10px;cursor:pointer;">持仓</button>
-                <button onclick="switchAccountTab('orders')" id="tab-orders" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-sub);font-size:12px;padding:3px 10px;cursor:pointer;">成交记录</button>
+            <h3 id="acct-panel-title">📊 A股账户 · 持仓总览</h3>
+            <div class="acct-tabs-row">
+                <button class="acct-sub-tab active" id="tab-pos"    onclick="switchAccountTab('positions')">持仓</button>
+                <button class="acct-sub-tab"        id="tab-orders" onclick="switchAccountTab('orders')">成交记录</button>
+                <button onclick="loadPortfolio()" style="background:transparent;border:1px solid var(--border);border-radius:20px;color:var(--text-sub);font-size:11px;padding:4px 10px;cursor:pointer;margin-left:4px;">↻</button>
             </div>
-            <div class="account-stats">
-                <div class="stat-item">
-                    <div class="stat-label">可用资金</div>
-                    <div class="stat-value primary" id="stat-cash">¥ --</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">持仓市值</div>
-                    <div class="stat-value neutral" id="stat-market">¥ --</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">总资产</div>
-                    <div class="stat-value neutral" id="stat-total">¥ --</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">持仓浮盈</div>
-                    <div class="stat-value neutral" id="stat-pnl">¥ --</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">累计成交</div>
-                    <div class="stat-value neutral" id="stat-orders">-- 笔</div>
-                </div>
+        </div>
+        <div class="account-stats" id="account-stats" style="margin-bottom:16px;">
+            <div class="stat-item">
+                <div class="stat-label">可用资金</div>
+                <div class="stat-value primary" id="stat-cash">--</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">持仓市值</div>
+                <div class="stat-value neutral" id="stat-market">--</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">总资产</div>
+                <div class="stat-value neutral" id="stat-total">--</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">持仓浮盈</div>
+                <div class="stat-value neutral" id="stat-pnl">--</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">累计成交</div>
+                <div class="stat-value neutral" id="stat-orders-count">-- 笔</div>
             </div>
         </div>
         <div id="pos-table-wrap">
@@ -323,384 +379,569 @@
         </div>
         <div id="orders-table-wrap" style="display:none;"></div>
     </div>
-</main>
+
+</div><!-- /page-wrap -->
 
 <footer>
     &copy; 2026 CampusQuant 校园财商 &nbsp;|&nbsp;
-    模拟演练 · 虚拟资金，风险教育为先 &nbsp;|&nbsp;
+    模拟演练 · 三市场虚拟资金，风险教育为先 &nbsp;|&nbsp;
     <a href="team.html">关于我们</a>
 </footer>
 
 <script>
-    'use strict';
-    const API_BASE = 'http://127.0.0.1:8000';
+'use strict';
+const API_BASE = 'http://127.0.0.1:8000';
 
-    // ══ 搜索联想下拉 ════════════════════════════════════════════
-    let _tradeSearchTimer = null;
-    const _tradeDrop = document.getElementById('trade-dropdown');
+// ══ Market config ════════════════════════════════════════════
+const MKT_CONFIG = {
+    A:  { label:'A股 (CNH)',  prefix:'¥',    currency:'CNH', init:100000, flag:'🇨🇳', hint:'A股: 代码如 600519.SH / 000858.SZ' },
+    HK: { label:'港股 (HKD)', prefix:'HK$',  currency:'HKD', init:100000, flag:'🇭🇰', hint:'港股: 代码如 00700.HK / 09988.HK' },
+    US: { label:'美股 (USD)', prefix:'$',    currency:'USD', init:10000,  flag:'🇺🇸', hint:'美股: 代码如 AAPL / TSLA / NVDA' },
+};
+let _curMkt = 'A';
+let _acctData = null;
 
-    function closeTradeDrop() {
-        _tradeDrop.classList.remove('open');
-        _tradeDrop.innerHTML = '';
+// ══ Auth helpers ══════════════════════════════════════════════
+function getToken()    { return localStorage.getItem('cq_token') || ''; }
+function getUsername() { return localStorage.getItem('cq_username') || ''; }
+function authHeaders() {
+    const h = { 'Content-Type':'application/json' };
+    const t = getToken();
+    if (t) h['Authorization'] = 'Bearer ' + t;
+    return h;
+}
+function renderAuthWidget() {
+    const w = document.getElementById('auth-widget');
+    const u = getUsername();
+    if (u) {
+        w.innerHTML = `<span style="font-size:12px;color:var(--text-sub);">👤 ${u}</span>
+            <button onclick="logout()" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;
+    } else {
+        w.innerHTML = `<a href="auth.html?redirect=trade.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(79,172,254,.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
     }
+}
+function logout() {
+    localStorage.removeItem('cq_token');
+    localStorage.removeItem('cq_username');
+    localStorage.removeItem('cq_user_id');
+    renderAuthWidget();
+}
 
-    function renderTradeDrop(suggestions) {
-        if (!suggestions || !suggestions.length) { closeTradeDrop(); return; }
-        _tradeDrop.innerHTML = suggestions.map(s =>
-            `<li class="trade-di" data-symbol="${s.symbol}">
-                <span class="tdi-sym">${s.symbol}</span>
-                <span class="tdi-name">${s.name}</span>
-                <span class="tdi-type">${s.type}</span>
-            </li>`
-        ).join('');
-        _tradeDrop.classList.add('open');
-        _tradeDrop.querySelectorAll('.trade-di').forEach(li => {
-            li.addEventListener('click', () => {
-                const sym = li.dataset.symbol;
-                document.getElementById('sym-input').value = sym;
-                closeTradeDrop();
-                currentSymbol = sym.toUpperCase();
-                startPriceTimer(currentSymbol);
-            });
+// ══ Market tab selection ══════════════════════════════════════
+function selectMkt(el, mkt) {
+    document.querySelectorAll('.mkt-acct-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    _curMkt = mkt;
+    const cfg = MKT_CONFIG[mkt];
+    document.getElementById('order-mkt-label').textContent = cfg.label;
+    document.getElementById('acct-panel-title').textContent = `📊 ${cfg.label} · 持仓总览`;
+    const hintEl = document.getElementById('mkt-hint');
+    hintEl.textContent = '💡 ' + cfg.hint;
+    hintEl.classList.add('show');
+    // clear search & quote display
+    if (priceTimer) { clearInterval(priceTimer); priceTimer = null; }
+    currentSymbol = '';
+    currentPrice  = 0;
+    document.getElementById('sym-input').value    = '';
+    document.getElementById('price-big').textContent  = '--';
+    document.getElementById('price-name').textContent = '-- · --';
+    document.getElementById('price-chg').textContent  = '--';
+    document.getElementById('price-chg').className    = 'price-chg';
+    document.getElementById('price-src').textContent  = '';
+    document.getElementById('price-timer').textContent = '输入代码后自动刷新行情';
+    document.getElementById('order-symbol').value = '';
+    document.getElementById('order-price').value  = '--';
+    // hide & destroy K-line
+    document.getElementById('kline-section').style.display = 'none';
+    _destroyTradeKline();
+    _tradeLastKlineSymbol = '';
+    updateEstimate();
+    if (_acctData) refreshAccountDisplay(_acctData, mkt);
+}
+
+// ══ Search dropdown ═══════════════════════════════════════════
+let _searchTimer = null;
+const _drop = document.getElementById('trade-dropdown');
+
+function closeDrop() { _drop.classList.remove('open'); _drop.innerHTML = ''; }
+function renderDrop(list) {
+    if (!list || !list.length) { closeDrop(); return; }
+    _drop.innerHTML = list.map(s =>
+        `<li class="trade-di" data-symbol="${s.symbol}">
+            <span class="tdi-sym">${s.symbol}</span>
+            <span class="tdi-name">${s.name}</span>
+            <span class="tdi-type">${s.type}</span>
+        </li>`
+    ).join('');
+    _drop.classList.add('open');
+    _drop.querySelectorAll('.trade-di').forEach(li => {
+        li.addEventListener('click', () => {
+            const sym = li.dataset.symbol;
+            document.getElementById('sym-input').value = sym;
+            closeDrop();
+            currentSymbol = sym.toUpperCase();
+            startPriceTimer(currentSymbol);
         });
-    }
-
-    document.getElementById('sym-input').addEventListener('input', e => {
-        const q = e.target.value.trim();
-        clearTimeout(_tradeSearchTimer);
-        if (!q) { closeTradeDrop(); return; }
-        _tradeSearchTimer = setTimeout(async () => {
-            try {
-                const r = await fetch(`${API_BASE}/api/v1/market/search?q=${encodeURIComponent(q)}`);
-                if (!r.ok) { closeTradeDrop(); return; }
-                const d = await r.json();
-                renderTradeDrop(d.suggestions || []);
-            } catch(e) { closeTradeDrop(); }
-        }, 300);
     });
+}
 
-    document.addEventListener('click', e => {
-        if (!e.target.closest('.search-wrap')) closeTradeDrop();
-    });
+document.getElementById('sym-input').addEventListener('input', e => {
+    const q = e.target.value.trim();
+    clearTimeout(_searchTimer);
+    if (!q) { closeDrop(); return; }
+    _searchTimer = setTimeout(async () => {
+        try {
+            const r = await fetch(`${API_BASE}/api/v1/market/search?q=${encodeURIComponent(q)}`);
+            if (!r.ok) { closeDrop(); return; }
+            const d = await r.json();
+            renderDrop(d.suggestions || []);
+        } catch(e) { closeDrop(); }
+    }, 300);
+});
+document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) closeDrop(); });
 
-    // ══ 全局状态 ════════════════════════════════════════════════
-    let currentSide   = 'BUY';
-    let currentSymbol = '600519.SH';
-    let currentPrice  = 0;
-    let priceTimer    = null;
+// ══ Quote polling ═════════════════════════════════════════════
+let currentSide   = 'BUY';
+let currentSymbol = '';
+let currentPrice  = 0;
+let priceTimer    = null;
 
-    // ══ 市场识别 ════════════════════════════════════════════════
-    function detectMarket(sym) {
-        if (/^\d{6}\.(SH|SZ|BJ)$/i.test(sym)) return 'a';
-        if (/^\d{5}\.HK$/i.test(sym) || /^[09]\d{4}\.HK$/i.test(sym)) return 'hk';
-        return 'us';
+function detectMarket(sym) {
+    if (/^\d{6}\.(SH|SZ|BJ)$/i.test(sym)) return 'a';
+    if (/^\d{4,5}\.HK$/i.test(sym))        return 'hk';
+    return 'us';
+}
+function prefixFor(sym) {
+    const s = sym.toUpperCase();
+    if (s.endsWith('.HK'))  return 'HK$';
+    if (/^\d/.test(s))      return '¥';
+    return '$';
+}
+
+async function fetchQuote(symbol) {
+    const resp = await fetch(`${API_BASE}/api/v1/market/spot?symbol=${encodeURIComponent(symbol.toUpperCase())}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (!data.price || data.price <= 0) return null;
+    return {
+        symbol:      data.symbol || symbol,
+        name:        data.name   || symbol,
+        price:       data.price,
+        change_pct:  data.change_pct  || 0,
+        is_fallback: data.is_fallback || false,
+    };
+}
+
+async function updateQuoteDisplay(symbol) {
+    let q;
+    try { q = await fetchQuote(symbol); } catch(e) { q = null; }
+    if (!q) {
+        document.getElementById('price-big').textContent = '获取失败';
+        document.getElementById('price-src').textContent = '⚠ 行情接口暂时不可用';
+        document.getElementById('price-timer').textContent = '';
+        return;
     }
-    function currencyPrefix(sym) {
-        const s = sym.toUpperCase();
-        if (s.endsWith('.HK')) return 'HK$';
-        if (/^\d/.test(s)) return '¥';
-        return '$';
+    const price  = q.price || 0;
+    const pct    = q.change_pct || 0;
+    const pfx    = prefixFor(symbol);
+    const dir    = pct >= 0 ? 'up' : 'down';
+
+    document.getElementById('price-name').textContent = (q.name || symbol) + ' · ' + symbol.toUpperCase();
+    const bigEl = document.getElementById('price-big');
+    bigEl.textContent = pfx + Number(price).toFixed(2);
+    bigEl.className   = 'price-big ' + dir;
+
+    const chgEl = document.getElementById('price-chg');
+    chgEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+    chgEl.className   = 'price-chg ' + dir;
+
+    document.getElementById('price-src').textContent =
+        q.is_fallback ? '价格来源：日线收盘 (EOD)' : '价格来源：实时行情';
+    document.getElementById('price-timer').textContent =
+        `最后更新：${new Date().toLocaleTimeString('zh-CN',{hour12:false})} · 每5秒自动刷新`;
+
+    currentPrice = price;
+    document.getElementById('order-price').value  = pfx + Number(price).toFixed(3);
+    document.getElementById('order-symbol').value = symbol.toUpperCase();
+    updateBalanceHint();
+    updateEstimate();
+    // NOTE: K-line is intentionally NOT triggered here.
+    // It is loaded once in startPriceTimer() to avoid repeated requests on every 5s poll.
+}
+
+function startPriceTimer(symbol) {
+    if (priceTimer) clearInterval(priceTimer);
+    updateQuoteDisplay(symbol);
+    priceTimer = setInterval(() => updateQuoteDisplay(symbol), 5000);
+    // Load K-line exactly once per symbol change — never inside the polling callback
+    if (_tradeLastKlineSymbol !== symbol) {
+        _tradeLastKlineSymbol = symbol;
+        document.getElementById('kline-section').style.display = 'block';
+        loadTradeKline(symbol, _tradePeriod);
+    }
+}
+
+async function lookupSymbol() {
+    const raw = document.getElementById('sym-input').value.trim();
+    if (!raw) return;
+    currentSymbol = raw.toUpperCase();
+    startPriceTimer(currentSymbol);
+}
+
+// ══ Order side ════════════════════════════════════════════════
+function switchSide(side) {
+    currentSide = side;
+    document.getElementById('tab-buy').classList.toggle('active',  side==='BUY');
+    document.getElementById('tab-sell').classList.toggle('active', side==='SELL');
+    const btn = document.getElementById('btn-order');
+    btn.className   = 'btn-order ' + side.toLowerCase();
+    btn.textContent = side==='BUY' ? '买入委托（模拟）' : '卖出委托（模拟）';
+    document.getElementById('est-label').textContent = side==='BUY' ? '预估买入金额' : '预估卖出金额';
+    updateEstimate();
+    document.getElementById('order-result').style.display = 'none';
+}
+
+function updateBalanceHint() {
+    if (!_acctData) return;
+    const cfg = MKT_CONFIG[_curMkt];
+    let cash = 0;
+    if (_curMkt === 'A')  cash = _acctData.cash_cnh ?? _acctData.cash ?? 0;
+    if (_curMkt === 'HK') cash = _acctData.cash_hkd ?? 0;
+    if (_curMkt === 'US') cash = _acctData.cash_usd ?? 0;
+    document.getElementById('balance-hint').textContent =
+        `可用: ${cfg.prefix}${cash.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+}
+
+function updateEstimate() {
+    const qty   = parseFloat(document.getElementById('order-qty').value) || 0;
+    const total = currentPrice * qty;
+    const pfx   = currentSymbol ? prefixFor(currentSymbol) : MKT_CONFIG[_curMkt].prefix;
+    if (total > 0) {
+        const fee = (total * 0.0003).toFixed(2);
+        document.getElementById('est-value').textContent =
+            pfx + total.toFixed(2) + ' (手续费≈' + pfx + fee + ')';
+    } else {
+        document.getElementById('est-value').textContent = pfx + ' --';
+    }
+}
+
+// ══ Submit order ══════════════════════════════════════════════
+async function submitOrder() {
+    const symbol   = currentSymbol;
+    const action   = currentSide;
+    const quantity = parseFloat(document.getElementById('order-qty').value);
+
+    if (!symbol || !(quantity > 0)) {
+        showOrderResult(false, '请先查询标的行情，并填写有效委托数量');
+        return;
     }
 
-    // ══ 行情获取（5s 轮询）══════════════════════════════════════
-    async function fetchQuote(symbol) {
-        const market = detectMarket(symbol);
-        const resp = await fetch(`${API_BASE}/api/v1/market/quotes?market=${market}`);
+    const btn = document.getElementById('btn-order');
+    btn.disabled = true;
+    btn.textContent = '委托中…';
+
+    try {
+        const resp = await fetch(`${API_BASE}/api/v1/trade/order`, {
+            method:  'POST',
+            headers: authHeaders(),
+            body:    JSON.stringify({ symbol, action, quantity }),
+        });
+        const data = await resp.json();
+
+        if (!resp.ok) {
+            showOrderResult(false, data.detail || `HTTP ${resp.status}`);
+        } else if (!data.success) {
+            showOrderResult(false, data.error || '撮合失败');
+        } else {
+            const pfx    = prefixFor(data.symbol || symbol);
+            const srcTag = data.is_spot_price ? '实时现价' : 'EOD收盘';
+            const msg = `✅ 成交：${data.action} ${data.quantity}股 @${pfx}${Number(data.exec_price).toFixed(3)}（${srcTag}）\n`
+                      + `金额 ${pfx}${Number(data.amount).toFixed(2)} + 手续费 ${pfx}${Number(data.fee).toFixed(4)}\n`
+                      + `剩余资金：${pfx}${Number(data.cash_after).toFixed(2)}`;
+            showOrderResult(true, msg);
+            loadPortfolio();
+        }
+    } catch(e) {
+        showOrderResult(false, '网络错误：' + e.message + '。请确认后端已在 8000 端口启动。');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = currentSide==='BUY' ? '买入委托（模拟）' : '卖出委托（模拟）';
+    }
+}
+
+function showOrderResult(ok, msg) {
+    const el = document.getElementById('order-result');
+    el.textContent   = msg;
+    el.className     = ok ? 'success' : 'error';
+    el.style.display = 'block';
+}
+
+// ══ Account tabs ══════════════════════════════════════════════
+function switchAccountTab(tab) {
+    const isPos = tab === 'positions';
+    document.getElementById('pos-table-wrap').style.display    = isPos ? '' : 'none';
+    document.getElementById('orders-table-wrap').style.display = isPos ? 'none' : '';
+    document.getElementById('tab-pos').classList.toggle('active',    isPos);
+    document.getElementById('tab-orders').classList.toggle('active', !isPos);
+    if (!isPos) loadOrders();
+}
+
+// ══ Load portfolio ════════════════════════════════════════════
+async function loadPortfolio() {
+    try {
+        const resp = await fetch(`${API_BASE}/api/v1/trade/account`, { headers: authHeaders() });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        _acctData = await resp.json();
+        refreshAccountDisplay(_acctData, _curMkt);
+        updateAccountTabs(_acctData);
+        updateBalanceHint();
+    } catch(e) {
+        console.warn('[portfolio] 加载失败:', e);
+        document.getElementById('stat-cash').textContent = '后端未启动';
+    }
+}
+
+function updateAccountTabs(data) {
+    // update the three market tab displays
+    const updateTab = (mkt, pfx, cashField, initVal) => {
+        const cash = data[cashField] ?? initVal;
+        const pos  = (data.positions || []).filter(p => (p.market_type||'').toUpperCase() === mkt);
+        const posVal = pos.reduce((s,p) => s + (p.market_value||0), 0);
+        const total = cash + posVal;
+        const pct   = ((total - initVal) / initVal * 100);
+        const cashEl = document.getElementById(`mat-cash-${mkt}`);
+        const pnlEl  = document.getElementById(`mat-pnl-${mkt}`);
+        if (cashEl) cashEl.textContent = pfx + cash.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+        if (pnlEl) {
+            pnlEl.textContent = (pct>=0?'+':'') + pct.toFixed(2) + '%';
+            pnlEl.className   = 'mat-pnl ' + (pct>0?'up':pct<0?'down':'flat');
+        }
+    };
+    updateTab('A',  '¥',    'cash_cnh', 100000);
+    updateTab('HK', 'HK$',  'cash_hkd', 100000);
+    updateTab('US', '$',    'cash_usd',  10000);
+}
+
+function refreshAccountDisplay(data, mkt) {
+    const cfg  = MKT_CONFIG[mkt];
+    const pfx  = cfg.prefix;
+    const fmt  = v => pfx + Number(v||0).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+    // pick cash for market
+    let cash = 0;
+    if (mkt==='A')  cash = data.cash_cnh ?? data.cash ?? 0;
+    if (mkt==='HK') cash = data.cash_hkd ?? 0;
+    if (mkt==='US') cash = data.cash_usd ?? 0;
+
+    const allPos = data.positions || [];
+    const pos    = allPos.filter(p => (p.market_type||'').toUpperCase() === mkt);
+    const posVal = pos.reduce((s,p) => s + (p.market_value||0), 0);
+    const total  = cash + posVal;
+    const pnl    = pos.reduce((s,p) => s + (p.unrealized_pnl||0), 0);
+    const pnlPct = posVal > 0 ? (pnl / (posVal - pnl) * 100) : 0;
+
+    document.getElementById('stat-cash').textContent         = fmt(cash);
+    document.getElementById('stat-market').textContent       = fmt(posVal);
+    document.getElementById('stat-total').textContent        = fmt(total);
+    document.getElementById('stat-orders-count').textContent = (data.order_count||0) + ' 笔';
+
+    const pnlEl = document.getElementById('stat-pnl');
+    pnlEl.textContent = (pnl>=0?'+':'') + fmt(pnl).replace(pfx,'') + pfx.replace('¥','¥') +
+        ' (' + (pnlPct>=0?'+':'') + pnlPct.toFixed(2) + '%)';
+    pnlEl.className = 'stat-value ' + (pnl>=0?'success':pnl<0?'danger':'neutral');
+    // force prefix
+    document.getElementById('stat-pnl').textContent =
+        (pnl>=0?'+':'') + pfx + Math.abs(pnl).toFixed(2) + ' (' + (pnlPct>=0?'+':'') + pnlPct.toFixed(2) + '%)';
+
+    renderPositions(pos, pfx, mkt);
+}
+
+function renderPositions(positions, pfx, mkt) {
+    const wrap = document.getElementById('pos-table-wrap');
+    if (!positions.length) {
+        wrap.innerHTML = `<div class="empty-pos">该市场暂无持仓 · <a href="analysis.html" style="color:var(--primary)">先做研报</a>再买入</div>`;
+        return;
+    }
+    const rows = positions.map(p => {
+        const dir    = (p.change_pct||0) >= 0 ? 'up' : 'down';
+        const pnlDir = (p.pnl_pct||0)   >= 0 ? 'up' : 'down';
+        return `<tr>
+            <td class="td-sym">${p.symbol}</td>
+            <td>${p.name || p.symbol}</td>
+            <td><span class="mkt-badge ${mkt}">${MKT_CONFIG[mkt].flag}</span></td>
+            <td>${pfx}${Number(p.current_price||0).toFixed(3)}</td>
+            <td class="${dir}">${(p.change_pct>=0?'+':'') + Number(p.change_pct||0).toFixed(2)}%</td>
+            <td>${p.quantity||0}</td>
+            <td>${pfx}${Number(p.avg_cost||0).toFixed(3)}</td>
+            <td>${pfx}${Number(p.market_value||0).toFixed(2)}</td>
+            <td class="${pnlDir}">${(p.pnl_pct>=0?'+':'') + Number(p.pnl_pct||0).toFixed(2)}%</td>
+            <td><button class="quick-sell" onclick="quickSell('${p.symbol}',${p.quantity})">一键卖出</button></td>
+        </tr>`;
+    }).join('');
+    wrap.innerHTML = `<table>
+        <thead><tr>
+            <th>代码</th><th>名称</th><th>市场</th><th>现价</th><th>涨跌幅</th>
+            <th>持仓</th><th>成本</th><th>市值</th><th>盈亏%</th><th>操作</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function quickSell(symbol, qty) {
+    document.getElementById('sym-input').value = symbol;
+    document.getElementById('order-qty').value = qty;
+    currentSymbol = symbol.toUpperCase();
+    switchSide('SELL');
+    startPriceTimer(currentSymbol);
+    document.getElementById('order-result').style.display = 'none';
+}
+
+// ══ Orders history ════════════════════════════════════════════
+async function loadOrders() {
+    const wrap = document.getElementById('orders-table-wrap');
+    if (!getToken()) {
+        wrap.innerHTML = '<div class="empty-pos">请<a href="auth.html?redirect=trade.html" style="color:var(--primary);">登录</a>后查看成交记录</div>';
+        return;
+    }
+    try {
+        const resp = await fetch(`${API_BASE}/api/v1/trade/orders?limit=100`, { headers: authHeaders() });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
-        return (data.quotes || []).find(q => q.symbol.toUpperCase() === symbol.toUpperCase()) || null;
-    }
-
-    async function updateQuoteDisplay(symbol) {
-        let q;
-        try { q = await fetchQuote(symbol); } catch(e) { q = null; }
-
-        if (!q) {
-            document.getElementById('price-big').textContent = '获取失败';
-            document.getElementById('price-src').textContent = '⚠ 行情接口暂时不可用，请确认后端已启动';
-            document.getElementById('price-timer').textContent = '';
-            return;
-        }
-
-        const price  = q.price || 0;
-        const pct    = q.change_pct || 0;
-        const prefix = currencyPrefix(symbol);
-        const dir    = pct >= 0 ? 'up' : 'down';
-
-        document.getElementById('price-name').textContent = (q.name || symbol) + ' · ' + symbol.toUpperCase();
-        const bigEl = document.getElementById('price-big');
-        bigEl.textContent = prefix + Number(price).toFixed(2);
-        bigEl.className   = 'price-big ' + dir;
-
-        const chgEl = document.getElementById('price-chg');
-        chgEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
-        chgEl.className   = 'price-chg ' + dir;
-
-        document.getElementById('price-src').textContent =
-            q.is_fallback ? '价格来源：日线收盘（实时行情不可用）' : '价格来源：实时行情';
-
-        const ts = new Date().toLocaleTimeString('zh-CN', {hour12:false});
-        document.getElementById('price-timer').textContent = `最后更新：${ts} · 每 5 秒自动刷新`;
-
-        currentPrice = price;
-        document.getElementById('order-price').value = prefix + Number(price).toFixed(3);
-        document.getElementById('order-symbol').value = symbol.toUpperCase();
-        updateEstimate();
-    }
-
-    function startPriceTimer(symbol) {
-        if (priceTimer) clearInterval(priceTimer);
-        updateQuoteDisplay(symbol);
-        priceTimer = setInterval(() => updateQuoteDisplay(symbol), 5000);
-    }
-
-    async function lookupSymbol() {
-        const raw = document.getElementById('sym-input').value.trim();
-        if (!raw) return;
-        currentSymbol = raw.toUpperCase();
-        startPriceTimer(currentSymbol);
-    }
-
-    // ══ 买卖切换 ════════════════════════════════════════════════
-    function switchSide(side) {
-        currentSide = side;
-        document.getElementById('tab-buy').classList.toggle('active', side === 'BUY');
-        document.getElementById('tab-sell').classList.toggle('active', side === 'SELL');
-        const btn = document.getElementById('btn-order');
-        btn.className   = 'btn-order ' + side.toLowerCase();
-        btn.textContent = side === 'BUY' ? '买入委托（模拟）' : '卖出委托（模拟）';
-        document.getElementById('est-label').textContent = side === 'BUY' ? '预估买入金额' : '预估卖出金额';
-        updateEstimate();
-        document.getElementById('order-result').style.display = 'none';
-    }
-
-    function updateEstimate() {
-        const qty    = parseFloat(document.getElementById('order-qty').value) || 0;
-        const total  = currentPrice * qty;
-        const prefix = currencyPrefix(currentSymbol);
-        if (total > 0) {
-            const fee = (total * 0.0003).toFixed(2);
-            document.getElementById('est-value').textContent =
-                prefix + total.toFixed(2) + '（手续费 ≈ ' + prefix + fee + '）';
-        } else {
-            document.getElementById('est-value').textContent = prefix + ' --';
-        }
-    }
-
-    // ══ 认证辅助 ════════════════════════════════════════════════
-    function getToken() { return localStorage.getItem('cq_token') || ''; }
-    function getUsername() { return localStorage.getItem('cq_username') || ''; }
-    function authHeaders() {
-        const h = { 'Content-Type': 'application/json' };
-        const t = getToken();
-        if (t) h['Authorization'] = 'Bearer ' + t;
-        return h;
-    }
-    function renderAuthWidget() {
-        const w = document.getElementById('auth-widget');
-        const u = getUsername();
-        if (u) {
-            w.innerHTML = `<span style="font-size:12px;color:var(--text-sub);">👤 ${u}</span>
-                <button onclick="logout()" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;
-        } else {
-            w.innerHTML = `<a href="auth.html?redirect=trade.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
-        }
-    }
-    function logout() {
-        localStorage.removeItem('cq_token');
-        localStorage.removeItem('cq_username');
-        localStorage.removeItem('cq_user_id');
-        renderAuthWidget();
-    }
-
-    // ══ 账户 Tab 切换 ═══════════════════════════════════════════
-    function switchAccountTab(tab) {
-        const isPos = tab === 'positions';
-        document.getElementById('pos-table-wrap').style.display    = isPos ? '' : 'none';
-        document.getElementById('orders-table-wrap').style.display = isPos ? 'none' : '';
-        document.getElementById('tab-pos').style.background    = isPos ? 'rgba(79,172,254,0.15)' : 'transparent';
-        document.getElementById('tab-pos').style.color         = isPos ? 'var(--primary)' : 'var(--text-sub)';
-        document.getElementById('tab-pos').style.borderColor   = isPos ? 'var(--primary)' : 'var(--border)';
-        document.getElementById('tab-orders').style.background = isPos ? 'transparent' : 'rgba(79,172,254,0.15)';
-        document.getElementById('tab-orders').style.color      = isPos ? 'var(--text-sub)' : 'var(--primary)';
-        document.getElementById('tab-orders').style.borderColor= isPos ? 'var(--border)' : 'var(--primary)';
-        if (!isPos) loadOrders();
-    }
-
-    async function loadOrders() {
-        const wrap = document.getElementById('orders-table-wrap');
-        if (!getToken()) {
-            wrap.innerHTML = '<div class="empty-pos">请<a href="auth.html?redirect=trade.html" style="color:var(--primary);">登录</a>后查看成交记录</div>';
-            return;
-        }
-        try {
-            const resp = await fetch(`${API_BASE}/api/v1/trade/orders?limit=50`, { headers: authHeaders() });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const data = await resp.json();
-            if (!data.orders.length) {
-                wrap.innerHTML = '<div class="empty-pos">暂无成交记录</div>';
-                return;
-            }
-            const rows = data.orders.map(o => {
-                const sym    = String(o.symbol || '');
-                const prefix = currencyPrefix(sym);
-                const dir    = o.action === 'BUY' ? 'up' : 'down';
-                const ts     = new Date(o.created_at).toLocaleString('zh-CN', {hour12:false,month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
-                return `<tr>
-                    <td class="td-sym">${sym}</td>
-                    <td class="${dir}" style="font-weight:700;">${o.action === 'BUY' ? '买入' : '卖出'}</td>
-                    <td>${o.quantity}</td>
-                    <td>${prefix}${Number(o.exec_price).toFixed(3)}</td>
-                    <td>${prefix}${Number(o.amount).toFixed(2)}</td>
-                    <td style="color:var(--text-dim);font-size:11px;">${prefix}${Number(o.fee).toFixed(4)}</td>
-                    <td style="font-size:11px;color:var(--text-sub);">${ts}</td>
-                </tr>`;
-            }).join('');
-            wrap.innerHTML = `<table>
-                <thead><tr>
-                    <th>代码</th><th>方向</th><th>数量</th><th>成交价</th><th>金额</th><th>手续费</th><th>时间</th>
-                </tr></thead>
-                <tbody>${rows}</tbody>
-            </table>`;
-        } catch(e) {
-            wrap.innerHTML = '<div class="empty-pos">加载失败：' + e.message + '</div>';
-        }
-    }
-
-    // ══ 提交下单 ════════════════════════════════════════════════
-    async function submitOrder() {
-        const symbol   = currentSymbol;
-        const action   = currentSide;
-        const quantity = parseFloat(document.getElementById('order-qty').value);
-
-        if (!symbol || !(quantity > 0)) {
-            showOrderResult(false, '请填写有效的标的代码和委托数量');
-            return;
-        }
-
-        const btn = document.getElementById('btn-order');
-        btn.disabled = true;
-        btn.textContent = '委托中…';
-
-        try {
-            const resp = await fetch(`${API_BASE}/api/v1/trade/order`, {
-                method:  'POST',
-                headers: authHeaders(),
-                body:    JSON.stringify({ symbol, action, quantity }),
-            });
-            const data = await resp.json();
-
-            if (!resp.ok) {
-                showOrderResult(false, data.detail || `HTTP ${resp.status}`);
-            } else if (!data.success) {
-                showOrderResult(false, data.error || '撮合失败');
-            } else {
-                const prefix  = currencyPrefix(data.symbol || symbol);
-                const srcTag  = data.is_spot_price ? '实时现价' : '日线收盘';
-                const msg     = `✅ 成交：${data.action} ${data.quantity} 股 @${prefix}${Number(data.exec_price).toFixed(3)}（${srcTag}）\n`
-                              + `金额 ${prefix}${Number(data.amount).toFixed(2)} + 手续费 ${prefix}${Number(data.fee).toFixed(4)}\n`
-                              + `剩余资金：${prefix}${Number(data.cash_after).toFixed(2)}`;
-                showOrderResult(true, msg);
-                loadPortfolio();   // 立即刷新账户面板
-            }
-        } catch(e) {
-            showOrderResult(false, '网络错误：' + e.message + '。请确认后端已在 8000 端口启动。');
-        } finally {
-            btn.disabled = false;
-            btn.textContent = currentSide === 'BUY' ? '买入委托（模拟）' : '卖出委托（模拟）';
-        }
-    }
-
-    function showOrderResult(success, msg) {
-        const el = document.getElementById('order-result');
-        el.textContent   = msg;
-        el.className     = success ? 'success' : 'error';
-        el.style.display = 'block';
-    }
-
-    // ══ 账户持仓面板 ════════════════════════════════════════════
-    async function loadPortfolio() {
-        try {
-            const resp = await fetch(`${API_BASE}/api/v1/portfolio/summary`, { headers: authHeaders() });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const data = await resp.json();
-
-            const fmt = (v, pfx='¥') => pfx + Number(v || 0).toLocaleString('zh-CN', {minimumFractionDigits:2,maximumFractionDigits:2});
-            document.getElementById('stat-cash').textContent   = fmt(data.cash);
-            document.getElementById('stat-market').textContent = fmt(data.total_market);
-            document.getElementById('stat-total').textContent  = fmt(data.total_assets);
-            document.getElementById('stat-orders').textContent = (data.order_count || 0) + ' 笔';
-
-            const pnl   = data.total_pnl || 0;
-            const pnlEl = document.getElementById('stat-pnl');
-            pnlEl.textContent = (pnl >= 0 ? '+' : '') + fmt(pnl)
-                              + ' (' + (pnl >= 0 ? '+' : '') + Number(data.total_pnl_pct || 0).toFixed(2) + '%)';
-            pnlEl.className = 'stat-value ' + (pnl >= 0 ? 'success' : 'danger');
-
-            renderPositions(data.positions || []);
-        } catch(e) {
-            document.getElementById('stat-cash').textContent = '后端未启动';
-            console.warn('[portfolio] 加载失败:', e);
-        }
-    }
-
-    function renderPositions(positions) {
-        const wrap = document.getElementById('pos-table-wrap');
-        if (!positions.length) {
-            wrap.innerHTML = '<div class="empty-pos">暂无持仓，通过上方下单面板买入标的后，持仓将在此显示</div>';
-            return;
-        }
-        const rows = positions.map(p => {
-            const sym    = String(p.symbol || '');
-            const prefix = currencyPrefix(sym);
-            const dir    = p.change_pct >= 0 ? 'up' : 'down';
-            const pnlDir = p.pnl_pct    >= 0 ? 'up' : 'down';
+        const orders = (data.orders || []).filter(o => {
+            const mkt = detectMarketForOrder(o.symbol||'');
+            return mkt === _curMkt;
+        });
+        if (!orders.length) { wrap.innerHTML = '<div class="empty-pos">该市场暂无成交记录</div>'; return; }
+        const rows = orders.map(o => {
+            const pfx = prefixFor(o.symbol||'');
+            const dir = o.action === 'BUY' ? 'up' : 'down';
+            const ts  = new Date(o.created_at).toLocaleString('zh-CN',{hour12:false,month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
             return `<tr>
-                <td class="td-sym">${sym}</td>
-                <td>${p.name || sym}</td>
-                <td>${prefix}${Number(p.current_price || 0).toFixed(3)}</td>
-                <td class="${dir}">${(p.change_pct >= 0 ? '+' : '') + Number(p.change_pct || 0).toFixed(2)}%</td>
-                <td>${p.quantity || 0}</td>
-                <td>${prefix}${Number(p.avg_cost || 0).toFixed(3)}</td>
-                <td>${prefix}${Number(p.market_value || 0).toFixed(2)}</td>
-                <td class="${pnlDir}">${(p.pnl_pct >= 0 ? '+' : '') + Number(p.pnl_pct || 0).toFixed(2)}%</td>
-                <td><button class="quick-sell" onclick="quickSell('${sym}',${p.quantity})">一键卖出</button></td>
+                <td class="td-sym">${o.symbol}</td>
+                <td class="${dir}" style="font-weight:700;">${o.action==='BUY'?'买入':'卖出'}</td>
+                <td>${o.quantity}</td>
+                <td>${pfx}${Number(o.exec_price).toFixed(3)}</td>
+                <td>${pfx}${Number(o.amount).toFixed(2)}</td>
+                <td style="color:var(--text-dim);font-size:11px;">${pfx}${Number(o.fee).toFixed(4)}</td>
+                <td style="font-size:11px;color:var(--text-sub);">${ts}</td>
             </tr>`;
         }).join('');
         wrap.innerHTML = `<table>
-            <thead><tr>
-                <th>代码</th><th>名称</th><th>现价</th><th>涨跌幅</th>
-                <th>持仓</th><th>成本</th><th>市值</th><th>盈亏%</th><th>操作</th>
-            </tr></thead>
+            <thead><tr><th>代码</th><th>方向</th><th>数量</th><th>成交价</th><th>金额</th><th>手续费</th><th>时间</th></tr></thead>
             <tbody>${rows}</tbody>
         </table>`;
-    }
+    } catch(e) { wrap.innerHTML = '<div class="empty-pos">加载失败: ' + e.message + '</div>'; }
+}
 
-    function quickSell(symbol, qty) {
-        document.getElementById('sym-input').value  = symbol;
-        document.getElementById('order-qty').value  = qty;
-        currentSymbol = symbol.toUpperCase();
-        switchSide('SELL');
-        startPriceTimer(currentSymbol);
-        document.getElementById('order-result').style.display = 'none';
-    }
+function detectMarketForOrder(sym) {
+    if (/^\d{6}\.(SH|SZ|BJ)$/i.test(sym)) return 'A';
+    if (/^\d{4,5}\.HK$/i.test(sym))        return 'HK';
+    return 'US';
+}
 
-    // ══ 初始化 ══════════════════════════════════════════════════
-    document.addEventListener('DOMContentLoaded', () => {
-        renderAuthWidget();
-        // URL 参数预填
-        const urlSym = new URLSearchParams(location.search).get('sym');
-        if (urlSym) {
-            document.getElementById('sym-input').value = urlSym;
-            currentSymbol = urlSym.toUpperCase();
+// ══ K-line chart ══════════════════════════════════════════════
+let _tradeChart           = null;   // LightweightCharts instance
+let _tradeSeries          = null;   // CandlestickSeries instance
+let _tradePeriod          = 'daily';
+let _tradeLastKlineSymbol = '';
+let _tradeKlineLoading    = false;  // re-entry guard — prevents concurrent/looping requests
+let _tradeKlineRO         = null;   // ResizeObserver reference for cleanup
+
+function _destroyTradeKline() {
+    if (_tradeKlineRO)  { try { _tradeKlineRO.disconnect(); } catch(_) {} _tradeKlineRO = null; }
+    if (_tradeChart)    { try { _tradeChart.remove();        } catch(_) {} _tradeChart   = null; }
+    _tradeSeries = null;
+}
+
+function switchTradePeriod(period) {
+    if (_tradeKlineLoading) return;   // don't queue up while loading
+    _tradePeriod = period;
+    document.querySelectorAll('.kline-ptab').forEach(t =>
+        t.classList.toggle('active', t.dataset.period === period));
+    if (currentSymbol) loadTradeKline(currentSymbol, period);
+}
+
+async function loadTradeKline(symbol, period) {
+    // ── Re-entry guard: a single request at a time ──────────────────────────
+    if (_tradeKlineLoading) return;
+    _tradeKlineLoading = true;
+
+    const container = document.getElementById('trade-kline-chart');
+    if (!container) { _tradeKlineLoading = false; return; }
+
+    // Show loading state; destroy any previous chart instance immediately
+    _destroyTradeKline();
+    container.innerHTML = '<div class="kline-msg">K线加载中，请稍候…</div>';
+
+    try {
+        const resp = await fetch(
+            `${API_BASE}/api/v1/market/kline?symbol=${encodeURIComponent(symbol)}&period=${period}&count=120`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data    = await resp.json();
+        const candles = (data.kline || []).filter(c => c.time && c.open > 0);
+
+        // ── Empty data: show friendly message, do NOT feed to chart library ──
+        if (!candles.length) {
+            container.innerHTML = '<div class="kline-msg">当前股票暂无可用历史K线数据</div>';
+            return;
         }
-        startPriceTimer(currentSymbol);
-        loadPortfolio();
-    });
 
-    document.getElementById('sym-input').addEventListener('keydown', e => {
-        if (e.key === 'Enter') lookupSymbol();
-    });
+        // ── Render chart ──────────────────────────────────────────────────────
+        container.innerHTML = '';   // clear loading text before canvas injection
+        const w = container.clientWidth || 640;
+        _tradeChart = LightweightCharts.createChart(container, {
+            width:  w,
+            height: 400,
+            layout: { background: { color: '#0b0f19' }, textColor: '#a0aec0' },
+            grid: {
+                vertLines: { color: 'rgba(255,255,255,0.05)' },
+                horzLines: { color: 'rgba(255,255,255,0.05)' },
+            },
+            timeScale:       { borderColor: 'rgba(255,255,255,0.1)', timeVisible: true },
+            rightPriceScale: { borderColor: 'rgba(255,255,255,0.1)' },
+            crosshair:       { mode: 1 },
+        });
+        _tradeSeries = _tradeChart.addCandlestickSeries({
+            upColor:        '#00b894', downColor:        '#d63031',
+            borderUpColor:  '#00b894', borderDownColor:  '#d63031',
+            wickUpColor:    '#00b894', wickDownColor:    '#d63031',
+        });
+        _tradeSeries.setData(candles);
+        _tradeChart.timeScale().fitContent();
+
+        // Responsive: adjust width only (height is fixed); keep one observer
+        _tradeKlineRO = new ResizeObserver(() => {
+            if (_tradeChart && container.clientWidth > 0)
+                _tradeChart.applyOptions({ width: container.clientWidth });
+        });
+        _tradeKlineRO.observe(container);
+
+    } catch(e) {
+        container.innerHTML = `<div class="kline-msg">K线加载失败：${e.message}</div>`;
+    } finally {
+        // Always release the guard so user can retry or switch periods
+        _tradeKlineLoading = false;
+    }
+}
+
+// ══ Init ════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+    renderAuthWidget();
+    const urlSym = new URLSearchParams(location.search).get('sym');
+    if (urlSym) {
+        document.getElementById('sym-input').value = urlSym;
+        currentSymbol = urlSym.toUpperCase();
+        startPriceTimer(currentSymbol);
+    }
+    loadPortfolio();
+    // show initial market hint
+    document.getElementById('mkt-hint').textContent = '💡 ' + MKT_CONFIG['A'].hint;
+    document.getElementById('mkt-hint').classList.add('show');
+});
+
+document.getElementById('sym-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') lookupSymbol();
+});
 </script>
 </body>
 </html>

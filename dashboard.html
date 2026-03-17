@@ -3,584 +3,807 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>控制台 - CampusQuant · 校园财商智能平台</title>
+    <title>我的控制台 - CampusQuant · 校园财商智能平台</title>
     <style>
-        /* ══ 基础重置与全局变量 (严格保持与 index 相同) ══ */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-        }
+        * { margin:0; padding:0; box-sizing:border-box;
+            font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif; }
 
         :root {
-            --primary:    #4facfe;
-            --secondary:  #00f2fe;
-            --accent:     #a29bfe;
-            --danger:     #fd79a8;
-            --success:    #55efc4;
-            --warn:       #fdcb6e;
-            --bg:         #0b0f19;
-            --card:       rgba(255,255,255,0.04);
-            --border:     rgba(255,255,255,0.10);
-            --text-dim:   #718096;
-            --text-sub:   #a0aec0;
+            --primary:#4facfe; --secondary:#00f2fe; --accent:#a29bfe;
+            --danger:#fd79a8;  --success:#55efc4;   --warn:#fdcb6e;
+            --bg:#0b0f19; --card:rgba(255,255,255,0.04);
+            --border:rgba(255,255,255,0.10);
+            --text-dim:#718096; --text-sub:#a0aec0;
         }
-
         body {
-            background-color: var(--bg);
-            color: #fff;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow-x: hidden;
+            background-color:var(--bg); color:#fff; min-height:100vh;
+            display:flex; flex-direction:column; overflow-x:hidden;
             background-image:
-                radial-gradient(circle at 15% 50%, rgba(0,242,254,0.07), transparent 32%),
-                radial-gradient(circle at 85% 28%, rgba(79,172,254,0.07), transparent 32%);
+                radial-gradient(circle at 15% 50%,rgba(0,242,254,0.07),transparent 32%),
+                radial-gradient(circle at 85% 28%,rgba(79,172,254,0.07),transparent 32%);
         }
 
-        /* ══ 顶部导航栏 (严格保持) ══ */
+        /* ══ NAV ══ */
         header {
-            position: fixed;
-            top: 0; left: 0; width: 100%;
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 16px 48px;
-            background: rgba(11,15,25,0.78);
-            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-            border-bottom: 1px solid var(--border);
-            z-index: 1000;
+            position:fixed; top:0; left:0; width:100%;
+            display:flex; justify-content:space-between; align-items:center;
+            padding:16px 48px;
+            background:rgba(11,15,25,0.78);
+            backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+            border-bottom:1px solid var(--border); z-index:1000;
         }
-        .logo { display: flex; align-items: baseline; gap: 8px; cursor: pointer; }
-        .logo-text { font-size: 22px; font-weight: 800; background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 0.5px; }
-        .logo-sub { font-size: 12px; font-weight: 400; color: var(--text-dim); }
-        nav { display: flex; gap: 28px; align-items: center; }
-        nav a { text-decoration: none; color: var(--text-sub); font-size: 14px; font-weight: 500; transition: all 0.25s ease; position: relative; }
-        nav a:hover, nav a.active { color: var(--secondary); text-shadow: 0 0 8px rgba(0,242,254,0.45); }
-        nav a::after { content: ''; position: absolute; width: 0; height: 2px; bottom: -4px; left: 0; background: linear-gradient(90deg, var(--primary), var(--secondary)); transition: width 0.3s ease; }
-        nav a:hover::after { width: 100%; }
-        .nav-dot { display: inline-block; width: 6px; height: 6px; background: var(--danger); border-radius: 50%; margin-left: 4px; vertical-align: top; margin-top: 2px; animation: blink-dot 2s ease-in-out infinite; }
-        @keyframes blink-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-        .sidebar-btn { background: transparent; border: none; color: var(--text-sub); cursor: pointer; display: flex; align-items: center; padding: 4px; margin-left: 10px; transition: color 0.3s; }
-        .sidebar-btn:hover { color: var(--secondary); }
+        .logo { display:flex; align-items:baseline; gap:8px; cursor:pointer; }
+        .logo-text { font-size:22px; font-weight:800;
+            background:linear-gradient(90deg,#4facfe 0%,#00f2fe 100%);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+        .logo-sub { font-size:12px; color:var(--text-dim); }
+        nav { display:flex; gap:28px; align-items:center; }
+        nav a { text-decoration:none; color:var(--text-sub); font-size:14px; font-weight:500;
+            transition:all .25s; position:relative; }
+        nav a:hover, nav a.active { color:var(--secondary); text-shadow:0 0 8px rgba(0,242,254,.45); }
+        nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
+            background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .3s; }
+        nav a:hover::after { width:100%; }
+        .nav-dot { display:inline-block; width:6px; height:6px; background:var(--danger);
+            border-radius:50%; margin-left:4px; vertical-align:top; margin-top:2px;
+            animation:blink-dot 2s ease-in-out infinite; }
+        @keyframes blink-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
+        .sidebar-btn { background:transparent; border:none; color:var(--text-sub);
+            cursor:pointer; display:flex; align-items:center; padding:4px; margin-left:10px; transition:color .3s; }
+        .sidebar-btn:hover { color:var(--secondary); }
 
-        /* ══ 侧边栏及遮罩层样式 (严格保持) ══ */
-        .sidebar-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(3px); z-index: 1999; opacity: 0; visibility: hidden; transition: all 0.3s ease; }
-        .sidebar-overlay.open { opacity: 1; visibility: visible; }
-        .sidebar { position: fixed; top: 0; right: -320px; width: 320px; max-width: 85vw; height: 100vh; background: rgba(11, 15, 25, 0.95); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-left: 1px solid var(--border); z-index: 2000; transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; padding: 30px 24px; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
-        .sidebar.open { right: 0; }
-        .sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
-        .sidebar-header h2 { font-size: 18px; color: #fff; display: flex; align-items: center; gap: 8px; }
-        .close-btn { background: none; border: none; color: var(--text-dim); font-size: 28px; line-height: 1; cursor: pointer; transition: color 0.2s; }
-        .close-btn:hover { color: var(--danger); }
-        .sidebar-content { display: flex; flex-direction: column; gap: 16px; }
-        .sidebar-link { text-decoration: none; color: var(--text-sub); padding: 14px 18px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; transition: all 0.25s ease; display: flex; align-items: center; justify-content: space-between; font-weight: 500; }
-        .sidebar-link:hover { background: rgba(79,172,254,0.1); border-color: rgba(79,172,254,0.3); color: var(--primary); transform: translateX(4px); }
-        .sidebar-link.featured { background: linear-gradient(135deg, rgba(79,172,254,0.15), rgba(0,242,254,0.05)); border-color: rgba(79,172,254,0.4); color: var(--secondary); }
-        .sidebar-link.featured:hover { background: linear-gradient(135deg, rgba(79,172,254,0.25), rgba(0,242,254,0.15)); box-shadow: 0 4px 15px rgba(0,242,254,0.15); }
+        /* auth widget */
+        .auth-widget { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+        .auth-avatar { width:30px; height:30px; border-radius:50%;
+            background:linear-gradient(135deg,var(--primary),var(--accent));
+            display:flex; align-items:center; justify-content:center;
+            font-size:13px; font-weight:700; cursor:pointer; }
+        .auth-name { font-size:13px; color:var(--text-sub); }
+        .auth-login-btn { font-size:13px; color:var(--primary); text-decoration:none;
+            border:1px solid rgba(79,172,254,.4); padding:4px 12px; border-radius:20px;
+            transition:all .2s; }
+        .auth-login-btn:hover { background:rgba(79,172,254,.1); }
 
-        /* ══ 页脚 (严格保持) ══ */
-        footer { padding: 24px; text-align: center; background: rgba(0,0,0,0.28); border-top: 1px solid var(--border); margin-top: auto; }
-        .footer-text { color: var(--text-dim); font-size: 13px; line-height: 1.9; }
-        .footer-text a { color: var(--primary); text-decoration: none; transition: color 0.25s; }
-        .footer-text a:hover { color: var(--secondary); }
+        /* ══ SIDEBAR ══ */
+        .sidebar-overlay { position:fixed; top:0;left:0;right:0;bottom:0;
+            background:rgba(0,0,0,.5); backdrop-filter:blur(3px);
+            z-index:1999; opacity:0; visibility:hidden; transition:all .3s; }
+        .sidebar-overlay.open { opacity:1; visibility:visible; }
+        .sidebar { position:fixed; top:0; right:-320px; width:320px; max-width:85vw; height:100vh;
+            background:rgba(11,15,25,.95); backdrop-filter:blur(14px);
+            border-left:1px solid var(--border); z-index:2000;
+            transition:right .3s cubic-bezier(.4,0,.2,1);
+            display:flex; flex-direction:column; padding:30px 24px;
+            box-shadow:-10px 0 30px rgba(0,0,0,.5); }
+        .sidebar.open { right:0; }
+        .sidebar-header { display:flex; justify-content:space-between; align-items:center;
+            margin-bottom:30px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+        .sidebar-header h2 { font-size:18px; color:#fff; display:flex; align-items:center; gap:8px; }
+        .close-btn { background:none; border:none; color:var(--text-dim); font-size:28px; cursor:pointer; transition:color .2s; }
+        .close-btn:hover { color:var(--danger); }
+        .sidebar-content { display:flex; flex-direction:column; gap:16px; }
+        .sidebar-link { text-decoration:none; color:var(--text-sub); padding:14px 18px;
+            background:var(--card); border:1px solid var(--border); border-radius:12px;
+            transition:all .25s; display:flex; align-items:center; justify-content:space-between; font-weight:500; }
+        .sidebar-link:hover { background:rgba(79,172,254,.1); border-color:rgba(79,172,254,.3);
+            color:var(--primary); transform:translateX(4px); }
+        .sidebar-link.featured { background:linear-gradient(135deg,rgba(79,172,254,.15),rgba(0,242,254,.05));
+            border-color:rgba(79,172,254,.4); color:var(--secondary); }
 
-        /* ══════════════════════════════════════════════════
-           以下为仪表盘 (Dashboard) 专属样式
-           ══════════════════════════════════════════════════ */
-        .dash-container {
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 100px 24px 40px;
-            flex: 1;
+        /* ══ FOOTER ══ */
+        footer { padding:24px; text-align:center; background:rgba(0,0,0,.28);
+            border-top:1px solid var(--border); margin-top:auto; }
+        .footer-text { color:var(--text-dim); font-size:13px; line-height:1.9; }
+        .footer-text a { color:var(--primary); text-decoration:none; }
+
+        /* ══ PAGE LAYOUT ══ */
+        .dash-container { width:100%; max-width:1280px; margin:0 auto;
+            padding:96px 24px 48px; flex:1; display:flex; flex-direction:column; gap:24px; }
+
+        /* ══ WELCOME CARD ══ */
+        .welcome-card {
+            background:linear-gradient(135deg,rgba(79,172,254,.12),rgba(0,242,254,.04));
+            border:1px solid rgba(79,172,254,.28); border-radius:20px;
+            padding:28px 32px; display:flex; justify-content:space-between; align-items:center; gap:16px;
         }
-
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
+        .welcome-left { display:flex; flex-direction:column; gap:8px; }
+        .welcome-greeting { font-size:22px; font-weight:700; color:#fff; }
+        .welcome-sub { font-size:14px; color:var(--text-sub); }
+        .welcome-badges { display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; }
+        .badge { display:inline-flex; align-items:center; gap:5px; padding:4px 12px;
+            border-radius:20px; font-size:12px; font-weight:500; }
+        .badge-date { background:rgba(79,172,254,.15); color:var(--primary);
+            border:1px solid rgba(79,172,254,.3); }
+        .badge-status { background:rgba(85,239,196,.12); color:var(--success);
+            border:1px solid rgba(85,239,196,.3); }
+        .badge-tip { background:rgba(253,203,110,.12); color:var(--warn);
+            border:1px solid rgba(253,203,110,.3); }
+        .welcome-right { flex-shrink:0; }
+        .welcome-btn {
+            display:inline-flex; align-items:center; gap:8px; padding:12px 24px;
+            background:linear-gradient(90deg,var(--primary),var(--secondary));
+            border:none; border-radius:12px; color:#0b0f19; font-weight:700; font-size:14px;
+            cursor:pointer; text-decoration:none; transition:opacity .2s;
         }
-        .page-title {
-            font-size: 24px;
-            font-weight: 700;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        .welcome-btn:hover { opacity:.85; }
+
+        /* ══ QUICK NAV GRID ══ */
+        .quick-nav-grid {
+            display:grid; grid-template-columns:repeat(6,1fr); gap:14px;
         }
-        .refresh-btn {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid var(--border);
-            color: var(--text-sub);
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 6px;
+        .qnav-item {
+            background:var(--card); border:1px solid var(--border); border-radius:16px;
+            padding:20px 12px; text-align:center; text-decoration:none;
+            display:flex; flex-direction:column; align-items:center; gap:10px;
+            transition:all .25s; cursor:pointer;
         }
-        .refresh-btn:hover { background: rgba(79,172,254,0.1); color: var(--primary); border-color: rgba(79,172,254,0.3); }
-
-        /* KPI 指标卡片网格 */
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
+        .qnav-item:hover {
+            background:rgba(79,172,254,.08); border-color:rgba(79,172,254,.35);
+            transform:translateY(-3px); box-shadow:0 8px 24px rgba(79,172,254,.12);
         }
-        .kpi-card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 20px;
-            transition: transform 0.2s;
-            position: relative;
-            overflow: hidden;
+        .qnav-icon { font-size:28px; line-height:1; }
+        .qnav-label { font-size:13px; font-weight:600; color:#e2e8f0; }
+        .qnav-desc { font-size:11px; color:var(--text-dim); }
+        .qnav-badge { background:rgba(253,121,168,.2); color:var(--danger);
+            font-size:10px; padding:1px 6px; border-radius:8px; }
+
+        /* ══ MAIN GRID ══ */
+        .main-grid { display:grid; grid-template-columns:1fr 380px; gap:20px; align-items:start; }
+
+        /* ══ PANEL ══ */
+        .panel { background:var(--card); border:1px solid var(--border); border-radius:16px;
+            padding:20px; display:flex; flex-direction:column; }
+        .panel-header { display:flex; justify-content:space-between; align-items:center;
+            margin-bottom:16px; padding-bottom:12px;
+            border-bottom:1px solid rgba(255,255,255,.05); }
+        .panel-title { font-size:15px; font-weight:600; color:#e2e8f0; display:flex; align-items:center; gap:8px; }
+        .panel-action { font-size:12px; color:var(--primary); text-decoration:none;
+            cursor:pointer; transition:opacity .2s; background:none; border:none; }
+        .panel-action:hover { opacity:.75; }
+
+        /* ══ PORTFOLIO TABS ══ */
+        .mkt-tabs { display:flex; gap:6px; margin-bottom:16px; }
+        .mkt-tab { padding:5px 14px; border-radius:20px; font-size:12px; font-weight:600;
+            cursor:pointer; border:1px solid var(--border);
+            background:transparent; color:var(--text-sub); transition:all .2s; }
+        .mkt-tab.active { background:rgba(79,172,254,.18); border-color:rgba(79,172,254,.5);
+            color:var(--primary); }
+        .mkt-tab:hover:not(.active) { border-color:rgba(255,255,255,.2); color:#fff; }
+
+        .acct-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:14px; }
+        .acct-stat { background:rgba(0,0,0,.2); border-radius:12px; padding:14px;
+            border:1px solid rgba(255,255,255,.05); }
+        .acct-stat-label { font-size:11px; color:var(--text-dim); margin-bottom:5px; }
+        .acct-stat-value { font-size:18px; font-weight:700; color:#fff; }
+        .acct-stat-sub { font-size:11px; color:var(--text-sub); margin-top:3px; }
+        .txt-up { color:var(--success) !important; }
+        .txt-down { color:var(--danger) !important; }
+        .txt-neutral { color:var(--warn) !important; }
+
+        /* position mini table */
+        .mini-table { width:100%; border-collapse:collapse; }
+        .mini-table th { font-size:11px; color:var(--text-dim); font-weight:500;
+            padding:8px 6px; border-bottom:1px solid var(--border); text-align:left; }
+        .mini-table td { padding:8px 6px; font-size:13px; color:#e2e8f0;
+            border-bottom:1px solid rgba(255,255,255,.03); }
+        .mini-table tr:last-child td { border-bottom:none; }
+        .mini-table .sym { font-weight:600; color:var(--primary); }
+
+        /* ══ FLASH NEWS ══ */
+        .news-list { display:flex; flex-direction:column; gap:0; }
+        .news-item { display:flex; gap:12px; padding:11px 4px;
+            border-bottom:1px solid rgba(255,255,255,.04); text-decoration:none;
+            transition:background .2s; }
+        .news-item:last-child { border-bottom:none; }
+        .news-item:hover { background:rgba(255,255,255,.02); border-radius:8px; }
+        .news-rank { width:20px; height:20px; border-radius:6px; flex-shrink:0;
+            display:flex; align-items:center; justify-content:center;
+            font-size:11px; font-weight:700; background:rgba(79,172,254,.15);
+            color:var(--primary); margin-top:1px; }
+        .news-rank.r1 { background:rgba(253,121,168,.2); color:var(--danger); }
+        .news-rank.r2 { background:rgba(253,203,110,.15); color:var(--warn); }
+        .news-rank.r3 { background:rgba(85,239,196,.12); color:var(--success); }
+        .news-body { flex:1; min-width:0; }
+        .news-title { font-size:13px; color:#e2e8f0; line-height:1.45; overflow:hidden;
+            display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+        .news-src { font-size:11px; color:var(--text-dim); margin-top:3px; }
+        .news-src span { display:inline-block; margin-right:8px; }
+
+        /* ══ CHAT WIDGET ══ */
+        .chat-panel { display:flex; flex-direction:column; height:560px; }
+        .chat-panel .panel-header { flex-shrink:0; }
+        .chat-messages { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px;
+            padding:4px 0 8px; scrollbar-width:thin;
+            scrollbar-color:rgba(255,255,255,.08) transparent; }
+        .chat-messages::-webkit-scrollbar { width:4px; }
+        .chat-messages::-webkit-scrollbar-thumb { background:rgba(255,255,255,.1); border-radius:2px; }
+        .msg { display:flex; gap:8px; max-width:90%; }
+        .msg.user { align-self:flex-end; flex-direction:row-reverse; }
+        .msg-avatar { width:28px; height:28px; border-radius:50%; flex-shrink:0;
+            display:flex; align-items:center; justify-content:center; font-size:13px; }
+        .msg.bot .msg-avatar { background:linear-gradient(135deg,var(--primary),var(--accent)); }
+        .msg.user .msg-avatar { background:linear-gradient(135deg,var(--accent),var(--danger)); }
+        .msg-bubble { padding:9px 13px; border-radius:14px; font-size:13px; line-height:1.55; }
+        .msg.bot .msg-bubble { background:rgba(79,172,254,.1); border:1px solid rgba(79,172,254,.2);
+            color:#e2e8f0; border-top-left-radius:4px; }
+        .msg.user .msg-bubble { background:rgba(162,155,254,.15); border:1px solid rgba(162,155,254,.25);
+            color:#e2e8f0; border-top-right-radius:4px; }
+        .msg-time { font-size:10px; color:var(--text-dim); margin-top:4px;
+            text-align:right; padding:0 2px; }
+        .chat-input-row { display:flex; gap:8px; margin-top:12px; flex-shrink:0; }
+        .chat-input { flex:1; background:rgba(255,255,255,.05); border:1px solid var(--border);
+            border-radius:12px; padding:10px 14px; color:#fff; font-size:13px; outline:none;
+            transition:border-color .2s; }
+        .chat-input:focus { border-color:rgba(79,172,254,.5); }
+        .chat-input::placeholder { color:var(--text-dim); }
+        .chat-send { background:linear-gradient(90deg,var(--primary),var(--secondary));
+            border:none; border-radius:12px; width:40px; height:40px; cursor:pointer;
+            display:flex; align-items:center; justify-content:center;
+            color:#0b0f19; transition:opacity .2s; flex-shrink:0; }
+        .chat-send:hover { opacity:.85; }
+        .chat-send:disabled { opacity:.45; cursor:default; }
+        .typing-indicator { display:none; padding:9px 13px; }
+        .typing-indicator.show { display:flex; gap:4px; align-items:center; }
+        .typing-dot { width:6px; height:6px; border-radius:50%; background:var(--primary);
+            animation:typing-bounce .9s infinite; }
+        .typing-dot:nth-child(2) { animation-delay:.2s; }
+        .typing-dot:nth-child(3) { animation-delay:.4s; }
+        @keyframes typing-bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+        /* quick prompts */
+        .quick-prompts { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; flex-shrink:0; }
+        .qp-btn { background:rgba(79,172,254,.08); border:1px solid rgba(79,172,254,.2);
+            color:var(--primary); font-size:11px; padding:4px 10px; border-radius:20px;
+            cursor:pointer; transition:all .2s; }
+        .qp-btn:hover { background:rgba(79,172,254,.18); }
+
+        /* skeleton */
+        .skel { background:linear-gradient(90deg,rgba(255,255,255,.03) 25%,rgba(255,255,255,.06) 50%,rgba(255,255,255,.03) 75%);
+            background-size:400% 100%; border-radius:4px;
+            animation:pulse-bg 1.5s infinite; }
+        @keyframes pulse-bg { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+
+        /* ══ RESPONSIVE ══ */
+        @media(max-width:1100px) {
+            .quick-nav-grid { grid-template-columns:repeat(3,1fr); }
+            .main-grid { grid-template-columns:1fr; }
         }
-        .kpi-card:hover { transform: translateY(-3px); border-color: rgba(79,172,254,0.28); }
-        .kpi-title { font-size: 13px; color: var(--text-sub); margin-bottom: 8px; font-weight: 500; }
-        .kpi-value { font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 4px; }
-        .kpi-change { font-size: 13px; display: flex; align-items: center; gap: 4px; }
-        .txt-up { color: var(--success); }
-        .txt-down { color: var(--danger); }
-        .txt-neutral { color: var(--warn); }
-
-        /* 仪表盘主体网格布局 */
-        .dash-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
+        @media(max-width:768px) {
+            header { padding:12px 16px; gap:16px; }
+            .logo { flex-shrink:0; }
+            nav { flex:1; min-width:0; overflow-x:auto; flex-wrap:nowrap;
+                justify-content:flex-start; gap:20px;
+                -webkit-overflow-scrolling:touch; padding-right:4px; }
+            nav::-webkit-scrollbar { display:none; }
+            nav a { display:inline-block !important; flex-shrink:0; font-size:14px; }
+            .sidebar-btn { display:flex !important; position:sticky; right:0; flex-shrink:0;
+                background:rgba(11,15,25,.95); box-shadow:-12px 0 10px rgba(11,15,25,.95);
+                padding-left:8px; z-index:10; }
+            .dash-container { padding:80px 16px 40px; gap:18px; }
+            .welcome-card { flex-direction:column; padding:20px; }
+            .welcome-right { width:100%; }
+            .welcome-btn { width:100%; justify-content:center; }
+            .quick-nav-grid { grid-template-columns:repeat(3,1fr); gap:10px; }
+            .qnav-item { padding:14px 8px; }
+            .qnav-icon { font-size:22px; }
+            .qnav-label { font-size:12px; }
+            .qnav-desc { display:none; }
+            .acct-grid { grid-template-columns:1fr 1fr; }
+            .chat-panel { height:440px; }
         }
-        
-        /* ══ 仪表盘移动端深度优化 ════════════════════════════════════ */
-        @media (max-width: 900px) {
-            /* 中等屏幕（如平板）就开始让左右两栏变成上下单列排布 */
-            .dash-grid { grid-template-columns: 1fr; }
+        @media(max-width:480px) {
+            .quick-nav-grid { grid-template-columns:repeat(2,1fr); }
+            .acct-grid { grid-template-columns:1fr; }
         }
-
-        @media (max-width: 768px) {
-            /* 1. 导航栏：与首页保持完全一致的横向滑动 + 菜单吸附体验 */
-            header { padding: 12px 16px; gap: 16px; }
-            .logo { flex-shrink: 0; }
-            nav {
-                flex: 1; min-width: 0; overflow-x: auto; flex-wrap: nowrap;
-                justify-content: flex-start; gap: 20px;
-                -webkit-overflow-scrolling: touch; padding-right: 4px;
-            }
-            nav::-webkit-scrollbar { display: none; }
-            nav a { display: inline-block !important; flex-shrink: 0; font-size: 14px; }
-            .sidebar-btn {
-                display: flex !important; position: sticky; right: 0; flex-shrink: 0;
-                background: rgba(11,15,25,0.95); box-shadow: -12px 0 10px rgba(11,15,25,0.95);
-                padding-left: 8px; z-index: 10;
-            }
-
-            /* 2. 主容器瘦身 */
-            .dash-container { padding: 85px 16px 40px; }
-
-            /* 3. 头部标题区：文字缩小，按钮紧凑 */
-            .page-header { margin-bottom: 20px; }
-            .page-title { font-size: 18px; }
-            .refresh-btn { padding: 6px 12px; font-size: 12px; }
-
-            /* 4. KPI 数据卡片：手机上采用 1行2列 的排布，避免垂直空间太长 */
-            .kpi-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 12px;
-                margin-bottom: 20px;
-            }
-            .kpi-card { padding: 14px 12px; }
-            .kpi-title { font-size: 12px; margin-bottom: 4px; }
-            .kpi-value { font-size: 18px; margin-bottom: 4px; } /* 缩小数字防止撑破盒子 */
-            .kpi-change { font-size: 11px; }
-
-            /* 5. 面板区微调 */
-            .panel { padding: 16px; }
-            .panel-title { font-size: 15px; }
-            .chart-area { height: 200px; } /* 手机上图表高度压低一点 */
-        }
-
-        /* 针对像 iPhone SE 等超小屏幕的额外保护 */
-        @media (max-width: 380px) {
-            .kpi-grid { grid-template-columns: 1fr; } /* 实在放不下两列就变单列 */
-        }
-
-        /* 通用面板样式 */
-        .panel {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-        }
-        .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .panel-title { font-size: 16px; font-weight: 600; color: #e2e8f0; display: flex; align-items: center; gap: 8px; }
-        
-        /* 占位图表区 */
-        .chart-area {
-            width: 100%;
-            height: 250px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-dim);
-            font-size: 13px;
-            border: 1px dashed var(--border);
-        }
-
-        /* 表格样式 (持仓) */
-        .table-wrapper { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; text-align: left; }
-        th { font-size: 12px; color: var(--text-dim); font-weight: 500; padding: 12px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-        td { padding: 12px 8px; font-size: 14px; color: #e2e8f0; border-bottom: 1px solid rgba(255,255,255,0.03); }
-        tr:last-child td { border-bottom: none; }
-        tr:hover td { background: rgba(255,255,255,0.02); }
-        .sym-name { font-weight: 600; color: var(--primary); }
-        .sym-code { font-size: 12px; color: var(--text-dim); margin-left: 6px; }
-
-        /* 动态流水列表 */
-        .activity-list { display: flex; flex-direction: column; gap: 12px; }
-        .activity-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 12px;
-            background: rgba(255,255,255,0.02);
-            border-radius: 10px;
-            border: 1px solid transparent;
-            transition: background 0.2s;
-        }
-        .activity-item:hover { background: rgba(255,255,255,0.05); border-color: var(--border); }
-        .act-info { display: flex; flex-direction: column; gap: 4px; }
-        .act-title { font-size: 13px; font-weight: 600; color: #fff; }
-        .act-time { font-size: 11px; color: var(--text-dim); }
-        .act-val { font-size: 14px; font-weight: 600; }
-        
-        .tag-buy { background: rgba(85,239,196,0.15); color: var(--success); padding: 2px 6px; border-radius: 4px; font-size: 10px; }
-        .tag-sell { background: rgba(253,121,168,0.15); color: var(--danger); padding: 2px 6px; border-radius: 4px; font-size: 10px; }
-
-        /* 加载动画 */
-        .skeleton { animation: pulse-bg 1.5s infinite; background: linear-gradient(90deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.02) 75%); background-size: 400% 100%; border-radius: 4px; }
-        @keyframes pulse-bg { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
-
     </style>
 </head>
 <body>
 
-    <header>
-        <div class="logo">
-            <span class="logo-text">CampusQuant</span>
-            <span class="logo-sub">校园财商</span>
-        </div>
-        <nav>
-            <a href="index.html">首页</a>
-            <a href="dashboard.html" class="active">仪表盘</a>
-            <a href="trade.html">模拟演练<span class="nav-dot"></span></a>
+<header>
+    <div class="logo" onclick="location.href='dashboard.html'">
+        <span class="logo-text">CampusQuant</span>
+        <span class="logo-sub">校园财商</span>
+    </div>
+    <nav>
+        <a href="dashboard.html" class="active">控制台</a>
+        <a href="trade.html">模拟演练<span class="nav-dot"></span></a>
         <a href="analysis.html">个股分析</a>
-            <a href="platforms.html">持仓体检</a>
-            <a href="market.html">市场快讯</a>
-            <a href="community.html">投教社区</a>
-            <a href="team.html">关于我们</a>
-            
-            <button id="sidebar-toggle" class="sidebar-btn" title="打开学习中心">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="3" y1="12" x2="21" y2="12"></line>
-                    <line x1="3" y1="6" x2="21" y2="6"></line>
-                    <line x1="3" y1="18" x2="21" y2="18"></line>
-                </svg>
-            </button>
-        </nav>
-    </header>
+        <a href="platforms.html">持仓体检</a>
+        <a href="market.html">市场快讯</a>
+        <a href="community.html">投教社区</a>
+        <a href="team.html">关于我们</a>
+        <button id="sidebar-toggle" class="sidebar-btn" title="学习中心">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+        </button>
+    </nav>
+    <div class="auth-widget" id="auth-widget">
+        <a href="auth.html" class="auth-login-btn">登录 / 注册</a>
+    </div>
+</header>
 
-    <div class="sidebar-overlay" id="sidebar-overlay"></div>
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h2>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                </svg>
-                校园财商库
-            </h2>
-            <button id="sidebar-close" class="close-btn">&times;</button>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h2>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+            校园财商库
+        </h2>
+        <button id="sidebar-close" class="close-btn">&times;</button>
+    </div>
+    <div class="sidebar-content">
+        <a href="home.html" class="sidebar-link featured"><span>📚 进入学习中心</span><span>→</span></a>
+        <a href="#" class="sidebar-link"><span>📈 基础财商课程</span></a>
+        <a href="#" class="sidebar-link"><span>🛡️ 大学生防骗指南</span></a>
+        <a href="#" class="sidebar-link"><span>💡 投资策略锦囊</span></a>
+        <a href="resources.html" class="sidebar-link"><span>📝 学习资源库</span></a>
+    </div>
+</aside>
+
+<main class="dash-container">
+
+    <!-- ① WELCOME CARD -->
+    <div class="welcome-card">
+        <div class="welcome-left">
+            <div class="welcome-greeting" id="welcome-text">欢迎回来 👋</div>
+            <div class="welcome-sub" id="welcome-sub">今天是个学习的好日子，你的模拟账户在等你</div>
+            <div class="welcome-badges">
+                <span class="badge badge-date" id="badge-date">📅 --</span>
+                <span class="badge badge-status" id="badge-status">✅ 账户健康</span>
+                <span class="badge badge-tip" id="badge-tip">💡 建议今日复盘</span>
+            </div>
         </div>
-        <div class="sidebar-content">
-            <a href="home.html" class="sidebar-link featured">
-                <span>📚 进入学习中心</span>
-                <span>→</span>
+        <div class="welcome-right">
+            <a href="trade.html" class="welcome-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                开始模拟交易
             </a>
-            <a href="#" class="sidebar-link">
-                <span>📈 基础财商课程</span>
-            </a>
-            <a href="#" class="sidebar-link">
-                <span>🛡️ 大学生防骗指南</span>
-            </a>
-            <a href="#" class="sidebar-link">
-                <span>💡 投资策略锦囊</span>
-            </a>
-            <a href="#" class="sidebar-link">
-                <span>📝 我的模拟笔记</span>
-            </a>
         </div>
-    </aside>
+    </div>
 
-    <main class="dash-container">
-        
-        <div class="page-header">
-            <div class="page-title">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary)">
-                    <rect x="3" y="3" width="7" height="9"></rect>
-                    <rect x="14" y="3" width="7" height="5"></rect>
-                    <rect x="14" y="12" width="7" height="9"></rect>
-                    <rect x="3" y="16" width="7" height="5"></rect>
-                </svg>
-                我的财商控制台
+    <!-- ② QUICK NAV GRID -->
+    <div class="quick-nav-grid">
+        <a href="trade.html" class="qnav-item">
+            <div class="qnav-icon">📊</div>
+            <div class="qnav-label">模拟演练</div>
+            <div class="qnav-desc">三市场交易大厅</div>
+        </a>
+        <a href="analysis.html" class="qnav-item">
+            <div class="qnav-icon">🔍</div>
+            <div class="qnav-label">个股分析</div>
+            <div class="qnav-desc">AI 9节点深析</div>
+        </a>
+        <a href="platforms.html" class="qnav-item">
+            <div class="qnav-icon">🩺</div>
+            <div class="qnav-label">持仓体检</div>
+            <div class="qnav-desc">风控健康评分</div>
+        </a>
+        <a href="market.html" class="qnav-item">
+            <div class="qnav-icon">📰</div>
+            <div class="qnav-label">市场快讯</div>
+            <div class="qnav-desc">热搜 & K线图</div>
+        </a>
+        <a href="community.html" class="qnav-item">
+            <div class="qnav-icon">💬</div>
+            <div class="qnav-label">投教社区</div>
+            <div class="qnav-desc">学员交流广场</div>
+        </a>
+        <a href="home.html" class="qnav-item">
+            <div class="qnav-icon">🎓</div>
+            <div class="qnav-label">学习中心</div>
+            <div class="qnav-desc">财商知识库</div>
+        </a>
+    </div>
+
+    <!-- ③ MAIN GRID: left=portfolio+news, right=chat -->
+    <div class="main-grid">
+
+        <!-- LEFT COLUMN -->
+        <div style="display:flex;flex-direction:column;gap:20px;">
+
+            <!-- Portfolio mini card -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">💼 我的模拟资产</div>
+                    <a href="trade.html" class="panel-action">查看全部 →</a>
+                </div>
+                <div class="mkt-tabs">
+                    <button class="mkt-tab active" data-mkt="ALL" onclick="switchMkt(this,'ALL')">全部</button>
+                    <button class="mkt-tab" data-mkt="A" onclick="switchMkt(this,'A')">A股 (CNH)</button>
+                    <button class="mkt-tab" data-mkt="HK" onclick="switchMkt(this,'HK')">港股 (HKD)</button>
+                    <button class="mkt-tab" data-mkt="US" onclick="switchMkt(this,'US')">美股 (USD)</button>
+                </div>
+                <div class="acct-grid" id="acct-stats">
+                    <div class="acct-stat"><div class="acct-stat-label">总资产 (折合CNY)</div><div class="acct-stat-value skel" style="height:24px;width:80%">&nbsp;</div><div class="acct-stat-sub">–</div></div>
+                    <div class="acct-stat"><div class="acct-stat-label">可用资金</div><div class="acct-stat-value skel" style="height:24px;width:60%">&nbsp;</div><div class="acct-stat-sub">–</div></div>
+                    <div class="acct-stat"><div class="acct-stat-label">持仓市值</div><div class="acct-stat-value skel" style="height:24px;width:70%">&nbsp;</div><div class="acct-stat-sub">–</div></div>
+                </div>
+                <div style="overflow-x:auto">
+                    <table class="mini-table" id="mini-pos-table">
+                        <thead><tr><th>标的</th><th>持仓</th><th>成本</th><th>浮盈亏</th><th>市值</th></tr></thead>
+                        <tbody id="mini-pos-body"><tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px">加载中...</td></tr></tbody>
+                    </table>
+                </div>
             </div>
-            <button class="refresh-btn" onclick="initDashboard()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-                同步数据
-            </button>
+
+            <!-- Flash news -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">⚡ 快讯热搜</div>
+                    <a href="market.html" class="panel-action">更多资讯 →</a>
+                </div>
+                <div class="news-list" id="news-list">
+                    <div style="text-align:center;color:var(--text-dim);padding:20px;font-size:13px">加载中...</div>
+                </div>
+            </div>
+
+        </div><!-- /LEFT COLUMN -->
+
+        <!-- RIGHT COLUMN: 财商学长 chat -->
+        <div class="panel chat-panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    财商学长 AI
+                </div>
+                <button class="panel-action" onclick="clearChat()">清空对话</button>
+            </div>
+            <div class="quick-prompts">
+                <button class="qp-btn" onclick="quickAsk('什么是ETF定投？')">ETF定投</button>
+                <button class="qp-btn" onclick="quickAsk('如何控制仓位风险？')">仓位管理</button>
+                <button class="qp-btn" onclick="quickAsk('分析一下我的持仓')">持仓分析</button>
+                <button class="qp-btn" onclick="quickAsk('A股入门怎么学？')">A股入门</button>
+            </div>
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-input-row">
+                <input type="text" class="chat-input" id="chat-input"
+                    placeholder="问学长任何财商问题…" maxlength="300"
+                    onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}" />
+                <button class="chat-send" id="chat-send-btn" onclick="sendChat()" title="发送">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+            </div>
+        </div><!-- /RIGHT COLUMN -->
+
+    </div><!-- /MAIN GRID -->
+
+</main>
+
+<footer>
+    <div class="footer-text">
+        &copy; 2026 CampusQuant Team &nbsp;·&nbsp; 校园财商智能分析平台<br>
+        致力于用 AI 帮助每位大学生建立正确的财富认知<br>
+        <a href="team.html">关于团队</a> &nbsp;·&nbsp; <a href="community.html">加入社区</a>
+    </div>
+</footer>
+
+<script>
+'use strict';
+const API = 'http://localhost:8000';
+const CHAT_SK = 'cq_chat_history_v2';
+
+// ══════════════ SIDEBAR ══════════════
+const sidebar        = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebar-overlay');
+document.getElementById('sidebar-toggle').addEventListener('click', () => {
+    sidebar.classList.add('open'); sidebarOverlay.classList.add('open');
+    document.body.style.overflow='hidden';
+});
+document.getElementById('sidebar-close').addEventListener('click', closeSidebar);
+sidebarOverlay.addEventListener('click', closeSidebar);
+function closeSidebar() {
+    sidebar.classList.remove('open'); sidebarOverlay.classList.remove('open');
+    document.body.style.overflow='';
+}
+
+// ══════════════ AUTH WIDGET ══════════════
+function renderAuthWidget() {
+    const token = localStorage.getItem('cq_token');
+    const name  = localStorage.getItem('cq_username') || '用户';
+    const el    = document.getElementById('auth-widget');
+    if (token) {
+        el.innerHTML = `
+            <div class="auth-avatar" title="${name}">${name[0].toUpperCase()}</div>
+            <span class="auth-name">${name}</span>
+            <button onclick="logout()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px">退出</button>`;
+        document.getElementById('welcome-text').textContent = `欢迎回来，${name} 👋`;
+    }
+}
+function logout() {
+    localStorage.removeItem('cq_token'); localStorage.removeItem('cq_username');
+    location.reload();
+}
+
+// ══════════════ WELCOME DATE ══════════════
+function renderWelcome() {
+    const now = new Date();
+    const days = ['周日','周一','周二','周三','周四','周五','周六'];
+    const dateStr = `${now.getMonth()+1}月${now.getDate()}日 ${days[now.getDay()]}`;
+    document.getElementById('badge-date').textContent = `📅 ${dateStr}`;
+    const h = now.getHours();
+    let sub = h < 10 ? '早安！开市前先看看热榜' : h < 13 ? '上午好！趁午休复盘一下' : h < 18 ? '下午好！看看今日涨跌' : '晚上好！整理今日操作';
+    document.getElementById('welcome-sub').textContent = sub;
+}
+
+// ══════════════ ACCOUNT DATA ══════════════
+let _acctData = null;
+let _curMkt = 'ALL';
+
+async function loadAccount() {
+    try {
+        const headers = {};
+        const tok = localStorage.getItem('cq_token');
+        if (tok) headers['Authorization'] = 'Bearer ' + tok;
+        const r = await fetch(`${API}/api/v1/trade/account`, { headers });
+        if (!r.ok) throw new Error(r.status);
+        _acctData = await r.json();
+        renderAcct(_acctData, _curMkt);
+    } catch(e) {
+        renderAcctOffline();
+    }
+}
+
+function switchMkt(btn, mkt) {
+    document.querySelectorAll('.mkt-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    _curMkt = mkt;
+    if (_acctData) renderAcct(_acctData, mkt);
+}
+
+function fmtNum(n, dec=2) { return n == null ? '--' : n.toLocaleString('zh-CN',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+function clsForNum(n) { return n > 0 ? 'txt-up' : n < 0 ? 'txt-down' : 'txt-neutral'; }
+
+function renderAcct(data, mkt) {
+    const grid = document.getElementById('acct-stats');
+    const ccy  = { ALL:'CNY', A:'CNH', HK:'HKD', US:'USD' };
+    const unit = ccy[mkt] || 'CNY';
+
+    // pick market slice
+    const src = (mkt === 'ALL') ? data : (data.markets || {})[mkt] || {};
+    const total     = src.total_assets ?? data.total_assets_cny ?? 0;
+    const cash      = src.cash ?? 0;
+    const positions_val = src.positions_value ?? (total - cash);
+    const pnl_pct   = src.total_pnl_pct ?? data.total_pnl_pct ?? 0;
+
+    grid.innerHTML = `
+        <div class="acct-stat">
+            <div class="acct-stat-label">总资产 (${unit})</div>
+            <div class="acct-stat-value">${fmtNum(total)}</div>
+            <div class="acct-stat-sub ${clsForNum(pnl_pct)}">${pnl_pct>=0?'+':''}${fmtNum(pnl_pct,2)}%</div>
         </div>
-
-        <div class="kpi-grid">
-            <div class="kpi-card">
-                <div class="kpi-title">模拟总资产 (¥)</div>
-                <div class="kpi-value" id="kpi-total">--</div>
-                <div class="kpi-change">
-                    可用资金: <span style="color:#e2e8f0" id="kpi-cash">--</span>
-                </div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-title">今日盈亏</div>
-                <div class="kpi-value txt-up" id="kpi-today">--</div>
-                <div class="kpi-change txt-up" id="kpi-today-pct">
-                    <span>--%</span> 跑赢大盘 🚀
-                </div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-title">累计收益率</div>
-                <div class="kpi-value txt-up" id="kpi-total-return">--</div>
-                <div class="kpi-change">
-                    超越 <span style="color:var(--secondary)">78%</span> 同学
-                </div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-title">风控健康分</div>
-                <div class="kpi-value txt-neutral" id="kpi-risk-score">--</div>
-                <div class="kpi-change">
-                    仓位适中 · 未触碰红线
-                </div>
-            </div>
+        <div class="acct-stat">
+            <div class="acct-stat-label">可用资金</div>
+            <div class="acct-stat-value">${fmtNum(cash)}</div>
+            <div class="acct-stat-sub">${unit}</div>
         </div>
-
-        <div class="dash-grid">
-            
-            <div style="display: flex; flex-direction: column; gap: 20px;">
-                
-                <div class="panel">
-                    <div class="panel-header">
-                        <div class="panel-title">📈 资产走势 vs 沪深300</div>
-                    </div>
-                    <div class="chart-area" id="main-chart">
-                        正在加载图表组件... (预留 API 挂载点)
-                    </div>
-                </div>
-
-                <div class="panel">
-                    <div class="panel-header">
-                        <div class="panel-title">💼 当前模拟持仓</div>
-                    </div>
-                    <div class="table-wrapper">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>标的名称</th>
-                                    <th>持仓股数</th>
-                                    <th>成本价</th>
-                                    <th>现价</th>
-                                    <th>浮动盈亏</th>
-                                    <th>仓位占比</th>
-                                </tr>
-                            </thead>
-                            <tbody id="positions-tbody">
-                                <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:20px;">正在获取持仓数据...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div style="display: flex; flex-direction: column; gap: 20px;">
-                
-                <div class="panel" style="background: linear-gradient(145deg, rgba(79,172,254,0.1), rgba(0,242,254,0.02)); border-color: rgba(79,172,254,0.3);">
-                    <div class="panel-header" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
-                        <div class="panel-title" style="color:var(--secondary)">💡 学长提醒</div>
-                    </div>
-                    <p style="font-size:13px; color:var(--text-sub); line-height:1.6; margin-top:12px;">
-                        你当前的单一持仓占比均未超过 <strong>15%</strong>，风控执行得很好！建议在“学习中心”补充阅读《ETF定投微笑曲线》。
-                    </p>
-                </div>
-
-                <div class="panel" style="flex:1;">
-                    <div class="panel-header">
-                        <div class="panel-title">⏳ 模拟交易流水</div>
-                    </div>
-                    <div class="activity-list" id="activity-list">
-                        </div>
-                </div>
-
-            </div>
-
-        </div>
-
-    </main>
-
-    <footer>
-        <div class="footer-text">
-            &copy; 2026 CampusQuant Team &nbsp;·&nbsp; 校园财商智能分析平台<br>
-            致力于用 AI 帮助每位大学生建立正确的财富认知<br>
-            <a href="team.html">关于团队</a> &nbsp;·&nbsp;
-            <a href="community.html">加入社区</a>
-        </div>
-    </footer>
-
-
-    <script>
-    'use strict';
-
-    /* ══════════════════════════════════════════════════════════
-       仪表盘前端逻辑与 API 接入预留区
-       ══════════════════════════════════════════════════════════ */
-    
-    const API_BASE = 'http://localhost:8000';
-
-    // 侧边栏逻辑 (严格保持)
-    const sidebar        = document.getElementById('sidebar');
-    const sidebarOverlay = document.getElementById('sidebar-overlay');
-    const sidebarToggle  = document.getElementById('sidebar-toggle');
-    const sidebarClose   = document.getElementById('sidebar-close');
-
-    function openSidebar() {
-        sidebar.classList.add('open');
-        sidebarOverlay.classList.add('open');
-        document.body.style.overflow = 'hidden'; 
-    }
-    function closeSidebar() {
-        sidebar.classList.remove('open');
-        sidebarOverlay.classList.remove('open');
-        document.body.style.overflow = '';
-    }
-    sidebarToggle.addEventListener('click', openSidebar);
-    sidebarClose.addEventListener('click', closeSidebar);
-    sidebarOverlay.addEventListener('click', closeSidebar);
-
-    // 格式化工具
-    const fmtMoney = (num) => new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(num);
-    const fmtPct = (num) => (num > 0 ? '+' : '') + num.toFixed(2) + '%';
-    const getColorClass = (num) => num > 0 ? 'txt-up' : (num < 0 ? 'txt-down' : 'txt-neutral');
-
-    // 页面初始化
-    document.addEventListener('DOMContentLoaded', initDashboard);
-
-    async function initDashboard() {
-        renderKPISkeleton();
-        try {
-            const resp = await fetch(`${API_BASE}/api/v1/portfolio/summary`);
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const data = await resp.json();
-            renderKPI(data);
-            renderPositions(data.positions || []);
-            renderActivity(data);
-        } catch (e) {
-            console.warn('[Dashboard] 后端未连接，显示空状态:', e);
-            renderOfflineState();
-        }
-    }
-
-    function renderKPISkeleton() {
-        ['kpi-total','kpi-cash','kpi-today','kpi-total-return','kpi-risk-score'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = '加载中...';
-        });
-    }
-
-    function renderOfflineState() {
-        ['kpi-total','kpi-cash','kpi-today','kpi-total-return'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = '--';
-        });
-        const riskEl = document.getElementById('kpi-risk-score');
-        if (riskEl) riskEl.textContent = '--';
-        const tbody = document.getElementById('positions-tbody');
-        if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:24px;">后端服务未连接，暂无持仓数据</td></tr>`;
-        const actList = document.getElementById('activity-list');
-        if (actList) actList.innerHTML = `<div style="text-align:center;color:var(--text-dim);padding:16px;font-size:13px;">暂无交易记录</div>`;
-    }
-
-    function renderKPI(data) {
-        if (!data) return;
-        const el = id => document.getElementById(id);
-        if (el('kpi-total'))       el('kpi-total').textContent       = fmtMoney(data.total_assets ?? 0);
-        if (el('kpi-cash'))        el('kpi-cash').textContent        = fmtMoney(data.cash ?? 0);
-        const todayPnl = data.today_pnl ?? 0;
-        if (el('kpi-today'))       el('kpi-today').textContent       = (todayPnl >= 0 ? '+' : '') + fmtMoney(todayPnl);
-        if (el('kpi-today-pct'))   el('kpi-today-pct').innerHTML     = `<span>${fmtPct(todayPnl / Math.max(data.total_assets ?? 1, 1) * 100)}</span>`;
-        if (el('kpi-total-return')) el('kpi-total-return').textContent = fmtPct(data.total_pnl_pct ?? 0);
-        if (el('kpi-risk-score'))  el('kpi-risk-score').textContent  = `${data.positions?.length ?? 0} 持仓`;
-    }
-
-    function renderPositions(positions) {
-        const tbody = document.getElementById('positions-tbody');
-        if (!tbody) return;
-        if (!positions || positions.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:24px;">暂无持仓，请前往模拟演练建立仓位</td></tr>`;
-            return;
-        }
-        const totalMkt = positions.reduce((s, p) => s + (p.market_value ?? 0), 0) || 1;
-        tbody.innerHTML = positions.map(p => {
-            const ratio = ((p.market_value ?? 0) / totalMkt * 100).toFixed(1);
-            const pnl   = p.unrealized_pnl ?? 0;
-            return `
-            <tr>
-                <td><span class="sym-name">${p.name || p.symbol}</span><span class="sym-code">${p.symbol}</span></td>
-                <td>${p.quantity ?? '--'}</td>
-                <td>${(p.avg_cost ?? 0).toFixed(3)}</td>
-                <td>${(p.current_price ?? 0).toFixed(3)}</td>
-                <td class="${getColorClass(pnl)}">${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}</td>
-                <td>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                        <div style="flex:1; background:rgba(255,255,255,0.1); height:4px; border-radius:2px; overflow:hidden;">
-                            <div style="width:${ratio}%; background:var(--primary); height:100%;"></div>
-                        </div>
-                        <span style="font-size:11px;">${ratio}%</span>
-                    </div>
-                </td>
-            </tr>`;
-        }).join('');
-    }
-
-    function renderActivity(data) {
-        const actList = document.getElementById('activity-list');
-        if (!actList) return;
-        // portfolio/summary 暂不返回 orders，显示占位
-        actList.innerHTML = `<div style="text-align:center;color:var(--text-dim);padding:16px;font-size:13px;">
-            最近交易记录请前往 <a href="trade.html" style="color:var(--primary)">模拟演练</a> 查看
+        <div class="acct-stat">
+            <div class="acct-stat-label">持仓市值</div>
+            <div class="acct-stat-value">${fmtNum(positions_val)}</div>
+            <div class="acct-stat-sub">${unit}</div>
         </div>`;
+
+    // positions table
+    const allPos = data.positions || [];
+    const filtered = mkt === 'ALL' ? allPos : allPos.filter(p => (p.market_type||'').toUpperCase() === mkt);
+    const tbody = document.getElementById('mini-pos-body');
+    if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px">暂无持仓 · <a href="trade.html" style="color:var(--primary)">去交易</a></td></tr>`;
+        return;
     }
-    </script>
+    tbody.innerHTML = filtered.slice(0,6).map(p => {
+        const pnl = p.unrealized_pnl ?? 0;
+        return `<tr>
+            <td><span class="sym">${p.symbol}</span></td>
+            <td>${p.quantity ?? '--'}</td>
+            <td>${fmtNum(p.avg_cost,3)}</td>
+            <td class="${clsForNum(pnl)}">${pnl>=0?'+':''}${fmtNum(pnl)}</td>
+            <td>${fmtNum(p.market_value)}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderAcctOffline() {
+    document.getElementById('acct-stats').innerHTML = `
+        <div class="acct-stat"><div class="acct-stat-label">A股 (CNH)</div><div class="acct-stat-value">100,000.00</div><div class="acct-stat-sub">初始资金</div></div>
+        <div class="acct-stat"><div class="acct-stat-label">港股 (HKD)</div><div class="acct-stat-value">100,000.00</div><div class="acct-stat-sub">初始资金</div></div>
+        <div class="acct-stat"><div class="acct-stat-label">美股 (USD)</div><div class="acct-stat-value">10,000.00</div><div class="acct-stat-sub">初始资金</div></div>`;
+    document.getElementById('mini-pos-body').innerHTML =
+        `<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px">后端未连接 · <a href="trade.html" style="color:var(--primary)">去交易</a></td></tr>`;
+}
+
+// ══════════════ FLASH NEWS ══════════════
+async function loadNews() {
+    const el = document.getElementById('news-list');
+    try {
+        const r = await fetch(`${API}/api/v1/market/hotnews`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const raw = await r.json();
+        // 兼容两种格式: 直接 list 或 {sources:[...]} wrapper
+        const srcList = Array.isArray(raw) ? raw : (raw.sources || []);
+        console.log('[dashboard] hotnews sources:', srcList.length, srcList);
+
+        // 扁平化: 每个来源取前2条，总共取8条
+        const items = [];
+        for (const src of srcList.slice(0, 4)) {
+            for (const item of (src.items || []).slice(0, 2)) {
+                items.push({ ...item, label: src.label, color: src.color });
+                if (items.length >= 8) break;
+            }
+            if (items.length >= 8) break;
+        }
+        if (!items.length) throw new Error('empty response');
+        el.innerHTML = items.map((item, i) => {
+            const rk = i < 3 ? `r${i+1}` : '';
+            return `<a href="${item.url}" target="_blank" rel="noopener" class="news-item">
+                <div class="news-rank ${rk}">${i+1}</div>
+                <div class="news-body">
+                    <div class="news-title">${item.title}</div>
+                    <div class="news-src"><span style="color:${item.color||'var(--primary)'}">${item.label||''}</span></div>
+                </div>
+            </a>`;
+        }).join('');
+    } catch(e) {
+        console.warn('[dashboard] loadNews error:', e);
+        el.innerHTML = `<div style="text-align:center;color:var(--text-dim);padding:20px;font-size:13px">
+            暂时无法获取快讯 · <a href="market.html" style="color:var(--primary)">前往市场页</a></div>`;
+    }
+}
+
+// ══════════════ CHAT ══════════════
+const MENTOR_INTRO = {
+    role:'bot',
+    text:'你好！我是财商学长 AI 🎓\n\n我能帮你解答股票投资、风险管理、财务规划等各类财商问题。点击下方快捷问题开始，或者直接输入你的问题！',
+    time: fmtTime(new Date())
+};
+
+let _chatHistory = [];
+
+function fmtTime(d) {
+    return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+}
+
+function loadChatHistory() {
+    try {
+        const saved = localStorage.getItem(CHAT_SK);
+        _chatHistory = saved ? JSON.parse(saved) : [MENTOR_INTRO];
+    } catch(e) { _chatHistory = [MENTOR_INTRO]; }
+    renderAllMessages();
+}
+
+function saveChatHistory() {
+    // keep last 40 messages to avoid localStorage bloat
+    const trimmed = _chatHistory.slice(-40);
+    _chatHistory = trimmed;
+    localStorage.setItem(CHAT_SK, JSON.stringify(trimmed));
+}
+
+function renderAllMessages() {
+    const container = document.getElementById('chat-messages');
+    container.innerHTML = _chatHistory.map(renderMsgHTML).join('');
+    scrollChatBottom();
+}
+
+function renderMsgHTML(msg) {
+    const cls = msg.role === 'user' ? 'user' : 'bot';
+    const avatar = msg.role === 'user'
+        ? (localStorage.getItem('cq_username')||'U')[0].toUpperCase()
+        : '🎓';
+    const text = (msg.text||'').replace(/\n/g,'<br>');
+    return `<div class="msg ${cls}">
+        <div class="msg-avatar">${avatar}</div>
+        <div>
+            <div class="msg-bubble">${text}</div>
+            <div class="msg-time">${msg.time||''}</div>
+        </div>
+    </div>`;
+}
+
+function appendMsg(msg) {
+    _chatHistory.push(msg);
+    const container = document.getElementById('chat-messages');
+    container.insertAdjacentHTML('beforeend', renderMsgHTML(msg));
+    scrollChatBottom();
+    saveChatHistory();
+}
+
+function scrollChatBottom() {
+    const c = document.getElementById('chat-messages');
+    c.scrollTop = c.scrollHeight;
+}
+
+function showTyping() {
+    const container = document.getElementById('chat-messages');
+    const el = document.createElement('div');
+    el.className = 'msg bot'; el.id = 'typing-msg';
+    el.innerHTML = `<div class="msg-avatar">🎓</div>
+        <div class="msg-bubble typing-indicator show">
+            <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+        </div>`;
+    container.appendChild(el);
+    scrollChatBottom();
+}
+function hideTyping() {
+    const el = document.getElementById('typing-msg');
+    if (el) el.remove();
+}
+
+function quickAsk(text) {
+    document.getElementById('chat-input').value = text;
+    sendChat();
+}
+
+function clearChat() {
+    _chatHistory = [MENTOR_INTRO];
+    saveChatHistory();
+    renderAllMessages();
+}
+
+async function sendChat() {
+    const input = document.getElementById('chat-input');
+    const text  = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    const btn = document.getElementById('chat-send-btn');
+    btn.disabled = true;
+
+    appendMsg({ role:'user', text, time: fmtTime(new Date()) });
+    showTyping();
+
+    try {
+        const tok = localStorage.getItem('cq_token');
+        const headers = { 'Content-Type':'application/json' };
+        if (tok) headers['Authorization'] = 'Bearer ' + tok;
+
+        const body = {
+            message: text,
+            history: _chatHistory.slice(-10).map(m => ({
+                role: m.role === 'user' ? 'user' : 'assistant',
+                content: m.text
+            }))
+        };
+
+        const r = await fetch(`${API}/api/v1/chat/mentor`, {
+            method:'POST', headers, body: JSON.stringify(body)
+        });
+
+        hideTyping();
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        appendMsg({ role:'bot', text: data.reply || '学长暂时无法回答，请稍后再试', time: fmtTime(new Date()) });
+    } catch(e) {
+        hideTyping();
+        // fallback: local rule-based answers
+        const reply = localMentorFallback(text);
+        appendMsg({ role:'bot', text: reply, time: fmtTime(new Date()) });
+    } finally {
+        btn.disabled = false;
+        input.focus();
+    }
+}
+
+function localMentorFallback(q) {
+    q = q.toLowerCase();
+    if (q.includes('etf') || q.includes('定投')) return 'ETF定投是指每隔固定时间买入固定金额的ETF基金，利用市场波动摊低成本。核心优势是不需要择时，适合大学生月光族每月定投小额资金。\n\n推荐指数：沪深300、中证500作为入门选择。';
+    if (q.includes('仓位') || q.includes('风险')) return '仓位管理是风控的核心。对于大学生建议：\n• 单只股票不超过总资产的15%\n• 保留20%现金应对突发\n• 学习期间总仓位不超过50%\n\n本平台风控系统会在你越界时提醒你！';
+    if (q.includes('a股') || q.includes('入门')) return 'A股入门学习路径：\n1. 基础概念：股票、市盈率(PE)、市净率(PB)\n2. 看K线：日K/周K形态识别\n3. 基本面：看财报三表（利润表/资产负债表/现金流）\n4. 实践：用本平台模拟账户操作，零风险练手！';
+    if (q.includes('持仓') || q.includes('分析')) return '请前往「持仓体检」页面，输入你的持仓信息，AI会帮你生成全面的风控报告，包括集中度分析、行业分散度、建议仓位调整方案。';
+    if (q.includes('港股') || q.includes('hk')) return '港股市场特点：\n• 实行T+0交易（可当日买卖）\n• 有涨跌幅限制较少，波动更大\n• 港股通可用人民币买入部分港股\n• 最低1手起买，部分个股1手=100/200/500股不等\n\n建议先在本平台用HKD模拟账户练习！';
+    if (q.includes('美股') || q.includes('us')) return '美股市场特点：\n• 24小时交易（北京时间22:30-05:00）\n• 可买卖科技巨头：AAPL、MSFT、NVDA、TSLA\n• 美股可购买零股（不足1股）\n• 本平台USD模拟账户10,000美元起手练习';
+    return `这是个好问题！关于"${q.slice(0,15)}"，建议你：\n1. 查阅学习中心的相关课程\n2. 在模拟账户里实际操作体验\n3. 去投教社区和同学讨论\n\n如果是具体的个股分析问题，可以去「个股分析」页面让AI深度分析！`;
+}
+
+// ══════════════ INIT ══════════════
+document.addEventListener('DOMContentLoaded', () => {
+    renderAuthWidget();
+    renderWelcome();
+    loadAccount();
+    loadNews();
+    loadChatHistory();
+});
+</script>
 
 </body>
 </html>

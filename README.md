@@ -4,6 +4,8 @@
 
 基于 **LangGraph + LLM** 的多 Agent 协作分析平台，覆盖 **A股、港股、美股**三大市场。9 个智能体节点全链路已端对端验证贯通，通过 FastAPI SSE 实时流式输出分析进度与深度研报。内置大学生专属风控守则与 AI 财商助手，帮助大学生建立正确的投资认知，识别金融风险，远离高危杠杆产品。
 
+> **当前版本：V1.2**（2026-03）— 新增三币种模拟交易账户、K 线图检索、多平台热榜聚合、Dashboard 仪表盘、用户鉴权与 DB 持久化。
+
 > **红线声明**：本项目已全面移除加密货币（Crypto）支持。高波动、高杠杆、诈骗高发，不适合本金有限的大学生。所有交易指令均指向**本地模拟撮合引擎**，不接入任何真实交易所 API。
 
 ---
@@ -19,9 +21,13 @@
 | **混合 RAG 知识库** | Chroma 向量检索 + BM25 稀疏检索 + DuckDuckGo 实时联网，三路融合 |
 | **SSE 实时流式推送** | FastAPI Server-Sent Events，逐节点推送分析进度，前端打字机效果 |
 | **智能标的搜索** | 60+ 标的中英文模糊匹配，"茅台"→`600519.SH`，"英伟达"→`NVDA` |
-| **AI 财商助手** | "财财学长"侧边栏聊天机器人，用打比方讲解投资概念，强烈劝退高风险行为 |
+| **AI 财商助手** | "财商学长"对话机器人，DB 持久化历史，携带最近 5 轮上下文 |
 | **结构化输出** | 所有 LLM 输出经 Pydantic 模型验证，彻底取代正则/JSON 手工解析 |
-| **多界面支持** | 静态 HTML 前端（8页）、Streamlit Web UI、CLI 命令行、REST API |
+| **三币种模拟交易** | A股/港股/美股三个独立货币账户（CNH/HKD/USD），EOD 收盘价成交 |
+| **K 线图检索** | 日/周/月 K 线，Lightweight Charts 专业蜡烛图，支持全三市场标的 |
+| **多平台热榜** | 后端聚合财联社/B站/知乎/凤凰/澎湃，15 分钟缓存，前端零跨域风险 |
+| **用户鉴权与 DB** | JWT 注册/登录，SQLite 异步 ORM，持仓/订单/社区帖子全量持久化 |
+| **多界面支持** | 静态 HTML 前端（11页）、Streamlit Web UI、CLI 命令行、REST API |
 
 ---
 
@@ -118,16 +124,19 @@ START → health_node → END
 
 | 文件 | 导航名称 | 核心内容 |
 |------|----------|----------|
-| `index.html` | **首页** | 产品介绍、功能模块卡片、AI 分析 SSE 演示 Demo |
-| `trade.html` | **模拟演练** | 股票代码输入、市场选择、SSE 流式 AI 分析、节点进度徽章、结果卡片 |
-| `platforms.html` | **持仓体检** | 持仓录入表单（代码/数量/成本）、健康评分环形图、三维风险指标、AI 优化建议 |
-| `market.html` | **市场快讯** | 六大指数概览、A股/港股/美股热门标的切换表、市场资讯 feed、情绪栏 |
-| `community.html` | **投教社区** | 学习资源入口、讨论广场、学习路径、热门话题、大学生投资守则 |
-| `team.html` | **关于我们** | 使命愿景、项目数据、发展时间轴、核心功能、团队成员 |
-| `home.html` | —（辅助页）| 学习中心：模拟持仓概览、自选股监控、学习进度、AI 分析历史 |
-| `resources.html` | —（辅助页）| 学习资源库：精选教程文章、推荐书单，从 community.html 链接进入 |
+| `index.html` | **首页** | 落地/营销页，未登录展示产品价值；登录后重定向 dashboard |
+| `auth.html` | **注册/登录** | 两 Tab 表单，JWT 存 localStorage，支持 `?redirect=` 参数 |
+| `dashboard.html` | **Dashboard** | 欢迎卡片 + 快捷导航 + 三市场精简账户 + 财联社快讯 + 财商学长对话 |
+| `trade.html` | **模拟演练** | 三市场 Tab（A/港/美），EOD 收盘价下单，持仓/交易流水双表格 |
+| `analysis.html` | **个股分析** | SSE 流式分析 + 9 节点进度指示 + 倒计时 + 多空辩论 + 深度研报 |
+| `market.html` | **市场资讯** | 8 大指数实时 + 热榜聚合 + 股票 K 线检索（日/周/月，Lightweight Charts）|
+| `platforms.html` | **持仓体检** | 持仓录入表单，健康评分环形图，三维指标，AI 优化建议 |
+| `community.html` | **投教社区** | 动态帖子列表（DB 驱动），发帖/评论/点赞，标签过滤 |
+| `team.html` | **关于我们** | 使命愿景、项目数据、发展时间轴 |
+| `home.html` | —（辅助页）| 学习中心仪表盘 |
+| `resources.html` | —（辅助页）| 学习资源库 |
 
-**导航结构**：`首页 → 模拟演练 → 持仓体检 → 市场快讯 → 投教社区 → 关于我们`
+**主导航**：`首页 → Dashboard → 模拟演练 → 个股分析 → 市场资讯 → 持仓体检 → 投教社区 → 关于我们`
 
 ### Streamlit Web UI（`app.py`）
 
@@ -251,7 +260,8 @@ trading_agents_system/
 │                                  #   health_node（持仓体检专属节点）
 │
 ├── tools/                         # 工具层（供节点调用）
-│   ├── market_data.py             # @tool 装饰的市场数据函数（封装 DataLoader）
+│   ├── market_data.py             # @tool 市场数据 + get_kline_data_raw()（日/周/月K线）
+│   ├── hot_news.py                # 多平台热榜聚合（财联社/B站/知乎/凤凰/澎湃，15min缓存）
 │   └── knowledge_base.py          # 混合 RAG：Chroma + BM25 + DuckDuckGo + PDF加载
 │
 ├── utils/                         # 通用工具模块
@@ -262,7 +272,14 @@ trading_agents_system/
 │   └── market_classifier.py       # 市场分类 + 60+ 标的模糊名称匹配
 │
 ├── api/                           # FastAPI 后端
-│   └── server.py                  # SSE 流式接口（详见下方 API 端点说明）
+│   ├── server.py                  # 全部 API 端点（SSE + REST + Auth + Trade + Market）
+│   ├── auth.py                    # JWT 鉴权（create_access_token / get_current_user）
+│   └── mock_exchange.py           # 三币种虚拟撮合引擎（A股CNH/港股HKD/美股USD）
+│
+├── db/                            # SQLAlchemy 2.x 异步 ORM
+│   ├── models.py                  # 9 张表（User/VirtualAccount/Position/Order/Chat/Community/NewsCache）
+│   ├── engine.py                  # 异步引擎 + init_db() + SQLite 列迁移
+│   └── crud.py                    # 全部 CRUD 函数（含三币种余额更新）
 │
 ├── agents/                        # 原始 Agent 类（已被 graph/ 节点取代，保留供参考）
 │   ├── base_agent.py

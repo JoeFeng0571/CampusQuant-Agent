@@ -27,8 +27,8 @@ from utils.market_classifier import MarketClassifier, MarketType
 
 # 数据获取超时上限（秒）
 # 超过此时间直接放弃，返回兜底 JSON，LangGraph 继续流转
-_FETCH_TIMEOUT  = 12
-_BATCH_TIMEOUT  = 20   # 批量行情超时（美股并发拉取留更多余量）
+_FETCH_TIMEOUT  = 8    # 单只实时行情超时（yfinance 通常 2s 内响应）
+_BATCH_TIMEOUT  = 12   # 批量行情超时
 
 
 # ════════════════════════════════════════════════════════════════
@@ -58,13 +58,18 @@ def _hk_symbol_to_yfinance(symbol: str) -> str:
 
 def _a_symbol_to_yfinance(symbol: str) -> str:
     """
-    将 A股代码转换为 yfinance 格式。
-      600519.SH → 600519.SS（上交所 .SH → .SS）
-      000858.SZ → 000858.SZ（深交所 .SZ 不变）
-      688xxx.SH → 688xxx.SS（科创板同上交所）
+    将 A股代码转换为 yfinance 格式（支持带后缀和纯数字两种输入）。
+      600519.SH  → 600519.SS （上交所 .SH → .SS）
+      688256.SH  → 688256.SS （科创板同上交所）
+      000858.SZ  → 000858.SZ （深交所 .SZ 不变）
+      300750.SZ  → 300750.SZ （创业板 .SZ 不变）
+      纯数字: 6/9 开头 → .SS（沪），其余 → .SZ（深）
     """
-    code, suffix = symbol.split(".")
-    return f"{code}.SS" if suffix.upper() == "SH" else f"{code}.{suffix}"
+    if "." in symbol:
+        code, suffix = symbol.split(".", 1)
+        return f"{code}.SS" if suffix.upper() in ("SH", "SS") else f"{code}.SZ"
+    # 无后缀时按首字符推断
+    return f"{symbol}.SS" if symbol[:1] in ("6", "9") else f"{symbol}.SZ"
 
 
 # ════════════════════════════════════════════════════════════════
@@ -825,79 +830,53 @@ def get_spot_price_raw(symbol: str) -> dict:
     if market_type == MarketType.A_STOCK:
         def _fetch():
             try:
-                import akshare as ak
-                import re as _re
-
-                price, chg, name_str = 0.0, 0.0, code
-
-                # ── 主力接口：东财逐只买卖盘 ────────────────────────────
-                try:
-                    df = ak.stock_bid_ask_em(symbol=code)
-                    kv = dict(zip(df.iloc[:, 0].astype(str), df.iloc[:, 1].astype(str)))
-                    price_str = kv.get("最新") or kv.get("最新价") or "0"
-                    chg_str   = kv.get("涨跌幅") or "0%"
-                    name_str  = kv.get("名称") or kv.get("股票名称") or code
-                    price = float(_re.sub(r"[^\d.\-]", "", price_str) or 0)
-                    chg   = float(_re.sub(r"[^\d.\-]", "", chg_str) or 0)
-                    if price <= 0:
-                        raise ValueError("stock_bid_ask_em 返回价格为0，触发备用接口")
-                except Exception as _e1:
-                    # 常见原因：接口返回 HTML（限流/IP封锁/维护）
-                    logger.warning(
-                        f"[get_spot_price_raw] stock_bid_ask_em 失败 ({type(_e1).__name__}: {_e1})，"
-                        f"切换备用接口 stock_zh_a_spot_em"
-                    )
-                    # ── 备用接口：东财全市场实时行情表（过滤单只）────────
-                    try:
-                        df2 = ak.stock_zh_a_spot_em()
-                        row = df2[df2["代码"] == code]
-                        if not row.empty:
-                            r = row.iloc[0]
-                            price     = float(r.get("最新价", 0) or 0)
-                            chg       = float(r.get("涨跌幅", 0) or 0)
-                            name_str  = str(r.get("名称", "") or code)
-                        else:
-                            raise ValueError(f"stock_zh_a_spot_em 中未找到 {code}")
-                    except Exception as _e2:
-                        logger.warning(f"[get_spot_price_raw] 备用接口也失败 ({_e2})，将触发日线降级")
-                        raise  # 让上层 except 捕获并走日线降级
-
-                if price > 0:
-                    _result[0] = {
-                        "symbol":      symbol,
-                        "name":        name_str,
-                        "price":       price,
-                        "change_pct":  chg,
-                        "is_fallback": False,
-                        "source":      "akshare/em-realtime",
-                    }
-                    return  # 成功，直接返回
-
-                # akshare 两路都失败或价格为0 → yfinance 兜底
-                raise ValueError(f"akshare 价格为0，切换 yfinance 兜底")
-
-            except Exception as _e_ak:
-                logger.warning(f"[get_spot_price_raw] A股 akshare 全部失败({_e_ak})，切换 yfinance")
+                # ── 第一层：yfinance（直连 Yahoo，绕过东方财富封禁）──────────
                 try:
                     import yfinance as yf
-                    yf_sym = _a_symbol_to_yfinance(symbol)
-                    fi = yf.Ticker(yf_sym).fast_info
+                    yf_sym   = _a_symbol_to_yfinance(symbol)
+                    fi       = yf.Ticker(yf_sym).fast_info
                     price_yf = float(fi.last_price or 0)
-                    if price_yf <= 0:
-                        raise ValueError(f"yfinance price=0 for {yf_sym}")
-                    prev_yf  = float(getattr(fi, 'previous_close', None) or 0)
-                    chg_yf   = round((price_yf - prev_yf) / prev_yf * 100, 2) if prev_yf else 0.0
-                    _result[0] = {
-                        "symbol":      symbol,
-                        "name":        _SYMBOL_NAMES.get(symbol, code),
-                        "price":       price_yf,
-                        "change_pct":  chg_yf,
-                        "is_fallback": False,
-                        "source":      "yfinance/fast_info",
-                    }
+                    if price_yf > 0:
+                        prev_yf = float(getattr(fi, 'previous_close', None) or 0)
+                        chg_yf  = round((price_yf - prev_yf) / prev_yf * 100, 2) if prev_yf else 0.0
+                        _result[0] = {
+                            "symbol":      symbol,
+                            "name":        _SYMBOL_NAMES.get(symbol, code),
+                            "price":       price_yf,
+                            "change_pct":  chg_yf,
+                            "is_fallback": False,
+                            "source":      "yfinance/fast_info",
+                        }
+                        return
+                    raise ValueError(f"yfinance price=0 for {yf_sym}")
                 except Exception as _e_yf:
-                    logger.error(f"[get_spot_price_raw] A股 yfinance 也失败: {_e_yf}")
-                    _exc[0] = _e_yf
+                    logger.warning(
+                        f"[get_spot_price_raw] A股 yfinance 失败 ({type(_e_yf).__name__}: {_e_yf})，"
+                        f"切换 akshare 新浪财经"
+                    )
+
+                # ── 第二层：akshare 新浪财经（非东方财富，规避 EM 封禁）─────
+                import akshare as ak
+                df = ak.stock_zh_a_spot()          # 新浪财经全市场实时表
+                row = df[df["代码"] == code]
+                if not row.empty:
+                    r     = row.iloc[0]
+                    price = float(r.get("最新价", 0) or 0)
+                    if price > 0:
+                        _result[0] = {
+                            "symbol":      symbol,
+                            "name":        str(r.get("名称", "") or _SYMBOL_NAMES.get(symbol, code)),
+                            "price":       price,
+                            "change_pct":  float(r.get("涨跌幅", 0) or 0),
+                            "is_fallback": False,
+                            "source":      "akshare/sina-realtime",
+                        }
+                        return
+                raise ValueError(f"akshare sina 未找到或价格为0: {code}")
+
+            except Exception as _e:
+                logger.error(f"[get_spot_price_raw] A股所有数据源耗尽: {_e}")
+                _exc[0] = _e
             finally:
                 _done.set()
 
@@ -1029,35 +1008,67 @@ def get_batch_quotes_raw(symbols: list, market: str) -> list:
 
         def _fetch_a_batch():
             try:
-                import akshare as ak
-                df = ak.stock_zh_a_spot_em()
-                code_to_sym = {s.split(".")[0]: s for s in symbols}
-                items = []
-                for code, sym in code_to_sym.items():
-                    row = df[df["代码"] == code]
-                    if not row.empty:
-                        r = row.iloc[0]
-                        price = float(r.get("最新价", 0) or 0)
-                        if price > 0:
-                            items.append({
-                                "symbol":      sym,
-                                "name":        str(r.get("名称", "") or _SYMBOL_NAMES.get(sym, code)),
-                                "price":       price,
-                                "change":      float(r.get("涨跌额", 0) or 0),
-                                "change_pct":  float(r.get("涨跌幅", 0) or 0),
-                                "is_fallback": False,
-                            })
-                        else:
-                            items.append(None)  # 价格为0，标记待yfinance补充
-                    else:
-                        items.append(None)
-                # 只有所有标的都有价格才认为成功
-                if all(it is not None for it in items):
+                # ── 第一层：yfinance 批量（快速稳定，绕过 EM 封禁）───────────
+                try:
+                    import yfinance as yf
+                    yf_syms = [_a_symbol_to_yfinance(s) for s in symbols]
+                    tickers = yf.Tickers(" ".join(yf_syms))
+                    items   = []
+                    for orig, yfs in zip(symbols, yf_syms):
+                        try:
+                            fi    = tickers.tickers[yfs].fast_info
+                            price = float(fi.last_price or 0)
+                            prev  = float(getattr(fi, 'previous_close', None) or 0)
+                            chg_v = round(price - prev, 4) if prev else 0.0
+                            chg_p = round(chg_v / prev * 100, 2) if prev else 0.0
+                            if price > 0:
+                                items.append({
+                                    "symbol":      orig,
+                                    "name":        _SYMBOL_NAMES.get(orig, orig.split(".")[0]),
+                                    "price":       price,
+                                    "change":      chg_v,
+                                    "change_pct":  chg_p,
+                                    "is_fallback": False,
+                                })
+                            else:
+                                items.append(None)
+                        except Exception:
+                            items.append(None)
                     _a_results[0] = items
-                else:
-                    _a_results[0] = items   # 含None表示部分失败
-            except Exception as _e:
-                logger.warning(f"[get_batch_quotes_raw] A股 akshare 失败({_e})，将降级到 yfinance")
+                    if all(it is not None for it in items):
+                        return   # 全部成功，不需要 sina 补充
+                    logger.warning("[get_batch_quotes_raw] A股 yfinance 部分失败，补充 akshare Sina")
+                except Exception as _e_yf:
+                    logger.warning(f"[get_batch_quotes_raw] A股 yfinance 批量失败({_e_yf})，降级 akshare Sina")
+                    items = [None] * len(symbols)
+                    _a_results[0] = items
+
+                # ── 第二层：akshare 新浪财经补充（非 EM）─────────────────────
+                try:
+                    import akshare as ak
+                    df          = ak.stock_zh_a_spot()
+                    code_to_idx = {s.split(".")[0]: i for i, s in enumerate(symbols)}
+                    for code_key, idx in code_to_idx.items():
+                        if _a_results[0][idx] is not None:
+                            continue   # yfinance 已有数据，跳过
+                        row = df[df["代码"] == code_key]
+                        if not row.empty:
+                            r     = row.iloc[0]
+                            price = float(r.get("最新价", 0) or 0)
+                            if price > 0:
+                                sym = symbols[idx]
+                                _a_results[0][idx] = {
+                                    "symbol":      sym,
+                                    "name":        str(r.get("名称", "") or _SYMBOL_NAMES.get(sym, code_key)),
+                                    "price":       price,
+                                    "change":      float(r.get("涨跌额", 0) or 0),
+                                    "change_pct":  float(r.get("涨跌幅", 0) or 0),
+                                    "is_fallback": False,
+                                }
+                except Exception as _e_sina:
+                    logger.error(f"[get_batch_quotes_raw] A股 akshare Sina 也失败: {_e_sina}")
+            except Exception as _e_outer:
+                logger.error(f"[get_batch_quotes_raw] A股获取异常: {_e_outer}")
             finally:
                 _a_done.set()
 
@@ -1198,7 +1209,7 @@ def get_batch_quotes_raw(symbols: list, market: str) -> list:
         threading.Thread(target=_fetch_hk_yf, daemon=True, name="batch-hk-yf").start()
         threading.Thread(target=_fetch_hk_ak, daemon=True, name="batch-hk-ak").start()
         _hk_yf_done.wait(timeout=_BATCH_TIMEOUT)
-        _hk_ak_done.wait(timeout=35)   # akshare 全表较慢
+        _hk_ak_done.wait(timeout=10)   # akshare HK 全表，最多等 10s
 
         yf_list  = _hk_yf[0] or []
         ak_dict  = _hk_ak[0] or {}
@@ -1939,3 +1950,206 @@ def get_deep_financial_data(symbol: str) -> dict:
             f"趋势年份={len(pt2.get('years', []))}年"
         )
         return {"revenue_composition": _empty_rc, "performance_trend": pt2}
+
+
+# ════════════════════════════════════════════════════════════════
+# K 线数据（供 market.html Lightweight Charts 使用）
+# ════════════════════════════════════════════════════════════════
+
+def get_kline_data_raw(
+    symbol: str,
+    period: str = "daily",   # daily | weekly | monthly
+    count:  int = 120,        # 返回 K 线条数（最多 500）
+) -> list[dict]:
+    """
+    获取指定标的的 OHLCV K 线数据。
+    返回列表，每项格式（Lightweight Charts candlestick series 规范）：
+      {"time": "2024-01-02", "open": 1.0, "high": 1.2, "low": 0.9, "close": 1.1, "volume": 12345}
+
+    period 映射：
+      daily   → yfinance interval=1d  / akshare period=daily
+      weekly  → yfinance interval=1wk / akshare period=weekly
+      monthly → yfinance interval=1mo / akshare period=monthly
+
+    支持三市场：A股（akshare 主 / yfinance 备）、港股/美股（yfinance）
+    超时限 20s，失败返回 []。
+    """
+    import threading as _th
+    from utils.market_classifier import MarketClassifier, MarketType
+
+    count = max(20, min(count, 500))
+
+    market_type, _ = MarketClassifier.classify(symbol)
+
+    # yfinance period → range 映射
+    _YF_INTERVAL = {"daily": "1d", "weekly": "1wk", "monthly": "1mo"}
+    _YF_RANGE    = {"daily": "1y", "weekly": "2y",  "monthly": "5y"}
+    yf_interval  = _YF_INTERVAL.get(period, "1d")
+    yf_range     = _YF_RANGE.get(period, "1y")
+
+    # akshare period 映射（A 股）
+    _AK_PERIOD = {"daily": "daily", "weekly": "weekly", "monthly": "monthly"}
+    ak_period   = _AK_PERIOD.get(period, "daily")
+
+    _result: list = [None]
+    _done   = _th.Event()
+
+    def _to_records(df) -> list[dict]:
+        """DataFrame(timestamp,open,high,low,close,volume) → list[dict]，自动过滤 NaN/Inf"""
+        import math as _math
+        records = []
+        for row in df.itertuples():
+            ts = row[0] if hasattr(row, "Index") else row[1]
+            if hasattr(ts, "strftime"):
+                date_str = ts.strftime("%Y-%m-%d")
+            else:
+                try:
+                    date_str = pd.Timestamp(ts).strftime("%Y-%m-%d")
+                except Exception:
+                    date_str = str(ts)[:10]
+            try:
+                o, h, l, c = float(row[2]), float(row[3]), float(row[4]), float(row[5])
+                # 跳过任何 NaN / Inf / 非正值
+                if any(_math.isnan(v) or _math.isinf(v) or v <= 0 for v in (o, h, l, c)):
+                    continue
+                vol = row[6]
+                records.append({
+                    "time":   date_str,
+                    "open":   round(o, 4),
+                    "high":   round(h, 4),
+                    "low":    round(l, 4),
+                    "close":  round(c, 4),
+                    "volume": int(vol) if not _math.isnan(float(vol)) else 0,
+                })
+            except Exception:
+                continue
+        return records
+
+    def _fetch_yf():
+        try:
+            import yfinance as yf
+            if market_type == MarketType.A_STOCK:
+                yf_sym = _a_symbol_to_yfinance(symbol)
+            elif market_type == MarketType.HK_STOCK:
+                yf_sym = _hk_symbol_to_yfinance(symbol)
+            else:
+                yf_sym = symbol
+
+            ticker = yf.Ticker(yf_sym)
+            df = ticker.history(period=yf_range, interval=yf_interval, auto_adjust=True)
+            if df is None or df.empty:
+                return []
+            df.index = pd.to_datetime(df.index)
+            df = df.rename(columns={"Open": "open", "High": "high", "Low": "low",
+                                    "Close": "close", "Volume": "volume"})
+            import math as _math
+            records = []
+            for ts, row in df.iterrows():
+                try:
+                    o = float(row["open"]); h = float(row["high"])
+                    l = float(row["low"]);  c = float(row["close"])
+                    if any(_math.isnan(v) or _math.isinf(v) or v <= 0 for v in (o, h, l, c)):
+                        continue
+                    vol_raw = row["volume"]
+                    vol = int(float(vol_raw)) if not pd.isna(vol_raw) else 0
+                    records.append({
+                        "time":   ts.strftime("%Y-%m-%d"),
+                        "open":   round(o, 4),
+                        "high":   round(h, 4),
+                        "low":    round(l, 4),
+                        "close":  round(c, 4),
+                        "volume": vol,
+                    })
+                except Exception:
+                    continue
+            return records[-count:]
+        except Exception as e:
+            logger.warning(f"[get_kline_data_raw] yfinance 失败 {symbol}: {e}")
+            return []
+
+    def _fetch_ak_a():
+        """A 股通过 akshare 获取 K 线（主力路径）"""
+        try:
+            import akshare as ak
+            code = symbol.split(".")[0]
+            # 判断上交所/深交所
+            suffix = symbol.split(".")[-1].upper()
+            mkt    = "sh" if suffix in ("SH", "SS") else "sz"
+            # adjust=qfq 前复权
+            df = ak.stock_zh_a_hist(
+                symbol=code, period=ak_period,
+                start_date="19900101", end_date="29991231",
+                adjust="qfq",
+            )
+            if df is None or df.empty:
+                return []
+            # 列名：日期,开盘,收盘,最高,最低,成交量,...
+            df = df.rename(columns={
+                "日期": "date", "开盘": "open", "收盘": "close",
+                "最高": "high", "最低": "low", "成交量": "volume",
+            })
+            import math as _math
+            records = []
+            for _, row in df.iterrows():
+                try:
+                    o = float(row["open"]); h = float(row["high"])
+                    l = float(row["low"]);  c = float(row["close"])
+                    if any(_math.isnan(v) or _math.isinf(v) or v <= 0 for v in (o, h, l, c)):
+                        continue
+                    records.append({
+                        "time":   str(row["date"])[:10],
+                        "open":   round(o, 4),
+                        "high":   round(h, 4),
+                        "low":    round(l, 4),
+                        "close":  round(c, 4),
+                        "volume": int(float(row["volume"])),
+                    })
+                except Exception:
+                    continue
+            return records[-count:]
+        except Exception as e:
+            logger.warning(f"[get_kline_data_raw] akshare A股 失败 {symbol}: {e}")
+            return []
+
+    def _fetch():
+        try:
+            if market_type == MarketType.A_STOCK:
+                # A股: akshare 严格 5s 超时，超时立即降级 yfinance（自动加 .SS/.SZ）
+                _ak_result: list = [None]
+                _ak_done = _th.Event()
+
+                def _ak_worker():
+                    _ak_result[0] = _fetch_ak_a()
+                    _ak_done.set()
+
+                _th.Thread(target=_ak_worker, daemon=True,
+                           name=f"kline-ak-{symbol}").start()
+                if _ak_done.wait(timeout=1.5) and _ak_result[0]:
+                    data = _ak_result[0]
+                else:
+                    logger.warning(
+                        f"[kline] akshare 超时(1.5s)或空数据，降级 yfinance: {symbol}"
+                    )
+                    data = _fetch_yf()   # _a_symbol_to_yfinance() 自动加 .SS/.SZ
+            elif market_type == MarketType.HK_STOCK:
+                # 港股: yfinance 直接用（_hk_symbol_to_yfinance() 自动加 .HK）
+                data = _fetch_yf()
+            else:
+                # 美股: yfinance 直接用原 symbol（如 AAPL）
+                data = _fetch_yf()
+            _result[0] = data
+        except Exception as e:
+            logger.error(f"[get_kline_data_raw] 获取失败 {symbol}: {e}")
+            _result[0] = []
+        finally:
+            _done.set()
+
+    t = threading.Thread(target=_fetch, daemon=True, name=f"kline-{symbol}")
+    t.start()
+
+    # 外层超时：A股 1.5s(akshare)+8s(yfinance)≈10s；港/美股 8s(yfinance)
+    if not _done.wait(timeout=10):
+        logger.warning(f"[get_kline_data_raw] 整体超时(15s) {symbol}")
+        return []
+
+    return _result[0] or []

@@ -72,7 +72,23 @@
       "Bash(cd D:/000intern/0agent/trading_agents_system && python -c \"\nfrom dotenv import load_dotenv; load_dotenv\\(\\)\nimport os\nkey = os.getenv\\('DASHSCOPE_API_KEY', ''\\)\nmodel = os.getenv\\('QWEN_MODEL_NAME', ''\\)\nprint\\(f'DASHSCOPE_API_KEY: {key[:8]}...{key[-4:]} \\(len={len\\(key\\)}\\)'\\)\nprint\\(f'QWEN_MODEL_NAME:   {model!r}'\\)\nprint\\(f'Key valid \\(len>=30\\): {len\\(key\\) >= 30}'\\)\n\")",
       "Bash(cd D:/000intern/0agent/trading_agents_system && python -c \"\nimport asyncio, json, sys\nsys.path.insert\\(0, '.'\\)\n\nasync def test\\(\\):\n    from graph.builder import build_graph, make_initial_state\n    graph = build_graph\\(\\)\n    state = make_initial_state\\('600519.SH'\\)\n    try:\n        result = await graph.ainvoke\\(state, config={'configurable': {'thread_id': 'test-1'}}\\)\n        print\\('SUCCESS'\\)\n        to = result.get\\('trade_order'\\) or {}\n        print\\(json.dumps\\(to, ensure_ascii=False, indent=2\\)\\)\n    except Exception as e:\n        import traceback; traceback.print_exc\\(\\)\n\nasyncio.run\\(test\\(\\)\\)\n\" 2>&1 | tail -40)",
       "Bash(cd:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(ls:*)",
+      "Bash(sleep:*)",
+      "Bash(curl:*)",
+      "Bash(taskkill:*)",
+      "Bash(wmic process:*)",
+      "Bash(for f:*)",
+      "Bash(do)",
+      "Bash(echo \"=== $f.html ===\")",
+      "Bash(tasklist:*)",
+      "Bash(taskkill.exe /PID 49664 /F)",
+      "Bash(cmd.exe /c \"taskkill /PID 49664 /F\")",
+      "Bash(powershell -Command \"Stop-Process -Id 49664 -Force\" 2>&1; sleep 2; netstat -ano 2>/dev/null | grep \":8000\" | grep LISTEN || echo \"port free\")",
+      "Bash(powershell -Command \"Get-Process -Id 49664 | Select-Object -Property Name,Id,Path\" 2>&1)",
+      "Bash(powershell -Command \"Get-NetTCPConnection -LocalPort 8000 | Select-Object -Property LocalAddress,LocalPort,OwningProcess\")",
+      "Bash(powershell -Command \"\n\\\\$proc = Get-WmiObject Win32_Process -Filter \\\\\"ProcessId = 49664\\\\\"\nWrite-Host \\\\\"Name:\\\\\" \\\\$proc.Name\nWrite-Host \\\\\"CommandLine:\\\\\" \\\\$proc.CommandLine\n\")",
+      "Bash(powershell -Command \"\n\\\\$procs = Get-WmiObject Win32_Process | Where-Object {\\(\\\\$_.CommandLine -like '*uvicorn*'\\) -or \\(\\\\$_.CommandLine -like '*server:app*'\\)}\nforeach \\(\\\\$p in \\\\$procs\\) { Write-Host \\\\$p.ProcessId \\\\$p.Name \\\\$p.CommandLine }\n\")"
     ]
   }
 }

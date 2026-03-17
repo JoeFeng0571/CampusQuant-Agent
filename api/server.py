@@ -46,7 +46,7 @@ from typing import AsyncGenerator, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from loguru import logger
 from pydantic import BaseModel, Field, field_validator
 from utils.market_classifier import MarketClassifier
@@ -61,33 +61,8 @@ def _get_db_dep():
 from db.engine import get_db as _db_get
 _get_db_dep = _db_get
 
-# ════════════════════════════════════════════════════════════════
-# Proxy Monkey Patch — 国内金融域名强制绕过 TUN/全局代理
-# 问题背景: 开发机开启 TUN 全局代理（访问 yfinance 美股数据），
-#   导致 akshare 访问国内东方财富等接口时 ProxyError。
-#   NO_PROXY 环境变量在 TUN 模式下失效，必须在 requests 层劫持。
-# ════════════════════════════════════════════════════════════════
-import requests as _requests
-from urllib.parse import urlparse as _urlparse
-
-_original_session_request = _requests.Session.request
-
-_CN_FINANCIAL_DOMAINS = [
-    "eastmoney.com",
-    "10jqka.com.cn",
-    "sina.com.cn",
-    "emoney.cn",
-    "xueqiu.com",
-    "hexun.com",
-    "gtimg.com",
-    "sse.com.cn",
-    "szse.cn",
-    # DashScope / 阿里百炼：防止 TUN 全局代理切断长连接
-    "dashscope.aliyuncs.com",
-    "aliyuncs.com",
-]
-
-# 同步设置 NO_PROXY 环境变量，覆盖系统级代理配置
+# DashScope LLM 域名加入 NO_PROXY，防止 TUN 模式下 LLM 长连接被截断
+# 注意：这里只设置环境变量，不做任何 requests 猴子补丁
 import os as _os
 _no_proxy_extra = "dashscope.aliyuncs.com,aliyuncs.com"
 _existing_no_proxy = _os.environ.get("NO_PROXY", _os.environ.get("no_proxy", ""))
@@ -96,25 +71,6 @@ if _no_proxy_extra not in _existing_no_proxy:
         _existing_no_proxy + "," + _no_proxy_extra if _existing_no_proxy else _no_proxy_extra
     )
     _os.environ["no_proxy"] = _os.environ["NO_PROXY"]
-
-
-def _proxy_bypass_request(self, method, url, **kwargs):
-    """
-    对国内金融域名强制禁用代理（proxies=None），其余请求保持原有代理配置。
-    这样 yfinance/OpenAI 等境外请求仍走 TUN 代理，akshare 走直连。
-    """
-    try:
-        hostname = _urlparse(url).hostname or ""
-        if any(domain in hostname for domain in _CN_FINANCIAL_DOMAINS):
-            kwargs["proxies"] = {"http": None, "https": None}
-            logger.debug(f"[proxy_patch] 直连(绕过代理): {hostname}")
-    except Exception:
-        pass  # 解析失败不影响正常请求
-    return _original_session_request(self, method, url, **kwargs)
-
-
-_requests.Session.request = _proxy_bypass_request
-logger.info("✅ Proxy Monkey Patch 已激活：国内金融域名将绕过全局代理")
 
 # ════════════════════════════════════════════════════════════════
 # 应用初始化
@@ -173,6 +129,14 @@ async def startup_event():
         logger.info("✅ LangGraph 图构建完成")
     except Exception as e:
         logger.error(f"❌ 图构建失败: {e}")
+
+    # 3. 冷启动热榜预热（后台线程，不阻塞 uvicorn 启动）
+    try:
+        from tools.hot_news import refresh_in_background
+        refresh_in_background()
+        logger.info("✅ 热榜缓存预热任务已启动（后台）")
+    except Exception as e:
+        logger.warning(f"⚠️ 热榜缓存预热失败（非致命）: {e}")
 
     logger.info("✅ API 服务启动完成，监听请求...")
 
@@ -1057,8 +1021,11 @@ async def place_trade_order(
                 market_type=market_type.value,
             )
 
-            # 同步资金
-            await update_account_cash(db, db_account.id, result.cash_after)
+            # 同步三币种资金（按市场更新对应字段）
+            from db.crud import update_account_cash_by_market
+            await update_account_cash_by_market(
+                db, db_account.id, market_type.value, result.cash_after
+            )
 
             # 同步持仓（从内存账户读取最新状态写入 DB）
             snap = account.snapshot()
@@ -1149,6 +1116,30 @@ async def get_market_quotes(market: str = "a"):
         "count":     len(quotes),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+@app.get("/api/v1/market/spot", summary="获取单只标的实时现价")
+async def get_single_spot(symbol: str):
+    """
+    GET /api/v1/market/spot?symbol=600519.SH
+
+    调用 get_spot_price_raw() 获取单个标的实时价格，供 trade.html 行情查询使用。
+    返回: { symbol, name, price, change_pct, is_fallback, source }
+    """
+    if not symbol:
+        raise HTTPException(status_code=400, detail="symbol 参数不能为空")
+    try:
+        from tools.market_data import get_spot_price_raw
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, get_spot_price_raw, symbol.upper())
+        if not result or not result.get("price"):
+            raise HTTPException(status_code=404, detail=f"未能获取 {symbol} 的行情数据")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[market/spot] 单只行情获取失败 {symbol}: {e}")
+        raise HTTPException(status_code=502, detail=f"行情获取失败: {str(e)}")
 
 
 @app.get("/api/v1/portfolio/summary", summary="获取虚拟账户持仓摘要（含实时估值）")
@@ -1480,8 +1471,444 @@ async def toggle_post_like(
 
 
 # ════════════════════════════════════════════════════════════════
+# V1.2 — 三币种账户摘要
+# ════════════════════════════════════════════════════════════════
+
+@app.get("/api/v1/trade/account", summary="获取三币种虚拟账户摘要（含实时估值）")
+async def get_trade_account(
+    market: str = "",              # 可选: A / HK / US，为空则返回三个市场汇总
+    current_user=Depends(_get_optional_user),
+    db=Depends(_get_db_dep),
+):
+    """
+    GET /api/v1/trade/account?market=A|HK|US
+
+    未登录：使用内存账户（游客）
+    已登录：优先从 DB 读取账户余额，持仓从内存账户同步（和 place_order 保持一致）
+
+    返回：
+      三个子账户各自的 总资产 / 可用资金 / 持仓市值 / 盈亏 / 盈亏%
+    """
+    from api.mock_exchange import get_account
+    from tools.market_data import get_spot_price_raw
+
+    account  = get_account()
+    mt_filter = market.upper() if market else None
+
+    snap = account.snapshot(market_type=mt_filter)
+
+    # 异步获取各持仓现价
+    async def _enrich(pos: dict) -> dict:
+        loop = asyncio.get_event_loop()
+        try:
+            spot = await loop.run_in_executor(None, get_spot_price_raw, pos["symbol"])
+        except Exception:
+            spot = {"price": pos["avg_cost"], "change_pct": 0.0, "is_fallback": True}
+        cur_price  = spot.get("price") or pos["avg_cost"]
+        cost_val   = pos["quantity"] * pos["avg_cost"]
+        mkt_val    = pos["quantity"] * cur_price
+        pnl        = mkt_val - cost_val
+        pnl_pct    = (pnl / cost_val * 100) if cost_val else 0.0
+        return {
+            **pos,
+            "current_price":  round(cur_price, 4),
+            "change_pct":     round(spot.get("change_pct") or 0.0, 2),
+            "cost_value":     round(cost_val, 2),
+            "market_value":   round(mkt_val, 2),
+            "unrealized_pnl": round(pnl, 2),
+            "pnl_pct":        round(pnl_pct, 2),
+        }
+
+    enriched = list(await asyncio.gather(*[_enrich(p) for p in snap["positions"]]))
+
+    def _sub_account(currency: str, mkt: str) -> dict:
+        """计算单市场子账户汇总"""
+        cash_key   = f"cash_{currency.lower()}"
+        init_key   = f"init_{currency.lower()}"
+        cash_avail = snap.get(cash_key, 0.0)
+        init_val   = snap.get(init_key, 0.0)
+        sub_pos    = [p for p in enriched if p.get("market_type", "").upper() == mkt]
+        mkt_val    = sum(p["market_value"]   for p in sub_pos)
+        cost_val   = sum(p["cost_value"]     for p in sub_pos)
+        pnl        = sum(p["unrealized_pnl"] for p in sub_pos)
+        total      = cash_avail + mkt_val
+        pnl_pct    = (pnl / cost_val * 100) if cost_val else 0.0
+        # 相对本金盈亏
+        total_pnl_abs = total - init_val
+        total_pnl_pct = (total_pnl_abs / init_val * 100) if init_val else 0.0
+        return {
+            "market":         mkt,
+            "currency":       currency,
+            "cash":           round(cash_avail, 2),
+            "initial":        round(init_val, 2),
+            "market_value":   round(mkt_val, 2),
+            "total_assets":   round(total, 2),
+            "position_pnl":   round(pnl, 2),
+            "position_pnl_pct": round(pnl_pct, 2),
+            "total_pnl":      round(total_pnl_abs, 2),
+            "total_pnl_pct":  round(total_pnl_pct, 2),
+            "positions":      sub_pos,
+        }
+
+    if mt_filter:
+        _currency_map = {"A": "CNH", "HK": "HKD", "US": "USD"}
+        cur = _currency_map.get(mt_filter, "CNH")
+        return {
+            "account": _sub_account(cur, mt_filter),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    else:
+        return {
+            "accounts": {
+                "A":  _sub_account("CNH", "A"),
+                "HK": _sub_account("HKD", "HK"),
+                "US": _sub_account("USD", "US"),
+            },
+            "positions_all": enriched,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+
+@app.get("/api/v1/trade/positions", summary="持仓列表（可按市场过滤）")
+async def get_positions(
+    market: str = "",
+    current_user=Depends(_get_optional_user),
+):
+    """GET /api/v1/trade/positions?market=A|HK|US"""
+    from api.mock_exchange import get_account
+    from tools.market_data import get_spot_price_raw
+
+    account   = get_account()
+    mt_filter = market.upper() if market else None
+    snap      = account.snapshot(market_type=mt_filter)
+
+    async def _enrich(pos: dict) -> dict:
+        loop = asyncio.get_event_loop()
+        try:
+            spot = await loop.run_in_executor(None, get_spot_price_raw, pos["symbol"])
+        except Exception:
+            spot = {"price": pos["avg_cost"], "change_pct": 0.0, "is_fallback": True}
+        cur_price = spot.get("price") or pos["avg_cost"]
+        cost_val  = pos["quantity"] * pos["avg_cost"]
+        mkt_val   = pos["quantity"] * cur_price
+        pnl       = mkt_val - cost_val
+        return {
+            **pos,
+            "current_price":  round(cur_price, 4),
+            "change_pct":     round(spot.get("change_pct") or 0.0, 2),
+            "cost_value":     round(cost_val, 2),
+            "market_value":   round(mkt_val, 2),
+            "unrealized_pnl": round(pnl, 2),
+            "pnl_pct":        round((pnl / cost_val * 100) if cost_val else 0.0, 2),
+        }
+
+    enriched = list(await asyncio.gather(*[_enrich(p) for p in snap["positions"]]))
+    return {
+        "positions": enriched,
+        "count":     len(enriched),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# ════════════════════════════════════════════════════════════════
+# V1.2 — K 线数据
+# ════════════════════════════════════════════════════════════════
+
+@app.get("/api/v1/market/kline", summary="获取 K 线数据（日/周/月）")
+async def get_kline(
+    symbol: str,
+    period: str = "daily",    # daily | weekly | monthly
+    count:  int  = 120,
+):
+    """
+    GET /api/v1/market/kline?symbol=600519.SH&period=daily&count=120
+
+    返回 Lightweight Charts candlestick 格式：
+      [{"time":"2024-01-02","open":1.0,"high":1.2,"low":0.9,"close":1.1,"volume":1234}, ...]
+    """
+    symbol = symbol.strip().upper()
+    symbol = MarketClassifier.fuzzy_match(symbol)
+    period = period.lower()
+    if period not in ("daily", "weekly", "monthly"):
+        period = "daily"
+
+    try:
+        from tools.market_data import get_kline_data_raw
+        loop  = asyncio.get_event_loop()
+        kline = await loop.run_in_executor(
+            None,
+            lambda: get_kline_data_raw(symbol, period=period, count=min(count, 500))
+        )
+    except Exception as e:
+        logger.error(f"[market/kline] {symbol} 获取失败: {e}")
+        raise HTTPException(status_code=502, detail=f"K 线数据获取失败: {str(e)}")
+
+    if not kline:
+        raise HTTPException(status_code=404, detail=f"未找到 {symbol} 的 K 线数据")
+
+    # 严格清洗：过滤 NaN / Inf / 零值 / 非法日期，保证 Lightweight Charts 不崩溃
+    import math as _math, re as _re
+    _OHLC = ("open", "high", "low", "close")
+    _DATE_RE = _re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+    def _is_valid(bar: dict) -> bool:
+        # time 必须严格为 YYYY-MM-DD 格式
+        t = bar.get("time", "")
+        if not t or not _DATE_RE.match(str(t)):
+            return False
+        # 确保 time 字段是字符串（Lightweight Charts 要求）
+        bar["time"] = str(t)[:10]
+        for k in _OHLC:
+            v = bar.get(k)
+            if v is None:
+                return False
+            try:
+                f = float(v)
+                if _math.isnan(f) or _math.isinf(f) or f <= 0:
+                    return False
+                bar[k] = round(f, 4)   # 统一精度，消除浮点噪声
+            except (TypeError, ValueError):
+                return False
+        # volume: NaN/null → 0，保留 0 volume（部分周期合法）
+        vol = bar.get("volume")
+        if vol is None or (isinstance(vol, float) and _math.isnan(vol)):
+            bar["volume"] = 0
+        return True
+
+    kline_clean = [bar for bar in kline if _is_valid(bar)]
+    if not kline_clean:
+        raise HTTPException(status_code=404, detail=f"{symbol} K 线数据清洗后为空（全为 NaN/无效值）")
+
+    # 按时间去重（相同 time 保留最后一条）并升序排列
+    _seen: dict[str, dict] = {}
+    for bar in kline_clean:
+        _seen[bar["time"]] = bar
+    kline_clean = sorted(_seen.values(), key=lambda b: b["time"])
+
+    # 获取股票名称（best-effort，run_in_executor 避免阻塞 event loop）
+    _name = symbol
+    try:
+        from tools.market_data import get_spot_price_raw
+        _info = await loop.run_in_executor(None, get_spot_price_raw, symbol)
+        _name = _info.get("name", symbol)
+    except Exception:
+        pass
+
+    return {
+        "symbol":    symbol,
+        "name":      _name,
+        "period":    period,
+        "count":     len(kline_clean),
+        "kline":     kline_clean,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# ════════════════════════════════════════════════════════════════
+# V1.2 — 多平台热榜
+# ════════════════════════════════════════════════════════════════
+
+# 后台定时刷新（15 min）
+_hot_news_refresh_task: Optional[asyncio.Task] = None
+
+
+@app.on_event("startup")
+async def _start_hot_news_refresh():
+    """启动后每 15 分钟后台刷新热榜缓存"""
+    async def _loop():
+        while True:
+            try:
+                from tools.hot_news import refresh_in_background
+                refresh_in_background()
+            except Exception as e:
+                logger.warning(f"[hot_news] 定时刷新异常: {e}")
+            await asyncio.sleep(15 * 60)
+
+    global _hot_news_refresh_task
+    _hot_news_refresh_task = asyncio.create_task(_loop())
+
+
+_HOTNEWS_MOCK: list[dict] = [
+    {
+        "source": "cailian", "label": "财联社", "icon": "📰", "color": "#e74c3c",
+        "items": [
+            {"title": "沪深两市今日整体平稳，科技与消费板块轮番活跃", "url": "https://www.cls.cn/telegraph", "rank": 1},
+            {"title": "央行最新数据显示社会融资规模稳步扩张", "url": "https://www.cls.cn/telegraph", "rank": 2},
+            {"title": "多家券商发布年度策略报告，看好 A 股结构性机会", "url": "https://www.cls.cn/telegraph", "rank": 3},
+        ], "fetched_at": None,
+    },
+    {
+        "source": "xueqiu", "label": "雪球热搜", "icon": "❄️", "color": "#1db954",
+        "items": [
+            {"title": "贵州茅台", "url": "https://xueqiu.com/S/SH600519", "rank": 1},
+            {"title": "宁德时代", "url": "https://xueqiu.com/S/SZ300750", "rank": 2},
+            {"title": "中国平安", "url": "https://xueqiu.com/S/SH601318", "rank": 3},
+        ], "fetched_at": None,
+    },
+    {
+        "source": "zhihu", "label": "知乎热榜", "icon": "💬", "color": "#0084ff",
+        "items": [
+            {"title": "普通大学生如何科学规划第一笔投资？", "url": "https://www.zhihu.com/hot", "rank": 1},
+            {"title": "ETF 定投和主动基金，哪个更适合新手？", "url": "https://www.zhihu.com/hot", "rank": 2},
+            {"title": "财务自由的门槛到底有多高？", "url": "https://www.zhihu.com/hot", "rank": 3},
+        ], "fetched_at": None,
+    },
+    {
+        "source": "thepaper", "label": "澎湃新闻", "icon": "📌", "color": "#2ecc71",
+        "items": [
+            {"title": "国家统计局发布最新宏观经济数据", "url": "https://www.thepaper.cn/", "rank": 1},
+            {"title": "证监会出台多项举措优化市场环境", "url": "https://www.thepaper.cn/", "rank": 2},
+            {"title": "人民币汇率保持基本稳定，外汇储备规模充裕", "url": "https://www.thepaper.cn/", "rank": 3},
+        ], "fetched_at": None,
+    },
+]
+
+
+@app.get("/api/v1/market/hotnews", summary="多平台热榜聚合（财联社/雪球/知乎/凤凰/澎湃）")
+async def get_hot_news(force: bool = False):
+    """
+    GET /api/v1/market/hotnews?force=false
+
+    返回 5 个平台各 Top 3 热门内容列表（直接返回 list，非 wrapper object）。
+    force=true 立即重新抓取（仅调试用）。
+    若全部来源均抓取失败，返回内置 Mock 数据，保证前端不空白。
+    """
+    try:
+        from tools.hot_news import get_hot_news as _get_hot_news
+        loop = asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, lambda: _get_hot_news(force_refresh=force))
+    except Exception as e:
+        logger.error(f"[market/hotnews] 获取失败，降级到 Mock: {e}")
+        data = []
+
+    # 兜底：若所有来源均为空，返回 Mock 数据
+    if not data or all(not src.get("items") for src in data):
+        logger.warning("[market/hotnews] 所有来源为空，返回 Mock 兜底数据")
+        return _HOTNEWS_MOCK
+
+    # 直接返回 list（前端期望 list，不需要 wrapper）
+    return data
+
+
+# ════════════════════════════════════════════════════════════════
+# V1.2 — Dashboard 聚合接口
+# ════════════════════════════════════════════════════════════════
+
+@app.get("/api/v1/dashboard/summary", summary="Dashboard 聚合数据（账户摘要+快讯）")
+async def get_dashboard_summary(
+    current_user=Depends(_get_optional_user),
+):
+    """
+    GET /api/v1/dashboard/summary
+
+    一次调用返回 Dashboard 所需全部数据：
+      - account_overview: 三个市场账户余额摘要（不含持仓明细）
+      - flash_news:       最新 5 条财联社快讯
+      - user_info:        登录用户信息（未登录为 null）
+    """
+    from api.mock_exchange import get_account
+    from tools.market_data import get_market_news_raw
+
+    account = get_account()
+    snap    = account.snapshot()
+
+    # 三账户余额（不请求实时股价，保证 Dashboard 加载速度）
+    account_overview = {
+        "A":  {
+            "market": "A", "currency": "CNH",
+            "cash": snap["cash_cnh"], "initial": snap["init_cnh"],
+        },
+        "HK": {
+            "market": "HK", "currency": "HKD",
+            "cash": snap["cash_hkd"], "initial": snap["init_hkd"],
+        },
+        "US": {
+            "market": "US", "currency": "USD",
+            "cash": snap["cash_usd"], "initial": snap["init_usd"],
+        },
+    }
+
+    # 快讯（最多 5 条，独立 try/except 不阻断整个响应）
+    flash_news = []
+    try:
+        loop       = asyncio.get_event_loop()
+        flash_news = await loop.run_in_executor(None, get_market_news_raw, 5)
+    except Exception as e:
+        logger.warning(f"[dashboard/summary] 快讯获取失败: {e}")
+
+    user_info = None
+    if current_user:
+        user_info = {
+            "user_id":  current_user.id,
+            "username": current_user.username,
+            "avatar_url": current_user.avatar_url,
+        }
+
+    return {
+        "account_overview": account_overview,
+        "flash_news":       flash_news,
+        "user_info":        user_info,
+        "timestamp":        datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# ════════════════════════════════════════════════════════════════
+# 财商学长 AI 聊天端点
+# ════════════════════════════════════════════════════════════════
+
+class MentorChatRequest(BaseModel):
+    message: str
+    history: list[dict] = []
+
+@app.post("/api/v1/chat/mentor", summary="财商学长 AI 对话")
+async def chat_mentor(req: MentorChatRequest):
+    """
+    POST /api/v1/chat/mentor
+    Body: { message: str, history: [{role, content}] }
+    Returns: { reply: str }
+    """
+    try:
+        from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+
+        sys_prompt = (
+            "你是「财商学长」，一位专注于大学生财商教育的 AI 助手。"
+            "你的职责是帮助大学生理解金融基础知识，包括：股票投资入门、ETF定投策略、"
+            "仓位风险管理、市盈率/市净率解读、防范投资骗局等。"
+            "回答要简洁易懂，多用举例，避免专业术语堆砌。"
+            "提醒用户本平台仅为模拟练习，不构成投资建议。"
+            "每次回答控制在 200 字以内。"
+        )
+
+        messages = [SystemMessage(content=sys_prompt)]
+        for h in req.history[-8:]:
+            role = h.get("role", "user")
+            content = h.get("content", "")
+            if role == "user":
+                messages.append(HumanMessage(content=content))
+            elif role == "assistant":
+                messages.append(AIMessage(content=content))
+        messages.append(HumanMessage(content=req.message))
+
+        from graph.nodes import _build_llm
+        llm = _build_llm(temperature=0.7)
+        resp = await asyncio.get_event_loop().run_in_executor(None, llm.invoke, messages)
+        reply = resp.content if hasattr(resp, "content") else str(resp)
+        return {"reply": reply}
+
+    except Exception as e:
+        logger.warning(f"[chat/mentor] LLM 调用失败: {e}")
+        return {"reply": f"学长暂时离线了，请稍后再试。（{type(e).__name__}）"}
+
+
+# ════════════════════════════════════════════════════════════════
 # 开发模式入口
 # ════════════════════════════════════════════════════════════════
+
+@app.get("/", include_in_schema=False)
+async def root_redirect():
+    """根路径重定向到控制台（dashboard.html）"""
+    return RedirectResponse(url="/dashboard.html", status_code=302)
+
 
 if __name__ == "__main__":
     import uvicorn

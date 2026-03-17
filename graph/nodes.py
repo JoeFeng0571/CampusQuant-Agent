@@ -1207,14 +1207,81 @@ async def portfolio_node(state: TradingGraphState) -> dict:
 # NODE 7 — debate_node（条件触发：基本面 vs 技术面冲突时）
 # ════════════════════════════════════════════════════════════════
 
+# ── DebateOutcome 字段别名映射表 ────────────────────────────────
+# Qwen 等模型在 with_structured_output 降级时常用同义词替代标准字段名。
+# 此表将常见别名规范化为 DebateOutcome 的确切字段名，作为解析兜底。
+_DEBATE_KEY_MAP: dict[str, str] = {
+    # resolved_recommendation
+    "final_recommendation":    "resolved_recommendation",
+    "recommendation":          "resolved_recommendation",
+    "decision":                "resolved_recommendation",
+    "final_decision":          "resolved_recommendation",
+    "trade_recommendation":    "resolved_recommendation",
+    "action":                  "resolved_recommendation",
+    "final_action":            "resolved_recommendation",
+    # confidence_after_debate
+    "final_confidence":        "confidence_after_debate",
+    "confidence":              "confidence_after_debate",
+    "confidence_score":        "confidence_after_debate",
+    "debate_confidence":       "confidence_after_debate",
+    "confidence_level":        "confidence_after_debate",
+    "final_confidence_score":  "confidence_after_debate",
+    # bull_core_argument
+    "bull_argument":           "bull_core_argument",
+    "bull_argument_core":      "bull_core_argument",
+    "bullish_argument":        "bull_core_argument",
+    "bull_main_argument":      "bull_core_argument",
+    "bull_key_argument":       "bull_core_argument",
+    "long_core_argument":      "bull_core_argument",
+    # bear_core_argument
+    "bear_argument":           "bear_core_argument",
+    "bear_argument_core":      "bear_core_argument",
+    "bearish_argument":        "bear_core_argument",
+    "bear_main_argument":      "bear_core_argument",
+    "bear_key_argument":       "bear_core_argument",
+    "short_core_argument":     "bear_core_argument",
+    # bull_argument_summary
+    "bull_summary":            "bull_argument_summary",
+    "bull_detail":             "bull_argument_summary",
+    "bullish_summary":         "bull_argument_summary",
+    "long_argument_summary":   "bull_argument_summary",
+    # bear_argument_summary
+    "bear_summary":            "bear_argument_summary",
+    "bear_detail":             "bear_argument_summary",
+    "bearish_summary":         "bear_argument_summary",
+    "short_argument_summary":  "bear_argument_summary",
+    # deciding_factor
+    "key_factor":              "deciding_factor",
+    "decisive_factor":         "deciding_factor",
+    "key_deciding_factor":     "deciding_factor",
+    "resolution_factor":       "deciding_factor",
+    "tipping_point":           "deciding_factor",
+    "key_decision_factor":     "deciding_factor",
+    # debate_summary
+    "summary":                 "debate_summary",
+    "overall_summary":         "debate_summary",
+    "conclusion":              "debate_summary",
+    "debate_conclusion":       "debate_summary",
+    "analysis_summary":        "debate_summary",
+    "final_summary":           "debate_summary",
+}
+
+
+def _normalize_debate_json(raw: dict) -> dict:
+    """将 LLM 输出的 JSON 键名归一化为 DebateOutcome 的确切字段名。"""
+    return {_DEBATE_KEY_MAP.get(k, k): v for k, v in raw.items()}
+
+
 async def debate_node(state: TradingGraphState) -> dict:
     """
     多空辩论节点:
       - 仅在 portfolio_node 检测到 has_conflict=True 时被路由触发
       - 模拟"多头方（基本面）vs 空头方（技术面）"的结构化辩论
-      - DebateOutcome 新增 bull_history / bear_history（TradingAgents-CN InvestDebateState 模式）
+      - 三层解析兜底：① with_structured_output → ② 原始JSON+键名归一化 → ③ 纠错重试
       - debate_rounds 自增 1，防止无限循环
     """
+    import re as _re
+
     symbol        = state.get("symbol") or state.get("stock_code", "UNKNOWN")
     fundamental   = state.get("fundamental_report", {}) or {}
     technical     = state.get("technical_report", {})   or {}
@@ -1227,6 +1294,7 @@ async def debate_node(state: TradingGraphState) -> dict:
     tech_rec   = technical.get("recommendation", "HOLD")
     tech_logic = technical.get("reasoning", "")[:300]
 
+    # ── Task 1: 在 Prompt 中显式列出全部 8 个字段名，杜绝 LLM 自造键名 ──
     system_prompt = """你是一位权威的投资决策委员会主席，负责主持并裁决多空方的投资辩论。
 你的职责:
 1. 客观总结多方（基本面）和空方（技术面）的核心论点
@@ -1234,9 +1302,24 @@ async def debate_node(state: TradingGraphState) -> dict:
 3. 基于证据和逻辑权重，裁决出合理的投资方向
 4. 裁决后降低置信度以体现不确定性（通常降低0.1-0.2）
 裁决原则: 趋势性基本面 > 短期技术波动；但若技术信号极强（金叉+高量能），可优先技术面
-【输出格式】必须严格按照给定的 JSON 格式输出结果，不得输出任何 Markdown 包裹或额外说明文字。"""
 
-    # 【审计修复 P2-2】论点摘要（非"对话历史"——这是 LLM 生成的摘要，非真实多轮日志）
+【极其严格的格式要求】
+你必须仅输出合法的 JSON 对象，绝对禁止包含任何 markdown 标记（如 ```json）或分析过程的废话。
+你的 JSON 的键名（Keys）必须一字不差地完全等于以下 8 个字段名，严禁自定义字段，严禁改名或翻译：
+{
+  "resolved_recommendation": "最终建议，只能是 BUY、SELL、HOLD 三个英文大写值之一",
+  "confidence_after_debate": 0.65,
+  "bull_core_argument": "多头方一句话核心论点（字符串，必填，不得为空）",
+  "bear_core_argument": "空头方一句话核心论点（字符串，必填，不得为空）",
+  "bull_argument_summary": "多头方论点的完整展开（字符串）",
+  "bear_argument_summary": "空头方论点的完整展开（字符串）",
+  "deciding_factor": "最终裁决的决定性因素，一句话说明（字符串，必填）",
+  "debate_summary": "辩论全程摘要，至少80个汉字，覆盖双方主要论点和裁决依据（字符串，必填）"
+}
+
+注意: confidence_after_debate 是 0.0~1.0 的数字，不是字符串。resolved_recommendation 只能是 BUY、SELL 或 HOLD。"""
+
+    # 论点摘要（LLM 生成，非真实多轮对话日志）
     bull_argument = (
         f"【第{debate_rounds + 1}轮多头论点】\n"
         f"立场: {fund_rec} | 置信度: {fundamental.get('confidence', 0.5):.2f}\n"
@@ -1250,25 +1333,81 @@ async def debate_node(state: TradingGraphState) -> dict:
         f"关键因素: {', '.join(technical.get('key_factors', [])[:3])}"
     )
 
-    user_prompt = f"""
-【辩论议题】{symbol} 当前应该 BUY 还是 SELL？
+    user_prompt = f"""【辩论议题】{symbol} 当前应该 BUY 还是 SELL？
 
 {bull_argument}
 
 {bear_argument}
 
 请主持本次辩论，总结双方核心论点，分析根本分歧，并给出裁决。
-请在 bull_argument_summary 和 bear_argument_summary 字段中展开各方论点。
-"""
+严格按照 system prompt 中规定的 8 个字段名输出 JSON，不得添加、删除或重命名任何字段。"""
+
+    messages = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=user_prompt),
+    ]
+
+    def _extract_outcome_from_text(text: str) -> DebateOutcome:
+        """从原始文本中提取 JSON 并构建 DebateOutcome（兜底解析）。"""
+        # 去除 markdown 代码块
+        clean = _re.sub(r"```(?:json|JSON)?", "", text).strip().strip("`").strip()
+        m = _re.search(r"\{[\s\S]*\}", clean)
+        if not m:
+            raise ValueError(f"LLM 响应中未找到 JSON 对象: {clean[:300]}")
+        raw_dict = json.loads(m.group())
+        normalized = _normalize_debate_json(raw_dict)
+        return DebateOutcome(**normalized)
 
     try:
         llm = _build_llm(temperature=0.1)
-        structured_llm = llm.with_structured_output(DebateOutcome)
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
-        ]
-        outcome: DebateOutcome = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=180.0)
+        outcome: DebateOutcome | None = None
+
+        # ── Task 2 层1: with_structured_output（Function Calling / JSON Schema 路径）──
+        try:
+            structured_llm = llm.with_structured_output(DebateOutcome)
+            outcome = await asyncio.wait_for(
+                structured_llm.ainvoke(messages), timeout=180.0
+            )
+            logger.info("[debate_node] ✅ 层1 with_structured_output 解析成功")
+        except Exception as e1:
+            logger.warning(
+                f"[debate_node] 层1 with_structured_output 失败 ({type(e1).__name__}: {e1})，"
+                f"降级至层2 原始JSON解析"
+            )
+
+            # ── Task 2 层2: 原始调用 + 键名归一化兜底解析 ──────────────────
+            try:
+                raw_resp = await asyncio.wait_for(llm.ainvoke(messages), timeout=180.0)
+                raw_text = raw_resp.content if hasattr(raw_resp, "content") else str(raw_resp)
+                outcome = _extract_outcome_from_text(raw_text)
+                logger.info("[debate_node] ✅ 层2 原始JSON+键名归一化解析成功")
+            except Exception as e2:
+                logger.warning(
+                    f"[debate_node] 层2 解析失败 ({type(e2).__name__}: {e2})，"
+                    f"降级至层3 纠错重试"
+                )
+
+                # ── Task 2 层3: 带纠错指令的一次重试 ──────────────────────
+                correction_prompt = HumanMessage(content=(
+                    f"你上一次输出的 JSON 键名有误，导致以下解析错误: {e2}\n\n"
+                    f"请严格按照以下模板重新输出，只输出纯 JSON，不要任何其他内容:\n"
+                    f'{{\n'
+                    f'  "resolved_recommendation": "BUY 或 SELL 或 HOLD",\n'
+                    f'  "confidence_after_debate": 0.5,\n'
+                    f'  "bull_core_argument": "多头方核心论点",\n'
+                    f'  "bear_core_argument": "空头方核心论点",\n'
+                    f'  "bull_argument_summary": "多头方详细论点",\n'
+                    f'  "bear_argument_summary": "空头方详细论点",\n'
+                    f'  "deciding_factor": "决定性因素",\n'
+                    f'  "debate_summary": "辩论摘要，至少80字"\n'
+                    f'}}'
+                ))
+                retry_resp = await asyncio.wait_for(
+                    llm.ainvoke(messages + [correction_prompt]), timeout=120.0
+                )
+                retry_text = retry_resp.content if hasattr(retry_resp, "content") else str(retry_resp)
+                outcome = _extract_outcome_from_text(retry_text)
+                logger.info("[debate_node] ✅ 层3 纠错重试解析成功")
 
         outcome_dict = outcome.model_dump(mode='json')
         new_rounds   = debate_rounds + 1
@@ -1304,12 +1443,12 @@ async def debate_node(state: TradingGraphState) -> dict:
                 "bear_core_argument": tech_logic[:100],
                 "bull_argument_summary": bull_argument,
                 "bear_argument_summary": bear_argument,
-                "deciding_factor": "辩论异常，保守 HOLD",
-                "debate_summary": str(e),
+                "deciding_factor": "三层解析均失败，保守降级 HOLD",
+                "debate_summary": f"解析异常: {e}",
             },
             "debate_rounds":  state.get("debate_rounds", 0) + 1,
             "has_conflict":   False,
-            "execution_log":  [_log_entry("debate_node", f"⚠️ 降级处理: {e}")],
+            "execution_log":  [_log_entry("debate_node", f"⚠️ 三层兜底均失败，降级处理: {e}")],
             "error_type":     "llm_error",
             "messages":       [AIMessage(content=f"辩论异常: {e}", name="debate_node")],
         }
