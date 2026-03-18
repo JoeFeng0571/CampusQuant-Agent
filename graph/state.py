@@ -331,7 +331,7 @@ class TradingGraphState(TypedDict, total=False):
 
     # ── 基础标的信息 ─────────────────────────────────────────
     symbol: str
-    market_type: str          # "A_STOCK" | "HK_STOCK" | "US_STOCK"（已移除 CRYPTO）
+    market_type: str          # "A_STOCK" | "HK_STOCK" | "US_STOCK"
 
     # ── 原始市场数据（由 data_node 填充）─────────────────────
     market_data: Dict[str, Any]

@@ -7,7 +7,6 @@ utils/data_loader.py — 多市场历史行情加载器
   美股  → yfinance.Ticker.history()   (日线)
 
 严格红线:
-  - 不引入任何加密货币相关库（无 CCXT / Binance / ccxt）
   - 不连接任何真实交易所 API
   - 仅支持 A_STOCK / HK_STOCK / US_STOCK，其余返回空 DataFrame
 
@@ -105,7 +104,6 @@ class DataLoader:
     多市场数据加载器
 
     支持市场: A股 (akshare) / 港股 (akshare) / 美股 (yfinance)
-    不支持: 加密货币（已从系统移除）
     """
 
     def __init__(self):
@@ -135,7 +133,6 @@ class DataLoader:
         """
         market_type, normalized = self.classifier.classify(symbol)
 
-        # UNKNOWN 或不受支持的市场类型（加密货币已从系统移除）
         if market_type not in (MarketType.A_STOCK, MarketType.HK_STOCK, MarketType.US_STOCK):
             logger.error(f"❌ {symbol}: 不支持的市场类型 {market_type.value}（仅支持 A股/港股/美股）")
             return pd.DataFrame()

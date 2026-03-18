@@ -39,8 +39,7 @@ LLM 输出全部通过 with_structured_output(PydanticModel) 产生，
 彻底消除正则/JSON 手动解析。
 
 严格红线:
-  - 绝不引入 Binance / CCXT / IBKR 等真实交易所 API
-  - 绝不处理加密货币业务逻辑（CRYPTO 已从系统移除）
+  - 绝不引入任何真实交易所 API
   - TradeOrder.simulated 始终为 True，执行指向本地模拟撮合引擎
 """
 from __future__ import annotations
@@ -385,7 +384,7 @@ _PROMPTS: Dict[str, Dict[str, str]] = {
             "- 含超权重标的每项扣 15 分\n"
             "- 含高波动标的（ATR%>5%）每项扣 10 分\n"
             "- 含中小盘投机股每项扣 20 分\n"
-            "- 严禁杠杆、加密，发现直接输出健康分 0 分\n"
+            "- 严禁杠杆，发现直接输出健康分 0 分\n"
             "【输出格式】必须严格按照给定的 JSON 格式输出结果，不得输出任何 Markdown 包裹或额外说明文字。"
         ),
     },
@@ -1488,8 +1487,7 @@ async def risk_node(state: TradingGraphState) -> dict:
 
 【CampusQuant 大学生专属风控规则 — 全部不可豁免】
 1. 严禁任何形式的杠杆交易、融资融券（Margin Trading）、期权投机 — 发现立即拒绝
-2. 严禁加密货币交易（已从系统移除）— 若出现直接拒绝
-3. 单笔最大仓位上限（{market_type}）:
+2. 单笔最大仓位上限（{market_type}）:
    - A股: ≤ 15%（比通常标准更保守）
    - 港股: ≤ 10%（流动性弱，需更高安全边际）
    - 美股: ≤ 10%（汇率风险 + 信息不对称）
@@ -1676,7 +1674,7 @@ async def trade_executor(state: TradingGraphState) -> dict:
 
     system_prompt = (
         "你是执行层交易员，负责将研究决策转化为精确的模拟交易指令。\n"
-        "注意：所有指令仅用于本地模拟撮合引擎，不连接任何真实交易所（无 Binance/CCXT/IBKR）。\n\n"
+        "注意：所有指令仅用于本地模拟撮合引擎，不连接任何真实交易所。\n\n"
         "【强制 JSON 输出结构 — 所有字段必须完整填写，绝不遗漏】\n"
         "你必须且只能输出以下 JSON 对象，不加任何 Markdown 包裹或额外说明：\n"
         "{\n"
@@ -1809,7 +1807,7 @@ async def health_node(state: TradingGraphState) -> dict:
       - 计算集中度风险、回撤风险、流动性评分
       - 使用 with_structured_output(PortfolioHealthReport) 输出结构化诊断
       - Prompt 从 _PROMPTS["health"] 字典取值（外化管理）
-      - 严格执行大学生风控规则：单仓 ≤ 15%，无杠杆，无加密
+      - 严格执行大学生风控规则：单仓 ≤ 15%，无杠杆
 
     注意: health_node 是独立业务分支，不依赖 data_node / portfolio_node，
     可由 builder.py 单独路由到 END。
@@ -1891,7 +1889,7 @@ async def health_node(state: TradingGraphState) -> dict:
 【大学生风控规则】
 - 单标的权重上限: A股≤15%，港股/美股≤10%
 - 总本金假设: ≤5万元
-- 严禁杠杆与加密（发现则健康分=0）
+- 严禁杠杆（发现则健康分=0）
 - 定投宽基ETF视为最健康的持仓选择
 - 浮亏超15%的标的列为高风险持仓
 

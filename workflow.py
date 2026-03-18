@@ -411,7 +411,7 @@ def main():
     ║                                                               ║
     ║      🤖 多智能体自动化交易系统 (Multi-Agent Trading AI)      ║
     ║                                                               ║
-    ║      支持市场: A股 | 港股 | 美股 | 加密货币                  ║
+    ║      支持市场: A股 | 港股 | 美股                             ║
     ║      驱动技术: LangChain + LLM (GPT-4 / Claude 3.5)          ║
     ║                                                               ║
     ╚═══════════════════════════════════════════════════════════════╝
@@ -431,7 +431,7 @@ def main():
 
         if choice == "1":
             # 单标的分析
-            symbol = input("请输入交易标的代码 (如 AAPL, 600519.SH, BTC/USDT): ").strip()
+            symbol = input("请输入交易标的代码 (如 AAPL, 600519.SH, 00700.HK): ").strip()
             if symbol:
                 workflow.run_sequential(symbol)
 

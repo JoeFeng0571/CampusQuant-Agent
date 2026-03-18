@@ -2,14 +2,10 @@
 utils/market_classifier.py — 市场分类工具 (CampusQuant 版)
 
 功能:
-  1. MarketType 枚举：支持 A_STOCK、HK_STOCK、US_STOCK（已移除 CRYPTO）
+  1. MarketType 枚举：支持 A_STOCK、HK_STOCK、US_STOCK
   2. MarketClassifier.classify()：根据代码格式判断市场类型
   3. MarketClassifier.fuzzy_match()：中英文公司名称 → 标准代码的模糊映射
      — 大学生用户习惯输入"茅台""英伟达""腾讯"，系统自动转换为标准代码
-
-产品背景:
-  CampusQuant-Agent 目标用户为在校大学生，不支持加密货币交易
-  （高波动、高杠杆产品对初学者风险极高，已从系统全面移除）
 """
 from enum import Enum
 from typing import Optional, Tuple
@@ -19,7 +15,7 @@ import urllib.parse
 
 
 class MarketType(Enum):
-    """市场类型枚举（加密货币已移除）"""
+    """市场类型枚举"""
     A_STOCK  = "A股"
     HK_STOCK = "港股"
     US_STOCK = "美股"
@@ -281,9 +277,6 @@ class MarketClassifier:
         """
         判断交易标的所属市场类型。
 
-        注意：本版本已移除加密货币（CRYPTO）支持。
-             若用户输入含"/"的加密货币代码，返回 UNKNOWN。
-
         Args:
             symbol: 交易标的代码（应已经过 fuzzy_match 转换）
 
@@ -310,10 +303,6 @@ class MarketClassifier:
         # 美股（1-5个大写字母，含 BRK-B 类格式）
         if re.match(r'^[A-Z]{1,5}$', symbol) or re.match(r'^[A-Z]{1,4}-[AB]$', symbol):
             return MarketType.US_STOCK, symbol
-
-        # 加密货币代码（含"/"）— 已从系统移除，返回 UNKNOWN
-        if "/" in symbol:
-            return MarketType.UNKNOWN, symbol
 
         return MarketType.UNKNOWN, symbol
 
@@ -472,8 +461,6 @@ if __name__ == "__main__":
         ("600519.SH", "A股"),
         ("00700.HK",  "港股"),
         ("AAPL",      "美股"),
-        # 应被拒绝的加密货币
-        ("BTC/USDT",  "未知"),
     ]
 
     print("=== CampusQuant 市场分类测试 ===\n")

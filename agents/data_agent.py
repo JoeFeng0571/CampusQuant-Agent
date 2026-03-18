@@ -192,7 +192,7 @@ if __name__ == "__main__":
     agent = DataAgent()
 
     # 测试不同市场
-    test_symbols = ["600519.SH", "AAPL", "BTC/USDT"]
+    test_symbols = ["600519.SH", "AAPL"]
 
     for symbol in test_symbols:
         print(f"\n{'='*60}")

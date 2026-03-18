@@ -4,7 +4,6 @@
 根据不同市场类型采用差异化的分析框架：
 - A股：景气度 + 政策驱动 + EPS增速
 - 美港股：价值投资 + PE/PB + 自由现金流
-- Crypto：链上数据 + 项目基本面
 """
 from typing import Dict, Any
 from loguru import logger
@@ -126,7 +125,6 @@ class FundamentalAgent(BaseAgent):
 1. 股票分析：解读财务报表（PE、PB、ROE、EPS、营收增长）
 2. 行业景气度：判断行业所处周期与政策催化剂
 3. 估值分析：PEG法、DCF法、EV/EBITDA等多维估值工具
-4. 加密货币：分析链上数据（活跃地址、Gas费、NVT）和项目基本面
 
 请基于基本面数据，给出投资价值判断和风险提示。
 """
@@ -343,46 +341,6 @@ class FundamentalAgent(BaseAgent):
             "note_strategy": "港股价值策略：关注PE/PB安全边际、FCF yield、稳定分红、美联储政策影响",
         }
 
-    def _get_crypto_fundamentals(self, symbol: str) -> Dict[str, Any]:
-        """
-        获取加密货币基本面数据（链上指标）
-
-        Args:
-            symbol: 加密货币交易对
-
-        Returns:
-            链上基本面指标（模拟，实际应接入Glassnode/CoinMetrics）
-        """
-        base_currency = symbol.split("/")[0]
-
-        fundamentals = {
-            "asset": base_currency,
-            "type": "加密货币",
-            "on_chain_metrics": {
-                "active_addresses": "模拟: 50万/日 (近30日趋势: 上升)",
-                "transaction_count": "模拟: 30万笔/日",
-                "hash_rate": "模拟: 400 EH/s (历史高位附近)" if base_currency == "BTC" else "N/A",
-                "staking_rate": "模拟: 26% (质押率)" if base_currency == "ETH" else "N/A",
-                "gas_fees": "模拟: 中等偏低" if base_currency == "ETH" else "N/A",
-                "long_term_holder_pct": "模拟: 68% (筹码集中度高)" if base_currency == "BTC" else "模拟: N/A",
-            },
-            "market_metrics": {
-                "24h_volume": "模拟: $20B",
-                "market_dominance": "模拟: 52%" if base_currency == "BTC" else "模拟: 17%",
-                "nvt_ratio": "模拟: 85 (历史均值附近，估值合理)" if base_currency == "BTC" else "模拟: N/A",
-                "funding_rate": "模拟: +0.01% (略偏多头，无过热)",
-                "open_interest": "模拟: 适中",
-            },
-            "ecosystem": {
-                "defi_tvl": "模拟: $50B" if base_currency == "ETH" else "N/A",
-                "developer_activity": "模拟: 活跃 (GitHub commits 持续)",
-            },
-            "note": "实际应接入 Glassnode/CoinMetrics 等链上数据 API 获取真实数据",
-            "note_strategy": "Crypto链上策略：NVT估值、活跃地址趋势、LTH比例、资金费率为核心判断依据",
-        }
-
-        return fundamentals
-
     def _llm_analyze(
         self,
         symbol: str,
@@ -469,8 +427,3 @@ if __name__ == "__main__":
     print(f"策略: {result.get('strategy_applied')}")
     print(agent.format_report(result))
 
-    # 测试加密货币（链上策略）
-    print("\n=== 测试加密货币基本面 (链上策略) ===")
-    result = agent.analyze("BTC/USDT", data={})
-    print(f"策略: {result.get('strategy_applied')}")
-    print(agent.format_report(result))

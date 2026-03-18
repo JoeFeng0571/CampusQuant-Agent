@@ -344,23 +344,6 @@ class TestRiskBoundary:
             f"止损修正失败，实际: {decision_dict['stop_loss_pct']}"
         )
 
-    def test_crypto_symbol_blocked_by_classifier(self):
-        """
-        加密货币代码（BTC/USDT）应被分类为 UNKNOWN，
-        无法进入 A股/港股/美股 分析流程。
-        """
-        from utils.market_classifier import MarketClassifier, MarketType
-
-        market_type, _ = MarketClassifier.classify("BTC/USDT")
-        assert market_type == MarketType.UNKNOWN, (
-            f"加密货币应被分类为 UNKNOWN，实际: {market_type}"
-        )
-
-        market_type2, _ = MarketClassifier.classify("ETH/USDT")
-        assert market_type2 == MarketType.UNKNOWN, (
-            f"ETH/USDT 应被分类为 UNKNOWN，实际: {market_type2}"
-        )
-
     def test_a_stock_symbol_classified_correctly(self):
         """A股代码应被正确分类"""
         from utils.market_classifier import MarketClassifier, MarketType

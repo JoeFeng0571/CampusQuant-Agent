@@ -6,7 +6,7 @@
 
 > **当前版本：V1.2**（2026-03）— 新增三币种模拟交易账户、K 线图检索、多平台热榜聚合、Dashboard 仪表盘、用户鉴权与 DB 持久化。
 
-> **红线声明**：本项目已全面移除加密货币（Crypto）支持。高波动、高杠杆、诈骗高发，不适合本金有限的大学生。所有交易指令均指向**本地模拟撮合引擎**，不接入任何真实交易所 API。
+> **红线声明**：所有交易指令均指向**本地模拟撮合引擎**，不接入任何真实交易所 API。
 
 ---
 
@@ -347,8 +347,6 @@ DataLoader.get_historical_data(symbol, days)
     ├─ A_STOCK  → akshare.stock_zh_a_hist(adjust="qfq")
     ├─ HK_STOCK → akshare.stock_hk_hist(adjust="qfq") + 本地日期截断
     ├─ US_STOCK → yfinance.Ticker.history(auto_adjust=True).reset_index()
-    └─ CRYPTO   → 直接抛出 ValueError（已禁止）
-
     └─ _standardize() → 统一列名映射（中/英双语）→ [timestamp, open, high, low, close, volume]
 
 可靠性保障：
@@ -456,7 +454,6 @@ FastAPI 后端（默认 `http://localhost:8000`）：
 **不可豁免的拒绝条件**：
 - 任何形式的杠杆/融资融券（Margin Trading）
 - 任何期权投机（Options Speculation）
-- 加密货币（已从系统全面移除）
 - 综合置信度 < 60% 且方向为 BUY/SELL → 强制降仓至 ≤5% 或直接拒绝
 
 ---
@@ -539,17 +536,6 @@ init_knowledge_base(force_rebuild=True)
 
 ---
 
-## 为什么不支持加密货币
-
-1. **极高波动**：BTC 单日波动常超 10%，大学生本金有限，一次暴跌可能亏损数月生活费
-2. **杠杆陷阱**：主流交易所提供 10x-100x 杠杆，是大学生血本无归的常见路径
-3. **监管风险**：中国境内加密货币交易合规性存疑，法律保护缺失
-4. **诈骗高发**："杀猪盘"最高发场景，大学生是主要受害群体
-
-**如果已被"炒币"诱惑**，请拨打全国反诈热线 **96110**。
-
----
-
 ## 免责声明
 
 **本系统仅用于学习、研究与财商教育目的，不构成任何投资建议。**
@@ -576,7 +562,7 @@ init_knowledge_base(force_rebuild=True)
 | 前端 | `streamlit` |
 | 工具库 | `python-dotenv`, `pydantic`, `tenacity`, `loguru`, `requests` |
 
-> `ccxt`（加密货币库）已从 `requirements.txt` 移除。`faiss-cpu` 已被 `chromadb` 替代。
+> `faiss-cpu` 已被 `chromadb` 替代。
 
 ---
 

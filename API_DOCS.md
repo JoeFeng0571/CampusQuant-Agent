@@ -61,7 +61,6 @@ Accept: text/event-stream
 | A股 | `数字.SH` / `数字.SZ` | `600519.SH`（茅台）、`000858.SZ`（五粮液） |
 | 港股 | `数字.HK` | `00700.HK`（腾讯）、`09988.HK`（阿里） |
 | 美股 | 股票代码 | `AAPL`、`NVDA`、`TSLA` |
-| 加密 | `BASE/QUOTE` | `BTC/USDT`、`ETH/USDT` |
 
 ### 响应
 
@@ -253,7 +252,7 @@ data: <JSON 字符串>
     "approval_status": "REJECTED",
     "risk_level": "HIGH",
     "position_pct": 0,
-    "rejection_reason": "建议仓位30%超出加密货币市场上限10%"
+    "rejection_reason": "建议仓位30%超出单标的仓位上限10%"
   }
 }
 ```
@@ -490,7 +489,7 @@ GET /api/v1/health
 2. **并发限制**: 当前使用 MemorySaver（内存存储），服务重启后历史记录清空
 3. **API Key**: 需要在 `.env` 文件中配置 `ANTHROPIC_API_KEY` 或 `OPENAI_API_KEY`
 4. **FAISS 知识库**: 若未配置 OpenAI API Key，知识库将降级为关键词检索模式
-5. **市场数据**: 美股需要联网；A股/港股通过 akshare；加密货币通过 Binance API
+5. **市场数据**: 美股需要联网（yfinance）；A股/港股通过 akshare
 
 ---
 

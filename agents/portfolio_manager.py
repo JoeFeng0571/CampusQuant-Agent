@@ -5,7 +5,6 @@
 策略路由：
 - A股：景气度 + 政策驱动策略（提高情绪/技术权重，降低静态估值权重）
 - 美股/港股：价值投资策略（提高基本面权重，关注长期支撑）
-- Crypto：链上技术策略（提高技术面权重，关注链上情绪和资金费率）
 """
 from typing import Dict, Any, List
 from loguru import logger
