@@ -670,7 +670,7 @@ price_target 使用绝对价格数值。
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=180.0)
+        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=300.0)
 
         report_dict = report.model_dump(mode='json')
         log_msg = _log_entry(
@@ -798,7 +798,7 @@ async def technical_node(state: TradingGraphState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=180.0)
+        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=300.0)
 
         report_dict = report.model_dump(mode='json')
         log_msg = _log_entry(
@@ -928,7 +928,7 @@ async def sentiment_node(state: TradingGraphState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=180.0)
+        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=300.0)
 
         report_dict = report.model_dump(mode='json')
         has_real_news = "新闻获取失败" not in news_text and "获取失败" not in news_text and "暂无" not in news_text

@@ -14,10 +14,12 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from typing import Any, Dict, Optional
 
 import numpy as np
 import pandas as pd
+import requests as _requests
 from langchain_core.tools import tool
 from loguru import logger
 
@@ -1285,160 +1287,213 @@ def get_batch_quotes_raw(symbols: list, market: str) -> list:
 # 供 /api/v1/market/indices 端点调用
 # ════════════════════════════════════════════════════════════════
 
-# 8大指数固定顺序：yfinance symbol → (中文名, display_code)
-# yfinance: 000001.SS=上证, 000688.SS=科创50, 399001.SZ=深证, 399006.SZ=创业板
-#           ^HSI=恒生, ^NDX=纳斯达克100, ^GSPC=标普500, ^DJI=道琼斯
-_INDEX_YF_MAP: list[tuple[str, str, str]] = [
-    ("000001.SS", "000001", "上证指数"),
-    ("000688.SS", "000688", "科创50"),
-    ("399001.SZ", "399001", "深证成指"),
-    ("399006.SZ", "399006", "创业板指"),
-    ("^HSI",      "HSI",   "恒生指数"),
-    ("^NDX",      "NDX",   "纳斯达克100"),
-    ("^GSPC",     "SPX",   "标普500"),
-    ("^DJI",      "DJIA",  "道琼斯"),
+# 8大指数固定顺序（display_code, 中文名）
+_INDEX_ORDERED: list[tuple[str, str]] = [
+    ("000001", "上证指数"),
+    ("000688", "科创50"),
+    ("399001", "深证成指"),
+    ("399006", "创业板指"),
+    ("HSI",    "恒生指数"),
+    ("NDX",    "纳斯达克100"),
+    ("SPX",    "标普500"),
+    ("DJIA",   "道琼斯"),
 ]
 
-# akshare 备用映射（当 yfinance 超时时）
-_A_INDEX_NAMES: dict[str, str] = {
-    "000001": "上证指数",
-    "000688": "科创50",
-}
-_GLOBAL_INDEX_NAMES: dict[str, str] = {
-    "399001": "深证成指",
-    "399006": "创业板指",
-    "HSI":    "恒生指数",
-    "NDX":    "纳斯达克100",
-    "SPX":    "标普500",
-    "DJIA":   "道琼斯",
+# A股/深证/创业板：直接走 akshare，跳过 yfinance（避免超时）
+_A_CODES  = {"000001", "000688"}   # stock_zh_index_spot_em
+_SZ_CODES = {"399001", "399006"}   # index_global_spot_em（399xxx 不在A股表）
+
+# 全球/港股指数：yfinance 为主，akshare index_global_spot_em 备用
+_GLOBAL_YF_MAP: list[tuple[str, str]] = [
+    ("^HSI",  "HSI"),
+    ("^NDX",  "NDX"),
+    ("^GSPC", "SPX"),
+    ("^DJI",  "DJIA"),
+]
+
+_INDEX_TIMEOUT = 15   # yfinance 全球指数超时（s），A股已走 akshare 无需长等
+
+# 新浪财经实时指数接口 —— A股备用（极稳定，延迟 <200ms）
+# 格式: var hq_str_s_sh000001="上证指数,3351.50,-6.49,-0.19,234926,2634074";
+# 字段: name, price, change_amt, change_pct, volume, amount
+_SINA_CODE_MAP = {
+    "s_sh000001": "000001",
+    "s_sh000688": "000688",
+    "s_sz399001": "399001",
+    "s_sz399006": "399006",
 }
 
-_INDEX_TIMEOUT = 20   # 指数获取总超时（s）
+
+def _fetch_a_indices_sina() -> dict[str, tuple]:
+    """新浪财经实时指数接口，A股/深证/创业板备用，不走 akshare 内部 session"""
+    result: dict[str, tuple] = {}
+    try:
+        symbols = ",".join(_SINA_CODE_MAP.keys())
+        resp = _requests.get(
+            f"https://hq.sinajs.cn/list={symbols}",
+            headers={
+                "Referer":    "https://finance.sina.com.cn",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            },
+            timeout=5,
+            proxies={"http": "", "https": ""},
+        )
+        for line in resp.text.splitlines():
+            for sina_sym, display_code in _SINA_CODE_MAP.items():
+                if sina_sym in line and '"' in line:
+                    inner = line.split('"')[1]
+                    parts = inner.split(",")
+                    if len(parts) >= 4:
+                        price    = float(parts[1] or 0)
+                        chg_amt  = float(parts[2] or 0)
+                        chg_pct  = float(parts[3] or 0)
+                        if price > 0:
+                            result[display_code] = (price, chg_pct, chg_amt)
+    except Exception as _e:
+        logger.warning(f"[get_market_indices_raw] 新浪备用接口失败: {_e}")
+    return result
+
+
+def _akshare_with_retry(fn, retries: int = 2, delay: float = 1.0):
+    """对 akshare 调用加最多 retries 次重试（RemoteDisconnected 场景）"""
+    last_exc = None
+    for attempt in range(retries + 1):
+        try:
+            return fn()
+        except Exception as e:
+            last_exc = e
+            if attempt < retries:
+                time.sleep(delay)
+    raise last_exc
 
 
 def get_market_indices_raw() -> list[dict]:
     """
     获取8大主要指数实时数据。
 
-    数据来源（主力）：yfinance 批量并发（稳定，支持A股/港股/美股指数）
-    备用降级：akshare stock_zh_index_spot_em + index_global_spot_em
+    4 路并行拉取，总耗时 = max(各路时间)，约 5-15s：
+      线程1: akshare stock_zh_index_spot_em  → 000001/000688
+      线程2: akshare index_global_spot_em    → 399001/399006/全球备用
+      线程3: 新浪财经 hq.sinajs.cn            → A股备用（极快）
+      线程4: yfinance Tickers                → HSI/NDX/SPX/DJIA（优先）
 
-    固定顺序（不管切换哪个市场Tab，前端始终展示这8个）：
-      上证指数 / 科创50 / 深证成指 / 创业板指 /
-      恒生指数 / 纳斯达克100 / 标普500 / 道琼斯
+    优先级: yfinance > akshare > 新浪（A股）
 
     Returns:
         list[dict]  每项含 {name, code, price, change_pct, change, is_fallback}
-        price>0 且 is_fallback=False 为实时数据；price=0 表示获取失败。
     """
-    # ── 主力：yfinance 并发批量 ───────────────────────────────
-    _yf_done  = threading.Event()
-    _yf_data: list = [None]
+    # ── 4 路并行 ──────────────────────────────────────────────────
+    _ak_a_ev   = threading.Event()
+    _ak_g_ev   = threading.Event()
+    _sina_ev   = threading.Event()
+    _yf_ev     = threading.Event()
 
-    def _fetch_yf():
+    _ak_a_df:  list = [None]   # stock_zh_index_spot_em DataFrame
+    _ak_g_df:  list = [None]   # index_global_spot_em DataFrame
+    _sina_buf: list = [{}]     # {code: (price, chg_pct, chg)}
+    _yf_buf:   list = [{}]     # {code: (price, chg_pct, chg)}
+
+    def _t_akshare_a():
+        try:
+            import akshare as ak
+            _ak_a_df[0] = _akshare_with_retry(ak.stock_zh_index_spot_em, retries=1, delay=0.5)
+        except Exception as _e:
+            logger.warning(f"[get_market_indices_raw] akshare A股表失败: {_e}")
+        finally:
+            _ak_a_ev.set()
+
+    def _t_akshare_g():
+        try:
+            import akshare as ak
+            _ak_g_df[0] = _akshare_with_retry(ak.index_global_spot_em, retries=1, delay=0.5)
+        except Exception as _e:
+            logger.warning(f"[get_market_indices_raw] akshare 全球表失败: {_e}")
+        finally:
+            _ak_g_ev.set()
+
+    def _t_sina():
+        _sina_buf[0] = _fetch_a_indices_sina()
+        _sina_ev.set()
+
+    def _t_yfinance():
         try:
             import yfinance as yf
-            yf_syms = [row[0] for row in _INDEX_YF_MAP]
-            tickers = yf.Tickers(" ".join(yf_syms))
-            items = []
-            for yf_sym, display_code, name in _INDEX_YF_MAP:
+            syms = [s for s, _ in _GLOBAL_YF_MAP]
+            tickers = yf.Tickers(" ".join(syms))
+            buf = {}
+            for yf_sym, code in _GLOBAL_YF_MAP:
                 try:
                     fi    = tickers.tickers[yf_sym].fast_info
                     price = float(fi.last_price or 0)
-                    prev  = float(getattr(fi, 'previous_close', None) or 0)
-                    chg_p = round((price - prev) / prev * 100, 2) if (prev and price) else 0.0
-                    chg_v = round(price - prev, 4) if prev else 0.0
-                    items.append({
-                        "code":        display_code,
-                        "name":        name,
-                        "price":       price,
-                        "change_pct":  chg_p,
-                        "change":      chg_v,
-                        "is_fallback": price <= 0,
-                    })
-                except Exception as _e:
-                    logger.warning(f"[get_market_indices_raw] yfinance {yf_sym} 失败: {_e}")
-                    items.append({"code": display_code, "name": name,
-                                  "price": 0.0, "change_pct": 0.0, "change": 0.0,
-                                  "is_fallback": True})
-            _yf_data[0] = items
-        except Exception as _e:
-            logger.error(f"[get_market_indices_raw] yfinance 全量失败: {_e}")
-        finally:
-            _yf_done.set()
-
-    # ── 备用：akshare 并发（与 yfinance 同时发起）─────────────
-    _ak_done  = threading.Event()
-    _ak_data: list = [None]
-
-    def _fetch_akshare():
-        try:
-            import akshare as ak
-            a_map: dict[str, tuple] = {}   # code → (price, chg_pct, chg)
-            g_map: dict[str, tuple] = {}
-            try:
-                df_a = ak.stock_zh_index_spot_em()
-                for code in _A_INDEX_NAMES:
-                    row = df_a[df_a.iloc[:, 1] == code]
-                    if not row.empty:
-                        a_map[code] = (
-                            float(row.iloc[0, 3] or 0),
-                            float(row.iloc[0, 4] or 0),
-                            float(row.iloc[0, 5] or 0),
+                    prev  = float(getattr(fi, "previous_close", None) or 0)
+                    if price > 0:
+                        buf[code] = (
+                            price,
+                            round((price - prev) / prev * 100, 2) if prev else 0.0,
+                            round(price - prev, 4) if prev else 0.0,
                         )
-            except Exception:
-                pass
-            try:
-                df_g = ak.index_global_spot_em()
-                for code in _GLOBAL_INDEX_NAMES:
-                    row = df_g[df_g.iloc[:, 1] == code]
-                    if not row.empty:
-                        g_map[code] = (
-                            float(row.iloc[0, 3] or 0),
-                            float(row.iloc[0, 5] or 0),   # col[5]=涨跌幅%
-                            float(row.iloc[0, 4] or 0),   # col[4]=涨跌额
-                        )
-            except Exception:
-                pass
-            merged = {**a_map, **g_map}
-            items = []
-            for _, display_code, name in _INDEX_YF_MAP:
-                if display_code in merged:
-                    p, cp, cv = merged[display_code]
-                    items.append({"code": display_code, "name": name,
-                                  "price": p, "change_pct": cp, "change": cv,
-                                  "is_fallback": p <= 0})
-                else:
-                    items.append({"code": display_code, "name": name,
-                                  "price": 0.0, "change_pct": 0.0, "change": 0.0,
-                                  "is_fallback": True})
-            _ak_data[0] = items
+                except Exception:
+                    pass
+            _yf_buf[0] = buf
         except Exception as _e:
-            logger.error(f"[get_market_indices_raw] akshare 备用全量失败: {_e}")
+            logger.warning(f"[get_market_indices_raw] yfinance 失败: {_e}")
         finally:
-            _ak_done.set()
+            _yf_ev.set()
 
-    # 并发发起两路
-    threading.Thread(target=_fetch_yf,      daemon=True, name="idx-yf").start()
-    threading.Thread(target=_fetch_akshare, daemon=True, name="idx-ak").start()
+    # 同时启动 4 路线程
+    for tgt, name in [
+        (_t_akshare_a, "idx-ak-a"),
+        (_t_akshare_g, "idx-ak-g"),
+        (_t_sina,      "idx-sina"),
+        (_t_yfinance,  "idx-yf"),
+    ]:
+        threading.Thread(target=tgt, daemon=True, name=name).start()
 
-    _yf_done.wait(timeout=_INDEX_TIMEOUT)
-    _ak_done.wait(timeout=_INDEX_TIMEOUT)
+    # 等待各路完成（各自独立超时）
+    _ak_a_ev.wait(timeout=12)
+    _ak_g_ev.wait(timeout=12)
+    _sina_ev.wait(timeout=6)
+    _yf_ev.wait(timeout=_INDEX_TIMEOUT)
 
-    # 合并：yfinance 优先，price=0 的用 akshare 补充
-    yf_result  = _yf_data[0] or []
-    ak_result  = _ak_data[0] or []
-    ak_by_code = {r["code"]: r for r in ak_result}
+    # ── 合并：优先级 yfinance > akshare > 新浪 ───────────────────
+    price_map: dict[str, tuple] = {}
 
+    # 1. 新浪（最低优先，A股保底）
+    price_map.update(_sina_buf[0])
+
+    # 2. akshare A股表
+    if _ak_a_df[0] is not None:
+        df_a = _ak_a_df[0]
+        for code in _A_CODES:
+            row = df_a[df_a.iloc[:, 1] == code]
+            if not row.empty:
+                p = float(row.iloc[0, 3] or 0)
+                if p > 0:
+                    price_map[code] = (p, float(row.iloc[0, 4] or 0), float(row.iloc[0, 5] or 0))
+
+    # 3. akshare 全球表（包含 399001/399006 + 全球备用）
+    if _ak_g_df[0] is not None:
+        df_g = _ak_g_df[0]
+        for code in _SZ_CODES | {"HSI", "NDX", "SPX", "DJIA"}:
+            row = df_g[df_g.iloc[:, 1] == code]
+            if not row.empty:
+                p = float(row.iloc[0, 3] or 0)
+                if p > 0:
+                    price_map[code] = (p, float(row.iloc[0, 5] or 0), float(row.iloc[0, 4] or 0))
+
+    # 4. yfinance（最高优先，覆盖全球指数）
+    price_map.update(_yf_buf[0])
+
+    # ── 按固定顺序组装 ────────────────────────────────────────────
     result = []
-    for i, (_, display_code, name) in enumerate(_INDEX_YF_MAP):
-        yf_item = yf_result[i] if i < len(yf_result) else None
-        if yf_item and yf_item["price"] > 0:
-            result.append(yf_item)
-        elif display_code in ak_by_code and ak_by_code[display_code]["price"] > 0:
-            result.append(ak_by_code[display_code])
+    for code, name in _INDEX_ORDERED:
+        if code in price_map and price_map[code][0] > 0:
+            p, cp, cv = price_map[code]
+            result.append({"code": code, "name": name,
+                           "price": p, "change_pct": cp, "change": cv,
+                           "is_fallback": False})
         else:
-            result.append({"code": display_code, "name": name,
+            result.append({"code": code, "name": name,
                            "price": 0.0, "change_pct": 0.0, "change": 0.0,
                            "is_fallback": True})
 
@@ -1513,6 +1568,58 @@ def get_market_news_raw(limit: int = 20) -> list[dict]:
     # 超时或失败时返回空列表，前端显示占位提示
     logger.warning("[get_market_news_raw] 快讯获取超时/失败，返回空列表")
     return []
+
+
+# ════════════════════════════════════════════════════════════════
+# 辅助函数：A股行业板块涨跌
+# 供 /api/v1/market/sectors 端点调用
+# ════════════════════════════════════════════════════════════════
+
+def get_sector_data_raw() -> list[dict]:
+    """
+    获取A股行业板块实时涨跌幅（新浪财经，约49个行业）。
+
+    数据源: vip.stock.finance.sina.com.cn/q/view/newSinaHy.php
+    返回按涨跌幅降序排列的板块列表，用于 market.html 板块热力图。
+
+    Returns:
+        list[dict]  每项含 {name, change_pct}，按 change_pct 降序
+    """
+    import re as _re
+    import json as _json
+    try:
+        resp = _requests.get(
+            "https://vip.stock.finance.sina.com.cn/q/view/newSinaHy.php",
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Referer":    "https://finance.sina.com.cn/",
+            },
+            timeout=8,
+            proxies={"http": "", "https": ""},
+        )
+        text = resp.text
+        match = _re.search(
+            r"var\s+S_Finance_bankuai_sinaindustry\s*=\s*(\{.*?\})\s*;?\s*$",
+            text, _re.DOTALL | _re.MULTILINE
+        )
+        if not match:
+            logger.warning("[get_sector_data_raw] 未匹配到板块JS变量")
+            return []
+        data = _json.loads(match.group(1))
+        sectors = []
+        for _k, v in data.items():
+            parts = v.split(",")
+            if len(parts) >= 6:
+                name       = parts[1].strip()
+                change_pct = float(parts[5])
+                if name:
+                    sectors.append({"name": name, "change_pct": round(change_pct, 2)})
+        sectors.sort(key=lambda x: x["change_pct"], reverse=True)
+        logger.info(f"[get_sector_data_raw] 返回 {len(sectors)} 个板块")
+        return sectors
+    except Exception as _e:
+        logger.warning(f"[get_sector_data_raw] 板块数据获取失败: {_e}")
+        return []
 
 
 # ════════════════════════════════════════════════════════════════

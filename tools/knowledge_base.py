@@ -75,10 +75,11 @@ from loguru import logger
 # 目录常量 — 自动创建，首次运行无需手动建目录
 # ════════════════════════════════════════════════════════════════════
 
-_BASE_DIR   = Path(__file__).parent.parent   # 项目根目录
-_DOCS_DIR   = _BASE_DIR / "data" / "docs"    # 研报/PDF 存放目录
-_CHROMA_DIR = _BASE_DIR / "data" / "chroma_db"  # Chroma 持久化目录
-_COLLECTION = "trading_knowledge"            # Chroma 集合名称（逻辑命名空间）
+_BASE_DIR   = Path(__file__).parent.parent           # 项目根目录
+_DOCS_DIR   = _BASE_DIR / "data" / "docs"            # 研报/PDF 存放目录
+_CHROMA_DIR = _BASE_DIR / "data" / "chroma_db"       # Chroma 持久化目录
+_BM25_PKL   = _BASE_DIR / "data" / "bm25_index.pkl"  # BM25 序列化索引（离线建库产物）
+_COLLECTION = "trading_knowledge"                     # Chroma 集合名称
 
 _DOCS_DIR.mkdir(parents=True, exist_ok=True)
 _CHROMA_DIR.mkdir(parents=True, exist_ok=True)
@@ -242,17 +243,6 @@ RSI解读：
 
 
 # ════════════════════════════════════════════════════════════════════
-# 文本切分配置（全局共用）
-# ════════════════════════════════════════════════════════════════════
-
-_SPLITTER = RecursiveCharacterTextSplitter(
-    chunk_size=500,        # 每块最大字符数（中文语境适当放大）
-    chunk_overlap=100,     # 块间重叠字符数，保证跨块上下文连贯
-    separators=["\n\n", "\n", "。", "；", "，", " "],
-)
-
-
-# ════════════════════════════════════════════════════════════════════
 # 全局单例（惰性初始化，首次调用 search_knowledge_base 时自动触发）
 # ════════════════════════════════════════════════════════════════════
 
@@ -264,63 +254,8 @@ _web_search_tool    = None   # DuckDuckGoSearchRun 实例
 # 内部构建函数
 # ════════════════════════════════════════════════════════════════════
 
-def _load_all_documents() -> List[Document]:
-    """
-    汇总加载所有文档来源：
-      ① 内置种子文档 — 系统底线知识，无外部文件时保证基本可用
-      ② data/docs/ 本地文件 — 支持 PDF、TXT、Markdown，自动递归扫描
-
-    文件加载失败时单独跳过，不影响其他文件。
-    """
-    docs: List[Document] = []
-
-    # ① 内置种子文档
-    seed_docs = [
-        Document(page_content=text, metadata={"source": "builtin_seed"})
-        for text in _SEED_DOCUMENTS
-    ]
-    docs.extend(seed_docs)
-    logger.info(f"  ① 内置种子文档: {len(seed_docs)} 篇")
-
-    # ② 扫描本地文件
-    local_files = (
-        list(_DOCS_DIR.rglob("*.pdf"))
-        + list(_DOCS_DIR.rglob("*.txt"))
-        + list(_DOCS_DIR.rglob("*.md"))
-    )
-
-    if not local_files:
-        logger.info(f"  ② data/docs/ 目录为空，仅使用内置种子知识")
-        logger.info(f"     提示 → 将研报 PDF/TXT 放入 {_DOCS_DIR} 可扩充知识库")
-        return docs
-
-    logger.info(f"  ② 发现 {len(local_files)} 个本地文件，逐一加载中...")
-    loaded_count = 0
-    for fpath in local_files:
-        try:
-            if fpath.suffix.lower() == ".pdf":
-                # PDF 加载：需要 pypdf（pip install pypdf）
-                from langchain_community.document_loaders import PyPDFLoader
-                loader = PyPDFLoader(str(fpath))
-            else:
-                # TXT / Markdown 加载
-                from langchain_community.document_loaders import TextLoader
-                loader = TextLoader(str(fpath), encoding="utf-8")
-
-            file_docs = loader.load()
-            # 注入文件名元数据（用于检索结果溯源）
-            for d in file_docs:
-                d.metadata.setdefault("source", fpath.name)
-            docs.extend(file_docs)
-            loaded_count += 1
-            logger.info(f"     ✓ {fpath.name}  ({len(file_docs)} 段)")
-        except ImportError as e:
-            logger.warning(f"     ✗ {fpath.name} — 缺少依赖: {e}")
-        except Exception as e:
-            logger.warning(f"     ✗ {fpath.name} — 加载失败: {e}")
-
-    logger.info(f"  ② 本地文件加载完成: {loaded_count}/{len(local_files)} 成功")
-    return docs
+# _load_all_documents() 已迁移至 scripts/build_kb.py（离线建库脚本）
+# 在线端不再执行文档加载与切块，直接从磁盘读取预构建索引。
 
 
 def _build_embedding_model():
@@ -368,133 +303,81 @@ def _build_embedding_model():
     return None
 
 
-def _build_chroma_retriever(
-    chunks: List[Document],
-    embedding_model,
-    force_rebuild: bool,
-) -> Optional[object]:
+def _build_chroma_retriever(embedding_model) -> Optional[object]:
     """
-    构建 Chroma 持久化向量数据库检索器（稠密检索）。
+    【在线端-极速加载】从已持久化目录实例化 Chroma 检索器，不执行任何 Embedding。
 
-    ── 稠密向量检索工作原理 ─────────────────────────────────────────
-    1. Embedding：将每个文本块通过 OpenAI Embeddings 转换为高维向量（1536维）
-    2. 存储：向量持久化至 data/chroma_db/（SQLite + 向量文件）
-    3. 检索：将 Query 转为向量，计算与库中所有向量的余弦相似度
-    4. 排序：按相似度降序取 Top-K 结果返回
+    前提：已执行过 python scripts/build_kb.py，data/chroma_db/ 中存有向量索引。
+    耗时：< 500ms（仅打开 SQLite 文件句柄，无网络请求）。
 
-    ── 稠密检索的优势与劣势 ────────────────────────────────────────
-    优势：理解语义/概念相似度（如 "英伟达" 能匹配含 "NVDA" 的段落）
-    劣势：对特定格式专有名词（如 "000858.SZ" 股票代码）召回不稳定
-          → 由 BM25 精准匹配补偿此劣势
-
-    ── 持久化策略 ──────────────────────────────────────────────────
-    • 首次/force_rebuild=True：执行 Embedding → 写入 Chroma（耗时，需 API 调用）
-    • 后续启动：直接加载已有 Chroma 集合，无需重新 Embedding（秒级就绪）
-    • 新增文档后：调用 init_knowledge_base(force_rebuild=True) 重建
+    若索引不存在，返回 None 并打印引导信息（系统降级为纯 BM25 或纯联网模式）。
     """
     if embedding_model is None:
-        logger.info("  跳过 Chroma 构建（无 Embedding 模型）")
+        logger.info("  跳过 Chroma 加载（无 Embedding 模型）")
         return None
 
     try:
         import chromadb
         try:
-            from langchain_chroma import Chroma  # langchain >= 0.2.9 推荐路径
+            from langchain_chroma import Chroma
         except ImportError:
-            from langchain_community.vectorstores import Chroma  # 旧版降级
+            from langchain_community.vectorstores import Chroma
 
-        # 创建持久化客户端（数据存储于 data/chroma_db/）
         chroma_client = chromadb.PersistentClient(path=str(_CHROMA_DIR))
         existing_names = [c.name for c in chroma_client.list_collections()]
-        has_existing = _COLLECTION in existing_names
 
-        if has_existing and not force_rebuild:
-            # ── 快速加载：跳过 Embedding，直接读取已持久化向量 ──────
-            logger.info("  Chroma 向量库已存在，直接加载（秒级启动，无 API 调用）")
-            vector_store = Chroma(
-                client=chroma_client,
-                collection_name=_COLLECTION,
-                embedding_function=embedding_model,
+        if _COLLECTION not in existing_names:
+            logger.warning(
+                f"  Chroma 集合 '{_COLLECTION}' 不存在。"
+                f"请先运行离线建库脚本: python scripts/build_kb.py"
             )
-        else:
-            # ── 重建：清除旧集合，重新 Embedding 写入 ───────────────
-            if has_existing:
-                chroma_client.delete_collection(_COLLECTION)
-                logger.info("  已清除旧 Chroma 集合，强制重建中...")
+            return None
 
-            logger.info(f"  开始向 Chroma 写入 {len(chunks)} 个文本块（需调用 Embedding API）...")
-
-            # 分批写入，避免单次请求超过 OpenAI API 限制（每批 ≤50 块）
-            BATCH = 50
-            if len(chunks) <= BATCH:
-                vector_store = Chroma.from_documents(
-                    documents=chunks,
-                    embedding=embedding_model,
-                    client=chroma_client,
-                    collection_name=_COLLECTION,
-                )
-            else:
-                vector_store = Chroma(
-                    client=chroma_client,
-                    collection_name=_COLLECTION,
-                    embedding_function=embedding_model,
-                )
-                for i in range(0, len(chunks), BATCH):
-                    batch = chunks[i: i + BATCH]
-                    vector_store.add_documents(batch)
-                    pct = min(i + BATCH, len(chunks))
-                    logger.info(f"    Embedding 进度: {pct}/{len(chunks)} 块")
-
+        vector_store = Chroma(
+            client=chroma_client,
+            collection_name=_COLLECTION,
+            embedding_function=embedding_model,
+        )
         retriever = vector_store.as_retriever(
             search_type="similarity",
-            search_kwargs={"k": 5},  # 稠密检索候选数，与 BM25 保持一致
+            search_kwargs={"k": 5},
         )
-        logger.info("  Chroma 语义向量检索器: ✅ 就绪")
+        logger.info("  Chroma 向量检索器: 从磁盘加载完成 ✅")
         return retriever
 
     except ImportError:
-        logger.warning("  ⚠️ chromadb 未安装: pip install chromadb")
+        logger.warning("  chromadb 未安装: pip install chromadb")
         return None
     except Exception as e:
-        logger.error(f"  ❌ Chroma 构建失败: {e}")
+        logger.error(f"  Chroma 加载失败: {e}")
         return None
 
 
-def _build_bm25_retriever(chunks: List[Document]) -> Optional[object]:
+def _build_bm25_retriever() -> Optional[object]:
     """
-    构建 BM25 稀疏关键词检索器（精准词匹配）。
+    【在线端-极速加载】从 pickle 文件反序列化 BM25 检索器实例。
 
-    ── BM25 工作原理（稀疏检索）──────────────────────────────────
-    BM25（Best Matching 25）是 TF-IDF 的改进版信息检索算法：
-      • TF（词频）：目标词在文档中出现越多，得分越高（但有饱和上限）
-      • IDF（逆文档频率）：越罕见的词权重越高（过滤"的""了"等停用词效果）
-      • BM25 在 TF 上加入饱和函数 k1 和文档长度归一化参数 b，更健壮
+    前提：已执行过 python scripts/build_kb.py，data/bm25_index.pkl 已生成。
+    耗时：< 100ms（纯内存反序列化，无任何计算）。
 
-    检索过程：
-      1. 将所有文本块分词建立倒排索引（rank_bm25 库维护）
-      2. 检索时对 Query 分词，计算每个词与所有文档块的 BM25 得分
-      3. 按得分降序返回 Top-K 文档块
-
-    ── BM25 的优势与劣势 ────────────────────────────────────────
-    优势：精准词匹配，对股票代码（AAPL/000858.SZ）、人名、机构名稳定可靠
-    劣势：无法理解同义词（"英伟达" 无法匹配 "NVDA"）
-          → 由 Chroma 语义检索补偿此劣势
-
-    这正是混合召回 EnsembleRetriever 的核心价值：两路互补，覆盖更全面。
-
-    需要安装：pip install rank_bm25
+    若文件不存在，返回 None 并打印引导信息（系统降级为纯 Chroma 或纯联网模式）。
     """
+    import pickle
+
+    if not _BM25_PKL.exists():
+        logger.warning(
+            f"  BM25 索引文件不存在: {_BM25_PKL.name}。"
+            f"请先运行离线建库脚本: python scripts/build_kb.py"
+        )
+        return None
+
     try:
-        from langchain_community.retrievers import BM25Retriever
-        bm25 = BM25Retriever.from_documents(chunks)
-        bm25.k = 5  # 稀疏检索候选数，与 Chroma 保持一致
-        logger.info("  BM25 关键词检索器: ✅ 就绪")
+        with open(_BM25_PKL, "rb") as f:
+            bm25 = pickle.load(f)
+        logger.info(f"  BM25 关键词检索器: 从 {_BM25_PKL.name} 加载完成 ✅")
         return bm25
-    except ImportError:
-        logger.warning("  ⚠️ rank_bm25 未安装: pip install rank_bm25")
-        return None
     except Exception as e:
-        logger.error(f"  ❌ BM25 构建失败: {e}")
+        logger.error(f"  BM25 加载失败（pkl 文件可能已损坏，重新运行 build_kb.py）: {e}")
         return None
 
 
@@ -587,70 +470,57 @@ def _build_web_search_tool() -> Optional[object]:
 # 公开初始化函数
 # ════════════════════════════════════════════════════════════════════
 
-def init_knowledge_base(force_rebuild: bool = False) -> bool:
+def init_knowledge_base(force_reload: bool = False) -> bool:
     """
-    初始化高阶混合 RAG 知识库（建议在应用启动时主动调用一次）。
+    【在线端-极速初始化】从预构建的磁盘索引加载混合 RAG 知识库。
 
-    若未主动调用，search_knowledge_base @tool 会在首次被调用时自动触发（惰性初始化）。
-
-    执行流程：
-      [1/5] 加载文档   ← 内置种子 + data/docs/ 本地 PDF/TXT/Markdown
-      [2/5] 文本切块   ← RecursiveCharacterTextSplitter（500字符/块，100字符重叠）
-      [3/5] BM25       ← 稀疏关键词检索器（rank_bm25）
-      [4/5] Chroma     ← 稠密向量检索器（OpenAI Embeddings + Chroma 持久化）
-      [5/5] Ensemble   ← 混合召回融合（BM25 50% + Chroma 50%，RRF 排名融合）
-      [+]   联网搜索   ← DuckDuckGoSearchRun（实时信息补充）
+    动静分离架构说明：
+      离线端（一次性）: python scripts/build_kb.py
+        → 解析 PDF/TXT → 切块 → Embedding → 持久化 Chroma + BM25.pkl
+      在线端（每次启动）: 本函数
+        → pickle.load(bm25)  ← < 100ms
+        → Chroma 打开文件句柄 ← < 500ms
+        → 组装 EnsembleRetriever + DuckDuckGo
+        → 总耗时 < 2s，不依赖任何 Embedding API 调用
 
     Args:
-        force_rebuild: True = 清除旧 Chroma 集合，强制重新 Embedding
-                       适用场景：data/docs/ 新增/更新了研报文件
+        force_reload: True = 清除已有单例，强制从磁盘重新加载
+                      适用场景：运行 build_kb.py 后希望热更新索引
 
     Returns:
-        True  = 全功能模式（混合检索 + 联网搜索，至少一路检索器可用）
-        False = 完全失败（极少见，仅在所有依赖均缺失时发生）
+        True  = 至少一路检索器可用（可降级运行）
+        False = 所有检索器均不可用（极少见）
+
+    若 data/bm25_index.pkl 或 data/chroma_db/ 不存在，
+    请先运行: python scripts/build_kb.py
     """
     global _ensemble_retriever, _web_search_tool
 
-    if _ensemble_retriever is not None and not force_rebuild:
-        logger.debug("知识库已初始化，跳过重复构建")
+    if _ensemble_retriever is not None and not force_reload:
+        logger.debug("知识库已初始化，跳过（force_reload=False）")
         return True
 
-    logger.info("=" * 62)
-    logger.info("🔧 初始化高阶混合 RAG 知识库 (v2.0)")
-    logger.info(f"   docs 目录  : {_DOCS_DIR}")
-    logger.info(f"   Chroma 目录: {_CHROMA_DIR}")
-    logger.info(f"   强制重建   : {force_rebuild}")
-    logger.info("=" * 62)
+    logger.info("=" * 60)
+    logger.info("RAG 知识库在线加载（动静分离架构 v3.0）")
+    logger.info(f"  BM25 索引 : {_BM25_PKL}")
+    logger.info(f"  Chroma 目录: {_CHROMA_DIR}")
+    logger.info("=" * 60)
     t0 = time.time()
 
-    # [1] 加载文档
-    logger.info("[1/5] 加载文档来源...")
-    raw_docs = _load_all_documents()
-    logger.info(f"  共计: {len(raw_docs)} 篇原始文档")
+    # [1] BM25 — 从 pkl 文件反序列化（< 100ms）
+    logger.info("[1/3] 加载 BM25 关键词检索器（pkl 反序列化）...")
+    bm25_retriever = _build_bm25_retriever()
 
-    # [2] 文本切块
-    logger.info("[2/5] 文本切块（RecursiveCharacterTextSplitter）...")
-    chunks = _SPLITTER.split_documents(raw_docs)
-    logger.info(f"  {len(raw_docs)} 篇 → {len(chunks)} 个文本块")
-
-    # [3] BM25
-    logger.info("[3/5] 构建 BM25 稀疏关键词检索器...")
-    bm25_retriever = _build_bm25_retriever(chunks)
-
-    # [4] Chroma
-    logger.info("[4/5] 构建 Chroma 稠密向量检索器...")
+    # [2] Chroma — 打开已持久化向量库（< 500ms，无 Embedding API 调用）
+    logger.info("[2/3] 加载 Chroma 语义向量检索器（磁盘读取）...")
     embedding_model  = _build_embedding_model()
-    chroma_retriever = _build_chroma_retriever(chunks, embedding_model, force_rebuild)
+    chroma_retriever = _build_chroma_retriever(embedding_model)
 
-    # [5] Ensemble
-    logger.info("[5/5] 组装 EnsembleRetriever（混合召回）...")
+    # [3] 组装 EnsembleRetriever + DuckDuckGo
+    logger.info("[3/3] 组装 EnsembleRetriever + DuckDuckGo 联网搜索...")
     _ensemble_retriever = _build_ensemble_retriever(bm25_retriever, chroma_retriever)
+    _web_search_tool    = _build_web_search_tool()
 
-    # [+] 联网搜索
-    logger.info("[+] 初始化 DuckDuckGo 实时联网搜索工具...")
-    _web_search_tool = _build_web_search_tool()
-
-    # ── 打印初始化摘要 ────────────────────────────────────────────
     elapsed = time.time() - t0
     success = _ensemble_retriever is not None
 
@@ -659,27 +529,21 @@ def init_knowledge_base(force_rebuild: bool = False) -> bool:
     web_ok    = _web_search_tool is not None
 
     if bm25_ok and chroma_ok:
-        retrieval_mode = "混合 (BM25 + Chroma)"
+        retrieval_mode = "混合 (BM25 + Chroma + RRF)"
     elif bm25_ok:
-        retrieval_mode = "仅 BM25 关键词"
+        retrieval_mode = "降级: 仅 BM25 关键词"
     elif chroma_ok:
-        retrieval_mode = "仅 Chroma 语义"
+        retrieval_mode = "降级: 仅 Chroma 语义"
     else:
-        retrieval_mode = "❌ 不可用"
+        retrieval_mode = "不可用 — 请运行 python scripts/build_kb.py"
 
-    logger.info("─" * 62)
-    logger.info(f"{'✅' if success else '❌'} 知识库初始化完成  耗时 {elapsed:.1f}s")
-    logger.info(f"   检索模式 : {retrieval_mode}")
-    logger.info(f"   联网搜索 : {'✅ DuckDuckGo 已启用' if web_ok else '❌ 不可用'}")
-    logger.info(f"   文本块数 : {len(chunks)}")
-    if not bm25_ok:
-        logger.info("   提示 → pip install rank_bm25  （启用关键词检索）")
-    if not chroma_ok:
-        logger.info("   提示 → pip install chromadb   （启用向量检索）")
-        logger.info("          并在 .env 中配置 OPENAI_API_KEY")
-    if not web_ok:
-        logger.info("   提示 → pip install duckduckgo-search  （启用联网搜索）")
-    logger.info("─" * 62)
+    logger.info("─" * 60)
+    logger.info(f"知识库加载完成  耗时 {elapsed:.2f}s")
+    logger.info(f"  检索模式: {retrieval_mode}")
+    logger.info(f"  联网搜索: {'DuckDuckGo 已启用' if web_ok else '不可用'}")
+    if not bm25_ok or not chroma_ok:
+        logger.warning("  请运行: python scripts/build_kb.py 以构建完整索引")
+    logger.info("─" * 60)
 
     return success
 

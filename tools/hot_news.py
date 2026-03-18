@@ -2,11 +2,10 @@
 tools/hot_news.py — 多平台热榜聚合（后端缓存，15 分钟 TTL）
 
 数据源：
-  1. cailian   — 财联社 7x24 快讯（akshare，最新 3 条）
-  2. xueqiu    — 雪球财经热搜（雪球公开 API，Top 3）
-  3. zhihu     — 知乎热榜（知乎公开 API，Top 3）
-  4. phoenix   — 凤凰财经新闻（凤凰网公开 API，Top 3）
-  5. thepaper  — 澎湃新闻热榜（澎湃公开接口，Top 3）
+  1. cailian      — 财联社 7x24 快讯（akshare，最新 3 条）
+  2. wallstreetcn — 华尔街见闻热门文章（公开 API，Top 3）
+  3. sina_live    — 新浪财经实时快讯（新浪直播接口，Top 3）
+  4. thepaper     — 澎湃新闻热榜（澎湃公开接口，Top 3）
 
 缓存策略：
   - 内存字典 + fetched_at 时间戳，TTL = 15 分钟
@@ -69,99 +68,53 @@ def _fetch_cailian() -> list[dict]:
         return []
 
 
-def _fetch_xueqiu() -> list[dict]:
-    """雪球财经热搜 Top 3（Session 携带 cookie，公开接口）"""
+def _fetch_wallstreetcn() -> list[dict]:
+    """华尔街见闻热门财经文章 Top 3（公开 API，无需登录）"""
     try:
-        sess = requests.Session()
-        # 先访问首页触发 cookie 下发（xq_a_token 等），再请求热搜接口
-        sess.get(
-            "https://xueqiu.com/",
-            headers=_HEADERS,
+        resp = requests.get(
+            "https://api.wallstreetcn.com/apiv1/content/articles?channel=a-stock&limit=5&accept=json",
+            headers={**_HEADERS, "Referer": "https://wallstreetcn.com/"},
             timeout=8,
-            proxies={"http": "", "https": ""},
         )
-        resp = sess.get(
-            "https://xueqiu.com/statuses/hot_search_list.json?size=3",
-            headers={**_HEADERS, "Referer": "https://xueqiu.com/"},
+        data  = resp.json()
+        items = data.get("data", {}).get("items", [])[:3]
+        results = []
+        for i, item in enumerate(items, start=1):
+            title = item.get("title", "")[:200]
+            uri   = item.get("uri", "https://wallstreetcn.com")
+            if title:
+                results.append({"title": title, "url": uri, "rank": i})
+        return results
+    except Exception as e:
+        logger.warning(f"[hot_news] 华尔街见闻抓取失败: {e}")
+        return []
+
+
+def _fetch_sina_live() -> list[dict]:
+    """新浪财经实时快讯 Top 3（直播接口，proxies='' 直连）"""
+    import re as _re
+    try:
+        resp = requests.get(
+            "https://zhibo.sina.com.cn/api/zhibo/feed"
+            "?zhibo_id=152&tag_id=0&dire=f&dtime=&pagesize=10&otype=json",
+            headers={**_HEADERS, "Referer": "https://finance.sina.com.cn/"},
             timeout=8,
             proxies={"http": "", "https": ""},
         )
         data  = resp.json()
-        # 响应结构: {"stocks": [{"symbol":"SH600519","name":"贵州茅台",...}, ...]}
-        items = data.get("stocks", data.get("list", []))[:3]
+        items = data.get("result", {}).get("data", {}).get("feed", {}).get("list", [])
         results = []
-        for i, item in enumerate(items, start=1):
-            name   = item.get("name", item.get("title", ""))[:200]
-            symbol = item.get("symbol", "")
-            url    = f"https://xueqiu.com/S/{symbol}" if symbol else "https://xueqiu.com/hq"
-            results.append({"title": name, "url": url, "rank": i})
+        for item in items:
+            text = _re.sub(r"<[^>]+>", "", item.get("rich_text", "")).strip()[:200]
+            if text and len(results) < 3:
+                results.append({
+                    "title": text,
+                    "url":   "https://finance.sina.com.cn/",
+                    "rank":  len(results) + 1,
+                })
         return results
     except Exception as e:
-        logger.warning(f"[hot_news] 雪球抓取失败: {e}")
-        return []
-
-
-def _fetch_zhihu() -> list[dict]:
-    """知乎热榜 Top 3"""
-    try:
-        url = "https://www.zhihu.com/api/v3/feed/topstory/hot-lists/total?limit=3"
-        headers = {**_HEADERS, "x-api-version": "3.0.91"}
-        resp = requests.get(url, headers=headers, timeout=8, proxies={"http": "", "https": ""})
-        data = resp.json()
-        items = data.get("data", [])[:3]
-        results = []
-        for i, item in enumerate(items, start=1):
-            target = item.get("target", {})
-            title  = target.get("title", "")[:200]
-            qid    = target.get("id", "")
-            results.append({
-                "title": title,
-                "url":   f"https://www.zhihu.com/question/{qid}" if qid else "https://www.zhihu.com/hot",
-                "rank":  i,
-            })
-        return results
-    except Exception as e:
-        logger.warning(f"[hot_news] 知乎抓取失败: {e}")
-        return []
-
-
-def _fetch_phoenix() -> list[dict]:
-    """凤凰财经热点新闻 Top 3（ifengNews API）"""
-    try:
-        url = "https://openapi.inews.qq.com/getQQNewsIndexAndItems?base_id=hot_channel_finance&num=3&callback="
-        # 凤凰财经使用腾讯新闻开放接口作兜底
-        resp = requests.get(
-            "https://i.ifeng.com/api/ifeng/channel/newslist?channelId=finance&num=3",
-            headers=_HEADERS, timeout=8, proxies={"http": "", "https": ""},
-        )
-        data = resp.json()
-        news_list = data.get("newslist", [])[:3]
-        results = []
-        for i, item in enumerate(news_list, start=1):
-            title = item.get("title", "")[:200]
-            link  = item.get("url", item.get("link", "https://finance.ifeng.com/"))
-            results.append({"title": title, "url": link, "rank": i})
-        return results
-    except Exception as e:
-        logger.warning(f"[hot_news] 凤凰财经抓取失败: {e}")
-        return _fetch_phoenix_fallback()
-
-
-def _fetch_phoenix_fallback() -> list[dict]:
-    """凤凰财经主接口失败时用腾讯新闻财经作备用"""
-    try:
-        url = "https://r.inews.qq.com/gw/event/hot_ranking_list?page_size=3"
-        resp = requests.get(url, headers=_HEADERS, timeout=8, proxies={"http": "", "https": ""})
-        data = resp.json()
-        items = data.get("idlist", [{}])[0].get("newslist", [])[:3]
-        results = []
-        for i, item in enumerate(items, start=1):
-            title = item.get("title", "")[:200]
-            link  = item.get("url", "https://news.qq.com/")
-            results.append({"title": title, "url": link, "rank": i})
-        return results
-    except Exception as e:
-        logger.warning(f"[hot_news] 凤凰备用也失败: {e}")
+        logger.warning(f"[hot_news] 新浪快讯抓取失败: {e}")
         return []
 
 
@@ -189,19 +142,17 @@ def _fetch_thepaper() -> list[dict]:
 # ════════════════════════════════════════════════════════════════
 
 _FETCHERS = {
-    "cailian":  _fetch_cailian,
-    "xueqiu":   _fetch_xueqiu,
-    "zhihu":    _fetch_zhihu,
-    "phoenix":  _fetch_phoenix,
-    "thepaper": _fetch_thepaper,
+    "cailian":      _fetch_cailian,
+    "wallstreetcn": _fetch_wallstreetcn,
+    "sina_live":    _fetch_sina_live,
+    "thepaper":     _fetch_thepaper,
 }
 
 _SOURCE_META = {
-    "cailian":  {"label": "财联社",   "color": "#e74c3c", "icon": "📰"},
-    "xueqiu":   {"label": "雪球热搜", "color": "#1db954", "icon": "❄️"},
-    "zhihu":    {"label": "知乎热榜", "color": "#0084ff", "icon": "💬"},
-    "phoenix":  {"label": "凤凰财经", "color": "#f39c12", "icon": "🔥"},
-    "thepaper": {"label": "澎湃新闻", "color": "#2ecc71", "icon": "📌"},
+    "cailian":      {"label": "财联社",    "color": "#e74c3c", "icon": "📰"},
+    "wallstreetcn": {"label": "华尔街见闻", "color": "#f5a623", "icon": "📊"},
+    "sina_live":    {"label": "新浪财经",   "color": "#e8312f", "icon": "⚡"},
+    "thepaper":     {"label": "澎湃新闻",   "color": "#2ecc71", "icon": "📌"},
 }
 
 

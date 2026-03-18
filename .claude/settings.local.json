@@ -88,7 +88,9 @@
       "Bash(powershell -Command \"Get-Process -Id 49664 | Select-Object -Property Name,Id,Path\" 2>&1)",
       "Bash(powershell -Command \"Get-NetTCPConnection -LocalPort 8000 | Select-Object -Property LocalAddress,LocalPort,OwningProcess\")",
       "Bash(powershell -Command \"\n\\\\$proc = Get-WmiObject Win32_Process -Filter \\\\\"ProcessId = 49664\\\\\"\nWrite-Host \\\\\"Name:\\\\\" \\\\$proc.Name\nWrite-Host \\\\\"CommandLine:\\\\\" \\\\$proc.CommandLine\n\")",
-      "Bash(powershell -Command \"\n\\\\$procs = Get-WmiObject Win32_Process | Where-Object {\\(\\\\$_.CommandLine -like '*uvicorn*'\\) -or \\(\\\\$_.CommandLine -like '*server:app*'\\)}\nforeach \\(\\\\$p in \\\\$procs\\) { Write-Host \\\\$p.ProcessId \\\\$p.Name \\\\$p.CommandLine }\n\")"
+      "Bash(powershell -Command \"\n\\\\$procs = Get-WmiObject Win32_Process | Where-Object {\\(\\\\$_.CommandLine -like '*uvicorn*'\\) -or \\(\\\\$_.CommandLine -like '*server:app*'\\)}\nforeach \\(\\\\$p in \\\\$procs\\) { Write-Host \\\\$p.ProcessId \\\\$p.Name \\\\$p.CommandLine }\n\")",
+      "Bash(python -c \":*)",
+      "Bash(chcp 65001)"
     ]
   }
 }

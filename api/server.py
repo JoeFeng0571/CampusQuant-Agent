@@ -61,16 +61,23 @@ def _get_db_dep():
 from db.engine import get_db as _db_get
 _get_db_dep = _db_get
 
-# DashScope LLM 域名加入 NO_PROXY，防止 TUN 模式下 LLM 长连接被截断
-# 注意：这里只设置环境变量，不做任何 requests 猴子补丁
+# 国内金融数据域名 + DashScope LLM 域名加入 NO_PROXY
+# 防止 TUN/VPN 代理截断对东方财富、新浪等数据源的直连请求（RemoteDisconnected 根因）
 import os as _os
-_no_proxy_extra = "dashscope.aliyuncs.com,aliyuncs.com"
+_no_proxy_extra = (
+    "dashscope.aliyuncs.com,aliyuncs.com,"
+    "eastmoney.com,push2.eastmoney.com,push2his.eastmoney.com,"
+    "datacenter-web.eastmoney.com,np-anotice-stock.eastmoney.com,"
+    "hq.sinajs.cn,sinajs.cn,sina.com.cn,finance.sina.com.cn,"
+    "money.126.net,netease.com,10jqka.com.cn,xueqiu.com,"
+    "akshare.xyz"
+)
 _existing_no_proxy = _os.environ.get("NO_PROXY", _os.environ.get("no_proxy", ""))
-if _no_proxy_extra not in _existing_no_proxy:
-    _os.environ["NO_PROXY"] = (
-        _existing_no_proxy + "," + _no_proxy_extra if _existing_no_proxy else _no_proxy_extra
-    )
-    _os.environ["no_proxy"] = _os.environ["NO_PROXY"]
+_merged_no_proxy = (
+    _existing_no_proxy + "," + _no_proxy_extra if _existing_no_proxy else _no_proxy_extra
+)
+_os.environ["NO_PROXY"] = _merged_no_proxy
+_os.environ["no_proxy"] = _merged_no_proxy
 
 # ════════════════════════════════════════════════════════════════
 # 应用初始化
@@ -98,6 +105,47 @@ app.add_middleware(
 # ════════════════════════════════════════════════════════════════
 
 _compiled_graph = None
+
+# ════════════════════════════════════════════════════════════════
+# 全局市场数据缓存（Background Polling，TTL = 5 分钟）
+# ════════════════════════════════════════════════════════════════
+_MARKET_CACHE: dict = {"indices": [], "news": [], "sectors": [], "ts": 0.0}
+
+
+async def _market_data_poller():
+    """后台循环：启动后立即预热，之后每 5 分钟刷新大盘指数和市场快讯缓存。
+    若首次预热后缓存仍有缺失，30s 后自动重试，直到数据就绪。"""
+    logger.info("[market_poller] 后台数据预热任务启动")
+    while True:
+        try:
+            from tools.market_data import get_market_indices_raw, get_market_news_raw, get_sector_data_raw
+            loop = asyncio.get_event_loop()
+            indices, news, sectors = await asyncio.gather(
+                loop.run_in_executor(None, get_market_indices_raw),
+                loop.run_in_executor(None, get_market_news_raw, 20),
+                loop.run_in_executor(None, get_sector_data_raw),
+                return_exceptions=True,
+            )
+            if not isinstance(indices, Exception) and indices:
+                _MARKET_CACHE["indices"] = indices
+            if not isinstance(news, Exception) and news:
+                _MARKET_CACHE["news"] = news
+            if not isinstance(sectors, Exception) and sectors:
+                _MARKET_CACHE["sectors"] = sectors
+            _MARKET_CACHE["ts"] = datetime.now(timezone.utc).timestamp()
+
+            fallback_n = sum(1 for r in _MARKET_CACHE["indices"] if r.get("is_fallback"))
+            logger.info(
+                f"[market_poller] 缓存刷新完成: "
+                f"{len(_MARKET_CACHE['indices'])} 个指数(fallback={fallback_n}), "
+                f"{len(_MARKET_CACHE['news'])} 条快讯"
+            )
+            # 若仍有 fallback 数据，30s 后重试（否则等满 5 分钟）
+            sleep_s = 30 if fallback_n > 0 else 300
+        except Exception as e:
+            logger.warning(f"[market_poller] 刷新异常: {e}")
+            sleep_s = 30   # 出错也快速重试
+        await asyncio.sleep(sleep_s)
 
 
 @app.on_event("startup")
@@ -137,6 +185,10 @@ async def startup_event():
         logger.info("✅ 热榜缓存预热任务已启动（后台）")
     except Exception as e:
         logger.warning(f"⚠️ 热榜缓存预热失败（非致命）: {e}")
+
+    # 4. 大盘指数 & 市场快讯后台轮询（asyncio 异步任务，每5分钟刷新）
+    asyncio.create_task(_market_data_poller())
+    logger.info("✅ 市场数据后台轮询已启动（首次预热中...）")
 
     logger.info("✅ API 服务启动完成，监听请求...")
 
@@ -1219,24 +1271,26 @@ async def get_market_indices():
     """
     GET /api/v1/market/indices
 
-    返回 A股（上证/深证/创业板/科创50）、恒生指数、纳斯达克100、标普500、道琼斯
-    的实时点位与涨跌幅。
-
-    使用 akshare:
-      - A股指数: stock_zh_index_spot_em（东方财富实时指数）
-      - 全球指数: index_global_spot_em（东方财富全球指数）
+    优先返回后台缓存（<5ms）。缓存为空（刚启动瞬间）时触发一次紧急同步抓取。
+    后台轮询每 5 分钟自动刷新，正常请求响应 <100ms。
     """
-    try:
-        from tools.market_data import get_market_indices_raw
-        loop = asyncio.get_event_loop()
-        indices = await loop.run_in_executor(None, get_market_indices_raw)
-    except Exception as e:
-        logger.error(f"[market/indices] 获取失败: {e}")
-        raise HTTPException(status_code=502, detail=f"大盘指数获取失败: {str(e)}")
+    if not _MARKET_CACHE["indices"]:
+        # 刚启动缓存未就绪，触发紧急抓取（最多等 25s）
+        logger.info("[market/indices] 缓存未就绪，触发紧急抓取")
+        try:
+            from tools.market_data import get_market_indices_raw
+            loop = asyncio.get_event_loop()
+            indices = await asyncio.wait_for(
+                loop.run_in_executor(None, get_market_indices_raw), timeout=25.0
+            )
+            _MARKET_CACHE["indices"] = indices
+        except Exception as e:
+            logger.error(f"[market/indices] 紧急抓取失败: {e}")
+            raise HTTPException(status_code=502, detail=f"大盘指数获取失败: {str(e)}")
 
     return {
-        "indices":   indices,
-        "count":     len(indices),
+        "indices":   _MARKET_CACHE["indices"],
+        "count":     len(_MARKET_CACHE["indices"]),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -1246,21 +1300,57 @@ async def get_market_news(limit: int = 20):
     """
     GET /api/v1/market/news?limit=20
 
-    调用 akshare.stock_info_global_cls() 获取财联社 7x24 全球财经快讯。
-    返回最新 limit 条资讯（标题 + 时间），用于 market.html 右侧资讯面板。
+    优先返回后台缓存（<5ms）。缓存为空（刚启动瞬间）时触发一次紧急同步抓取。
+    后台轮询每 5 分钟自动刷新，正常请求响应 <100ms。
     """
-    limit = max(1, min(limit, 50))   # 限制 1-50 条
-    try:
-        from tools.market_data import get_market_news_raw
-        loop = asyncio.get_event_loop()
-        news = await loop.run_in_executor(None, get_market_news_raw, limit)
-    except Exception as e:
-        logger.error(f"[market/news] 快讯获取失败: {e}")
-        raise HTTPException(status_code=502, detail=f"快讯获取失败: {str(e)}")
+    limit = max(1, min(limit, 50))
+    if not _MARKET_CACHE["news"]:
+        logger.info("[market/news] 缓存未就绪，触发紧急抓取")
+        try:
+            from tools.market_data import get_market_news_raw
+            loop = asyncio.get_event_loop()
+            news = await asyncio.wait_for(
+                loop.run_in_executor(None, get_market_news_raw, 20), timeout=15.0
+            )
+            _MARKET_CACHE["news"] = news
+        except Exception as e:
+            logger.error(f"[market/news] 紧急抓取失败: {e}")
+            raise HTTPException(status_code=502, detail=f"快讯获取失败: {str(e)}")
 
+    news = _MARKET_CACHE["news"][:limit]
     return {
         "news":      news,
         "count":     len(news),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+
+@app.get("/api/v1/market/sectors", summary="获取A股行业板块涨跌热力图数据")
+async def get_market_sectors():
+    """
+    GET /api/v1/market/sectors
+
+    返回约49个A股行业板块的实时涨跌幅，按涨跌幅降序排列。
+    用于 market.html 右侧板块热力图展示。
+    优先返回后台缓存（<5ms），缓存为空时触发紧急抓取。
+    """
+    if not _MARKET_CACHE["sectors"]:
+        logger.info("[market/sectors] 缓存未就绪，触发紧急抓取")
+        try:
+            from tools.market_data import get_sector_data_raw
+            loop = asyncio.get_event_loop()
+            sectors = await asyncio.wait_for(
+                loop.run_in_executor(None, get_sector_data_raw), timeout=12.0
+            )
+            _MARKET_CACHE["sectors"] = sectors
+        except Exception as e:
+            logger.error(f"[market/sectors] 紧急抓取失败: {e}")
+            raise HTTPException(status_code=502, detail=f"板块数据获取失败: {str(e)}")
+
+    return {
+        "sectors":   _MARKET_CACHE["sectors"],
+        "count":     len(_MARKET_CACHE["sectors"]),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
