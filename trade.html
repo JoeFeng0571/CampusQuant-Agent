@@ -390,7 +390,8 @@
 
 <script>
 'use strict';
-const API_BASE = 'http://127.0.0.1:8000';
+const API_BASE = 'http://8.156.85.111:8000';
+const TRADE_API_BASE = 'http://8.156.85.111:8001';
 
 // ══ Market config ════════════════════════════════════════════
 const MKT_CONFIG = {
@@ -641,7 +642,7 @@ async function submitOrder() {
     btn.textContent = '委托中…';
 
     try {
-        const resp = await fetch(`${API_BASE}/api/v1/trade/order`, {
+        const resp = await fetch(`${TRADE_API_BASE}/api/v1/trade/order`, {
             method:  'POST',
             headers: authHeaders(),
             body:    JSON.stringify({ symbol, action, quantity }),
@@ -689,7 +690,7 @@ function switchAccountTab(tab) {
 // ══ Load portfolio ════════════════════════════════════════════
 async function loadPortfolio() {
     try {
-        const resp = await fetch(`${API_BASE}/api/v1/trade/account`, { headers: authHeaders() });
+        const resp = await fetch(`${TRADE_API_BASE}/api/v1/trade/account`, { headers: authHeaders() });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         _acctData = await resp.json();
         refreshAccountDisplay(_acctData, _curMkt);
@@ -804,7 +805,7 @@ async function loadOrders() {
         return;
     }
     try {
-        const resp = await fetch(`${API_BASE}/api/v1/trade/orders?limit=100`, { headers: authHeaders() });
+        const resp = await fetch(`${TRADE_API_BASE}/api/v1/trade/orders?limit=100`, { headers: authHeaders() });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
         const orders = (data.orders || []).filter(o => {
