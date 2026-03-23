@@ -2,15 +2,116 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0;url=dashboard.html">
-    <title>CampusQuant — 正在跳转...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusQuant</title>
     <style>
-        body { background:#0b0f19; color:#a0aec0; font-family:'Segoe UI',sans-serif;
-               display:flex; align-items:center; justify-content:center; height:100vh; margin:0; }
+        :root {
+            --bg: #0b1220;
+            --panel: #131c2b;
+            --border: rgba(255,255,255,0.08);
+            --text: #d8e3f0;
+            --sub: #8da2b8;
+            --primary: #28d7ff;
+        }
+
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at top left, rgba(40,215,255,0.08), transparent 30%),
+                radial-gradient(circle at bottom right, rgba(64,115,255,0.08), transparent 32%),
+                var(--bg);
+            color: var(--text);
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+
+        #app-shell {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .shell-frame {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: none;
+            background: transparent;
+        }
+
+        .shell-frame.active {
+            display: block;
+        }
+
+        #shell-loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(11, 18, 32, 0.82);
+            backdrop-filter: blur(8px);
+            z-index: 20;
+            transition: opacity .24s ease;
+        }
+
+        #shell-loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .shell-loading-card {
+            min-width: 280px;
+            padding: 22px 26px;
+            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(19,28,43,0.95), rgba(13,20,31,0.95));
+            border: 1px solid var(--border);
+            box-shadow: 0 18px 48px rgba(0,0,0,0.35);
+            text-align: center;
+        }
+
+        .shell-spinner {
+            width: 42px;
+            height: 42px;
+            margin: 0 auto 14px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.12);
+            border-top-color: var(--primary);
+            animation: spin 1s linear infinite;
+        }
+
+        .shell-loading-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .shell-loading-text {
+            font-size: 13px;
+            color: var(--sub);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
-    <p>正在跳转到控制台... <a href="dashboard.html" style="color:#4facfe">点击这里</a></p>
-    <script>location.replace('dashboard.html');</script>
+    <div id="app-shell"></div>
+
+    <div id="shell-loading">
+        <div class="shell-loading-card">
+            <div class="shell-spinner"></div>
+            <div class="shell-loading-title">CampusQuant</div>
+            <div class="shell-loading-text">页面加载中...</div>
+        </div>
+    </div>
+
+    <script src="shell-manager.js"></script>
 </body>
 </html>

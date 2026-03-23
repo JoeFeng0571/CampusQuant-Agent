@@ -500,6 +500,17 @@
     'use strict';
     const API_BASE = 'http://127.0.0.1:8000';
 
+    function navigateTo(url, replace = false) {
+        const isShellRoute = /(?:^|\/)(dashboard|trade|analysis|platforms|market|community|team|resources|home|auth)\.html(?:[?#].*)?$/i.test(String(url));
+        if (isShellRoute && window.CQShell && typeof window.CQShell.navigate === 'function') {
+            window.CQShell.navigate(url, { replace });
+        } else if (replace) {
+            location.replace(url);
+        } else {
+            location.href = url;
+        }
+    }
+
     // ══ 认证辅助 ═══════════════════════════════════════════════
     function getToken()    { return localStorage.getItem('cq_token') || ''; }
     function getUsername() { return localStorage.getItem('cq_username') || ''; }
@@ -617,7 +628,7 @@
     }
 
     async function likePost(postId, span) {
-        if (!getToken()) { location.href = 'auth.html?redirect=community.html'; return; }
+        if (!getToken()) { navigateTo('auth.html?redirect=community.html'); return; }
         try {
             const resp = await fetch(`${API_BASE}/api/v1/community/posts/${postId}/like`, {
                 method: 'POST', headers: authHeaders(),
@@ -630,14 +641,14 @@
     }
 
     function openPostDetail(postId) {
-        window.location.href = `post_detail.html?id=${postId}`;
+        navigateTo(`post_detail.html?id=${postId}`);
     }
 
     // ══ 发帖 Modal ══════════════════════════════════════════════
     let _selectedTag = 'learn';
 
     function openPostModal() {
-        if (!getToken()) { location.href = 'auth.html?redirect=community.html'; return; }
+        if (!getToken()) { navigateTo('auth.html?redirect=community.html'); return; }
         document.getElementById('post-modal-overlay').style.display = 'flex';
         document.body.style.overflow = 'hidden';
     }
@@ -711,5 +722,6 @@
     });
 </script>
 
+<script src="shell-bridge.js"></script>
 </body>
 </html>

@@ -137,14 +137,26 @@
     <a href="trade.html">直接体验（游客模式）</a>
 </div>
 
+<script src="shell-bridge.js"></script>
 <script>
     'use strict';
     const API_BASE = 'http://127.0.0.1:8000';
 
+    function navigateTo(url, replace = false) {
+        const isShellRoute = /(?:^|\/)(dashboard|trade|analysis|platforms|market|community|team|resources|home|auth)\.html(?:[?#].*)?$/i.test(String(url));
+        if (isShellRoute && window.CQShell && typeof window.CQShell.navigate === 'function') {
+            window.CQShell.navigate(url, { replace });
+        } else if (replace) {
+            location.replace(url);
+        } else {
+            location.href = url;
+        }
+    }
+
     // 已登录则直接跳转
     if (localStorage.getItem('cq_token')) {
         const redirect = new URLSearchParams(location.search).get('redirect') || 'trade.html';
-        location.href = redirect;
+        navigateTo(redirect, true);
     }
 
     function switchTab(tab) {
@@ -186,7 +198,7 @@
             showMsg('login-msg', `欢迎回来，${data.username}！跳转中…`, 'success');
             setTimeout(() => {
                 const redirect = new URLSearchParams(location.search).get('redirect') || 'trade.html';
-                location.href = redirect;
+                navigateTo(redirect);
             }, 800);
         } catch(err) {
             showMsg('login-msg', '网络错误，请检查后端是否启动', 'error');
@@ -222,7 +234,7 @@
             localStorage.setItem('cq_user_id',  data.user_id);
 
             showMsg('reg-msg', data.message || '注册成功！跳转中…', 'success');
-            setTimeout(() => { location.href = 'trade.html'; }, 900);
+            setTimeout(() => { navigateTo('trade.html'); }, 900);
         } catch(err) {
             showMsg('reg-msg', '网络错误，请检查后端是否启动', 'error');
         } finally {

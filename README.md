@@ -1,587 +1,1047 @@
-# CampusQuant · 校园财商智能平台
+# CampusQuant-Agent
 
-> 专为**在校大学生**设计的多智能体量化分析系统——本金安全第一，财商教育优先。
+这是一个面向大学生投资教育场景的多智能体量化分析项目。仓库不是标准的“单一前后端工程”，而是三套链路混在一起：
 
-基于 **LangGraph + LLM** 的多 Agent 协作分析平台，覆盖 **A股、港股、美股**三大市场。9 个智能体节点全链路已端对端验证贯通，通过 FastAPI SSE 实时流式输出分析进度与深度研报。内置大学生专属风控守则与 AI 财商助手，帮助大学生建立正确的投资认知，识别金融风险，远离高危杠杆产品。
+- 当前主线：静态 HTML 页面 + `api/server.py` + `graph/*`
 
-> **当前版本：V1.2**（2026-03）— 新增三币种模拟交易账户、K 线图检索、多平台热榜聚合、Dashboard 仪表盘、用户鉴权与 DB 持久化。
+- 第二入口：`app.py` Streamlit 前端 + 同一套 FastAPI 后端
 
-> **红线声明**：所有交易指令均指向**本地模拟撮合引擎**，不接入任何真实交易所 API。
+- 遗留链路：`workflow.py + agents/*` 的旧版 CLI 编排，以及 `main.py`、`trade.py` 这类早期示例服务
 
----
-
-## 功能特点
-
-| 功能 | 说明 |
-|------|------|
-| **多 Agent 并行分析** | 基本面、技术面、情感面三路 Agent 并发执行，四节点扇出再汇聚 |
-| **多空辩论机制** | 分析师意见冲突时触发辩论节点，最多 2 轮对抗性推理 |
-| **大学生专属风控** | 仓位上限（A股≤15%，港/美≤10%），ATR%>8% 直接拒绝，禁止杠杆/期权 |
-| **持仓体检** | 独立健康检查分支，从集中度、回撤、流动性三维评分并给出优化建议 |
-| **混合 RAG 知识库** | Chroma 向量检索 + BM25 稀疏检索 + DuckDuckGo 实时联网，三路融合 |
-| **SSE 实时流式推送** | FastAPI Server-Sent Events，逐节点推送分析进度，前端打字机效果 |
-| **智能标的搜索** | 60+ 标的中英文模糊匹配，"茅台"→`600519.SH`，"英伟达"→`NVDA` |
-| **AI 财商助手** | "财商学长"对话机器人，DB 持久化历史，携带最近 5 轮上下文 |
-| **结构化输出** | 所有 LLM 输出经 Pydantic 模型验证，彻底取代正则/JSON 手工解析 |
-| **三币种模拟交易** | A股/港股/美股三个独立货币账户（CNH/HKD/USD），EOD 收盘价成交 |
-| **K 线图检索** | 日/周/月 K 线，Lightweight Charts 专业蜡烛图，支持全三市场标的 |
-| **多平台热榜** | 后端聚合财联社/B站/知乎/凤凰/澎湃，15 分钟缓存，前端零跨域风险 |
-| **用户鉴权与 DB** | JWT 注册/登录，SQLite 异步 ORM，持仓/订单/社区帖子全量持久化 |
-| **多界面支持** | 静态 HTML 前端（11页）、Streamlit Web UI、CLI 命令行、REST API |
+这份 README 只按“当前代码真实情况”写，不按理想架构写，重点解释前后端调用逻辑、LangGraph 执行流程、数据库读写路径，以及仓库里哪些文件是主线、哪些只是遗留或辅助。
 
 ---
 
-## 系统架构
+## 1. 当前推荐运行方式
 
-### LangGraph 状态机工作流
+如果你要跑现在最完整的版本，建议这样启动：
 
-```
-START → data_node
-              │
-   ┌──────────┼──────────┬──────────┐
-   ▼          ▼          ▼          ▼
-fund_node  tech_node  sent_node  rag_node     ← 四节点并行
-   └──────────┼──────────┴──────────┘
-              ▼
-        portfolio_node  ← 综合决策（大学生专属规则注入）
-              │
-     ┌────────┴────────┐
-   [有冲突]          [无冲突]
-     ▼                 ▼
- debate_node       risk_node     ← 大学生专属严格风控
-     │                 │
-     └──→ portfolio_node          ← 辩论后重新决策
-                   ▼
-           ┌──────┴──────┐
-        [批准]          [拒绝 ≤2次]
-           ▼                ▼
-    trade_executor    portfolio_node（重试）
-           │
-          END
+1. 后端：
 
-──────── 独立分支（持仓体检）────────
-START → health_node → END
+```bash
+uvicorn api.server:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-**关键设计**：
-- **并行扇出**：`data_node` 完成后四个分析节点同时调度
-- **条件路由**：`portfolio_node` 根据冲突标志决定进入辩论还是直接风控
-- **循环保护**：辩论最多 `MAX_DEBATE_ROUNDS=2` 轮，风控拒绝最多 `MAX_RISK_RETRIES=2` 次
-- **Anti-Loop**：`tool_call_counts` 字典记录各节点工具调用次数，超 `MAX_TOOL_CALLS=3` 强制降级
-- **持仓体检**：独立 `build_health_graph()` 分支，`START→health_node→END`，可单独触发
+2. 静态页面：
 
-### 整体分层架构
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│                        前端界面层                               │
-├────────────────────┬───────────────────────────────────────────┤
-│  静态 HTML 前端     │  Streamlit Web UI     │  CLI / REST API  │
-│  index.html (首页)  │  app.py              │  workflow.py     │
-│  trade.html (演练)  │  ├─ 智能模糊搜索      │  api/server.py   │
-│  platforms.html     │  └─ "财财学长"助手    │  FastAPI + SSE   │
-│  market.html 等     │                       │                  │
-└────────────────────┴───────────────────────┴──────────────────┘
-                              │
-┌─────────────────────────────▼──────────────────────────────────┐
-│                      LangGraph 编排层                           │
-│  graph/builder.py  StateGraph / build_graph() / build_health_graph()
-│  graph/nodes.py    9个节点实现（含 health_node + anti-loop）   │
-│  graph/state.py    TypedDict 状态 + Pydantic 结构化输出模型    │
-└─────────────┬───────────────────────────────────────────────────┘
-              │
-   ┌──────────┼──────────────────────┐
-   ▼          ▼                      ▼
-┌──────────┐ ┌──────────────────┐  ┌─────────────┐
-│  数据层  │ │    分析引擎层    │  │  LLM 引擎   │
-│DataLoader│ │ fundamental_node │  │ LLMClient   │
-│A股 akshare│ │ technical_node  │  │ DashScope/  │
-│港股 akshare│ │ sentiment_node │  │ Qwen（主）  │
-│美股 yfinance│ │ rag_node      │  │ OpenAI/     │
-│TTL缓存   │ │ portfolio_node  │  │ Anthropic   │
-│指数退避  │ │ debate_node     │  │ CoT 推理    │
-└──────────┘ │ risk_node       │  │ Pydantic    │
-             │ trade_executor  │  │ 结构化输出  │
-             │ health_node     │  └─────────────┘
-             └─────────────────┘
+```bash
+python -m http.server 3000
 ```
 
-### 市场差异化分析权重
+3. 浏览器访问：
 
-| 市场 | 基本面 | 技术面 | 舆情 | 风控 | 分析重点 |
-|------|--------|--------|------|------|----------|
-| A股  | 20%    | 35%    | 35%  | 10%  | 政策催化 + 行业动量 + EPS 增长 |
-| 港股 | 45%    | 20%    | 25%  | 10%  | 价值投资 + 安全边际 + FCF 质量 |
-| 美股 | 35%    | 30%    | 25%  | 10%  | 估值效率 + FCF 收益率 + 盈利超预期 |
+```text
+http://localhost:3000/dashboard.html
+```
+
+注意两点：
+
+- `api/server.py` 的根路径会重定向到 `/dashboard.html`，但它没有挂载静态资源目录，所以单靠 `uvicorn` 不能直接把这些 HTML 页面服务出来。
+
+- HTML 页面必须单独放在静态服务器下，或者由 Nginx 之类的 Web Server 托管。
 
 ---
 
-## 前端界面
+## 2. 仓库应该怎么分层理解
 
-### 静态 HTML 前端（8 页互通）
+### 主后端
 
-项目包含一套完整的静态 HTML 前端，所有页面共享同一设计系统（glassmorphism 风格，CSS 变量统一）并可相互跳转。
+- `api/server.py`
 
-| 文件 | 导航名称 | 核心内容 |
-|------|----------|----------|
-| `index.html` | **首页** | 落地/营销页，未登录展示产品价值；登录后重定向 dashboard |
-| `auth.html` | **注册/登录** | 两 Tab 表单，JWT 存 localStorage，支持 `?redirect=` 参数 |
-| `dashboard.html` | **Dashboard** | 欢迎卡片 + 快捷导航 + 三市场精简账户 + 财联社快讯 + 财商学长对话 |
-| `trade.html` | **模拟演练** | 三市场 Tab（A/港/美），EOD 收盘价下单，持仓/交易流水双表格 |
-| `analysis.html` | **个股分析** | SSE 流式分析 + 9 节点进度指示 + 倒计时 + 多空辩论 + 深度研报 |
-| `market.html` | **市场资讯** | 8 大指数实时 + 热榜聚合 + 股票 K 线检索（日/周/月，Lightweight Charts）|
-| `platforms.html` | **持仓体检** | 持仓录入表单，健康评分环形图，三维指标，AI 优化建议 |
-| `community.html` | **投教社区** | 动态帖子列表（DB 驱动），发帖/评论/点赞，标签过滤 |
-| `team.html` | **关于我们** | 使命愿景、项目数据、发展时间轴 |
-| `home.html` | —（辅助页）| 学习中心仪表盘 |
-| `resources.html` | —（辅助页）| 学习资源库 |
+- `api/auth.py`
 
-**主导航**：`首页 → Dashboard → 模拟演练 → 个股分析 → 市场资讯 → 持仓体检 → 投教社区 → 关于我们`
+- `api/mock_exchange.py`
 
-### Streamlit Web UI（`app.py`）
+### 多智能体编排
 
-功能更丰富的交互界面，包含：
-- 智能股票搜索（中文模糊匹配，60+ 标的）
-- LangGraph 分析进度实时可视化（节点状态 ⬜→🔄→✅）
-- 多列结果展示（分析师报告卡、辩论摘要、风控决策、最终指令）
-- 侧边栏"**财财学长**"AI 财商助手（独立 LLM 对话，不经 LangGraph）
+- `graph/state.py`
+
+- `graph/builder.py`
+
+- `graph/nodes.py`
+
+### 数据与工具
+
+- `tools/market_data.py`
+
+- `tools/knowledge_base.py`
+
+- `tools/hot_news.py`
+
+- `utils/market_classifier.py`
+
+- `utils/data_loader.py`
+
+- `utils/llm_client.py`
+
+### 持久化
+
+- `db/engine.py`
+
+- `db/models.py`
+
+- `db/crud.py`
+
+### 静态前端页面
+
+- `dashboard.html`
+
+- `analysis.html`
+
+- `trade.html`
+
+- `market.html`
+
+- `platforms.html`
+
+- `community.html`
+
+- `auth.html`
+
+- `home.html`
+
+- `resources.html`
+
+- `team.html`
+
+- `index.html`
+
+### 旧版或辅助入口
+
+- `app.py`
+
+- `workflow.py`
+
+- `agents/*`
+
+- `main.py`
+
+- `trade.py`
+
+- `quick_start.py`
+
+- `eval_pipeline.py`
+
+- `eval_rag.py`
+
+- `test_integration.py`
 
 ---
 
-## 快速开始
+## 3. 先记住三条“产品线”
 
-### 1. 安装依赖
+### 主线 A：静态 HTML + FastAPI
+
+这是当前最重要的链路。
+
+- 前端页面都在根目录 `*.html`
+
+- 页面统一通过 `fetch()` 调 `http://127.0.0.1:8000/api/v1/*`
+
+- 个股分析走 `/api/v1/analyze`
+
+- `/api/v1/analyze` 会进入 `graph/*`
+
+- `graph/nodes.py` 再调用行情工具、RAG 工具、LLM 和风控逻辑
+
+- 结果由后端包装成 SSE 推回页面
+
+### 主线 B：Streamlit
+
+`app.py` 是另一套前端。
+
+- 也会调用 `/api/v1/analyze`
+
+- 也会消费 SSE
+
+- 但它的“财商学长”聊天不是调 `/api/v1/chat`，而是在 `app.py` 里直接构造 LLM 请求
+
+### 旧链路：CLI + agents
+
+`workflow.py` 依赖 `agents/*`。
+
+- 不走 LangGraph
+
+- 不走 SSE
+
+- 更像旧版实验实现，不是当前网页主链
+
+### 需要明确视为遗留示例的文件
+
+- `main.py`：早期注册登录示例，直接连远程 MySQL，不属于当前 JWT + SQLite 主架构
+
+- `trade.py`：早期交易示例，也直接连远程 MySQL，不属于当前主架构
+
+---
+
+## 4. 前端页面与接口映射
+
+| 页面 | 页面职责 | 实际调用接口 |
+|---|---|---|
+| `auth.html` | 登录/注册 | `/api/v1/auth/login`、`/api/v1/auth/register` |
+| `dashboard.html` | 欢迎页、账户摘要、热榜、聊天 | `/api/v1/trade/account`、`/api/v1/market/hotnews`、`/api/v1/chat/mentor` |
+| `analysis.html` | 个股分析主页面 | `/api/v1/market/search`、`/api/v1/analyze` |
+| `trade.html` | 模拟交易页面 | `/api/v1/market/search`、`/api/v1/market/spot`、`/api/v1/trade/order`、`/api/v1/trade/account`、`/api/v1/trade/orders`、`/api/v1/market/kline` |
+| `market.html` | 行情、指数、板块、热榜、K 线 | `/api/v1/market/quotes`、`/api/v1/market/indices`、`/api/v1/market/sectors`、`/api/v1/market/hotnews`、`/api/v1/market/kline` |
+| `platforms.html` | 持仓体检 | `/api/v1/health-check` |
+| `community.html` | 社区列表、点赞、发帖 | `/api/v1/community/posts`、`/api/v1/community/posts/{id}/like`、`/api/v1/community/posts` |
+| `home.html` | 辅助首页/持仓摘要 | `/api/v1/portfolio/summary` |
+| `resources.html` | 静态资源页 | 无 |
+| `team.html` | 团队介绍页 | 无 |
+| `index.html` | 跳转页 | 无，直接跳到 `dashboard.html` |
+
+---
+
+## 5. 登录态怎么在前端里传
+
+所有 HTML 页面都靠 `localStorage` 共享登录态，没有统一前端状态管理。
+
+使用的 key 是：
+
+- `cq_token`
+
+- `cq_username`
+
+- `cq_user_id`
+
+流程是：
+
+1. `auth.html` 登录或注册成功后，把 token 写进 `localStorage`
+
+2. 其他页面读取这些 key
+
+3. 需要鉴权时，在 `fetch()` 请求头里加 `Authorization: Bearer <token>`
+
+4. 退出登录时删除这三个 key
+
+---
+
+## 6. 个股分析主链
+
+这一条链是整个项目最核心的链路：
+
+`analysis.html -> /api/v1/analyze -> _stream_graph_events() -> LangGraph -> SSE -> analysis.html`
+
+### 6.1 前端做什么
+
+`analysis.html` 的主要流程：
+
+1. 用户输入股票名、拼音或代码
+
+2. 页面先调用 `/api/v1/market/search` 做联想搜索
+
+3. 用户点击“开始分析”后，前端 `POST /api/v1/analyze`
+
+4. 请求头声明 `Accept: text/event-stream`
+
+5. 前端不用 `EventSource`，而是用 `fetch + ReadableStream` 手动解析 SSE
+
+6. 收到 `node_start`、`node_complete`、`debate`、`risk_check`、`trade_order`、`complete` 等事件后，逐步更新页面
+
+### 6.2 后端入口怎么接
+
+`api/server.py` 里的 `/api/v1/analyze`：
+
+1. 对用户输入做 `MarketClassifier.fuzzy_match()`
+
+2. 生成 `thread_id`
+
+3. 返回 `StreamingResponse`
+
+4. 真正的内容由 `_stream_graph_events(symbol, thread_id)` 产生
+
+### 6.3 `_stream_graph_events()` 做什么
+
+这个函数是“LangGraph 事件翻译层”。
+
+它会：
+
+1. 用 `graph.builder.make_initial_state(symbol)` 创建初始状态
+
+2. 用 `_compiled_graph.astream_events()` 运行图
+
+3. 监听图节点开始和结束事件
+
+4. 根据节点名，把图状态翻译成前端能消费的 SSE 事件
+
+5. 最后额外补发一个 `complete` 事件，里面带最终交易指令、Markdown 研报和图表数据
+
+### 6.4 LangGraph 拓扑
+
+主图定义在 `graph/builder.py`，结构是：
+
+```text
+START
+ -> data_node
+ -> fundamental_node
+ -> technical_node
+ -> sentiment_node
+ -> rag_node
+ -> portfolio_node
+ -> debate_node 或 risk_node
+ -> trade_executor
+ -> END
+```
+
+更准确的执行顺序是：
+
+- `data_node` 先执行
+
+- 然后并行分叉到 `fundamental_node`、`technical_node`、`sentiment_node`、`rag_node`
+
+- 四路汇总到 `portfolio_node`
+
+- `portfolio_node` 判断是否冲突，决定走 `debate_node` 还是 `risk_node`
+
+- `risk_node` 判断是回到 `portfolio_node` 修订，还是进入 `trade_executor`
+
+### 6.5 每个节点到底负责什么
+
+| 节点 | 作用 | 主要调用 | 主要输出 |
+|---|---|---|---|
+| `data_node` | 拉基础行情与技术指标 | `get_market_data`、`calculate_technical_indicators` | `market_data`、`data_fetch_failed` |
+| `rag_node` | 提供外部上下文 | `search_knowledge_base` | `rag_context` |
+| `fundamental_node` | 基本面研判 | `get_fundamental_data`、`get_deep_financial_data`、LLM | `fundamental_report`、`fundamental_data` |
+| `technical_node` | 技术面研判 | LLM + 技术指标结果 | `technical_report` |
+| `sentiment_node` | 舆情与新闻研判 | `get_stock_news`、LLM | `sentiment_report`、`news_data` |
+| `portfolio_node` | 汇总三路分析师观点 | LLM | 综合决策、`has_conflict` |
+| `debate_node` | 冲突时多空辩论 | LLM | `debate_outcome`、`debate_rounds` |
+| `risk_node` | 大学生风控审批 | 风控规则 + LLM | `risk_decision`、`risk_rejection_count` |
+| `trade_executor` | 生成最终交易指令 | LLM 结构化输出 | `trade_order` |
+
+### 6.6 为什么前端最后还能拿到图表
+
+`complete` 事件里除了 `trade_order` 以外，还会带：
+
+- `final_markdown_report`
+
+- `financial_chart_data`
+
+所以 `analysis.html` 在分析结束后还能继续渲染：
+
+- Markdown 深度研报
+
+- 财务柱状图
+
+- 主营构成图
+
+- 业绩趋势图
+
+### 6.7 这条链的兜底逻辑
+
+- `tool_call_counts` 限制工具调用次数，防止节点死循环
+
+- `data_fetch_failed=True` 时，下游节点会早退，不再继续拿坏数据喂 LLM
+
+- `debate_node`、`trade_executor` 都有结构化输出兜底
+
+- 即使图中途异常，后端也会尽量补发 `complete`，让前端展示部分结果
+
+---
+
+## 7. 持仓体检链路
+
+这一条是独立图，不走主分析图：
+
+`platforms.html -> /api/v1/health-check -> build_health_graph() -> health_node`
+
+### 前端
+
+`platforms.html`：
+
+1. 用户输入多条持仓
+
+2. 点击开始体检
+
+3. `POST /api/v1/health-check`
+
+4. 收到 JSON 后渲染评分、集中度、回撤、流动性和建议
+
+### 后端
+
+`/api/v1/health-check`：
+
+1. 把前端输入转成 `PortfolioPosition`
+
+2. 调 `build_health_graph()`
+
+3. 这张图只有 `START -> health_node -> END`
+
+4. `health_node` 会补当前价格、算仓位权重、算浮盈亏，再让 LLM 输出 `PortfolioHealthReport`
+
+### 与主图的区别
+
+- 主图面向单标的分析
+
+- 健康图面向已有持仓组合诊断
+
+- 两者共用状态模型文件，但拓扑完全不同
+
+---
+
+## 8. 模拟交易链路
+
+这条链是：
+
+`trade.html -> /api/v1/trade/order -> api/mock_exchange.py -> db/crud.py`
+
+### 8.1 前端行为
+
+`trade.html` 分成几块：
+
+- 搜索股票：`/api/v1/market/search`
+
+- 获取现价：`/api/v1/market/spot`
+
+- 提交订单：`/api/v1/trade/order`
+
+- 刷新账户：`/api/v1/trade/account`
+
+- 拉成交历史：`/api/v1/trade/orders`
+
+- 切换 K 线：`/api/v1/market/kline`
+
+额外细节：
+
+- 页面每 5 秒轮询一次现价
+
+- 每次换股票时只拉一次 K 线
+
+- 可以从持仓表一键切到卖出
+
+### 8.2 后端下单逻辑
+
+`/api/v1/trade/order` 的主要流程：
+
+1. 标准化 symbol
+
+2. 通过 `api.mock_exchange.get_account()` 拿到全局内存账户
+
+3. 在线程池里执行 `account.place_order()`
+
+4. `place_order()` 内部再调用 `get_spot_price_raw()` 拿现价
+
+5. 更新现金、持仓、订单
+
+6. 返回成交结果
+
+### 8.3 登录后和未登录的区别
+
+- 未登录：只改内存账户，重启就丢
+
+- 已登录：除了内存账户，还会同步写 SQLite
+
+同步用到的 CRUD 主要是：
+
+- `get_or_create_virtual_account`
+
+- `create_order`
+
+- `update_account_cash_by_market`
+
+- `upsert_position`
+
+- `delete_position`
+
+### 8.4 当前实现的边界
+
+交易状态来源目前不是完全统一的：
+
+- 撮合执行依赖内存账户 `mock_exchange`
+
+- 历史订单查询 `/api/v1/trade/orders` 读的是 DB
+
+- 账户汇总 `/api/v1/trade/account` 目前主要还是从内存快照算出来，接口虽然注入了 `current_user` 和 `db`，但这两个参数并没有真正参与账户汇总计算
+
+也就是说，“登录后持久化”已经做了，但交易账户这块还不是完全 DB-first 的实现。
+
+---
+
+## 9. 市场页链路
+
+`market.html` 不走 LangGraph，它是纯接口聚合页。
+
+调用的接口是：
+
+- `/api/v1/market/quotes`
+
+- `/api/v1/market/indices`
+
+- `/api/v1/market/sectors`
+
+- `/api/v1/market/hotnews`
+
+- `/api/v1/market/kline`
+
+前端刷新策略：
+
+- 行情列表前端自己做 30 秒缓存
+
+- 指数每 60 秒刷新
+
+- 板块每 120 秒刷新
+
+- 热榜每 15 分钟刷新
+
+后端启动时也会启动后台任务提前刷新指数和热榜缓存。
+
+---
+
+## 10. Dashboard 聊天链路
+
+`dashboard.html` 上的“财商学长”走的是：
+
+- `/api/v1/chat/mentor`
+
+不是：
+
+- `/api/v1/chat`
+
+### 前端
+
+`dashboard.html` 会把聊天历史存在 `localStorage`，每次发送时带上最近 10 条消息的 `history`。
+
+如果接口失败，它不会直接报错，而是走前端本地规则 `localMentorFallback()` 兜底。
+
+### 后端
+
+`/api/v1/chat/mentor` 会：
+
+1. 拼 `SystemMessage + history + 当前问题`
+
+2. 调 `graph.nodes._build_llm()`
+
+3. 返回一条简短回复
+
+### 另一个聊天接口为什么存在
+
+`/api/v1/chat` 才是带数据库记忆的版本：
+
+- 依赖 `session_key`
+
+- 会写 `chat_sessions` 和 `chat_messages`
+
+- 走 `utils.llm_client.LLMClient`
+
+但当前 HTML 页面并没有接它，所以它更像“后端已实现、主前端未接入”的能力。
+
+---
+
+## 11. 社区链路
+
+### 已接通的前端功能
+
+`community.html` 已经接了：
+
+- 帖子列表：`GET /api/v1/community/posts`
+
+- 点赞/取消赞：`POST /api/v1/community/posts/{id}/like`
+
+- 发帖：`POST /api/v1/community/posts`
+
+### 后端其实还做了更多
+
+后端还实现了：
+
+- `GET /api/v1/community/posts/{post_id}`：帖子详情 + 评论
+
+- `POST /api/v1/community/posts/{post_id}/comments`：发表评论
+
+### 当前断点
+
+`community.html` 点击帖子后会跳到：
+
+- `post_detail.html?id=...`
+
+但仓库里没有 `post_detail.html` 文件。
+
+所以当前状态是：
+
+- 后端详情/评论接口存在
+
+- 列表页跳转存在
+
+- 详情页前端缺失
+
+---
+
+## 12. FastAPI 主后端 `api/server.py` 怎么读
+
+它负责五类事情。
+
+### 启动初始化
+
+启动时会执行：
+
+1. `db.engine.init_db()`
+
+2. `tools.knowledge_base.init_knowledge_base()`
+
+3. `graph.builder.build_graph_with_memory()`
+
+4. 启动热榜后台刷新
+
+5. 启动市场数据后台轮询
+
+### 分析类接口
+
+- `/api/v1/analyze`
+
+- `/api/v1/health-check`
+
+- `/api/v1/graph/mermaid`
+
+- `/api/v1/health`
+
+### 交易与行情接口
+
+- `/api/v1/trade/order`
+
+- `/api/v1/trade/orders`
+
+- `/api/v1/trade/account`
+
+- `/api/v1/trade/positions`
+
+- `/api/v1/market/search`
+
+- `/api/v1/market/quotes`
+
+- `/api/v1/market/spot`
+
+- `/api/v1/market/kline`
+
+- `/api/v1/market/indices`
+
+- `/api/v1/market/news`
+
+- `/api/v1/market/sectors`
+
+- `/api/v1/market/hotnews`
+
+- `/api/v1/portfolio/summary`
+
+### 认证接口
+
+- `/api/v1/auth/register`
+
+- `/api/v1/auth/login`
+
+- `/api/v1/auth/me`
+
+### 社区接口
+
+- `/api/v1/community/posts`
+
+- `/api/v1/community/posts/{id}`
+
+- `/api/v1/community/posts/{id}/comments`
+
+- `/api/v1/community/posts/{id}/like`
+
+---
+
+## 13. LangGraph 最佳阅读顺序
+
+如果你要读懂多智能体编排，推荐顺序：
+
+1. `graph/state.py`
+
+2. `graph/builder.py`
+
+3. `graph/nodes.py`
+
+4. `api/server.py` 里的 `_stream_graph_events()`
+
+### `graph/state.py`
+
+这里定义：
+
+- `TradingGraphState`
+
+- `AnalystReport`
+
+- `RiskDecision`
+
+- `TradeOrder`
+
+- `DebateOutcome`
+
+- `PortfolioPosition`
+
+- `PortfolioHealthReport`
+
+关键状态字段包括：
+
+- `market_data`
+
+- `fundamental_report`
+
+- `technical_report`
+
+- `sentiment_report`
+
+- `rag_context`
+
+- `has_conflict`
+
+- `debate_outcome`
+
+- `risk_decision`
+
+- `trade_order`
+
+- `tool_call_counts`
+
+- `execution_log`
+
+### `graph/builder.py`
+
+这里负责：
+
+- 注册节点
+
+- 连接边
+
+- 条件路由
+
+- 构建主图
+
+- 构建持仓体检专用图
+
+### `graph/nodes.py`
+
+这是项目真正的业务中枢。节点内部主要做三件事：
+
+1. 调工具函数拿真实数据
+
+2. 用 LLM 生成结构化结论
+
+3. 往共享状态里写结果
+
+这里还放了：
+
+- `_build_llm()` 模型工厂
+
+- anti-loop 限制
+
+- 节点统一降级逻辑
+
+- `route_after_portfolio()` 和 `route_after_risk()` 两个路由函数
+
+---
+
+## 14. 数据层怎么分工
+
+### `utils/market_classifier.py`
+
+这是用户输入清洗层。
+
+它负责：
+
+- 中文、英文、拼音、代码模糊匹配
+
+- 市场分类：A 股 / 港股 / 美股
+
+- 代码标准化
+
+- 搜股联想
+
+### `tools/market_data.py`
+
+这是项目里最重要的数据能力底座，提供：
+
+- `get_market_data()`
+
+- `calculate_technical_indicators()`
+
+- `get_fundamental_data()`
+
+- `get_stock_news()`
+
+- `get_spot_price_raw()`
+
+- `get_batch_quotes_raw()`
+
+- `get_market_indices_raw()`
+
+- `get_market_news_raw()`
+
+- `get_sector_data_raw()`
+
+- `get_deep_financial_data()`
+
+- `get_kline_data_raw()`
+
+### `tools/knowledge_base.py`
+
+这是 RAG 模块。
+
+内部结构是：
+
+- BM25 稀疏检索
+
+- Chroma 向量检索
+
+- Ensemble 融合
+
+- DuckDuckGo 实时联网搜索
+
+对外统一暴露：
+
+- `search_knowledge_base(query, market_type)`
+
+### `scripts/build_kb.py`
+
+这是离线构建知识库脚本，不是在线请求时跑的。
+
+它会生成：
+
+- `data/bm25_index.pkl`
+
+- `data/chroma_db/`
+
+在线后端启动时只加载，不重建。
+
+---
+
+## 15. 数据库层怎么分工
+
+### `db/models.py`
+
+当前主线数据库模型包括：
+
+- `users`
+
+- `virtual_accounts`
+
+- `positions`
+
+- `orders`
+
+- `chat_sessions`
+
+- `chat_messages`
+
+- `community_posts`
+
+- `community_comments`
+
+- `post_likes`
+
+- `news_cache`
+
+### `db/engine.py`
+
+默认数据库是：
+
+```text
+sqlite+aiosqlite:///./campusquant.db
+```
+
+特点：
+
+- Async SQLAlchemy
+
+- 每个请求一个 session
+
+- 启动时自动建表
+
+- SQLite 下会做一次 `virtual_accounts` 字段迁移
+
+### `db/crud.py`
+
+这里提供统一 CRUD，负责：
+
+- 用户注册和密码校验
+
+- 虚拟账户创建
+
+- 持仓 upsert / 删除
+
+- 订单创建
+
+- 多币种现金更新
+
+- 聊天记忆持久化
+
+- 社区帖子、评论、点赞
+
+- 热榜缓存写入
+
+---
+
+## 16. 模拟交易引擎 `api/mock_exchange.py`
+
+这个模块非常关键，因为它定义了“本项目所有交易都只是模拟撮合”。
+
+特点：
+
+- 全局单例账户
+
+- 三个币种独立维护：CNH、HKD、USD
+
+- 买卖时实时调用 `get_spot_price_raw()` 拿价格
+
+- 内存里维护现金、持仓、订单
+
+- 用线程锁保护并发修改
+
+它是这些接口的共同底层状态源：
+
+- `/api/v1/trade/order`
+
+- `/api/v1/portfolio/summary`
+
+- `/api/v1/trade/account`
+
+- `/api/v1/trade/positions`
+
+---
+
+## 17. Streamlit 前端 `app.py`
+
+`app.py` 不是简单的展示壳，它有自己一套交互逻辑：
+
+- 调 `/api/v1/health` 检查后端是否可用
+
+- 调 `/api/v1/analyze` 消费 SSE
+
+- 用 Streamlit session state 维护聊天历史
+
+- “财商学长”聊天直接在 `app.py` 里构造模型，不走 `/api/v1/chat` 或 `/api/v1/chat/mentor`
+
+所以 HTML 版和 Streamlit 版共用了分析后端，但聊天实现并不统一。
+
+---
+
+## 18. 旧版 CLI 与评估脚本
+
+### `workflow.py`
+
+旧版 CLI 编排器，使用 `agents/*`，不走 LangGraph。
+
+### `agents/*`
+
+包括：
+
+- `data_agent.py`
+
+- `fundamental_agent.py`
+
+- `technical_agent.py`
+
+- `sentiment_agent.py`
+
+- `portfolio_manager.py`
+
+- `risk_manager.py`
+
+它们更像上一代实现，不是当前 FastAPI 主线。
+
+### 其他脚本
+
+- `quick_start.py`：环境与模块自检
+
+- `eval_pipeline.py`：主流程评估
+
+- `eval_rag.py`：RAG 召回评估
+
+- `test_integration.py`：集成测试
+
+---
+
+## 19. 启动前的配置建议
+
+### 安装依赖
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. 配置 API Key
+### 创建 `.env`
 
-复制环境变量模板：
+当前仓库没有 `.env.example`，需要手动创建 `.env`。
 
-```bash
-cp .env.example .env
-```
-
-编辑 `.env`（至少配置主 LLM）：
+至少建议配置：
 
 ```env
-# 主 LLM：阿里云百炼 Qwen（国内直连，无需代理）
-DASHSCOPE_API_KEY=sk-your-dashscope-key
-
-# 备用 LLM（可选，取消注释启用）
-# OPENAI_API_KEY=sk-your-openai-key
-# ANTHROPIC_API_KEY=sk-ant-your-anthropic-key
+DASHSCOPE_API_KEY=your_key
+QWEN_MODEL_NAME=qwen3.5-plus
+JWT_SECRET_KEY=change-me
 ```
 
-### 3. 启动服务
+可选：
 
-#### 方式 A：静态 HTML 前端 + FastAPI 后端（推荐）
+```env
+OPENAI_API_KEY=...
+ANTHROPIC_API_KEY=...
+DATABASE_URL=sqlite+aiosqlite:///./campusquant.db
+```
+
+### 可选：先构建知识库
 
 ```bash
-# 启动 FastAPI 后端（提供 SSE 分析 API）
-uvicorn api.server:app --host 127.0.0.1 --port 8000 --reload
-```
-
-然后直接在浏览器中打开 `index.html`（或用任意静态文件服务器托管）：
-
-```bash
-# 方式一：浏览器直接打开（部分 SSE 功能受 file:// 协议限制）
-# 方式二：用 Python 内置服务器（推荐）
-python -m http.server 3000
-# 访问 http://localhost:3000
-```
-
-#### 方式 B：Streamlit Web UI
-
-```bash
-# 终端 1：FastAPI 后端
-uvicorn api.server:app --host 127.0.0.1 --port 8000
-
-# 终端 2：Streamlit 前端
-streamlit run app.py
-# 访问 http://localhost:8501
-```
-
-#### 方式 C：命令行（CLI）
-
-```bash
-python workflow.py
-```
-
-选择分析模式：
-- **模式 1**：单标的分析（如 `AAPL`、`600519.SH`、`00700.HK`）
-- **模式 2**：批量分析 `config.py` 中的所有预设标的
-- **模式 3**：自定义批量分析
-
-#### 方式 D：快速功能测试
-
-```bash
-python quick_start.py
+python scripts/build_kb.py
 ```
 
 ---
 
-## 项目结构
+## 20. 当前代码里的已知错位点
 
-```
-trading_agents_system/
-│
-├── config.py                      # 全局配置（API Keys、标的列表、技术指标参数、风控参数）
-├── requirements.txt               # 依赖库清单
-├── workflow.py                    # CLI 主程序入口（三种分析模式）
-├── app.py                         # Streamlit Web UI（智能搜索 + "财财学长"助手）
-├── quick_start.py                 # 快速环境测试脚本
-├── README.md                      # 本文档
-├── API_DOCS.md                    # REST API 接口文档
-│
-├── 静态 HTML 前端
-│   ├── index.html                 # 首页（产品介绍 + AI 分析演示）
-│   ├── trade.html                 # 模拟演练（SSE 流式分析）
-│   ├── platforms.html             # 持仓体检（AI 健康诊断）
-│   ├── market.html                # 市场快讯（A/港/美股行情）
-│   ├── community.html             # 投教社区（学习讨论）
-│   ├── team.html                  # 关于我们（项目信息）
-│   ├── home.html                  # 学习中心（模拟仪表盘）
-│   └── resources.html             # 学习资源库
-│
-├── graph/                         # LangGraph 状态机（主执行路径）
-│   ├── state.py                   # TypedDict 全局状态 + Pydantic 输出模型
-│   │                              #   AnalystReport / RiskDecision / TradeOrder
-│   │                              #   DebateOutcome / PortfolioPosition / PortfolioHealthReport
-│   ├── builder.py                 # StateGraph 图结构组装
-│   │                              #   build_graph() / build_graph_with_memory()
-│   │                              #   build_health_graph() / make_initial_state()
-│   └── nodes.py                   # 9个节点实现
-│                                  #   data_node / fundamental_node / technical_node
-│                                  #   sentiment_node / rag_node / portfolio_node
-│                                  #   debate_node / risk_node / trade_executor
-│                                  #   health_node（持仓体检专属节点）
-│
-├── tools/                         # 工具层（供节点调用）
-│   ├── market_data.py             # @tool 市场数据 + get_kline_data_raw()（日/周/月K线）
-│   ├── hot_news.py                # 多平台热榜聚合（财联社/B站/知乎/凤凰/澎湃，15min缓存）
-│   └── knowledge_base.py          # 混合 RAG：Chroma + BM25 + DuckDuckGo + PDF加载
-│
-├── utils/                         # 通用工具模块
-│   ├── data_loader.py             # 多市场数据加载器
-│   │                              #   A股 akshare / 港股 akshare / 美股 yfinance
-│   │                              #   TTL 内存缓存（5分钟）+ 指数退避重试（最多3次）
-│   ├── llm_client.py              # LLM 统一接口（DashScope/OpenAI/Anthropic 切换）
-│   └── market_classifier.py       # 市场分类 + 60+ 标的模糊名称匹配
-│
-├── api/                           # FastAPI 后端
-│   ├── server.py                  # 全部 API 端点（SSE + REST + Auth + Trade + Market）
-│   ├── auth.py                    # JWT 鉴权（create_access_token / get_current_user）
-│   └── mock_exchange.py           # 三币种虚拟撮合引擎（A股CNH/港股HKD/美股USD）
-│
-├── db/                            # SQLAlchemy 2.x 异步 ORM
-│   ├── models.py                  # 9 张表（User/VirtualAccount/Position/Order/Chat/Community/NewsCache）
-│   ├── engine.py                  # 异步引擎 + init_db() + SQLite 列迁移
-│   └── crud.py                    # 全部 CRUD 函数（含三币种余额更新）
-│
-├── agents/                        # 原始 Agent 类（已被 graph/ 节点取代，保留供参考）
-│   ├── base_agent.py
-│   ├── data_agent.py / fundamental_agent.py / technical_agent.py
-│   ├── sentiment_agent.py / risk_manager.py / portfolio_manager.py
-│
-├── data/                          # 知识库数据（自动创建）
-│   ├── docs/                      # 放置研报 PDF/TXT（可选，触发 RAG 索引）
-│   └── chroma_db/                 # Chroma 向量库持久化存储
-│
-└── logs/                          # 日志目录（自动创建）
-```
+### `dashboard.html` 和 `/api/v1/trade/account` 的返回结构不完全一致
+
+`dashboard.html` 渲染时更期待 `markets`、`positions` 这种结构，但后端当前主要返回 `accounts`、`positions_all`。
+
+### 后端有 `/api/v1/dashboard/summary`，但页面没用它
+
+`dashboard.html` 目前是自己分别请求：
+
+- `/api/v1/trade/account`
+
+- `/api/v1/market/hotnews`
+
+- `/api/v1/chat/mentor`
+
+### `/api/v1/chat` 有数据库记忆，但主 HTML 没接
+
+当前主页面聊天走的是 `/api/v1/chat/mentor`。
+
+### 社区详情页缺前端文件
+
+`community.html` 跳 `post_detail.html`，但仓库没有这个文件。
+
+### `main.py` 和 `trade.py` 不要和 `api/server.py` 并行当主后端
+
+它们属于旧示例链路。
 
 ---
 
-## 核心模块说明
+## 21. 建议阅读顺序
 
-### 1. 状态定义（`graph/state.py`）
+如果你要最快看懂整个仓库，建议顺序：
 
-所有节点共享 `TradingGraphState`（TypedDict），关键字段：
+1. `api/server.py`
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `symbol` / `market_type` | str | 交易标的与市场类型 |
-| `market_data` | Dict | data_node 填充的原始行情数据 |
-| `fundamental_report` / `technical_report` / `sentiment_report` | Optional[Dict] | 三路并行分析师报告 |
-| `rag_context` | str | RAG 检索到的宏观/研报知识 |
-| `has_conflict` | bool | 分析师意见冲突标志（触发辩论） |
-| `debate_outcome` | Optional[Dict] | DebateOutcome，含 bull/bear 完整对话历史 |
-| `debate_rounds` | int | 已辩论轮次（≥ MAX_DEBATE_ROUNDS=2 时跳过） |
-| `risk_decision` | Optional[Dict] | RiskDecision，含批准状态、仓位建议、止损止盈 |
-| `risk_rejection_count` | int | 风控拒绝次数（≥ MAX_RISK_RETRIES=2 时强制放行） |
-| `trade_order` | Optional[Dict] | 最终 TradeOrder，`simulated=True`（模拟撮合） |
-| `tool_call_counts` | Dict[str, int] | Anti-Loop 计数器，各节点工具调用超 3 次强制降级 |
-| `portfolio_positions` | Optional[List[Dict]] | 持仓体检输入（PortfolioPosition 列表） |
-| `health_report` | Optional[Dict] | PortfolioHealthReport，持仓体检结果 |
-| `messages` | List[BaseMessage] | LangGraph add_messages reducer，追加而非覆盖 |
-| `execution_log` | List[str] | 自定义 _append_log reducer，并行安全日志合并 |
-| `error_type` | Optional[str] | 细粒度错误分类：`data_error`/`llm_error`/`rate_limit`/`timeout` |
+2. `graph/builder.py`
 
-### 2. LangGraph 节点（`graph/nodes.py`）
+3. `graph/state.py`
 
-所有节点均注入**大学生专属规则**（`_CAMPUS_RULES`），不可豁免：
+4. `graph/nodes.py`
 
-| 节点 | 核心职责 | 关键规则 |
-|------|----------|----------|
-| `data_node` | 获取历史日线 + 计算技术指标 | 失败返回空 DataFrame，不阻断流程 |
-| `fundamental_node` | PE/FCF/盈利质量 LLM 分析 | 置信度 < 60% → 强制 HOLD |
-| `technical_node` | MACD/RSI/均线 LLM 分析 | Anti-Loop：工具调用 ≤ 3 次 |
-| `sentiment_node` | 新闻/舆情 LLM 评分 | 禁止推荐高风险投机策略 |
-| `rag_node` | Chroma+BM25+DDG 三路检索 | 补充宏观政策/研报背景 |
-| `portfolio_node` | 综合四路报告，加权决策 | 综合置信度 < 60% → 强制 HOLD；禁止杠杆 |
-| `debate_node` | 多空辩论（最多 2 轮） | 产出 DebateOutcome + bull/bear 历史 |
-| `risk_node` | 大学生专属风控审批 | A股仓位≤15%，港/美≤10%，ATR%>8%拒绝 |
-| `trade_executor` | 生成最终 TradeOrder | `simulated=True`，不接入任何交易所 |
-| `health_node` | 持仓组合健康诊断 | 集中度/回撤/流动性三维评分，产出 PortfolioHealthReport |
+5. `analysis.html`
 
-### 3. 数据加载器（`utils/data_loader.py`）
+6. `trade.html`
 
-```
-DataLoader.get_historical_data(symbol, days)
-    │
-    ├─ 市场识别 → MarketClassifier.classify(symbol)
-    │
-    ├─ A_STOCK  → akshare.stock_zh_a_hist(adjust="qfq")
-    ├─ HK_STOCK → akshare.stock_hk_hist(adjust="qfq") + 本地日期截断
-    ├─ US_STOCK → yfinance.Ticker.history(auto_adjust=True).reset_index()
-    └─ _standardize() → 统一列名映射（中/英双语）→ [timestamp, open, high, low, close, volume]
+7. `tools/market_data.py`
 
-可靠性保障：
-  - TTL 内存缓存（默认 5 分钟），相同请求不重复调用 API
-  - 指数退避重试（最多 3 次，base_wait=1.5s），应对网络抖动
-```
+8. `tools/knowledge_base.py`
 
-### 4. 混合 RAG 知识库（`tools/knowledge_base.py`）
+9. `db/models.py`
 
-```
-Query
-  ├─ BM25 稀疏检索（rank_bm25）        → 精准词匹配（股票代码/专有名词）
-  ├─ Chroma 向量检索（DashScope embedding）→ 语义模糊匹配（同义词/概念相似）
-  │    └─ EnsembleRetriever 50%+50% RRF 排名融合
-  └─ DuckDuckGo 实时搜索               → 最新新闻/突发事件/实时财报
+10. `db/crud.py`
 
-内置财商教育知识：
-  - ETF 定投入门（沪深300/纳指/红利，策略与常见误区）
-  - 价值投资基础（PE/PB/FCF 通俗讲解，大学生选股原则）
-  - 识别金融诈骗（杀猪盘特征，正规平台判断，紧急处置）
+如果你要准备答辩，可以直接用下面这句概括：
 
-扩充知识库：将研报 PDF/TXT 放入 data/docs/ 目录
-```
+> 当前主架构是“静态 HTML 前端通过 `fetch` 调 FastAPI；FastAPI 用 LangGraph 编排多智能体；节点调用行情工具、RAG 工具和 LLM；结果以 SSE 流式返回前端；交易、社区和聊天记忆再由 SQLite 提供部分持久化”。
 
-### 5. 智能标的搜索（`utils/market_classifier.py`）
-
-| 用户输入 | 自动转换 | 市场 |
-|----------|----------|------|
-| 茅台、贵州茅台 | `600519.SH` | A股 |
-| 宁德时代、CATL | `300750.SZ` | A股 |
-| 沪深300ETF | `510300.SH` | A股 |
-| 腾讯、Tencent | `00700.HK` | 港股 |
-| 苹果、Apple | `AAPL` | 美股 |
-| 英伟达、NVIDIA | `NVDA` | 美股 |
-| 拼多多 | `PDD` | 美股 |
-
-无法匹配时直接使用原始输入（适用于已知标准代码的用户）。
-
----
-
-## API 端点
-
-FastAPI 后端（默认 `http://localhost:8000`）：
-
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/v1/analyze` | `POST` | SSE 流式分析（主端点） |
-| `/api/v1/health-check` | `POST` | 持仓体检（JSON 请求/响应） |
-| `/api/v1/market/indices` | `GET` | 8 路实时大盘指数（沪深港美，akshare） |
-| `/api/v1/market/news` | `GET` | 财联社 7×24 快讯（`?limit=N`，默认 20 条） |
-| `/api/v1/health` | `GET` | 服务健康检查 |
-| `/api/v1/graph/mermaid` | `GET` | 返回图拓扑 Mermaid 字符串 |
-| `/docs` | `GET` | Swagger 交互式 API 文档 |
-
-### `/api/v1/analyze` SSE 事件格式
-
-```json
-{
-  "event": "node_complete",
-  "node": "fundamental_node",
-  "message": "📈 基本面分析师完成",
-  "data": {
-    "recommendation": "BUY",
-    "confidence": 0.78,
-    "reasoning": "...",
-    "key_factors": ["ROE 连续5年超25%", "..."],
-    "price_target": 2000.0,
-    "risk_factors": ["估值偏高"]
-  },
-  "timestamp": "2026-03-03T10:00:00Z",
-  "seq": 5
-}
-```
-
-`complete` 事件的 `data` 字段还包含：
-- `trade_order`：最终 TradeOrder（含 action / quantity_pct / stop_loss / take_profit）
-- `final_markdown_report`：Markdown 格式完整深度研报（六节：基本面→技术→情绪→风控→辩论→指令）
-- `financial_chart_data`：近5年营收/净利润图表数据（`years / revenue / profit` 数组）
-
-事件类型：`start` / `node_start` / `node_complete` / `conflict` / `debate` / `risk_check` / `risk_retry` / `trade_order` / `complete` / `error`
-
-### `/api/v1/health-check` 请求示例
-
-```json
-{
-  "positions": [
-    { "symbol": "600519.SH", "quantity": 100, "avg_cost": 1800.0 },
-    { "symbol": "AAPL",      "quantity": 10,  "avg_cost": 175.0 }
-  ]
-}
-```
-
----
-
-## 风控机制（大学生专属）
-
-**仓位上限**（比通用版更保守）：
-
-| 市场 | 最大仓位 | 建议止损 | 止损范围 | 高波动拒绝阈值 |
-|------|----------|----------|----------|----------------|
-| A股  | 15%      | 5%       | 0~50%    | ATR% > 8%      |
-| 港股 | 10%      | 7%       | 0~50%    | ATR% > 8%      |
-| 美股 | 10%      | 7%       | 0~50%    | ATR% > 8%      |
-
-**不可豁免的拒绝条件**：
-- 任何形式的杠杆/融资融券（Margin Trading）
-- 任何期权投机（Options Speculation）
-- 综合置信度 < 60% 且方向为 BUY/SELL → 强制降仓至 ≤5% 或直接拒绝
-
----
-
-## LLM 配置
-
-主 LLM 为**阿里云百炼 Qwen**（国内直连，无需代理）：
-
-```python
-# config.py / .env
-PRIMARY_LLM_PROVIDER = "dashscope"
-QWEN_MODEL_NAME = "qwen3.5-plus"           # 推理模型（默认，可覆盖）
-DASHSCOPE_EMBEDDING_MODEL = "text-embedding-v3"  # RAG 向量化
-```
-
-切换为 OpenAI 或 Anthropic：
-
-```python
-# 备选 A：OpenAI GPT
-PRIMARY_LLM_PROVIDER = "openai"
-OPENAI_MODEL = "gpt-4o"
-
-# 备选 B：Anthropic Claude
-PRIMARY_LLM_PROVIDER = "anthropic"
-ANTHROPIC_MODEL = "claude-sonnet-4-6"
-```
-
-> **代理注意**：若使用系统代理（TUN 模式），请在 `.env` 中配置 `NO_PROXY=dashscope.aliyuncs.com,aliyuncs.com` 避免 DashScope 请求被拦截。
-
----
-
-## 模块测试
-
-```bash
-# 完整环境快速测试（验证 LLM 连通 + 图构建）
-python quick_start.py
-
-# 市场分类 + 模糊匹配测试
-python utils/market_classifier.py
-
-# 多市场数据加载测试（A股/港股/美股各一例）
-python utils/data_loader.py
-
-# LLM 客户端连通测试
-python utils/llm_client.py
-```
-
----
-
-## 扩展开发
-
-### 扩充模糊匹配词典
-
-编辑 `utils/market_classifier.py` 中的 `_FUZZY_NAME_MAP`：
-
-```python
-"拼多多": "PDD",
-"蔚来":   "09866.HK",
-"小鹏汽车": "09868.HK",
-```
-
-### 扩充研报知识库
-
-将 PDF 或 TXT 研报放入 `data/docs/`，然后重建索引：
-
-```python
-from tools.knowledge_base import init_knowledge_base
-init_knowledge_base(force_rebuild=True)
-```
-
-### 添加 LangGraph 节点
-
-1. 在 `graph/nodes.py` 中实现新节点函数
-2. 在 `graph/state.py` 中扩展 `TradingGraphState` 字段
-3. 在 `graph/builder.py` 中注册节点并连接边
-
-### 调整风控参数
-
-编辑 `graph/nodes.py` 中 `_PROMPTS["risk"]` 或 `risk_node` 的大学生规则字符串，修改仓位上限、ATR 拒绝阈值等。
-
----
-
-## 免责声明
-
-**本系统仅用于学习、研究与财商教育目的，不构成任何投资建议。**
-
-- 系统输出的 BUY/SELL/HOLD 仅供参考，不保证盈利
-- `simulated=True` 标记确保所有指令仅指向本地模拟引擎，不接入真实交易所
-- 历史数据回测结果不代表未来表现
-- 请先在模拟账户中验证，再考虑小仓位实盘
-- 如有疑问，请咨询持牌金融顾问
-
----
-
-## 依赖说明
-
-| 类别 | 主要库 |
-|------|--------|
-| 数据科学 | `pandas`, `numpy` |
-| 市场数据 | `akshare`（A股/港股）, `yfinance`（美股） |
-| 技术分析 | `pandas-ta` |
-| LLM 框架 | `langgraph`, `langchain`, `langchain-core`, `langchain-community` |
-| LLM 提供商 | `langchain-openai`（DashScope/OpenAI）, `langchain-anthropic`（备用）|
-| 混合 RAG | `chromadb`, `pypdf`, `rank_bm25`, `duckduckgo-search` |
-| 后端服务 | `fastapi`, `uvicorn[standard]`, `sse-starlette`, `httpx`, `python-multipart` |
-| 前端 | `streamlit` |
-| 工具库 | `python-dotenv`, `pydantic`, `tenacity`, `loguru`, `requests` |
-
-> `faiss-cpu` 已被 `chromadb` 替代。
-
----
-
-## TODO
-
-- [ ] 支持更多技术指标（Ichimoku、Fibonacci 回撤位）
-- [ ] 添加历史回测引擎（基于历史数据模拟交易记录）
-- [ ] 财商教育题库（选择题测验大学生金融知识水平）
-- [ ] 多语言支持（English version for overseas students）
-- [ ] 移动端响应式适配（HTML 前端）
-- [ ] LangGraph 持久化升级（MemorySaver → SqliteSaver，支持多并发）
-
----
-
-## 许可证
-
-MIT License
-
----
-
-**如果这个项目对你有帮助，欢迎 Star！**
-**如果你是大学生，记住：时间和学习才是你最大的资产。投资自己，胜过投资任何股票。**
