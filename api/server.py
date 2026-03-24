@@ -1004,6 +1004,104 @@ async def get_me(current_user=Depends(_get_current_user)):
 # 模拟撮合下单
 # ════════════════════════════════════════════════════════════════
 
+# 市场短码 → VirtualAccount 资金字段名
+_MT_CASH_FIELD = {"A": "cash_cnh", "HK": "cash_hkd", "US": "cash_usd", "UNKNOWN": "cash_cnh"}
+
+
+async def _db_trade_order(db, user_id: int, symbol: str, action: str,
+                           quantity: float, mt_short: str) -> dict:
+    """
+    已登录用户的 DB-backed 撮合引擎。
+    直接从 DB 读取账户余额/持仓，执行撮合，写回 DB，不触碰全局内存账户。
+    """
+    from tools.market_data import get_spot_price_raw
+    from db.crud import get_or_create_virtual_account, create_order as _db_order
+    from db.models import VirtualAccount, Position
+    from sqlalchemy import select
+
+    cash_field = _MT_CASH_FIELD.get(mt_short.upper(), "cash_cnh")
+    ts = datetime.now(timezone.utc).isoformat()
+
+    # 获取报价
+    loop = asyncio.get_event_loop()
+    try:
+        spot = await loop.run_in_executor(None, get_spot_price_raw, symbol)
+    except Exception:
+        spot = {}
+    exec_price = spot.get("price") or 0.0
+    is_spot    = not spot.get("is_fallback", True)
+
+    if not exec_price or exec_price <= 0:
+        return {"success": False, "error": "行情获取失败，无法撮合",
+                "symbol": symbol, "action": action, "timestamp": ts}
+
+    amount = round(exec_price * quantity, 4)
+    fee    = round(amount * 0.0003, 4)
+
+    # 读取 DB 账户
+    db_acct = await get_or_create_virtual_account(db, user_id)
+    cash_before = getattr(db_acct, cash_field, 0.0)
+
+    if action.upper() == "BUY":
+        total_cost = amount + fee
+        if total_cost > cash_before:
+            return {"success": False,
+                    "error": f"可用资金不足（需 {total_cost:.2f}，可用 {cash_before:.2f}）",
+                    "symbol": symbol, "action": action, "timestamp": ts}
+        cash_after = cash_before - total_cost
+        setattr(db_acct, cash_field, cash_after)
+
+        # Upsert position
+        r = await db.execute(select(Position).where(
+            Position.account_id == db_acct.id, Position.symbol == symbol))
+        pos = r.scalar_one_or_none()
+        if pos:
+            total_qty    = pos.quantity + quantity
+            pos.avg_cost = (pos.avg_cost * pos.quantity + exec_price * quantity) / total_qty
+            pos.quantity = total_qty
+            pos.market_type = mt_short
+        else:
+            db.add(Position(account_id=db_acct.id, symbol=symbol, name=symbol,
+                            quantity=quantity, avg_cost=exec_price, market_type=mt_short))
+
+    else:  # SELL
+        r = await db.execute(select(Position).where(
+            Position.account_id == db_acct.id, Position.symbol == symbol))
+        pos = r.scalar_one_or_none()
+        held = pos.quantity if pos else 0.0
+        if not pos or pos.quantity < quantity - 1e-8:
+            return {"success": False,
+                    "error": f"持仓不足（需 {quantity}，持有 {held:.2f}）",
+                    "symbol": symbol, "action": action, "timestamp": ts}
+        pos.quantity -= quantity
+        if pos.quantity < 1e-6:
+            await db.delete(pos)
+        cash_after = cash_before + (amount - fee)
+        setattr(db_acct, cash_field, cash_after)
+
+    # 写成交记录
+    await _db_order(db, db_acct.id, symbol=symbol, name=symbol,
+                    action=action.upper(), quantity=quantity, exec_price=exec_price,
+                    amount=amount, fee=fee, cash_before=cash_before, cash_after=cash_after,
+                    is_spot_price=is_spot, market_type=mt_short)
+    await db.flush()
+
+    return {
+        "success":       True,
+        "symbol":        symbol,
+        "action":        action.upper(),
+        "quantity":      quantity,
+        "exec_price":    exec_price,
+        "is_spot_price": is_spot,
+        "amount":        amount,
+        "fee":           fee,
+        "cash_before":   cash_before,
+        "cash_after":    cash_after,
+        "simulated":     True,
+        "timestamp":     ts,
+    }
+
+
 @app.post("/api/v1/trade/order", summary="模拟撮合下单（登录后持久化）")
 async def place_trade_order(
     request: TradeOrderRequest,
@@ -1016,13 +1114,26 @@ async def place_trade_order(
     - 未登录：使用内存全局账户（游客模式，重启清零）
     - 已登录：使用 DB 持久账户，订单写入数据库，重启不丢失
     """
-    from api.mock_exchange import get_account
     from utils.market_classifier import MarketClassifier
 
     symbol = request.symbol.strip().upper()
     symbol = MarketClassifier.fuzzy_match(symbol)
     market_type, _ = MarketClassifier.classify(symbol)
+    mt_short = market_type.short   # "A" / "HK" / "US"
 
+    # ── 已登录：直接从 DB 撮合，完全跳过全局内存账户 ─────────
+    if current_user:
+        return await _db_trade_order(
+            db=db,
+            user_id=current_user.id,
+            symbol=symbol,
+            action=request.action,
+            quantity=request.quantity,
+            mt_short=mt_short,
+        )
+
+    # ── 游客：使用内存全局账户（不持久化） ───────────────────
+    from api.mock_exchange import get_account
     account = get_account()
     loop    = asyncio.get_event_loop()
 
@@ -1033,7 +1144,7 @@ async def place_trade_order(
                 symbol=symbol,
                 action=request.action,
                 quantity=request.quantity,
-                market_type=market_type.value,
+                market_type=mt_short,
             )
         )
     except Exception as e:
@@ -1041,63 +1152,8 @@ async def place_trade_order(
         raise HTTPException(status_code=502, detail=f"撮合引擎异常: {str(e)}")
 
     if not result.success:
-        return {
-            "success":   False,
-            "error":     result.error,
-            "symbol":    symbol,
-            "action":    request.action,
-            "timestamp": result.timestamp,
-        }
-
-    # ── 已登录：持久化到 DB ──────────────────────────────────
-    if current_user:
-        try:
-            from db.crud import (
-                get_or_create_virtual_account,
-                create_order as db_create_order,
-                upsert_position,
-                delete_position,
-                update_account_cash,
-            )
-            db_account = await get_or_create_virtual_account(db, current_user.id)
-
-            # 写成交记录
-            await db_create_order(
-                db, db_account.id,
-                symbol=result.symbol, name="",
-                action=result.action, quantity=result.quantity,
-                exec_price=result.exec_price, amount=result.amount,
-                fee=result.fee, cash_before=result.cash_before,
-                cash_after=result.cash_after,
-                is_spot_price=result.is_spot_price,
-                market_type=market_type.value,
-            )
-
-            # 同步三币种资金（按市场更新对应字段）
-            from db.crud import update_account_cash_by_market
-            await update_account_cash_by_market(
-                db, db_account.id, market_type.value, result.cash_after
-            )
-
-            # 同步持仓（从内存账户读取最新状态写入 DB）
-            snap = account.snapshot()
-            for p in snap["positions"]:
-                await upsert_position(
-                    db, db_account.id,
-                    symbol=p["symbol"], name=p["name"],
-                    quantity=p["quantity"], avg_cost=p["avg_cost"],
-                    market_type=p.get("market_type", "UNKNOWN"),
-                )
-            # 清理已卖空的持仓
-            all_syms = {p["symbol"] for p in snap["positions"]}
-            from db.crud import get_positions
-            db_positions = await get_positions(db, db_account.id)
-            for dp in db_positions:
-                if dp.symbol not in all_syms:
-                    await delete_position(db, db_account.id, dp.symbol)
-
-        except Exception as e:
-            logger.warning(f"[trade/order] DB 持久化失败（不影响撮合结果）: {e}")
+        return {"success": False, "error": result.error, "symbol": symbol,
+                "action": request.action, "timestamp": result.timestamp}
 
     return {
         "success":       True,
@@ -1195,19 +1251,34 @@ async def get_single_spot(symbol: str):
 
 
 @app.get("/api/v1/portfolio/summary", summary="获取虚拟账户持仓摘要（含实时估值）")
-async def get_portfolio_summary():
-    """
-    GET /api/v1/portfolio/summary
-
-    读取 mock_exchange 虚拟账户的真实持仓，并发调用 get_spot_price_raw()
-    获取实时现价，计算每个持仓的市值、浮动盈亏，以及账户汇总指标。
-    """
-    from api.mock_exchange import get_account
+async def get_portfolio_summary(
+    current_user=Depends(_get_optional_user),
+    db=Depends(_get_db_dep),
+):
     from tools.market_data import get_spot_price_raw
 
-    account  = get_account()
-    snapshot = account.snapshot()
-    raw_positions = snapshot["positions"]   # list[dict] with symbol/name/quantity/avg_cost
+    if current_user:
+        from db.crud import get_or_create_virtual_account, get_positions as _db_get_pos, get_orders
+        db_acct = await get_or_create_virtual_account(db, current_user.id)
+        db_pos  = await _db_get_pos(db, db_acct.id)
+        raw_positions = [
+            {"symbol": p.symbol, "name": p.name, "quantity": p.quantity,
+             "avg_cost": p.avg_cost, "market_type": p.market_type}
+            for p in db_pos
+        ]
+        cash_cnh = db_acct.cash_cnh
+        cash_hkd = db_acct.cash_hkd
+        cash_usd = db_acct.cash_usd
+        orders   = await get_orders(db, db_acct.id, limit=1000)
+        order_count = len(orders)
+    else:
+        from api.mock_exchange import get_account
+        snap = get_account().snapshot()
+        raw_positions = snap["positions"]
+        cash_cnh = snap.get("cash_cnh", 0.0)
+        cash_hkd = snap.get("cash_hkd", 0.0)
+        cash_usd = snap.get("cash_usd", 0.0)
+        order_count = int(snap.get("order_count") or 0)
 
     async def enrich_position(pos: dict) -> dict:
         loop = asyncio.get_event_loop()
@@ -1215,14 +1286,12 @@ async def get_portfolio_summary():
             spot = await loop.run_in_executor(None, get_spot_price_raw, pos["symbol"])
         except Exception:
             spot = {"price": pos["avg_cost"], "change_pct": 0.0, "is_fallback": True}
-
         current_price  = spot.get("price") or pos["avg_cost"]
         change_pct     = spot.get("change_pct") or 0.0
         cost_value     = pos["quantity"] * pos["avg_cost"]
         market_value   = pos["quantity"] * current_price
         unrealized_pnl = market_value - cost_value
         pnl_pct        = (unrealized_pnl / cost_value * 100) if cost_value else 0.0
-
         return {
             **pos,
             "current_price":  round(current_price, 3),
@@ -1240,16 +1309,18 @@ async def get_portfolio_summary():
         logger.error(f"[portfolio/summary] 持仓摘要计算失败: {e}")
         raise HTTPException(status_code=502, detail=f"持仓摘要获取失败: {str(e)}")
 
-    total_cost   = sum(p["cost_value"]     for p in enriched)
-    total_market = sum(p["market_value"]   for p in enriched)
-    total_pnl    = sum(p["unrealized_pnl"] for p in enriched)
+    total_cost   = float(sum(p["cost_value"]     for p in enriched) or 0.0)
+    total_market = float(sum(p["market_value"]   for p in enriched) or 0.0)
+    total_pnl    = float(sum(p["unrealized_pnl"] for p in enriched) or 0.0)
     total_pnl_pct = (total_pnl / total_cost * 100) if total_cost else 0.0
-    today_pnl    = sum(p["market_value"] * p["change_pct"] / 100 for p in enriched)
-    cash         = snapshot["cash"]
-    total_assets = round(cash + total_market, 2)
+    today_pnl    = float(sum(p["market_value"] * p["change_pct"] / 100 for p in enriched) or 0.0)
+    total_assets = round(cash_cnh + total_market, 2)
 
     return {
-        "cash":          round(cash, 2),
+        "cash":          round(cash_cnh, 2),
+        "cash_cnh":      round(cash_cnh, 2),
+        "cash_hkd":      round(cash_hkd, 2),
+        "cash_usd":      round(cash_usd, 2),
         "total_assets":  total_assets,
         "positions":     list(enriched),
         "total_cost":    round(total_cost, 2),
@@ -1257,7 +1328,7 @@ async def get_portfolio_summary():
         "total_pnl":     round(total_pnl, 2),
         "total_pnl_pct": round(total_pnl_pct, 2),
         "today_pnl":     round(today_pnl, 2),
-        "order_count":   snapshot["order_count"],
+        "order_count":   order_count,
         "timestamp":     datetime.now(timezone.utc).isoformat(),
     }
 
@@ -1429,7 +1500,7 @@ def _format_post(post, username: str = "", liked: bool = False) -> dict:
         "updated_at":  post.updated_at.isoformat() if post.updated_at else None,
         # 摘要（前120字）
         "excerpt":     post.content[:120] + "…" if len(post.content) > 120 else post.content,
-        "comment_count": len(post.comments) if hasattr(post, "comments") else 0,
+        "comment_count": 0,   # 由调用方覆盖（避免触发异步环境中的 lazy-load）
     }
 
 
@@ -1453,13 +1524,21 @@ async def list_posts(
         offset=offset,
     )
 
+    from sqlalchemy import func as _func, select as _select
+    from db.models import CommunityComment as _CC
+
     result = []
     for post in posts:
         author_user = await _get_user(db, post.user_id)
         liked = False
         if current_user:
             liked = await has_liked(db, current_user.id, post.id)
-        result.append(_format_post(post, username=author_user.username if author_user else "", liked=liked))
+        # 查评论数（避免触发 lazy-load）
+        cnt_r = await db.execute(_select(_func.count()).where(_CC.post_id == post.id))
+        comment_count = cnt_r.scalar_one() or 0
+        fmt = _format_post(post, username=author_user.username if author_user else "", liked=liked)
+        fmt["comment_count"] = comment_count
+        result.append(fmt)
 
     return {"posts": result, "count": len(result), "timestamp": datetime.now(timezone.utc).isoformat()}
 
@@ -1566,39 +1645,49 @@ async def toggle_post_like(
 
 @app.get("/api/v1/trade/account", summary="获取三币种虚拟账户摘要（含实时估值）")
 async def get_trade_account(
-    market: str = "",              # 可选: A / HK / US，为空则返回三个市场汇总
+    market: str = "",
     current_user=Depends(_get_optional_user),
     db=Depends(_get_db_dep),
 ):
-    """
-    GET /api/v1/trade/account?market=A|HK|US
-
-    未登录：使用内存账户（游客）
-    已登录：优先从 DB 读取账户余额，持仓从内存账户同步（和 place_order 保持一致）
-
-    返回：
-      三个子账户各自的 总资产 / 可用资金 / 持仓市值 / 盈亏 / 盈亏%
-    """
-    from api.mock_exchange import get_account
     from tools.market_data import get_spot_price_raw
 
-    account  = get_account()
     mt_filter = market.upper() if market else None
 
-    snap = account.snapshot(market_type=mt_filter)
+    # ── 构建 positions 列表（DB 或内存）──────────────────────
+    if current_user:
+        from db.crud import get_or_create_virtual_account, get_positions as _db_get_pos
+        db_acct   = await get_or_create_virtual_account(db, current_user.id)
+        db_pos    = await _db_get_pos(db, db_acct.id)
+        raw_positions = [
+            {"symbol": p.symbol, "name": p.name, "quantity": p.quantity,
+             "avg_cost": p.avg_cost, "market_type": p.market_type}
+            for p in db_pos
+            if (not mt_filter or p.market_type.upper() == mt_filter)
+        ]
+        balances = {
+            "cash_cnh": db_acct.cash_cnh, "cash_hkd": db_acct.cash_hkd, "cash_usd": db_acct.cash_usd,
+            "init_cnh": db_acct.init_cnh, "init_hkd": db_acct.init_hkd, "init_usd": db_acct.init_usd,
+        }
+    else:
+        from api.mock_exchange import get_account
+        account   = get_account()
+        snap      = account.snapshot(market_type=mt_filter)
+        raw_positions = snap["positions"]
+        balances  = {k: snap.get(k, 0.0) for k in
+                     ("cash_cnh","cash_hkd","cash_usd","init_cnh","init_hkd","init_usd")}
 
-    # 异步获取各持仓现价
+    # ── 异步富化（添加实时行情） ─────────────────────────────
     async def _enrich(pos: dict) -> dict:
         loop = asyncio.get_event_loop()
         try:
             spot = await loop.run_in_executor(None, get_spot_price_raw, pos["symbol"])
         except Exception:
             spot = {"price": pos["avg_cost"], "change_pct": 0.0, "is_fallback": True}
-        cur_price  = spot.get("price") or pos["avg_cost"]
-        cost_val   = pos["quantity"] * pos["avg_cost"]
-        mkt_val    = pos["quantity"] * cur_price
-        pnl        = mkt_val - cost_val
-        pnl_pct    = (pnl / cost_val * 100) if cost_val else 0.0
+        cur_price = spot.get("price") or pos["avg_cost"]
+        cost_val  = pos["quantity"] * pos["avg_cost"]
+        mkt_val   = pos["quantity"] * cur_price
+        pnl       = mkt_val - cost_val
+        pnl_pct   = (pnl / cost_val * 100) if cost_val else 0.0
         return {
             **pos,
             "current_price":  round(cur_price, 4),
@@ -1609,44 +1698,48 @@ async def get_trade_account(
             "pnl_pct":        round(pnl_pct, 2),
         }
 
-    enriched = list(await asyncio.gather(*[_enrich(p) for p in snap["positions"]]))
+    enriched = list(await asyncio.gather(*[_enrich(p) for p in raw_positions]))
+
+    # ── Build per-market order count ────────────────────────────
+    order_counts: dict[str, int] = {}
+    if current_user:
+        from db.crud import get_orders_by_market as _db_orders_by_mkt
+        for _mkt in ("A", "HK", "US"):
+            _ords = await _db_orders_by_mkt(db, db_acct.id, market_type=_mkt, limit=10000)
+            order_counts[_mkt] = len(_ords)
+    else:
+        from api.mock_exchange import get_account as _get_acct
+        _snap = _get_acct().snapshot()
+        for o in _snap.get("orders", []):
+            _m = (o.get("market_type") or "UNKNOWN").upper()
+            order_counts[_m] = order_counts.get(_m, 0) + 1
 
     def _sub_account(currency: str, mkt: str) -> dict:
-        """计算单市场子账户汇总"""
-        cash_key   = f"cash_{currency.lower()}"
-        init_key   = f"init_{currency.lower()}"
-        cash_avail = snap.get(cash_key, 0.0)
-        init_val   = snap.get(init_key, 0.0)
+        cash_avail = balances.get(f"cash_{currency.lower()}", 0.0)
+        init_val   = balances.get(f"init_{currency.lower()}", 0.0)
         sub_pos    = [p for p in enriched if p.get("market_type", "").upper() == mkt]
         mkt_val    = sum(p["market_value"]   for p in sub_pos)
         cost_val   = sum(p["cost_value"]     for p in sub_pos)
         pnl        = sum(p["unrealized_pnl"] for p in sub_pos)
         total      = cash_avail + mkt_val
         pnl_pct    = (pnl / cost_val * 100) if cost_val else 0.0
-        # 相对本金盈亏
         total_pnl_abs = total - init_val
         total_pnl_pct = (total_pnl_abs / init_val * 100) if init_val else 0.0
         return {
-            "market":         mkt,
-            "currency":       currency,
-            "cash":           round(cash_avail, 2),
-            "initial":        round(init_val, 2),
-            "market_value":   round(mkt_val, 2),
-            "total_assets":   round(total, 2),
-            "position_pnl":   round(pnl, 2),
-            "position_pnl_pct": round(pnl_pct, 2),
-            "total_pnl":      round(total_pnl_abs, 2),
-            "total_pnl_pct":  round(total_pnl_pct, 2),
-            "positions":      sub_pos,
+            "market": mkt, "currency": currency,
+            "cash": round(cash_avail, 2), "initial": round(init_val, 2),
+            "market_value": round(mkt_val, 2), "total_assets": round(total, 2),
+            "position_pnl": round(pnl, 2), "position_pnl_pct": round(pnl_pct, 2),
+            "total_pnl": round(total_pnl_abs, 2), "total_pnl_pct": round(total_pnl_pct, 2),
+            "positions": sub_pos,
+            "order_count": order_counts.get(mkt, 0),
         }
 
     if mt_filter:
         _currency_map = {"A": "CNH", "HK": "HKD", "US": "USD"}
         cur = _currency_map.get(mt_filter, "CNH")
-        return {
-            "account": _sub_account(cur, mt_filter),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
+        return {"account": _sub_account(cur, mt_filter),
+                "timestamp": datetime.now(timezone.utc).isoformat()}
     else:
         return {
             "accounts": {
@@ -1663,14 +1756,27 @@ async def get_trade_account(
 async def get_positions(
     market: str = "",
     current_user=Depends(_get_optional_user),
+    db=Depends(_get_db_dep),
 ):
     """GET /api/v1/trade/positions?market=A|HK|US"""
-    from api.mock_exchange import get_account
     from tools.market_data import get_spot_price_raw
 
-    account   = get_account()
     mt_filter = market.upper() if market else None
-    snap      = account.snapshot(market_type=mt_filter)
+
+    if current_user:
+        from db.crud import get_or_create_virtual_account, get_positions as _db_get_pos
+        db_acct = await get_or_create_virtual_account(db, current_user.id)
+        db_pos  = await _db_get_pos(db, db_acct.id)
+        raw_positions = [
+            {"symbol": p.symbol, "name": p.name, "quantity": p.quantity,
+             "avg_cost": p.avg_cost, "market_type": p.market_type}
+            for p in db_pos
+            if (not mt_filter or p.market_type.upper() == mt_filter)
+        ]
+    else:
+        from api.mock_exchange import get_account
+        snap = get_account().snapshot(market_type=mt_filter)
+        raw_positions = snap["positions"]
 
     async def _enrich(pos: dict) -> dict:
         loop = asyncio.get_event_loop()
@@ -1692,7 +1798,7 @@ async def get_positions(
             "pnl_pct":        round((pnl / cost_val * 100) if cost_val else 0.0, 2),
         }
 
-    enriched = list(await asyncio.gather(*[_enrich(p) for p in snap["positions"]]))
+    enriched = list(await asyncio.gather(*[_enrich(p) for p in raw_positions]))
     return {
         "positions": enriched,
         "count":     len(enriched),
@@ -1887,38 +1993,28 @@ async def get_hot_news(force: bool = False):
 @app.get("/api/v1/dashboard/summary", summary="Dashboard 聚合数据（账户摘要+快讯）")
 async def get_dashboard_summary(
     current_user=Depends(_get_optional_user),
+    db=Depends(_get_db_dep),
 ):
-    """
-    GET /api/v1/dashboard/summary
-
-    一次调用返回 Dashboard 所需全部数据：
-      - account_overview: 三个市场账户余额摘要（不含持仓明细）
-      - flash_news:       最新 5 条财联社快讯
-      - user_info:        登录用户信息（未登录为 null）
-    """
-    from api.mock_exchange import get_account
     from tools.market_data import get_market_news_raw
 
-    account = get_account()
-    snap    = account.snapshot()
+    # ── 账户余额（已登录从 DB 读取，游客读内存）──────────────
+    if current_user:
+        from db.crud import get_or_create_virtual_account
+        db_acct = await get_or_create_virtual_account(db, current_user.id)
+        account_overview = {
+            "A":  {"market": "A",  "currency": "CNH", "cash": round(db_acct.cash_cnh, 2), "initial": round(db_acct.init_cnh, 2)},
+            "HK": {"market": "HK", "currency": "HKD", "cash": round(db_acct.cash_hkd, 2), "initial": round(db_acct.init_hkd, 2)},
+            "US": {"market": "US", "currency": "USD", "cash": round(db_acct.cash_usd, 2), "initial": round(db_acct.init_usd, 2)},
+        }
+    else:
+        from api.mock_exchange import get_account
+        snap = get_account().snapshot()
+        account_overview = {
+            "A":  {"market": "A",  "currency": "CNH", "cash": snap["cash_cnh"], "initial": snap["init_cnh"]},
+            "HK": {"market": "HK", "currency": "HKD", "cash": snap["cash_hkd"], "initial": snap["init_hkd"]},
+            "US": {"market": "US", "currency": "USD", "cash": snap["cash_usd"], "initial": snap["init_usd"]},
+        }
 
-    # 三账户余额（不请求实时股价，保证 Dashboard 加载速度）
-    account_overview = {
-        "A":  {
-            "market": "A", "currency": "CNH",
-            "cash": snap["cash_cnh"], "initial": snap["init_cnh"],
-        },
-        "HK": {
-            "market": "HK", "currency": "HKD",
-            "cash": snap["cash_hkd"], "initial": snap["init_hkd"],
-        },
-        "US": {
-            "market": "US", "currency": "USD",
-            "cash": snap["cash_usd"], "initial": snap["init_usd"],
-        },
-    }
-
-    # 快讯（最多 5 条，独立 try/except 不阻断整个响应）
     flash_news = []
     try:
         loop       = asyncio.get_event_loop()
@@ -1929,8 +2025,8 @@ async def get_dashboard_summary(
     user_info = None
     if current_user:
         user_info = {
-            "user_id":  current_user.id,
-            "username": current_user.username,
+            "user_id":    current_user.id,
+            "username":   current_user.username,
             "avatar_url": current_user.avatar_url,
         }
 

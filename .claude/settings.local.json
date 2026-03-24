@@ -90,7 +90,31 @@
       "Bash(powershell -Command \"\n\\\\$proc = Get-WmiObject Win32_Process -Filter \\\\\"ProcessId = 49664\\\\\"\nWrite-Host \\\\\"Name:\\\\\" \\\\$proc.Name\nWrite-Host \\\\\"CommandLine:\\\\\" \\\\$proc.CommandLine\n\")",
       "Bash(powershell -Command \"\n\\\\$procs = Get-WmiObject Win32_Process | Where-Object {\\(\\\\$_.CommandLine -like '*uvicorn*'\\) -or \\(\\\\$_.CommandLine -like '*server:app*'\\)}\nforeach \\(\\\\$p in \\\\$procs\\) { Write-Host \\\\$p.ProcessId \\\\$p.Name \\\\$p.CommandLine }\n\")",
       "Bash(python -c \":*)",
-      "Bash(chcp 65001)"
+      "Bash(chcp 65001)",
+      "Bash(python -m pytest tests/test_extreme_cases.py -v --tb=short)",
+      "Bash(xargs grep:*)",
+      "Bash(python -m pytest tests/test_extreme_cases.py -v -k \"ApiResilience\" --tb=short)",
+      "Bash(python -m pytest tests/test_extreme_cases.py --tb=short -q)",
+      "Bash(python -m pytest tests/ -q --tb=short)",
+      "Bash(.venv/Scripts/python.exe -c \":*)",
+      "Bash(curl -s http://127.0.0.1:8000/api/v1/health)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0IiwidXNlcm5hbWUiOiJ0ZXN0ZXIwMSIsImV4cCI6MTc3NDk3MzMzM30.YpvFG5FZVVrYVFsen5aQ7Bp0T-PkIam7TBh5DbdZvuw\" __NEW_LINE_153f29917fe04837__ echo \"=== TEST PLACE ORDER \\(BUY 600519.SH x10\\) ===\" curl -s -X POST http://127.0.0.1:8000/api/v1/trade/order -H \"Content-Type: application/json\" -H \"Authorization: Bearer $TOKEN\" -d '{\"\"\"\"symbol\"\"\"\":\"\"\"\"600519.SH\"\"\"\",\"\"\"\"action\"\"\"\":\"\"\"\"BUY\"\"\"\",\"\"\"\"quantity\"\"\"\":10}' 2)",
+      "Bash(1 __NEW_LINE_153f29917fe04837__ echo \"\" echo \"=== TEST TRADE ACCOUNT \\(after buy\\) ===\" curl -s \"http://127.0.0.1:8000/api/v1/trade/account\" -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0IiwidXNlcm5hbWUiOiJ0ZXN0ZXIwMSIsImV4cCI6MTc3NDk3MzMzM30.YpvFG5FZVVrYVFsen5aQ7Bp0T-PkIam7TBh5DbdZvuw\" __NEW_LINE_ca3f2252a7964d9d__ echo \"=== RAW trade/account response ===\" curl -s \"http://127.0.0.1:8000/api/v1/trade/account\" -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(taskkill /PID 45252 /F)",
+      "Bash(cmd /c \"taskkill /PID 45252 /F\")",
+      "Bash(BASE=\"http://127.0.0.1:8001\" TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1IiwidXNlcm5hbWUiOiJ0ZXN0ZXJfbmV3IiwiZXhwIjoxNzc0OTc0ODA2fQ.R_a3ZPuPQZfeHIZI5WOZiY9sblUFjZVVV4rfpFiVcL4\" __NEW_LINE_68c1b8f3ce80e0ed__ echo \"=== RAW POST CREATE ===\" curl -sv -X POST \"$BASE/api/v1/community/posts\" -H \"Content-Type: application/json\" -H \"Authorization: Bearer $TOKEN\" -d '{\"\"\"\"title\"\"\"\":\"\"\"\"我的第一篇帖子 Test Post\"\"\"\",\"\"\"\"content\"\"\"\":\"\"\"\"这是帖子内容，大家一起讨论投资理财。This is post content for testing.\"\"\"\",\"\"\"\"tag\"\"\"\":\"\"\"\"learn\"\"\"\"}')",
+      "Bash(curl -s http://127.0.0.1:8001/api/v1/health)",
+      "Bash(BASE=\"http://127.0.0.1:8001\" TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1IiwidXNlcm5hbWUiOiJ0ZXN0ZXJfbmV3IiwiZXhwIjoxNzc0OTc0ODA2fQ.R_a3ZPuPQZfeHIZI5WOZiY9sblUFjZVVV4rfpFiVcL4\" __NEW_LINE_0bcdbe3805b34519__ curl -v -X POST \"$BASE/api/v1/community/posts\" -H \"Content-Type: application/json\" -H \"Authorization: Bearer $TOKEN\" -d \"{\"\"title\"\":\"\"Test post about investing\"\",\"\"content\"\":\"\"This is a test post about stock market investing strategies.\"\",\"\"tag\"\":\"\"learn\"\"}\")",
+      "Bash(curl -s http://127.0.0.1:8002/api/v1/health、)",
+      "Bash(BASE=\"http://127.0.0.1:8002\" TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1IiwidXNlcm5hbWUiOiJ0ZXN0ZXJfbmV3IiwiZXhwIjoxNzc0OTc0ODA2fQ.R_a3ZPuPQZfeHIZI5WOZiY9sblUFjZVVV4rfpFiVcL4\" __NEW_LINE_7b08b39e7234dc48__ echo \"=== LIST POSTS ===\" curl -s \"$BASE/api/v1/community/posts\")",
+      "Bash(BASE=\"http://127.0.0.1:8002\" TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1IiwidXNlcm5hbWUiOiJ0ZXN0ZXJfbmV3IiwiZXhwIjoxNzc0OTc0ODA2fQ.R_a3ZPuPQZfeHIZI5WOZiY9sblUFjZVVV4rfpFiVcL4\" __NEW_LINE_e324d04b57ef80ac__ echo \"=== DASHBOARD SUMMARY \\(authenticated\\) ===\" curl -s \"$BASE/api/v1/dashboard/summary\" -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(BASE=\"http://127.0.0.1:8002\" TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1IiwidXNlcm5hbWUiOiJ0ZXN0ZXJfbmV3IiwiZXhwIjoxNzc0OTc0ODA2fQ.R_a3ZPuPQZfeHIZI5WOZiY9sblUFjZVVV4rfpFiVcL4\" __NEW_LINE_3d837bc3adaa132d__ echo \"=== BUY HK STOCK \\(00700.HK = Tencent\\) ===\" curl -s -X POST \"$BASE/api/v1/trade/order\" -H \"Content-Type: application/json\" -H \"Authorization: Bearer $TOKEN\" -d '{\"\"\"\"symbol\"\"\"\":\"\"\"\"00700.HK\"\"\"\",\"\"\"\"action\"\"\"\":\"\"\"\"BUY\"\"\"\",\"\"\"\"quantity\"\"\"\":10}')",
+      "Bash(BASE=\"http://127.0.0.1:8002\" TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1IiwidXNlcm5hbWUiOiJ0ZXN0ZXJfbmV3IiwiZXhwIjoxNzc0OTc0ODA2fQ.R_a3ZPuPQZfeHIZI5WOZiY9sblUFjZVVV4rfpFiVcL4\" __NEW_LINE_bbdc5835e96fb41d__ echo \"=========================================\" echo \"=== FINAL STATE SUMMARY: tester_new ===\" echo \"=========================================\" curl -s \"$BASE/api/v1/trade/account\" -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(grep -rn \"API_BASE\\\\|:8001\\\\|:8002\\\\|:8000\" D:/000intern/0agent/trading_agents_system/*.html)",
+      "Bash(cmd /c \"taskkill /F /PID 45252\")",
+      "Bash(ls -la \"D:/000intern/0agent/trading_agents_system/\"*.db)",
+      "Bash(powershell -Command \"Stop-Process -Id 47368 -Force\" 2>&1)"
     ]
   }
 }

@@ -553,7 +553,7 @@ def init_knowledge_base(force_reload: bool = False) -> bool:
 # ════════════════════════════════════════════════════════════════════
 
 @tool
-def search_knowledge_base(query: str, market_type: str = "ALL") -> str:
+def search_knowledge_base(query: str, market_type: str = "ALL", max_length: int = 1500) -> str:
     """
     在本地研报知识库与全网实时信息中，检索与查询最相关的分析上下文。
 
@@ -576,6 +576,7 @@ def search_knowledge_base(query: str, market_type: str = "ALL") -> str:
                        "沪深300ETF 定投策略与历史收益"
         market_type: 市场类型，用于优化本地检索查询词权重
                      可选值: "A_STOCK" | "HK_STOCK" | "US_STOCK" | "ALL"
+        max_length:  返回字符串的最大长度，0 表示不截断，默认 1500
 
     Returns:
         str: 格式化 RAG 上下文字符串，供 LLM 直接消费
@@ -619,7 +620,8 @@ def search_knowledge_base(query: str, market_type: str = "ALL") -> str:
     # ────────────────────────────────────────────────────────────────
     sections.append(_search_web(query, market_type))
 
-    return "\n\n".join(sections)
+    result = "\n\n".join(sections)
+    return result[:max_length] if max_length > 0 else result
 
 
 # ════════════════════════════════════════════════════════════════════

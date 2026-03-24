@@ -1355,11 +1355,18 @@ def _fetch_a_indices_sina() -> dict[str, tuple]:
 
 
 def _akshare_with_retry(fn, retries: int = 2, delay: float = 1.0):
-    """对 akshare 调用加最多 retries 次重试（RemoteDisconnected 场景）"""
-    last_exc = None
+    """
+    对 akshare 调用加最多 retries 次重试（RemoteDisconnected 场景）。
+    所有重试耗尽后抛出最后一个异常（由调用方 try/except 负责降级，绝不返回 None）。
+    """
+    last_exc: Exception = RuntimeError("_akshare_with_retry: no attempts made")
     for attempt in range(retries + 1):
         try:
-            return fn()
+            result = fn()
+            # 防止 akshare 在网络异常时静默返回 None
+            if result is None:
+                raise ValueError("akshare 返回 None（可能为网络超时静默失败）")
+            return result
         except Exception as e:
             last_exc = e
             if attempt < retries:
@@ -1499,7 +1506,19 @@ def get_market_indices_raw() -> list[dict]:
 
     fallback_n = sum(1 for r in result if r["is_fallback"])
     logger.info(f"[get_market_indices_raw] 返回 {len(result)} 个指数，fallback数={fallback_n}")
-    return result
+
+    # 最终防御：确保每条记录的数值字段绝不为 None，切断 NoneType 向上游传递路径
+    safe_result = []
+    for r in result:
+        safe_result.append({
+            "code":       r.get("code", ""),
+            "name":       r.get("name", ""),
+            "price":      float(r.get("price") or 0.0),
+            "change_pct": float(r.get("change_pct") or 0.0),
+            "change":     float(r.get("change") or 0.0),
+            "is_fallback": bool(r.get("is_fallback", True)),
+        })
+    return safe_result
 
 
 # ════════════════════════════════════════════════════════════════

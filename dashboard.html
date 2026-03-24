@@ -308,19 +308,16 @@
         <a href="dashboard.html" class="active">控制台</a>
         <a href="trade.html">模拟演练<span class="nav-dot"></span></a>
         <a href="analysis.html">个股分析</a>
-        <a href="platforms.html">持仓体检</a>
         <a href="market.html">市场快讯</a>
         <a href="community.html">投教社区</a>
         <a href="team.html">关于我们</a>
+        <div id="auth-widget" style="display:flex;align-items:center;gap:8px;margin-left:8px;flex-shrink:0;"></div>
         <button id="sidebar-toggle" class="sidebar-btn" title="学习中心">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
         </button>
     </nav>
-    <div class="auth-widget" id="auth-widget">
-        <a href="auth.html" class="auth-login-btn">登录 / 注册</a>
-    </div>
 </header>
 
 <div class="sidebar-overlay" id="sidebar-overlay"></div>
@@ -376,11 +373,7 @@
             <div class="qnav-label">个股分析</div>
             <div class="qnav-desc">AI 9节点深析</div>
         </a>
-        <a href="platforms.html" class="qnav-item">
-            <div class="qnav-icon">🩺</div>
-            <div class="qnav-label">持仓体检</div>
-            <div class="qnav-desc">风控健康评分</div>
-        </a>
+
         <a href="market.html" class="qnav-item">
             <div class="qnav-icon">📰</div>
             <div class="qnav-label">市场快讯</div>
@@ -510,6 +503,8 @@ function renderAuthWidget() {
             <span class="auth-name">${name}</span>
             <button onclick="logout()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px">退出</button>`;
         document.getElementById('welcome-text').textContent = `欢迎回来，${name} 👋`;
+    } else {
+        el.innerHTML = `<a href="auth.html?redirect=dashboard.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(79,172,254,.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
     }
 }
 function logout() {

@@ -275,6 +275,154 @@ def _increment_tool_count(state_counts: dict, node_name: str) -> dict:
 
 
 # ════════════════════════════════════════════════════════════════
+# 置信度惩罚函数（P0 修复：原文档描述的函数在代码中缺失）
+# ════════════════════════════════════════════════════════════════
+
+_CONF_FLOOR     = 0.40   # 低于此值强制 HOLD，仓位归零
+_CONF_THRESHOLD = 0.55   # 低于此值线性缩仓（惩罚带）
+
+
+def _apply_confidence_penalty(
+    action: str, confidence: float, base_pct: float
+) -> tuple:
+    """
+    置信度惩罚函数：将 LLM 综合置信度映射为仓位约束。
+
+    三阶段线性规则:
+      阶段1: confidence < _CONF_FLOOR (0.40)
+             → 强制 HOLD，仓位归零（模型自己都不确定，任何仓位都是噪声）
+      阶段2: _CONF_FLOOR <= confidence < _CONF_THRESHOLD (0.40-0.55)
+             → 线性缩仓: scale = (conf - 0.40) / (0.55 - 0.40)
+             → 实际仓位 = base_pct × scale
+             （避免阈值处悬崖效应）
+      阶段3: confidence >= _CONF_THRESHOLD (0.55)
+             → 正常执行，仓位不被惩罚
+
+    Args:
+        action:     原始动作 "BUY" / "SELL" / "HOLD"
+        confidence: 综合置信度 [0.0, 1.0]
+        base_pct:   风控已审核的建议仓位百分比
+
+    Returns:
+        (final_action, final_pct, penalty_note)
+        - final_action: 最终动作（可能被强制改为 "HOLD"）
+        - final_pct:    最终仓位百分比
+        - penalty_note: 惩罚说明字符串，None 表示无惩罚
+
+    数字示例:
+        confidence=0.35 → HOLD, 0.0%  (强制HOLD)
+        confidence=0.47 → BUY,  7.0%  (base=10%, scale=(0.47-0.40)/(0.55-0.40)=0.467)
+        confidence=0.60 → BUY, 10.0%  (无惩罚)
+    """
+    if confidence < _CONF_FLOOR:
+        return "HOLD", 0.0, f"置信度 {confidence:.2f} < {_CONF_FLOOR}，强制HOLD，仓位归零"
+
+    if confidence < _CONF_THRESHOLD:
+        scale = (confidence - _CONF_FLOOR) / (_CONF_THRESHOLD - _CONF_FLOOR)
+        penalized_pct = round(base_pct * scale, 2)
+        return (
+            action,
+            penalized_pct,
+            f"置信度惩罚带 [{_CONF_FLOOR},{_CONF_THRESHOLD}): {base_pct}×{scale:.3f}={penalized_pct:.2f}%",
+        )
+
+    return action, base_pct, None
+
+
+# ════════════════════════════════════════════════════════════════
+# ATR 硬阻断函数（P1 修复：ATR 风控原为 Prompt 约束，现改为代码强制执行）
+# ════════════════════════════════════════════════════════════════
+
+_ATR_HARD_REJECT    = 8.0   # ATR% 超过此值：强制 REJECTED，仓位归零
+_ATR_CONDITIONAL    = 5.0   # ATR% 超过此值：CONDITIONAL，仓位减半
+
+
+def _apply_atr_hard_block(
+    approval_status: str, position_pct: float, atr_pct: float
+) -> tuple:
+    """
+    ATR 硬阻断函数：基于波动率对风控决策做代码层强制覆盖。
+
+    规则（优先级高于 LLM 风控输出）:
+      ATR% > 8.0%  → 强制 REJECTED，仓位归零（超出大学生风险承受能力）
+      ATR% > 5.0%  → 强制 CONDITIONAL，仓位减半（高波动预警）
+      ATR% <= 5.0% → 不干预，保持 LLM 输出
+
+    Args:
+        approval_status: LLM 风控输出的审批状态
+        position_pct:    LLM 建议仓位百分比
+        atr_pct:         14日 ATR 波动率百分比
+
+    Returns:
+        (new_status, new_position_pct, block_reason)
+        - block_reason: None 表示未触发阻断
+    """
+    if atr_pct > _ATR_HARD_REJECT:
+        return (
+            "REJECTED",
+            0.0,
+            f"ATR% {atr_pct:.1f}% > {_ATR_HARD_REJECT}%（代码硬阻断：超出大学生风险承受能力）",
+        )
+
+    if atr_pct > _ATR_CONDITIONAL:
+        new_pct = round(position_pct / 2.0, 2)
+        return (
+            "CONDITIONAL",
+            new_pct,
+            f"ATR% {atr_pct:.1f}% > {_ATR_CONDITIONAL}%（高波动警报：仓位减半至 {new_pct:.1f}%）",
+        )
+
+    return approval_status, position_pct, None
+
+
+# ════════════════════════════════════════════════════════════════
+# 单次亏损上限反算函数（P1 修复：3000元上限原为 Prompt 约束，现改为代码强制执行）
+# ════════════════════════════════════════════════════════════════
+
+_MAX_SINGLE_LOSS_CNY = 3000.0   # 单次最大亏损金额（人民币）
+_ASSUMED_CAPITAL_CNY = 50000.0  # 假设大学生总本金（人民币）
+
+
+def _apply_max_loss_cap(
+    position_pct: float, stop_loss_pct: float, current_price: float = 0.0
+) -> tuple:
+    """
+    单次亏损硬上限反算函数：基于 3000 元亏损上限反算最大安全仓位。
+
+    公式：
+        max_safe_pct = (_MAX_SINGLE_LOSS_CNY / _ASSUMED_CAPITAL_CNY) / (stop_loss_pct / 100)
+        实际仓位 = min(position_pct, max_safe_pct × 100)
+
+    例：stop_loss=7%, max_safe = (3000/50000) / 0.07 = 0.06 / 0.07 ≈ 0.857 → 85.7%（不触发）
+        stop_loss=20%, max_safe = 0.06 / 0.20 = 0.30 → 30%（若仓位>30%则截断）
+
+    Args:
+        position_pct:  当前建议仓位百分比
+        stop_loss_pct: 止损比例百分比
+        current_price: 当前价格（预留参数，当前基于总资金百分比计算）
+
+    Returns:
+        (final_pct, cap_reason)
+        - cap_reason: None 表示未触发上限截断
+    """
+    if stop_loss_pct <= 0:
+        return position_pct, None
+
+    # 反算最大安全仓位（百分比形式）
+    max_safe_pct = (_MAX_SINGLE_LOSS_CNY / _ASSUMED_CAPITAL_CNY) / (stop_loss_pct / 100.0) * 100.0
+
+    if position_pct > max_safe_pct:
+        capped_pct = round(max_safe_pct, 2)
+        return (
+            capped_pct,
+            f"单次亏损上限反算：止损{stop_loss_pct}%下最大安全仓位={capped_pct:.1f}%"
+            f"（3000元/{_ASSUMED_CAPITAL_CNY:.0f}元本金）",
+        )
+
+    return position_pct, None
+
+
+# ════════════════════════════════════════════════════════════════
 # Prompt 字典外化管理（借鉴 TradingAgents-CN 集中管理模式）
 # ════════════════════════════════════════════════════════════════
 
@@ -567,7 +715,6 @@ async def fundamental_node(state: TradingGraphState) -> dict:
     symbol      = state.get("symbol") or state.get("stock_code", "UNKNOWN")
     market_type = state.get("market_type", "US_STOCK")
     market_data = state.get("market_data", {})
-    rag_context = state.get("rag_context", "")
     counts      = state.get("tool_call_counts") or {}
 
     # 【审计修复 P0-3】数据获取失败时早退
@@ -635,6 +782,18 @@ async def fundamental_node(state: TradingGraphState) -> dict:
         fundamental_data_dict.setdefault("revenue_composition", {})
         fundamental_data_dict.setdefault("performance_trend", {})
 
+    # 【Per-Node RAG】基本面专项检索：财报数据、盈利质量、机构评级
+    fund_rag_context = ""
+    try:
+        fund_rag_context = search_knowledge_base.invoke({
+            "query":       f"{symbol} 财务报表 基本面 盈利 机构评级",
+            "market_type": market_type,
+            "max_length":  1200,
+        })
+        logger.info(f"[fundamental_node] 专项 RAG 检索完成: {len(fund_rag_context)} 字符")
+    except Exception as _re:
+        logger.warning(f"[fundamental_node] 专项 RAG 检索失败（降级为空）: {_re}")
+
     # 从 Prompt 字典取 System Prompt（外化管理）
     system_prompt = _PROMPTS["fundamental"].get(
         market_type,
@@ -654,8 +813,8 @@ async def fundamental_node(state: TradingGraphState) -> dict:
 - 成交量比（10日均）: {market_data.get('indicators', {}).get('volume_ratio', 'N/A')}
 - ATR%(波动率): {market_data.get('indicators', {}).get('ATR_pct', 'N/A')}%
 
-【RAG 知识库参考】
-{rag_context[:500] if rag_context else '暂无'}
+【研报知识库 — 基本面专项检索】
+{fund_rag_context if fund_rag_context else '暂无'}
 
 请优先基于真实基本面数据（PE/PB/ROE 等），结合量价辅助，以你的专业框架分析
 该标的的基本面状况，给出 BUY/SELL/HOLD 建议。
@@ -747,6 +906,18 @@ async def technical_node(state: TradingGraphState) -> dict:
 
     logger.info(f"[technical_node] 开始技术分析: {symbol}")
 
+    # 【Per-Node RAG】技术面专项检索：资金面、行业技术利好利空
+    tech_rag_context = ""
+    try:
+        tech_rag_context = search_knowledge_base.invoke({
+            "query":       f"{symbol} 近期资金面 行业技术利好利空",
+            "market_type": market_type,
+            "max_length":  1000,
+        })
+        logger.info(f"[technical_node] 专项 RAG 检索完成: {len(tech_rag_context)} 字符")
+    except Exception as _re:
+        logger.warning(f"[technical_node] 专项 RAG 检索失败（降级为空）: {_re}")
+
     system_prompt = _PROMPTS["technical"]["DEFAULT"]
 
     # 格式化技术指标为可读形式
@@ -786,6 +957,9 @@ async def technical_node(state: TradingGraphState) -> dict:
 【技术指标详情（基于180日数据计算）】
 {ind_summary}
 {recent_price_section}
+
+【研报知识库 — 资金面与行业技术专项检索】
+{tech_rag_context if tech_rag_context else '暂无'}
 
 基于上述多维度技术信号，综合判断当前价格所处的趋势位置与动量状态，
 给出 BUY/SELL/HOLD 建议，并量化置信度。
@@ -853,7 +1027,6 @@ async def sentiment_node(state: TradingGraphState) -> dict:
     symbol      = state.get("symbol") or state.get("stock_code", "UNKNOWN")
     market_type = state.get("market_type", "US_STOCK")
     market_data = state.get("market_data", {})
-    rag_context = state.get("rag_context", "")
     indicators  = market_data.get("indicators", {})
     counts      = state.get("tool_call_counts") or {}
 
@@ -899,6 +1072,18 @@ async def sentiment_node(state: TradingGraphState) -> dict:
     except Exception as _e:
         logger.warning(f"[sentiment_node] 新闻获取异常: {_e}")
 
+    # 【Per-Node RAG】舆情专项检索：最新宏观政策、行业动态、突发新闻
+    sent_rag_context = ""
+    try:
+        sent_rag_context = search_knowledge_base.invoke({
+            "query":       f"{symbol} 最新宏观政策 行业动态 突发新闻",
+            "market_type": market_type,
+            "max_length":  1000,
+        })
+        logger.info(f"[sentiment_node] 专项 RAG 检索完成: {len(sent_rag_context)} 字符")
+    except Exception as _re:
+        logger.warning(f"[sentiment_node] 专项 RAG 检索失败（降级为空）: {_re}")
+
     system_prompt = _PROMPTS["sentiment"]["DEFAULT"]
 
     user_prompt = f"""
@@ -914,8 +1099,8 @@ async def sentiment_node(state: TradingGraphState) -> dict:
 - RSI14: {indicators.get('RSI14', 'N/A')}（>70超买, <30超卖）
 - BOLL %B: {indicators.get('BOLL_pct_B', 'N/A')}（>0.85接近上轨，<0.15接近下轨）
 
-【宏观背景参考（RAG）】
-{rag_context[:300] if rag_context else '暂无宏观背景信息'}
+【研报知识库 — 宏观政策与行业动态专项检索】
+{sent_rag_context if sent_rag_context else '暂无宏观背景信息'}
 
 请优先基于真实新闻事件分析市场情绪，结合量价动量特征，给出 BUY/SELL/HOLD 建议。
 若无新闻数据，请明确说明分析仅基于量价推断，并相应降低置信度（≤0.50）。
@@ -1293,6 +1478,20 @@ async def debate_node(state: TradingGraphState) -> dict:
     tech_rec   = technical.get("recommendation", "HOLD")
     tech_logic = technical.get("reasoning", "")[:300]
 
+    market_type = state.get("market_type", "ALL")
+
+    # 【Per-Node RAG】辩论专项检索：行业核心风险点、前景、护城河
+    debate_rag_context = ""
+    try:
+        debate_rag_context = search_knowledge_base.invoke({
+            "query":       f"{symbol} 行业核心风险点 前景 护城河",
+            "market_type": market_type,
+            "max_length":  1200,
+        })
+        logger.info(f"[debate_node] 专项 RAG 检索完成: {len(debate_rag_context)} 字符")
+    except Exception as _re:
+        logger.warning(f"[debate_node] 专项 RAG 检索失败（降级为空）: {_re}")
+
     # ── Task 1: 在 Prompt 中显式列出全部 8 个字段名，杜绝 LLM 自造键名 ──
     system_prompt = """你是一位权威的投资决策委员会主席，负责主持并裁决多空方的投资辩论。
 你的职责:
@@ -1337,6 +1536,9 @@ async def debate_node(state: TradingGraphState) -> dict:
 {bull_argument}
 
 {bear_argument}
+
+【外部研报与宏观事实（作为裁判裁决依据）】
+{debate_rag_context if debate_rag_context else '暂无外部研报参考'}
 
 请主持本次辩论，总结双方核心论点，分析根本分歧，并给出裁决。
 严格按照 system prompt 中规定的 8 个字段名输出 JSON，不得添加、删除或重命名任何字段。"""
@@ -1572,6 +1774,30 @@ async def risk_node(state: TradingGraphState) -> dict:
             decision_dict["stop_loss_pct"] = 5.0
             decision_dict.setdefault("conditions", []).append("止损比例已由系统修正为5%（最低有效止损）")
 
+        # ── ATR 硬阻断（P1 修复：代码层强制执行，非 Prompt 约束）────────
+        new_status, new_pct, atr_block_reason = _apply_atr_hard_block(
+            decision_dict["approval_status"],
+            decision_dict["position_pct"],
+            float(atr_pct),
+        )
+        if atr_block_reason:
+            logger.warning(f"[risk_node] ATR 硬阻断触发: {atr_block_reason}")
+            decision_dict["approval_status"] = new_status
+            decision_dict["position_pct"]    = new_pct
+            decision_dict.setdefault("conditions", []).append(atr_block_reason)
+            if new_status == "REJECTED":
+                decision_dict["rejection_reason"] = atr_block_reason
+
+        # ── 单次亏损上限反算（P1 修复：代码层强制执行）────────────────────
+        final_pct, loss_cap_reason = _apply_max_loss_cap(
+            decision_dict["position_pct"],
+            decision_dict["stop_loss_pct"],
+        )
+        if loss_cap_reason:
+            logger.warning(f"[risk_node] 亏损上限截断: {loss_cap_reason}")
+            decision_dict["position_pct"] = final_pct
+            decision_dict.setdefault("conditions", []).append(loss_cap_reason)
+
         new_rejection_count = risk_rejection_count
         if decision_dict["approval_status"] == "REJECTED":
             new_rejection_count += 1
@@ -1660,6 +1886,11 @@ async def trade_executor(state: TradingGraphState) -> dict:
         current_price = market_data.get("latest_price", 0.0)
 
     logger.info(f"[trade_executor] 生成模拟交易指令: {symbol} | {action} | 仓位={position_pct:.1f}%")
+
+    # ── 置信度惩罚（P0 修复：代码层强制执行，非 Prompt 约束）──────────
+    action, position_pct, penalty_note = _apply_confidence_penalty(action, confidence, position_pct)
+    if penalty_note:
+        logger.warning(f"[trade_executor] 置信度惩罚触发: {penalty_note}")
 
     if current_price and action == "BUY":
         stop_loss   = round(current_price * (1 - stop_loss_pct / 100), 4)

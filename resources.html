@@ -265,11 +265,10 @@
         <a href="dashboard.html">仪表盘</a>
         <a href="trade.html">模拟演练<span class="nav-dot"></span></a>
         <a href="analysis.html">个股分析</a>
-        <a href="platforms.html">持仓体检</a>
         <a href="market.html">市场快讯</a>
         <a href="community.html">投教社区</a>
         <a href="team.html">关于我们</a>
-        
+        <div id="auth-widget" style="display:flex;align-items:center;gap:8px;margin-left:8px;flex-shrink:0;"></div>
         <button id="sidebar-toggle" class="sidebar-btn" title="打开学习中心">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -505,6 +504,21 @@
     sidebarOverlay.addEventListener('click', closeSidebar);
 </script>
 
+<script>
+    function _renderAuthWidget() {
+        const w = document.getElementById('auth-widget');
+        if (!w) return;
+        const u = localStorage.getItem('cq_username') || '';
+        const pg = window.location.pathname.split('/').pop() || 'dashboard.html';
+        if (u) {
+            w.innerHTML = `<span style="font-size:12px;color:var(--text-sub)">👤 ${u}</span>
+                <button onclick="['cq_token','cq_username','cq_user_id'].forEach(k=>localStorage.removeItem(k));_renderAuthWidget();" style="background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#8da2b8;font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;
+        } else {
+            w.innerHTML = `<a href="auth.html?redirect=${pg}" style="font-size:12px;color:#4facfe;text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
+        }
+    }
+    document.addEventListener('DOMContentLoaded', _renderAuthWidget);
+</script>
 <script src="shell-bridge.js"></script>
 </body>
 </html>

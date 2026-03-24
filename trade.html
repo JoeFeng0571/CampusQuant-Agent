@@ -23,25 +23,57 @@
         /* ══ NAV ══ */
         header { position:fixed; top:0; left:0; width:100%;
             display:flex; justify-content:space-between; align-items:center;
-            padding:14px 40px; background:rgba(11,15,25,.85);
-            backdrop-filter:blur(14px); border-bottom:1px solid var(--border); z-index:1000; }
+            padding:16px 48px; background:rgba(11,15,25,0.78);
+            backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+            border-bottom:1px solid var(--border); z-index:1000; }
         .logo { display:flex; align-items:baseline; gap:8px; text-decoration:none; }
-        .logo-text { font-size:20px; font-weight:800;
-            background:linear-gradient(90deg,#4facfe,#00f2fe);
-            -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-        .logo-sub { font-size:11px; color:var(--text-dim); }
-        nav { display:flex; gap:22px; align-items:center; flex-wrap:nowrap; overflow-x:auto; }
-        nav::-webkit-scrollbar { display:none; }
-        nav a { text-decoration:none; color:var(--text-sub); font-size:13px; font-weight:500;
-            transition:color .2s; white-space:nowrap; }
-        nav a:hover, nav a.active { color:var(--secondary); }
+        .logo-text { font-size:22px; font-weight:800;
+            background:linear-gradient(90deg,#4facfe 0%,#00f2fe 100%);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:0.5px; }
+        .logo-sub { font-size:12px; color:var(--text-dim); }
+        nav { display:flex; gap:28px; align-items:center; }
+        nav a { text-decoration:none; color:var(--text-sub); font-size:14px; font-weight:500;
+            transition:all .25s; position:relative; }
+        nav a:hover, nav a.active { color:var(--secondary); text-shadow:0 0 8px rgba(0,242,254,.45); }
+        nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
+            background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .3s; }
+        nav a:hover::after, nav a.active::after { width:100%; }
         .nav-dot { display:inline-block; width:6px; height:6px; background:var(--danger);
-            border-radius:50%; margin-left:3px; vertical-align:top; margin-top:2px;
-            animation:blink 2s ease-in-out infinite; }
-        @keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+            border-radius:50%; margin-left:4px; vertical-align:top; margin-top:2px;
+            animation:blink-dot 2s ease-in-out infinite; }
+        @keyframes blink-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
+        .sidebar-btn { background:transparent; border:none; color:var(--text-sub);
+            cursor:pointer; display:flex; align-items:center; padding:4px; margin-left:10px; transition:color .3s; }
+        .sidebar-btn:hover { color:var(--secondary); }
+
+        /* ══ SIDEBAR ══ */
+        .sidebar-overlay { position:fixed; top:0;left:0;right:0;bottom:0;
+            background:rgba(0,0,0,.5); backdrop-filter:blur(3px);
+            z-index:1999; opacity:0; visibility:hidden; transition:all .3s; }
+        .sidebar-overlay.open { opacity:1; visibility:visible; }
+        .sidebar { position:fixed; top:0; right:-320px; width:320px; max-width:85vw; height:100vh;
+            background:rgba(11,15,25,.95); backdrop-filter:blur(14px);
+            border-left:1px solid var(--border); z-index:2000;
+            transition:right .3s cubic-bezier(.4,0,.2,1);
+            display:flex; flex-direction:column; padding:30px 24px;
+            box-shadow:-10px 0 30px rgba(0,0,0,.5); }
+        .sidebar.open { right:0; }
+        .sidebar-header { display:flex; justify-content:space-between; align-items:center;
+            margin-bottom:30px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+        .sidebar-header h2 { font-size:18px; color:#fff; display:flex; align-items:center; gap:8px; }
+        .close-btn { background:none; border:none; color:var(--text-dim); font-size:28px; cursor:pointer; transition:color .2s; }
+        .close-btn:hover { color:var(--danger); }
+        .sidebar-content { display:flex; flex-direction:column; gap:16px; }
+        .sidebar-link { text-decoration:none; color:var(--text-sub); padding:14px 18px;
+            background:var(--card); border:1px solid var(--border); border-radius:12px;
+            transition:all .25s; display:flex; align-items:center; justify-content:space-between; font-weight:500; }
+        .sidebar-link:hover { background:rgba(79,172,254,.1); border-color:rgba(79,172,254,.3);
+            color:var(--primary); transform:translateX(4px); }
+        .sidebar-link.featured { background:linear-gradient(135deg,rgba(79,172,254,.15),rgba(0,242,254,.05));
+            border-color:rgba(79,172,254,.4); color:var(--secondary); }
 
         /* ══ PAGE ══ */
-        .page-wrap { margin-top:64px; padding:24px 32px; flex:1;
+        .page-wrap { margin-top:70px; padding:24px 32px; flex:1;
             display:flex; flex-direction:column; gap:20px; max-width:1400px;
             margin-left:auto; margin-right:auto; width:100%; }
 
@@ -233,13 +265,38 @@
         <a href="dashboard.html">控制台</a>
         <a href="trade.html" class="active">模拟演练<span class="nav-dot"></span></a>
         <a href="analysis.html">个股分析</a>
-        <a href="platforms.html">持仓体检</a>
+
         <a href="market.html">市场快讯</a>
         <a href="community.html">投教社区</a>
         <a href="team.html">关于我们</a>
         <div id="auth-widget" style="display:flex;align-items:center;gap:8px;margin-left:8px;flex-shrink:0;"></div>
+        <button id="sidebar-toggle" class="sidebar-btn" title="学习中心">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+        </button>
     </nav>
 </header>
+
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h2>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+            校园财商库
+        </h2>
+        <button id="sidebar-close" class="close-btn">&times;</button>
+    </div>
+    <div class="sidebar-content">
+        <a href="home.html" class="sidebar-link featured"><span>📚 进入学习中心</span><span>→</span></a>
+        <a href="#" class="sidebar-link"><span>📈 基础财商课程</span></a>
+        <a href="#" class="sidebar-link"><span>🛡️ 大学生防骗指南</span></a>
+        <a href="#" class="sidebar-link"><span>💡 投资策略锦囊</span></a>
+        <a href="resources.html" class="sidebar-link"><span>📝 学习资源库</span></a>
+    </div>
+</aside>
 
 <div class="page-wrap">
 
@@ -691,7 +748,26 @@ async function loadPortfolio() {
     try {
         const resp = await fetch(`${API_BASE}/api/v1/trade/account`, { headers: authHeaders() });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        _acctData = await resp.json();
+        const raw = await resp.json();
+
+        // Flatten nested accounts structure → flat cash fields expected by display functions
+        if (raw.accounts) {
+            _acctData = {
+                ...raw,
+                cash_cnh:       raw.accounts.A?.cash  ?? 0,
+                cash_hkd:       raw.accounts.HK?.cash ?? 0,
+                cash_usd:       raw.accounts.US?.cash ?? 0,
+                positions:      raw.positions_all ?? [],
+                order_count_A:  raw.accounts.A?.order_count  ?? 0,
+                order_count_HK: raw.accounts.HK?.order_count ?? 0,
+                order_count_US: raw.accounts.US?.order_count ?? 0,
+                order_count:    (raw.accounts.A?.order_count ?? 0) + (raw.accounts.HK?.order_count ?? 0) + (raw.accounts.US?.order_count ?? 0),
+            };
+        } else {
+            // Guest / single-market response — already flat
+            _acctData = raw;
+        }
+
         refreshAccountDisplay(_acctData, _curMkt);
         updateAccountTabs(_acctData);
         updateBalanceHint();
@@ -743,7 +819,8 @@ function refreshAccountDisplay(data, mkt) {
     document.getElementById('stat-cash').textContent         = fmt(cash);
     document.getElementById('stat-market').textContent       = fmt(posVal);
     document.getElementById('stat-total').textContent        = fmt(total);
-    document.getElementById('stat-orders-count').textContent = (data.order_count||0) + ' 笔';
+    const mktOrderCount = data[`order_count_${mkt}`] ?? data.order_count ?? 0;
+    document.getElementById('stat-orders-count').textContent = mktOrderCount + ' 笔';
 
     const pnlEl = document.getElementById('stat-pnl');
     pnlEl.textContent = (pnl>=0?'+':'') + fmt(pnl).replace(pfx,'') + pfx.replace('¥','¥') +
@@ -922,6 +999,20 @@ async function loadTradeKline(symbol, period) {
         // Always release the guard so user can retry or switch periods
         _tradeKlineLoading = false;
     }
+}
+
+// ══ SIDEBAR ══════════════════════════════════════════════════
+const sidebar        = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebar-overlay');
+document.getElementById('sidebar-toggle').addEventListener('click', () => {
+    sidebar.classList.add('open'); sidebarOverlay.classList.add('open');
+    document.body.style.overflow='hidden';
+});
+document.getElementById('sidebar-close').addEventListener('click', closeSidebar);
+sidebarOverlay.addEventListener('click', closeSidebar);
+function closeSidebar() {
+    sidebar.classList.remove('open'); sidebarOverlay.classList.remove('open');
+    document.body.style.overflow='';
 }
 
 // ══ Init ════════════════════════════════════════════════════

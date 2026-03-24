@@ -21,6 +21,11 @@ class MarketType(Enum):
     US_STOCK = "美股"
     UNKNOWN  = "未知"
 
+    @property
+    def short(self) -> str:
+        """内部短码: A / HK / US / UNKNOWN —— 用于资金字段映射和持仓过滤"""
+        return {"A_STOCK": "A", "HK_STOCK": "HK", "US_STOCK": "US", "UNKNOWN": "UNKNOWN"}.get(self.name, "UNKNOWN")
+
 
 # ════════════════════════════════════════════════════════════════════
 # 模糊匹配字典：中英文公司名称 / 拼音缩写 → 标准代码

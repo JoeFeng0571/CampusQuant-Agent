@@ -1,20 +1,10 @@
 (() => {
   'use strict';
 
-  const APP_PAGE_RE = /(?:^|\/)(dashboard|trade|analysis|platforms|market|community|team|resources|home|auth)\.html(?:[?#].*)?$/i;
+  const APP_PAGE_RE = /(?:^|\/)(dashboard|trade|analysis|market|community|team|resources|home|auth)\.html(?:[?#].*)?$/i;
 
   function isEmbedded() {
     return window.top !== window.self;
-  }
-
-  const currentFile = window.location.pathname.split('/').pop() || '';
-
-  if (!isEmbedded() && APP_PAGE_RE.test(currentFile) && !/standalone=1/i.test(window.location.search)) {
-    const shellTarget = `index.html#${encodeURIComponent(`${currentFile}${window.location.search}${window.location.hash}`)}`;
-    if (currentFile !== 'index.html') {
-      window.location.replace(shellTarget);
-      return;
-    }
   }
 
   function resolve(url) {
@@ -40,7 +30,7 @@
           url: resolved,
           replace: !!options.replace,
         },
-        window.location.origin
+        '*'
       );
     } else if (options.replace) {
       window.location.replace(resolved);
@@ -87,7 +77,6 @@
   );
 
   window.addEventListener('message', (event) => {
-    if (event.origin !== window.location.origin) return;
     const data = event.data || {};
     if (data.type !== 'CQ_PAGE_ACTIVATED') return;
     window.dispatchEvent(new CustomEvent('cq-shell-activated', { detail: data }));
