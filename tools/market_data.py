@@ -1642,6 +1642,118 @@ def get_sector_data_raw() -> list[dict]:
 
 
 # ════════════════════════════════════════════════════════════════
+# 辅助函数：A股市场情绪实时指标
+# 供 /api/v1/market/sentiment 端点调用
+# ════════════════════════════════════════════════════════════════
+
+def get_market_sentiment_raw() -> dict:
+    """
+    获取A股市场情绪四项实时指标：
+      - limit_up:   涨停家数
+      - limit_down: 跌停家数
+      - volume:     沪深两市成交额（格式化字符串，如 "1.47万亿"）
+      - north_flow: 北向资金净流入（格式化字符串，如 "+32.4亿"）
+
+    数据源：
+      - 涨跌停: akshare stock_market_activity_legu()
+      - 成交额: 新浪财经 hq.sinajs.cn (sh000001 + sz399001 fields[9])
+      - 北向资金: akshare stock_hsgt_fund_flow_summary_em() 沪股通(南)+深股通(南)
+
+    Returns:
+        dict with keys: limit_up, limit_down, volume, north_flow,
+                        limit_up_raw, limit_down_raw, north_flow_raw,
+                        volume_raw (float, in 亿), is_fallback (bool)
+    """
+    import akshare as ak
+
+    result = {
+        "limit_up":       "--",
+        "limit_down":     "--",
+        "volume":         "--",
+        "north_flow":     "--",
+        "limit_up_raw":   None,
+        "limit_down_raw": None,
+        "volume_raw":     None,
+        "north_flow_raw": None,
+        "is_fallback":    True,
+    }
+
+    # ── 1. 涨停 / 跌停 ─────────────────────────────────────────
+    try:
+        df = ak.stock_market_activity_legu()
+        # DataFrame 有 'item' 和 'value' 两列
+        row_up   = df[df["item"] == "涨停"]
+        row_down = df[df["item"] == "跌停"]
+        if not row_up.empty:
+            val = int(row_up["value"].iloc[0])
+            result["limit_up"]     = str(val)
+            result["limit_up_raw"] = val
+        if not row_down.empty:
+            val = int(row_down["value"].iloc[0])
+            result["limit_down"]     = str(val)
+            result["limit_down_raw"] = val
+    except Exception as _e:
+        logger.warning(f"[sentiment] 涨跌停获取失败: {_e}")
+
+    # ── 2. 沪深两市成交额（新浪 hq.sinajs.cn） ─────────────────
+    try:
+        resp = _requests.get(
+            "https://hq.sinajs.cn/list=sh000001,sz399001",
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "Referer":    "https://finance.sina.com.cn/",
+            },
+            timeout=6,
+            proxies={"http": "", "https": ""},
+        )
+        total_yuan = 0.0
+        for line in resp.text.splitlines():
+            # 每行格式: var hq_str_sh000001="上证指数,3300,...,653974209243,...";
+            if '="' not in line:
+                continue
+            inner = line.split('="', 1)[1].rstrip('";')
+            fields = inner.split(",")
+            if len(fields) > 9:
+                try:
+                    total_yuan += float(fields[9])
+                except (ValueError, IndexError):
+                    pass
+        if total_yuan > 0:
+            yi = total_yuan / 1e8
+            result["volume_raw"] = round(yi, 2)
+            if yi >= 10000:
+                result["volume"] = f"{yi/10000:.2f}万亿"
+            else:
+                result["volume"] = f"{yi:.0f}亿"
+    except Exception as _e:
+        logger.warning(f"[sentiment] 成交额获取失败: {_e}")
+
+    # ── 3. 北向资金净流入（沪股通南+深股通南）─────────────────
+    try:
+        df_hsgt = ak.stock_hsgt_fund_flow_summary_em()
+        # DataFrame 固定4行：[沪股通合计, 沪股通(南)北向, 深股通合计, 深股通(南)北向]
+        # 行索引 1 和 3 是真正的北向净流入，col[5] = 当日净买入（亿元）
+        cols = list(df_hsgt.columns)
+        val_col = cols[5] if len(cols) > 5 else cols[-1]
+        north_total = float(df_hsgt.iloc[1][val_col]) + float(df_hsgt.iloc[3][val_col])
+        result["north_flow_raw"] = round(north_total, 2)
+        sign = "+" if north_total >= 0 else ""
+        result["north_flow"] = f"{sign}{north_total:.1f}亿"
+    except Exception as _e:
+        logger.warning(f"[sentiment] 北向资金获取失败: {_e}")
+
+    # 只要有任一实时数据，取消 fallback 标记
+    if any(result[k] != "--" for k in ("limit_up", "limit_down", "volume", "north_flow")):
+        result["is_fallback"] = False
+
+    logger.info(
+        f"[sentiment] 涨停={result['limit_up']} 跌停={result['limit_down']} "
+        f"成交={result['volume']} 北向={result['north_flow']}"
+    )
+    return result
+
+
+# ════════════════════════════════════════════════════════════════
 # 深度财务数据抓取（供 fundamental_node 注入 key_metrics）
 # 包含：主营收入构成 + 多维业绩趋势（年度+季度）
 # ════════════════════════════════════════════════════════════════

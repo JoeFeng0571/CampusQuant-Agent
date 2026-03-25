@@ -425,19 +425,19 @@
             <div class="sentiment-bar">
                 <div class="sentiment-item">
                     <div class="sentiment-label">A股涨停家数</div>
-                    <div class="sentiment-value up">86</div>
+                    <div class="sentiment-value up" id="sent-limit-up">--</div>
                 </div>
                 <div class="sentiment-item">
                     <div class="sentiment-label">A股跌停家数</div>
-                    <div class="sentiment-value down">12</div>
+                    <div class="sentiment-value down" id="sent-limit-down">--</div>
                 </div>
                 <div class="sentiment-item">
                     <div class="sentiment-label">沪深两市成交额</div>
-                    <div class="sentiment-value" style="color:var(--accent)">1.12万亿</div>
+                    <div class="sentiment-value" id="sent-volume" style="color:var(--accent)">--</div>
                 </div>
                 <div class="sentiment-item">
                     <div class="sentiment-label">北向资金净流入</div>
-                    <div class="sentiment-value up">+38.4亿</div>
+                    <div class="sentiment-value" id="sent-north">--</div>
                 </div>
             </div>
 
@@ -702,14 +702,44 @@
         }
     }
 
+    // ── 市场情绪实时指标 ────────────────────────────────────────
+    async function fetchSentiment() {
+        try {
+            const resp = await fetch(`${API_BASE}/api/v1/market/sentiment`);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const d = await resp.json();
+
+            const elUp   = document.getElementById('sent-limit-up');
+            const elDown = document.getElementById('sent-limit-down');
+            const elVol  = document.getElementById('sent-volume');
+            const elNorth= document.getElementById('sent-north');
+
+            if (elUp)   elUp.textContent   = d.limit_up   || '--';
+            if (elDown) elDown.textContent = d.limit_down || '--';
+            if (elVol)  elVol.textContent  = d.volume     || '--';
+
+            if (elNorth && d.north_flow && d.north_flow !== '--') {
+                elNorth.textContent = d.north_flow;
+                const raw = d.north_flow_raw;
+                elNorth.className = 'sentiment-value ' + (raw >= 0 ? 'up' : 'down');
+            } else if (elNorth) {
+                elNorth.textContent = d.north_flow || '--';
+            }
+        } catch (err) {
+            console.warn('[market] 情绪数据获取失败:', err);
+        }
+    }
+
     // 初始化：加载 A 股行情 + 大盘指数 + 板块热力图（并发）
     fetchAndRender('a');
     fetchIndices();
     fetchSectors();
+    fetchSentiment();
 
-    // 定时刷新指数（每60s）和板块（每120s）
-    setInterval(fetchIndices, 60000);
-    setInterval(fetchSectors, 120000);
+    // 定时刷新指数（每60s）、板块（每120s）、情绪（每3分钟）
+    setInterval(fetchIndices,   60000);
+    setInterval(fetchSectors,  120000);
+    setInterval(fetchSentiment, 180000);
 
     // ══ 热搜聚合 ════════════════════════════════════════════════
     async function fetchHotNews(force) {

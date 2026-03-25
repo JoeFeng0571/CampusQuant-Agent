@@ -109,7 +109,7 @@ _compiled_graph = None
 # ════════════════════════════════════════════════════════════════
 # 全局市场数据缓存（Background Polling，TTL = 5 分钟）
 # ════════════════════════════════════════════════════════════════
-_MARKET_CACHE: dict = {"indices": [], "news": [], "sectors": [], "ts": 0.0}
+_MARKET_CACHE: dict = {"indices": [], "news": [], "sectors": [], "sentiment": {}, "ts": 0.0}
 
 
 async def _market_data_poller():
@@ -118,12 +118,16 @@ async def _market_data_poller():
     logger.info("[market_poller] 后台数据预热任务启动")
     while True:
         try:
-            from tools.market_data import get_market_indices_raw, get_market_news_raw, get_sector_data_raw
+            from tools.market_data import (
+                get_market_indices_raw, get_market_news_raw,
+                get_sector_data_raw, get_market_sentiment_raw,
+            )
             loop = asyncio.get_event_loop()
-            indices, news, sectors = await asyncio.gather(
+            indices, news, sectors, sentiment = await asyncio.gather(
                 loop.run_in_executor(None, get_market_indices_raw),
                 loop.run_in_executor(None, get_market_news_raw, 20),
                 loop.run_in_executor(None, get_sector_data_raw),
+                loop.run_in_executor(None, get_market_sentiment_raw),
                 return_exceptions=True,
             )
             if not isinstance(indices, Exception) and indices:
@@ -132,6 +136,8 @@ async def _market_data_poller():
                 _MARKET_CACHE["news"] = news
             if not isinstance(sectors, Exception) and sectors:
                 _MARKET_CACHE["sectors"] = sectors
+            if not isinstance(sentiment, Exception) and sentiment:
+                _MARKET_CACHE["sentiment"] = sentiment
             _MARKET_CACHE["ts"] = datetime.now(timezone.utc).timestamp()
 
             fallback_n = sum(1 for r in _MARKET_CACHE["indices"] if r.get("is_fallback"))
@@ -1568,6 +1574,33 @@ async def get_market_sectors():
     return {
         "sectors":   _MARKET_CACHE["sectors"],
         "count":     len(_MARKET_CACHE["sectors"]),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@app.get("/api/v1/market/sentiment", summary="获取A股市场情绪实时指标")
+async def get_market_sentiment():
+    """
+    GET /api/v1/market/sentiment
+
+    返回四项实时指标：涨停家数、跌停家数、沪深成交额、北向资金净流入。
+    优先返回后台缓存（<5ms），缓存为空时触发一次紧急同步抓取。
+    """
+    if not _MARKET_CACHE["sentiment"]:
+        logger.info("[market/sentiment] 缓存未就绪，触发紧急抓取")
+        try:
+            from tools.market_data import get_market_sentiment_raw
+            loop = asyncio.get_event_loop()
+            sentiment = await asyncio.wait_for(
+                loop.run_in_executor(None, get_market_sentiment_raw), timeout=20.0
+            )
+            _MARKET_CACHE["sentiment"] = sentiment
+        except Exception as e:
+            logger.error(f"[market/sentiment] 紧急抓取失败: {e}")
+            raise HTTPException(status_code=502, detail=f"市场情绪数据获取失败: {str(e)}")
+
+    return {
+        **_MARKET_CACHE["sentiment"],
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
