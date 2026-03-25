@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>帖子详情 · CampusQuant 投教社区</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box;
+            font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif; }
+        :root {
+            --primary:#4facfe; --secondary:#00f2fe; --accent:#a29bfe;
+            --danger:#fd79a8;  --success:#55efc4;  --warn:#fdcb6e;
+            --bg:#0b0f19; --card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.10);
+            --text-dim:#718096; --text-sub:#a0aec0;
+        }
+        body {
+            background-color:var(--bg); color:#fff; min-height:100vh;
+            display:flex; flex-direction:column; overflow-x:hidden;
+            background-image:
+                radial-gradient(circle at 15% 50%,rgba(0,242,254,0.07),transparent 32%),
+                radial-gradient(circle at 85% 28%,rgba(79,172,254,0.07),transparent 32%);
+        }
+
+        /* ══ 导航栏 ══ */
+        header {
+            position:fixed; top:0; left:0; width:100%;
+            display:flex; justify-content:space-between; align-items:center;
+            padding:16px 48px; background:rgba(11,15,25,0.78);
+            backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+            border-bottom:1px solid var(--border); z-index:1000;
+        }
+        .logo { display:flex; align-items:baseline; gap:8px; text-decoration:none; }
+        .logo-text { font-size:22px; font-weight:800;
+            background:linear-gradient(90deg,#4facfe 0%,#00f2fe 100%);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:0.5px; }
+        .logo-sub { font-size:12px; color:var(--text-dim); }
+        nav { display:flex; gap:28px; align-items:center; }
+        nav a { text-decoration:none; color:var(--text-sub); font-size:14px; font-weight:500;
+            transition:all 0.25s; position:relative; }
+        nav a:hover, nav a.active { color:var(--secondary); text-shadow:0 0 8px rgba(0,242,254,0.45); }
+        nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
+            background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width 0.3s; }
+        nav a:hover::after, nav a.active::after { width:100%; }
+        .nav-dot {
+            display:inline-block; width:6px; height:6px; background:var(--danger);
+            border-radius:50%; margin-left:4px; vertical-align:top; margin-top:2px;
+            animation:blink-dot 2s ease-in-out infinite;
+        }
+        @keyframes blink-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* ══ 主体 ══ */
+        main { flex:1; margin-top:80px; padding:32px 48px; max-width:900px; margin-left:auto; margin-right:auto; width:100%; }
+
+        /* 面包屑 */
+        .breadcrumb { font-size:13px; color:var(--text-dim); margin-bottom:24px; display:flex; align-items:center; gap:6px; }
+        .breadcrumb a { color:var(--primary); text-decoration:none; }
+        .breadcrumb a:hover { text-decoration:underline; }
+        .breadcrumb span { color:var(--text-dim); }
+
+        /* 帖子主体 */
+        .post-card {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:16px; padding:32px 36px; margin-bottom:24px;
+        }
+        .post-header { margin-bottom:20px; }
+        .post-title-h1 { font-size:26px; font-weight:700; line-height:1.4; margin-bottom:14px; }
+        .post-meta-row { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+        .post-tag {
+            padding:3px 10px; border-radius:6px; font-size:12px; font-weight:600;
+        }
+        .tag-learn    { background:rgba(79,172,254,0.15); color:var(--primary); }
+        .tag-analysis { background:rgba(85,239,196,0.15); color:var(--success); }
+        .tag-risk     { background:rgba(253,203,110,0.15); color:var(--warn); }
+        .tag-exp      { background:rgba(162,155,254,0.15); color:var(--accent); }
+        .meta-author { font-size:13px; color:var(--text-sub); }
+        .meta-time   { font-size:13px; color:var(--text-dim); }
+        .meta-views  { font-size:12px; color:var(--text-dim); }
+
+        .post-divider { border:none; border-top:1px solid var(--border); margin:20px 0; }
+
+        .post-content-body {
+            font-size:15px; line-height:1.85; color:#e2e8f0;
+            white-space:pre-wrap; word-break:break-word;
+        }
+
+        /* 点赞区 */
+        .like-zone { display:flex; align-items:center; gap:14px; margin-top:28px; padding-top:20px; border-top:1px solid var(--border); }
+        .btn-like {
+            display:flex; align-items:center; gap:6px; padding:9px 22px;
+            border-radius:20px; border:1px solid var(--border); background:transparent;
+            color:var(--text-sub); font-size:14px; cursor:pointer; transition:all 0.25s;
+        }
+        .btn-like:hover { border-color:var(--danger); color:var(--danger); background:rgba(253,121,168,0.08); }
+        .btn-like.liked { border-color:var(--danger); color:var(--danger); background:rgba(253,121,168,0.12); }
+        .like-count { font-size:13px; color:var(--text-dim); }
+
+        /* 评论区 */
+        .comments-section {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:16px; padding:28px 32px; margin-bottom:24px;
+        }
+        .section-title { font-size:16px; font-weight:700; margin-bottom:20px; display:flex; align-items:center; gap:8px; }
+        .comment-list { display:flex; flex-direction:column; gap:0; }
+        .comment-item {
+            padding:16px 0; border-bottom:1px solid rgba(255,255,255,0.04);
+        }
+        .comment-item:last-child { border-bottom:none; }
+        .comment-top { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+        .comment-avatar {
+            width:32px; height:32px; border-radius:50%;
+            background:linear-gradient(135deg,var(--primary),var(--secondary));
+            display:flex; align-items:center; justify-content:center;
+            font-size:13px; font-weight:700; color:#0b0f19; flex-shrink:0;
+        }
+        .comment-author { font-size:13px; font-weight:600; color:#e2e8f0; }
+        .comment-time   { font-size:12px; color:var(--text-dim); margin-left:auto; }
+        .comment-body   { font-size:14px; color:var(--text-sub); line-height:1.65; padding-left:42px; word-break:break-word; }
+        .empty-comments { text-align:center; padding:32px 16px; color:var(--text-dim); font-size:13px; }
+
+        /* 发评论表单 */
+        .comment-form-section {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:16px; padding:28px 32px;
+        }
+        .form-label { font-size:12px; color:var(--text-sub); margin-bottom:8px; display:block; }
+        .comment-textarea {
+            width:100%; padding:12px 14px; background:rgba(255,255,255,0.06);
+            border:1px solid var(--border); border-radius:10px; color:#fff;
+            font-size:14px; outline:none; resize:vertical; line-height:1.6;
+            transition:border-color 0.2s; min-height:90px;
+        }
+        .comment-textarea:focus { border-color:var(--primary); }
+        .form-row-submit { display:flex; align-items:center; gap:12px; margin-top:12px; }
+        .btn-submit-comment {
+            padding:10px 28px; border-radius:10px; border:none; cursor:pointer;
+            background:linear-gradient(135deg,var(--primary),var(--secondary));
+            color:#fff; font-size:14px; font-weight:700; transition:opacity 0.2s;
+        }
+        .btn-submit-comment:hover { opacity:0.88; }
+        .btn-submit-comment:disabled { opacity:0.4; cursor:not-allowed; }
+        #comment-msg { font-size:13px; }
+        .msg-success { color:var(--success); }
+        .msg-error   { color:var(--danger); }
+
+        /* 加载状态 */
+        .loading-state { text-align:center; padding:60px 20px; color:var(--text-dim); font-size:14px; }
+        .error-state { text-align:center; padding:60px 20px; }
+        .error-state h2 { font-size:20px; margin-bottom:10px; color:var(--danger); }
+        .error-state p  { color:var(--text-dim); font-size:14px; margin-bottom:20px; }
+        .btn-back { display:inline-block; padding:10px 24px; border-radius:10px;
+            border:1px solid var(--primary); color:var(--primary); text-decoration:none; font-size:14px; transition:all 0.2s; }
+        .btn-back:hover { background:rgba(79,172,254,0.1); }
+
+        /* ══ 页脚 ══ */
+        footer {
+            padding:18px; text-align:center; background:rgba(0,0,0,0.3);
+            border-top:1px solid var(--border); color:var(--text-dim); font-size:13px; margin-top:24px;
+        }
+        footer a { color:var(--primary); text-decoration:none; }
+
+        @media (max-width: 768px) {
+            header { padding: 12px 16px; }
+            nav { flex: 1; min-width:0; overflow-x: auto; flex-wrap: nowrap; justify-content: flex-start; gap: 20px; -webkit-overflow-scrolling: touch; }
+            nav::-webkit-scrollbar { display: none; }
+            nav a { display: inline-block !important; flex-shrink: 0; }
+            main { padding: 20px 16px; margin-top: 70px; }
+            .post-card { padding: 20px 18px; }
+            .post-title-h1 { font-size: 20px; }
+            .comments-section { padding: 20px 18px; }
+            .comment-form-section { padding: 20px 18px; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="dashboard.html" class="logo">
+        <span class="logo-text">CampusQuant</span>
+        <span class="logo-sub">校园财商</span>
+    </a>
+    <nav>
+        <a href="dashboard.html">仪表盘</a>
+        <a href="trade.html">模拟演练<span class="nav-dot"></span></a>
+        <a href="analysis.html">个股分析</a>
+        <a href="market.html">市场快讯</a>
+        <a href="community.html" class="active">投教社区</a>
+        <a href="team.html">关于我们</a>
+        <div id="auth-widget" style="display:flex;align-items:center;gap:8px;margin-left:8px;flex-shrink:0;"></div>
+    </nav>
+</header>
+
+<main id="main-content">
+    <div class="loading-state" id="loading-state">
+        <div style="font-size:32px;margin-bottom:12px;">⏳</div>
+        加载帖子中，请稍候…
+    </div>
+</main>
+
+<footer>
+    &copy; 2026 CampusQuant 校园财商 &nbsp;|&nbsp;
+    投教社区 · 共同学习，理性投资 &nbsp;|&nbsp;
+    <a href="team.html">关于我们</a>
+</footer>
+
+<script>
+'use strict';
+const API_BASE = 'http://127.0.0.1:8000';
+
+// ══ 认证辅助 ═══════════════════════════════════════════════
+function getToken()    { return localStorage.getItem('cq_token') || ''; }
+function getUsername() { return localStorage.getItem('cq_username') || ''; }
+function authHeaders(json = true) {
+    const h = json ? { 'Content-Type': 'application/json' } : {};
+    const t = getToken();
+    if (t) h['Authorization'] = 'Bearer ' + t;
+    return h;
+}
+function renderAuthWidget() {
+    const w = document.getElementById('auth-widget');
+    const u = getUsername();
+    if (u) {
+        w.innerHTML = `<span style="font-size:12px;color:var(--text-sub);">👤 ${u}</span>
+            <button onclick="logout()" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;
+    } else {
+        w.innerHTML = `<a href="auth.html?redirect=community.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
+    }
+}
+function logout() {
+    ['cq_token','cq_username','cq_user_id'].forEach(k => localStorage.removeItem(k));
+    renderAuthWidget();
+}
+
+function escHtml(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function timeAgo(isoStr) {
+    const diff = (Date.now() - new Date(isoStr)) / 1000;
+    if (diff < 60)    return '刚刚';
+    if (diff < 3600)  return Math.floor(diff/60) + '分钟前';
+    if (diff < 86400) return Math.floor(diff/3600) + '小时前';
+    if (diff < 172800) return '昨天';
+    return new Date(isoStr).toLocaleDateString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit' });
+}
+
+const TAG_MAP = {
+    learn:    { label:'基础知识', cls:'tag-learn' },
+    analysis: { label:'深度分析', cls:'tag-analysis' },
+    risk:     { label:'风险警示', cls:'tag-risk' },
+    exp:      { label:'实战分享', cls:'tag-exp' },
+};
+
+// ══ 获取帖子 ID ═════════════════════════════════════════════
+const postId = new URLSearchParams(location.search).get('id');
+
+// ══ 渲染帖子 ════════════════════════════════════════════════
+function renderPage(post, comments) {
+    const tag = TAG_MAP[post.tag] || TAG_MAP['learn'];
+    const main = document.getElementById('main-content');
+
+    main.innerHTML = `
+        <!-- 面包屑 -->
+        <nav class="breadcrumb" aria-label="面包屑">
+            <a href="community.html">投教社区</a>
+            <span>/</span>
+            <span>${escHtml(post.title)}</span>
+        </nav>
+
+        <!-- 帖子主体 -->
+        <div class="post-card" id="post-card">
+            <div class="post-header">
+                <h1 class="post-title-h1">${escHtml(post.title)}</h1>
+                <div class="post-meta-row">
+                    <span class="post-tag ${tag.cls}">${tag.label}</span>
+                    <span class="meta-author">📍 @${escHtml(post.author)}</span>
+                    <span class="meta-time">${timeAgo(post.created_at)}</span>
+                    <span class="meta-views">👁 ${post.view_count || 0} 次浏览</span>
+                </div>
+            </div>
+            <hr class="post-divider">
+            <div class="post-content-body">${escHtml(post.content)}</div>
+            <div class="like-zone">
+                <button class="btn-like ${post.liked ? 'liked' : ''}" id="btn-like" onclick="toggleLike()">
+                    <span id="like-icon">${post.liked ? '❤️' : '👍'}</span>
+                    <span id="like-label">${post.liked ? '已点赞' : '点赞'}</span>
+                </button>
+                <span class="like-count" id="like-count">${post.like_count || 0} 人觉得有帮助</span>
+                <span style="font-size:13px;color:var(--text-dim);margin-left:auto;">💬 ${comments.length} 条评论</span>
+            </div>
+        </div>
+
+        <!-- 评论列表 -->
+        <div class="comments-section">
+            <div class="section-title">
+                <span>💬</span> 全部评论 <span style="font-size:13px;color:var(--text-dim);font-weight:400;">(${comments.length})</span>
+            </div>
+            <div class="comment-list" id="comment-list">
+                ${renderComments(comments)}
+            </div>
+        </div>
+
+        <!-- 发评论 -->
+        <div class="comment-form-section">
+            <div class="section-title"><span>✍️</span> 发表评论</div>
+            <label class="form-label" for="comment-input">说说你的想法…（登录后可评论）</label>
+            <textarea class="comment-textarea" id="comment-input" rows="4" maxlength="1000" placeholder="请文明发言，理性讨论投资知识…"></textarea>
+            <div class="form-row-submit">
+                <button class="btn-submit-comment" id="btn-comment-submit" onclick="submitComment()">发表评论</button>
+                <span id="comment-msg"></span>
+            </div>
+        </div>
+    `;
+}
+
+function renderComments(comments) {
+    if (!comments.length) {
+        return `<div class="empty-comments">暂无评论，成为第一个留言的同学吧！</div>`;
+    }
+    return comments.map(c => {
+        const initials = escHtml((c.author || '?').slice(0, 1).toUpperCase());
+        return `<div class="comment-item">
+            <div class="comment-top">
+                <div class="comment-avatar">${initials}</div>
+                <span class="comment-author">@${escHtml(c.author)}</span>
+                <span class="comment-time">${timeAgo(c.created_at)}</span>
+            </div>
+            <div class="comment-body">${escHtml(c.content)}</div>
+        </div>`;
+    }).join('');
+}
+
+// ══ 点赞 ════════════════════════════════════════════════════
+let _liked      = false;
+let _likeCount  = 0;
+
+async function toggleLike() {
+    if (!getToken()) {
+        location.href = `auth.html?redirect=post_detail.html?id=${postId}`;
+        return;
+    }
+    try {
+        const resp = await fetch(`${API_BASE}/api/v1/community/posts/${postId}/like`, {
+            method: 'POST', headers: authHeaders(),
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        _liked      = data.liked;
+        _likeCount  = data.like_count;
+        document.getElementById('btn-like').className = 'btn-like' + (_liked ? ' liked' : '');
+        document.getElementById('like-icon').textContent  = _liked ? '❤️' : '👍';
+        document.getElementById('like-label').textContent = _liked ? '已点赞' : '点赞';
+        document.getElementById('like-count').textContent = _likeCount + ' 人觉得有帮助';
+    } catch(e) { console.warn('点赞失败:', e); }
+}
+
+// ══ 发评论 ══════════════════════════════════════════════════
+async function submitComment() {
+    if (!getToken()) {
+        location.href = `auth.html?redirect=post_detail.html?id=${postId}`;
+        return;
+    }
+    const content = (document.getElementById('comment-input').value || '').trim();
+    const msgEl   = document.getElementById('comment-msg');
+    if (!content) {
+        msgEl.textContent = '评论内容不能为空';
+        msgEl.className   = 'msg-error';
+        return;
+    }
+    if (content.length < 1) {
+        msgEl.textContent = '评论内容太短';
+        msgEl.className   = 'msg-error';
+        return;
+    }
+
+    const btn = document.getElementById('btn-comment-submit');
+    btn.disabled = true; btn.textContent = '发送中…';
+
+    try {
+        const resp = await fetch(`${API_BASE}/api/v1/community/posts/${postId}/comments`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ content }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+            msgEl.textContent = data.detail || '评论失败';
+            msgEl.className   = 'msg-error';
+            return;
+        }
+        // 成功：追加评论到列表
+        msgEl.textContent = '评论成功！';
+        msgEl.className   = 'msg-success';
+        document.getElementById('comment-input').value = '';
+
+        const c        = data.comment;
+        const listEl   = document.getElementById('comment-list');
+        // 如果之前显示"暂无评论"则清除
+        if (listEl.querySelector('.empty-comments')) listEl.innerHTML = '';
+        const initials = escHtml((c.author || '?').slice(0, 1).toUpperCase());
+        const newItem  = document.createElement('div');
+        newItem.className = 'comment-item';
+        newItem.innerHTML = `
+            <div class="comment-top">
+                <div class="comment-avatar">${initials}</div>
+                <span class="comment-author">@${escHtml(c.author)}</span>
+                <span class="comment-time">刚刚</span>
+            </div>
+            <div class="comment-body">${escHtml(c.content)}</div>
+        `;
+        listEl.appendChild(newItem);
+
+        // 更新评论数
+        const sectionTitle = document.querySelector('.section-title span:last-of-type');
+        if (sectionTitle) {
+            const current = parseInt(sectionTitle.textContent) || 0;
+            sectionTitle.textContent = `(${current + 1})`;
+        }
+
+        setTimeout(() => { msgEl.textContent = ''; }, 3000);
+    } catch(e) {
+        msgEl.textContent = '网络错误：' + e.message;
+        msgEl.className   = 'msg-error';
+    } finally {
+        btn.disabled = false; btn.textContent = '发表评论';
+    }
+}
+
+// ══ 加载页面 ════════════════════════════════════════════════
+async function loadPostDetail() {
+    const main = document.getElementById('main-content');
+
+    if (!postId || isNaN(parseInt(postId))) {
+        main.innerHTML = `<div class="error-state">
+            <div style="font-size:48px;margin-bottom:12px;">🔍</div>
+            <h2>帖子 ID 无效</h2>
+            <p>请从社区列表点击帖子进入详情页面。</p>
+            <a href="community.html" class="btn-back">← 返回社区</a>
+        </div>`;
+        return;
+    }
+
+    try {
+        const resp = await fetch(
+            `${API_BASE}/api/v1/community/posts/${postId}`,
+            { headers: authHeaders(false) }
+        );
+
+        if (resp.status === 404) {
+            main.innerHTML = `<div class="error-state">
+                <div style="font-size:48px;margin-bottom:12px;">😔</div>
+                <h2>帖子不存在</h2>
+                <p>该帖子可能已被删除或链接有误。</p>
+                <a href="community.html" class="btn-back">← 返回社区</a>
+            </div>`;
+            return;
+        }
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+        const data     = await resp.json();
+        const post     = data.post;
+        const comments = data.comments || [];
+
+        _liked     = post.liked;
+        _likeCount = post.like_count || 0;
+
+        renderPage(post, comments);
+        document.title = escHtml(post.title) + ' · CampusQuant 投教社区';
+
+    } catch(e) {
+        main.innerHTML = `<div class="error-state">
+            <div style="font-size:48px;margin-bottom:12px;">⚠️</div>
+            <h2>加载失败</h2>
+            <p>${escHtml(e.message)}（请确认后端已在 8000 端口启动）</p>
+            <a href="community.html" class="btn-back">← 返回社区</a>
+        </div>`;
+    }
+}
+
+// ══ 初始化 ══════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+    renderAuthWidget();
+    loadPostDetail();
+});
+</script>
+
+<script src="shell-bridge.js"></script>
+</body>
+</html>

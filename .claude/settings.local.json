@@ -114,7 +114,21 @@
       "Bash(grep -rn \"API_BASE\\\\|:8001\\\\|:8002\\\\|:8000\" D:/000intern/0agent/trading_agents_system/*.html)",
       "Bash(cmd /c \"taskkill /F /PID 45252\")",
       "Bash(ls -la \"D:/000intern/0agent/trading_agents_system/\"*.db)",
-      "Bash(powershell -Command \"Stop-Process -Id 47368 -Force\" 2>&1)"
+      "Bash(powershell -Command \"Stop-Process -Id 47368 -Force\" 2>&1)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5IiwidXNlcm5hbWUiOiJ2ZXJpZnkwMSIsImV4cCI6MTc3NTAxMzk1MH0.ngc62OhCta3gK8NShKlMz4dvxvzjbvo_tLOQcEuvaIY\" __NEW_LINE_183e2763b1649f0e__ echo \"=== GET POST DETAIL \\(id=9\\) ===\" curl -s \"http://127.0.0.1:8000/api/v1/community/posts/9\" -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5IiwidXNlcm5hbWUiOiJ2ZXJpZnkwMSIsImV4cCI6MTc3NTAxMzk1MH0.ngc62OhCta3gK8NShKlMz4dvxvzjbvo_tLOQcEuvaIY\")",
+      "Bash(__NEW_LINE_8d7f4982ef0d3b37__ echo:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5IiwidXNlcm5hbWUiOiJ2ZXJpZnkwMSIsImV4cCI6MTc3NTAxMzk1MH0.ngc62OhCta3gK8NShKlMz4dvxvzjbvo_tLOQcEuvaIY\" __NEW_LINE_60114a5ae1a4cddf__ echo \"=== LIST POSTS ===\" curl -s \"http://127.0.0.1:8000/api/v1/community/posts\")",
+      "Bash(BASE=\"http://127.0.0.1:8099\")",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5IiwidXNlcm5hbWUiOiJ2ZXJpZnkwMSIsImV4cCI6MTc3NTAxNDMyNX0.eAqq72AyIaLQ4QrbCDeCexttmr-Jf6s0AhuaYqZfq1E\")",
+      "Bash(__NEW_LINE_761a0c6f53e977bd__ echo:*)",
+      "Bash(BASE=\"http://127.0.0.1:8099\" TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5IiwidXNlcm5hbWUiOiJ2ZXJpZnkwMSIsImV4cCI6MTc3NTAxNDMyNX0.eAqq72AyIaLQ4QrbCDeCexttmr-Jf6s0AhuaYqZfq1E\" __NEW_LINE_696d72cf88e1c679__ echo \"=== Check position names \\(should show real stock names, not just codes\\) ===\" curl -s \"$BASE/api/v1/trade/account?market=HK\" -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(BASE=\"http://127.0.0.1:8099\" TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5IiwidXNlcm5hbWUiOiJ2ZXJpZnkwMSIsImV4cCI6MTc3NTAxNDMyNX0.eAqq72AyIaLQ4QrbCDeCexttmr-Jf6s0AhuaYqZfq1E\" __NEW_LINE_71c539844fac43d3__ curl -s \"$BASE/api/v1/trade/account\" -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(BASE=\"http://127.0.0.1:8099\" __NEW_LINE_c6fc907d4bb04f32__ echo \"=== Spot price response check ===\" echo \"AAPL:\" curl -s \"$BASE/api/v1/market/spot?symbol=AAPL\")",
+      "Bash(BASE=\"http://127.0.0.1:8099\" TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5IiwidXNlcm5hbWUiOiJ2ZXJpZnkwMSIsImV4cCI6MTc3NTAxNDMyNX0.eAqq72AyIaLQ4QrbCDeCexttmr-Jf6s0AhuaYqZfq1E\" curl -s \"$BASE/api/v1/trade/account\" -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(python3:*)",
+      "Bash(findstr \"LISTENING\")",
+      "Bash(cmd //c \"taskkill /PID 45044 /F\")"
     ]
   }
 }

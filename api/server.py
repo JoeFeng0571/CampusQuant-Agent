@@ -190,6 +190,9 @@ async def startup_event():
     asyncio.create_task(_market_data_poller())
     logger.info("✅ 市场数据后台轮询已启动（首次预热中...）")
 
+    # 5. 港股 Board Lot 缓存预热（后台，不阻塞启动）
+    asyncio.create_task(_load_hk_lot_cache())
+
     logger.info("✅ API 服务启动完成，监听请求...")
 
 
@@ -1007,6 +1010,80 @@ async def get_me(current_user=Depends(_get_current_user)):
 # 市场短码 → VirtualAccount 资金字段名
 _MT_CASH_FIELD = {"A": "cash_cnh", "HK": "cash_hkd", "US": "cash_usd", "UNKNOWN": "cash_cnh"}
 
+# ── 港股每手股数字典（已知特殊手数，默认100） ────────────────────
+# ── 港股手数动态缓存（HKEX 官方 ListOfSecurities.xlsx）──────────
+import time as _time
+
+_hk_lot_cache: dict[str, int] = {}   # "01211" -> 500 (5位无后缀)
+_hk_lot_loaded_at: float = 0.0
+_HK_LOT_CACHE_TTL: float = 86400.0   # 24小时刷新一次
+
+
+async def _load_hk_lot_cache() -> None:
+    """
+    从 HKEX 官方 ListOfSecurities.xlsx 下载并解析 Board Lot 列，
+    写入 _hk_lot_cache。失败时保留旧缓存并打 Warning。
+    """
+    global _hk_lot_cache, _hk_lot_loaded_at
+
+    def _fetch() -> dict[str, int]:
+        import io, requests
+        from openpyxl import load_workbook
+        url = ("https://www.hkex.com.hk/eng/services/trading/securities"
+               "/securitieslists/ListOfSecurities.xlsx")
+        hdrs = {"User-Agent": "Mozilla/5.0", "Referer": "https://www.hkex.com.hk"}
+        r = requests.get(url, headers=hdrs, timeout=30)
+        r.raise_for_status()
+        # 注意: read_only=True 在部分 xlsx 中只读出极少行，必须用默认模式
+        wb = load_workbook(io.BytesIO(r.content), read_only=False, data_only=True)
+        ws = wb.active
+        lot_map: dict[str, int] = {}
+        for i, row in enumerate(ws.iter_rows(min_row=4, values_only=True)):
+            code, lot = row[0], row[4]
+            if not code or not lot:
+                continue
+            try:
+                # Board Lot 可能以字符串 "1,000" 形式存储，去逗号后转 int
+                lot_int = int(str(lot).replace(",", "").strip())
+                lot_map[str(code).zfill(5)] = lot_int
+            except (ValueError, TypeError):
+                pass
+        wb.close()
+        return lot_map
+
+    try:
+        loop = asyncio.get_event_loop()
+        lot_map = await loop.run_in_executor(None, _fetch)
+        _hk_lot_cache = lot_map
+        _hk_lot_loaded_at = _time.time()
+        logger.info(f"✅ HKEX Board Lot 缓存加载完成（{len(lot_map)} 只港股）")
+    except Exception as e:
+        logger.warning(f"⚠️  HKEX Board Lot 缓存加载失败（fallback=100）: {e}")
+
+
+async def get_min_lot(symbol: str, mt_short: str) -> int:
+    """
+    返回该标的最小交易手数（每手股数）。
+    A股: 固定 100  |  US股: 固定 1
+    港股: 实时查询 HKEX 官方 Board Lot 缓存，超时/失败降级为 100。
+    """
+    mt = mt_short.upper()
+    if mt == "A":
+        return 100
+    if mt == "US":
+        return 1
+    # HK: 确保缓存有效（超过 TTL 则重新拉取）
+    if _time.time() - _hk_lot_loaded_at > _HK_LOT_CACHE_TTL:
+        await _load_hk_lot_cache()
+    code = symbol.upper()
+    if code.endswith(".HK"):
+        code = code[:-3].zfill(5)
+    lot = _hk_lot_cache.get(code)
+    if lot is None:
+        logger.debug(f"[lot] {symbol} 不在 HKEX 缓存中，使用默认 100")
+        return 100
+    return lot
+
 
 async def _db_trade_order(db, user_id: int, symbol: str, action: str,
                            quantity: float, mt_short: str) -> dict:
@@ -1021,6 +1098,25 @@ async def _db_trade_order(db, user_id: int, symbol: str, action: str,
 
     cash_field = _MT_CASH_FIELD.get(mt_short.upper(), "cash_cnh")
     ts = datetime.now(timezone.utc).isoformat()
+
+    # ── 数量基本校验 ────────────────────────────────────────────
+    if quantity <= 0:
+        return {"success": False, "error": "委托数量必须大于 0",
+                "symbol": symbol, "action": action, "timestamp": ts}
+
+    qty_int = int(quantity)
+    if qty_int != quantity:
+        return {"success": False, "error": "委托数量必须为整数（不支持小数股）",
+                "symbol": symbol, "action": action, "timestamp": ts}
+
+    # ── 手数（最小交易单位）校验（动态查询 HKEX）──────────────────
+    min_lot = await get_min_lot(symbol, mt_short)
+    if qty_int % min_lot != 0:
+        mkt_label = {"A": "A股", "HK": "港股", "US": "美股"}.get(mt_short.upper(), "")
+        return {"success": False,
+                "error": f"{mkt_label} {symbol} 最小交易单位为 {min_lot} 股，"
+                         f"请输入 {min_lot} 的整数倍（当前: {qty_int}）",
+                "symbol": symbol, "action": action, "timestamp": ts}
 
     # 获取报价
     loop = asyncio.get_event_loop()
@@ -1055,13 +1151,17 @@ async def _db_trade_order(db, user_id: int, symbol: str, action: str,
         r = await db.execute(select(Position).where(
             Position.account_id == db_acct.id, Position.symbol == symbol))
         pos = r.scalar_one_or_none()
+        stock_name = spot.get("name") or symbol
         if pos:
             total_qty    = pos.quantity + quantity
             pos.avg_cost = (pos.avg_cost * pos.quantity + exec_price * quantity) / total_qty
             pos.quantity = total_qty
             pos.market_type = mt_short
+            # 若名称仍是裸代码则更新为真实名称
+            if pos.name == symbol and stock_name != symbol:
+                pos.name = stock_name
         else:
-            db.add(Position(account_id=db_acct.id, symbol=symbol, name=symbol,
+            db.add(Position(account_id=db_acct.id, symbol=symbol, name=stock_name,
                             quantity=quantity, avg_cost=exec_price, market_type=mt_short))
 
     else:  # SELL
@@ -1079,8 +1179,9 @@ async def _db_trade_order(db, user_id: int, symbol: str, action: str,
         cash_after = cash_before + (amount - fee)
         setattr(db_acct, cash_field, cash_after)
 
-    # 写成交记录
-    await _db_order(db, db_acct.id, symbol=symbol, name=symbol,
+    # 写成交记录（使用真实股票名称，不再裸用代码）
+    _order_name = spot.get("name") or symbol
+    await _db_order(db, db_acct.id, symbol=symbol, name=_order_name,
                     action=action.upper(), quantity=quantity, exec_price=exec_price,
                     amount=amount, fee=fee, cash_before=cash_before, cash_after=cash_after,
                     is_spot_price=is_spot, market_type=mt_short)
@@ -1120,6 +1221,24 @@ async def place_trade_order(
     symbol = MarketClassifier.fuzzy_match(symbol)
     market_type, _ = MarketClassifier.classify(symbol)
     mt_short = market_type.short   # "A" / "HK" / "US"
+
+    # ── 手数和数量校验（对游客和登录用户均生效）─────────────────
+    _qty = request.quantity
+    _ts  = datetime.now(timezone.utc).isoformat()
+    if _qty <= 0:
+        return {"success": False, "error": "委托数量必须大于 0",
+                "symbol": symbol, "action": request.action, "timestamp": _ts}
+    _qty_int = int(_qty)
+    if _qty_int != _qty:
+        return {"success": False, "error": "委托数量必须为整数（不支持小数股）",
+                "symbol": symbol, "action": request.action, "timestamp": _ts}
+    _min_lot = await get_min_lot(symbol, mt_short)
+    if _qty_int % _min_lot != 0:
+        _mkt_label = {"A": "A股", "HK": "港股", "US": "美股"}.get(mt_short, "")
+        return {"success": False,
+                "error": f"{_mkt_label} {symbol} 最小交易单位为 {_min_lot} 股，"
+                         f"请输入 {_min_lot} 的整数倍（当前: {_qty_int}）",
+                "symbol": symbol, "action": request.action, "timestamp": _ts}
 
     # ── 已登录：直接从 DB 撮合，完全跳过全局内存账户 ─────────
     if current_user:
@@ -1248,6 +1367,33 @@ async def get_single_spot(symbol: str):
     except Exception as e:
         logger.error(f"[market/spot] 单只行情获取失败 {symbol}: {e}")
         raise HTTPException(status_code=502, detail=f"行情获取失败: {str(e)}")
+
+
+@app.get("/api/v1/market/lot/{symbol}", summary="获取标的最小交易手数（动态查询）")
+async def get_lot_size(symbol: str):
+    """
+    GET /api/v1/market/lot/01211.HK  → {"symbol":"01211.HK","min_lot":500,"source":"hkex","market":"HK"}
+    GET /api/v1/market/lot/600519.SH → {"symbol":"600519.SH","min_lot":100,"source":"fixed","market":"A"}
+    GET /api/v1/market/lot/AAPL      → {"symbol":"AAPL","min_lot":1,"source":"fixed","market":"US"}
+
+    港股从 HKEX 官方 Board Lot 缓存动态读取；A股固定 100；美股固定 1。
+    """
+    from utils.market_classifier import MarketClassifier
+    symbol = symbol.strip().upper()
+    symbol = MarketClassifier.fuzzy_match(symbol)
+    market_type, _ = MarketClassifier.classify(symbol)
+    mt_short = market_type.short
+
+    min_lot = await get_min_lot(symbol, mt_short)
+    source = "fixed" if mt_short in ("A", "US") else (
+        "hkex" if _hk_lot_cache else "fallback"
+    )
+    return {
+        "symbol":  symbol,
+        "min_lot": min_lot,
+        "source":  source,
+        "market":  mt_short,
+    }
 
 
 @app.get("/api/v1/portfolio/summary", summary="获取虚拟账户持仓摘要（含实时估值）")

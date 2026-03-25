@@ -449,6 +449,26 @@
 'use strict';
 const API_BASE = 'http://127.0.0.1:8000';
 
+// ══ 手数（每手股数）前端查询表 ════════════════════════════════
+// ── 最小交易手数：动态从后端查询，不再硬编码 ────────────────────
+let _currentLotSize = 1;            // 当前选中标的的手数，fetchLotSize 更新
+let _lotFetchSymbol = '';           // 上次查询的 symbol，避免重复请求
+
+async function fetchLotSize(symbol) {
+    if (!symbol || symbol === _lotFetchSymbol) return;
+    try {
+        const resp = await fetch(`${API_BASE}/api/v1/market/lot/${encodeURIComponent(symbol)}`);
+        if (resp.ok) {
+            const d = await resp.json();
+            _currentLotSize = d.min_lot || 1;
+            _lotFetchSymbol = symbol;
+            // 拿到手数后刷新提示
+            updateBalanceHint();
+            updateEstimate();
+        }
+    } catch (_) {}
+}
+
 // ══ Market config ════════════════════════════════════════════
 const MKT_CONFIG = {
     A:  { label:'A股 (CNH)',  prefix:'¥',    currency:'CNH', init:100000, flag:'🇨🇳', hint:'A股: 代码如 600519.SH / 000858.SZ' },
@@ -537,7 +557,9 @@ function renderDrop(list) {
             document.getElementById('sym-input').value = sym;
             closeDrop();
             currentSymbol = sym.toUpperCase();
+            _currentLotSize = 1; _lotFetchSymbol = '';
             startPriceTimer(currentSymbol);
+            fetchLotSize(currentSymbol);
         });
     });
 }
@@ -642,7 +664,10 @@ async function lookupSymbol() {
     const raw = document.getElementById('sym-input').value.trim();
     if (!raw) return;
     currentSymbol = raw.toUpperCase();
+    _currentLotSize = 1;           // 先重置，等异步拉取覆盖
+    _lotFetchSymbol = '';
     startPriceTimer(currentSymbol);
+    fetchLotSize(currentSymbol);   // 异步查询手数，回来后自动刷新提示
 }
 
 // ══ Order side ════════════════════════════════════════════════
@@ -665,20 +690,46 @@ function updateBalanceHint() {
     if (_curMkt === 'A')  cash = _acctData.cash_cnh ?? _acctData.cash ?? 0;
     if (_curMkt === 'HK') cash = _acctData.cash_hkd ?? 0;
     if (_curMkt === 'US') cash = _acctData.cash_usd ?? 0;
-    document.getElementById('balance-hint').textContent =
-        `可用: ${cfg.prefix}${cash.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+    const cashStr = cfg.prefix + cash.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const lotHint = currentSymbol ? `　最小: ${_currentLotSize} 股/手` : '';
+    document.getElementById('balance-hint').textContent = `可用: ${cashStr}${lotHint}`;
 }
 
 function updateEstimate() {
-    const qty   = parseFloat(document.getElementById('order-qty').value) || 0;
-    const total = currentPrice * qty;
-    const pfx   = currentSymbol ? prefixFor(currentSymbol) : MKT_CONFIG[_curMkt].prefix;
+    const qty    = parseFloat(document.getElementById('order-qty').value) || 0;
+    const total  = currentPrice * qty;
+    const pfx    = currentSymbol ? prefixFor(currentSymbol) : MKT_CONFIG[_curMkt].prefix;
+    const minLot = _currentLotSize;
+
+    // 更新 balance-hint：显示可用资金 + 最小手数提示
+    const hintEl = document.getElementById('balance-hint');
+    if (_acctData) {
+        const cfg = MKT_CONFIG[_curMkt];
+        let cash = 0;
+        if (_curMkt === 'A')  cash = _acctData.cash_cnh ?? _acctData.cash ?? 0;
+        if (_curMkt === 'HK') cash = _acctData.cash_hkd ?? 0;
+        if (_curMkt === 'US') cash = _acctData.cash_usd ?? 0;
+        const cashStr = cfg.prefix + cash.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+        hintEl.textContent = `可用: ${cashStr}　最小: ${minLot} 股/手`;
+    } else if (currentSymbol) {
+        hintEl.textContent = `最小: ${minLot} 股/手`;
+    }
+
+    // 手数校验提示
+    const qtyInt = Math.floor(qty);
+    const estEl  = document.getElementById('est-value');
+    if (qty > 0 && (qty !== qtyInt || qtyInt % minLot !== 0)) {
+        estEl.textContent = `⚠ 数量须为 ${minLot} 的整数倍`;
+        estEl.style.color = 'var(--danger)';
+        return;
+    }
+    estEl.style.color = '';
+
     if (total > 0) {
         const fee = (total * 0.0003).toFixed(2);
-        document.getElementById('est-value').textContent =
-            pfx + total.toFixed(2) + ' (手续费≈' + pfx + fee + ')';
+        estEl.textContent = pfx + total.toFixed(2) + ' (手续费≈' + pfx + fee + ')';
     } else {
-        document.getElementById('est-value').textContent = pfx + ' --';
+        estEl.textContent = pfx + ' --';
     }
 }
 
@@ -690,6 +741,19 @@ async function submitOrder() {
 
     if (!symbol || !(quantity > 0)) {
         showOrderResult(false, '请先查询标的行情，并填写有效委托数量');
+        return;
+    }
+    // 整数检查
+    const qtyInt = Math.floor(quantity);
+    if (quantity !== qtyInt) {
+        showOrderResult(false, '委托数量必须为整数（不支持小数股）');
+        return;
+    }
+    // 手数检查（使用后端动态查询到的 _currentLotSize）
+    const minLot = _currentLotSize;
+    if (qtyInt % minLot !== 0) {
+        const mktLabel = symbol.endsWith('.HK') ? '港股' : /^\d{6}\./.test(symbol) ? 'A股' : '美股';
+        showOrderResult(false, `${mktLabel} ${symbol} 最小交易单位为 ${minLot} 股，请输入 ${minLot} 的整数倍`);
         return;
     }
 
@@ -868,8 +932,10 @@ function quickSell(symbol, qty) {
     document.getElementById('sym-input').value = symbol;
     document.getElementById('order-qty').value = qty;
     currentSymbol = symbol.toUpperCase();
+    _currentLotSize = 1; _lotFetchSymbol = '';
     switchSide('SELL');
     startPriceTimer(currentSymbol);
+    fetchLotSize(currentSymbol);
     document.getElementById('order-result').style.display = 'none';
 }
 
@@ -1022,7 +1088,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (urlSym) {
         document.getElementById('sym-input').value = urlSym;
         currentSymbol = urlSym.toUpperCase();
+        _currentLotSize = 1; _lotFetchSymbol = '';
         startPriceTimer(currentSymbol);
+        fetchLotSize(currentSymbol);
     }
     loadPortfolio();
     // show initial market hint
