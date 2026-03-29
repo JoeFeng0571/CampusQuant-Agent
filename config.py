@@ -13,7 +13,7 @@ class Config:
     """系统全局配置"""
 
     # ==================== 主 LLM：阿里云百炼（DashScope）====================
-    DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "sk-f41678f1b5f7477ea2cd9b0554dd40ab")
+    DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "")
     DASHSCOPE_MODEL   = os.getenv("QWEN_MODEL_NAME", "qwen3.5-plus")  # 文本生成模型
     DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"  # OpenAI 兼容端点
     DASHSCOPE_EMBEDDING_MODEL = "text-embedding-v3"                     # Embedding 模型

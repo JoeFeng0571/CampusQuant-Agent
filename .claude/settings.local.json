@@ -128,7 +128,10 @@
       "Bash(BASE=\"http://127.0.0.1:8099\" TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5IiwidXNlcm5hbWUiOiJ2ZXJpZnkwMSIsImV4cCI6MTc3NTAxNDMyNX0.eAqq72AyIaLQ4QrbCDeCexttmr-Jf6s0AhuaYqZfq1E\" curl -s \"$BASE/api/v1/trade/account\" -H \"Authorization: Bearer $TOKEN\")",
       "Bash(python3:*)",
       "Bash(findstr \"LISTENING\")",
-      "Bash(cmd //c \"taskkill /PID 45044 /F\")"
+      "Bash(cmd //c \"taskkill /PID 45044 /F\")",
+      "Bash(find . -name *.py -path */graph/* -o -name server.py)",
+      "Bash(xargs wc:*)",
+      "Bash(grep -r m4 --include=*.py -l)"
     ]
   }
 }
