@@ -347,7 +347,7 @@
         }
         footer a { color:var(--primary); text-decoration:none; }
         /* ══ 模拟演练移动端深度优化 ════════════════════════════════════ */
-        
+
         @media (max-width: 900px) {
             /* 中等屏幕：左右两栏彻底改为上下单列堆叠 */
             main { grid-template-columns: 1fr; }
@@ -356,62 +356,169 @@
 
         @media (max-width: 768px) {
             /* 1. 导航栏：复用全站统一的横向滑动与菜单吸附体验 */
-            header { padding: 12px 16px; gap: 16px; }
+            header { padding: 12px 16px; gap: 16px; height: 60px; }
             .logo { flex-shrink: 0; }
+            .logo-text { font-size: 18px; }
+            .logo-sub { font-size: 10px; }
             nav {
                 flex: 1; min-width: 0; overflow-x: auto; flex-wrap: nowrap;
-                justify-content: flex-start; gap: 20px;
+                justify-content: flex-start; gap: 16px;
                 -webkit-overflow-scrolling: touch; padding-right: 4px;
             }
             nav::-webkit-scrollbar { display: none; }
-            nav a { display: inline-block !important; flex-shrink: 0; font-size: 14px; }
+            nav a { display: inline-block !important; flex-shrink: 0; font-size: 13px; padding: 8px 0; }
             .sidebar-btn {
                 display: flex !important; position: sticky; right: 0; flex-shrink: 0;
                 background: rgba(11,15,25,0.95); box-shadow: -12px 0 10px rgba(11,15,25,0.95);
-                padding-left: 8px; z-index: 10;
+                padding-left: 8px; z-index: 10; width: 36px; height: 36px;
             }
 
             /* 2. 页面主体空间释放 */
-            main { padding: 20px 16px; margin-top: 70px; gap: 20px; }
+            main { padding: 16px 12px; margin-top: 60px; gap: 16px; }
 
             /* 3. 控制面板与输入框微调，增大触控面积 */
-            .control-panel { padding: 20px 16px; }
-            .panel-title { font-size: 16px; margin-bottom: 16px; }
-            .form-group { margin-bottom: 16px; }
-            .form-input { padding: 12px 14px; font-size: 13px; }
-            .example-tags { gap: 8px; }
-            .ex-tag { padding: 6px 12px; font-size: 12px; }
-            .analyze-btn { padding: 14px; font-size: 15px; }
+            .control-panel { padding: 18px 14px; border-radius: 12px; }
+            .panel-title { font-size: 15px; margin-bottom: 14px; }
+            .form-group { margin-bottom: 14px; }
+            .form-label { font-size: 10px; margin-bottom: 6px; }
+            .form-input { padding: 14px 16px; font-size: 14px; border-radius: 8px; }
+            .example-tags { gap: 6px; margin-top: 6px; }
+            .ex-tag { padding: 8px 12px; font-size: 11px; border-radius: 8px; }
+            .market-tabs { gap: 6px; }
+            .market-tab { padding: 12px 8px; font-size: 12px; border-radius: 8px; }
+            .analyze-btn { padding: 16px; font-size: 16px; border-radius: 8px; }
+            .risk-notice { padding: 12px; font-size: 11px; border-radius: 8px; }
 
             /* 4. 分析状态与进度节点微调 */
-            .status-bar { 
-                flex-direction: column; 
-                align-items: flex-start; 
-                gap: 12px; 
-                padding: 14px 16px; 
+            .status-bar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+                padding: 12px 14px;
+                border-radius: 10px;
             }
-            #node-progress { gap: 6px; }
+            #node-progress { gap: 4px; }
+            .node-badge { padding: 4px 8px; font-size: 10px; border-radius: 16px; }
 
-            /* 5. 结果卡片：从 3列 改为 1列上下排列，并增加内部分块背景色区分 */
-            #result-card { 
-                grid-template-columns: 1fr; 
-                gap: 12px; 
-                padding: 16px; 
+            /* 5. 结果卡片：从 4列 改为 1列上下排列，并增加内部分块背景色区分 */
+            #result-card {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                padding: 14px;
+                border-radius: 12px;
             }
-            .result-item { 
-                display: flex; 
-                flex-direction: column; 
-                align-items: center; 
-                background: rgba(255,255,255,0.02); 
-                padding: 14px; 
-                border-radius: 12px; 
+            .result-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                background: rgba(255,255,255,0.03);
+                padding: 16px 12px;
+                border-radius: 10px;
             }
-            .result-value { font-size: 24px; margin: 4px 0; }
+            .result-label { font-size: 10px; margin-bottom: 8px; }
+            .result-value { font-size: 26px; margin: 2px 0; }
+            .result-meta { font-size: 11px; margin-top: 6px; }
 
             /* 6. AI 气泡与占位提示区 */
-            .ai-bubble { padding: 16px; }
+            .ai-bubble { padding: 14px 16px; border-radius: 12px; }
+            .bubble-label { font-size: 10px; margin-bottom: 8px; }
+            #typewriter-text { font-size: 13px; line-height: 1.7; }
+            .placeholder-hint { padding: 40px 20px; border-radius: 12px; }
+            .hint-icon { font-size: 36px; margin-bottom: 12px; }
+            .hint-text { font-size: 12px; line-height: 1.6; }
+
+            /* 7. 输出标签栏优化 */
+            .output-tabs { gap: 6px; }
+            .out-tab { padding: 8px 14px; font-size: 11px; border-radius: 16px; }
+
+            /* 8. 研报区域优化 */
+            #report-pane { padding: 16px 18px; border-radius: 12px; font-size: 13px; }
+            #report-pane h1 { font-size: 18px; margin-bottom: 10px; }
+            #report-pane h2 { font-size: 15px; margin: 18px 0 8px; padding-bottom: 4px; }
+            #report-pane table { margin: 8px 0; }
+            #report-pane th, #report-pane td { padding: 6px 8px; font-size: 12px; }
+
+            /* 9. 图表区域优化 */
+            #chart-pane { padding: 12px; border-radius: 12px; }
+            #finance-chart { height: 280px; }
+            .chart-card { padding: 16px; border-radius: 12px; margin-top: 16px; }
+            .chart-card-header { gap: 10px; margin-bottom: 12px; }
+            .chart-title { font-size: 13px; }
+            .chart-tab-group { gap: 4px; }
+            .chart-tab { padding: 6px 10px; font-size: 11px; border-radius: 16px; }
+            .chart-period { font-size: 10px; }
+
+            /* 10. 主营构成图优化 */
+            .comp-body { gap: 16px; flex-direction: column; }
+            .comp-legend { min-width: auto; gap: 6px; }
+            .comp-legend-item { padding: 6px 10px; border-radius: 6px; }
+            .comp-name { font-size: 12px; }
+            .comp-rev { font-size: 11px; min-width: 60px; }
+            .comp-pct { font-size: 12px; min-width: 40px; }
+            #comp-donut { width: 180px; height: 180px; }
+
+            /* 11. 业绩趋势图优化 */
+            #trend-chart { height: 280px; }
+
+            /* 12. 倒计时组件优化 */
+            .countdown-wrap { gap: 8px; }
+            .countdown-ring { width: 36px; height: 36px; }
+            .countdown-text { font-size: 10px; }
+            .countdown-label { font-size: 11px; }
+            .progress-bar-wrap { min-width: 60px; }
+
+            /* 13. 侧边栏优化 */
+            .sidebar { width: 280px; max-width: 90vw; padding: 24px 18px; }
+            .sidebar-header { margin-bottom: 24px; padding-bottom: 12px; }
+            .sidebar-header h2 { font-size: 16px; }
+            .sidebar-link { padding: 12px 16px; border-radius: 10px; font-size: 13px; }
+
+            /* 14. 搜索下拉优化 */
+            .dropdown-menu { border-radius: 8px; }
+            .dropdown-item { padding: 12px 14px; font-size: 12px; }
+            .di-symbol { min-width: 80px; font-size: 11px; }
+            .di-name { font-size: 12px; }
+            .di-type { font-size: 10px; padding: 2px 6px; }
+        }
+
+        /* 超小屏幕额外优化 */
+        @media (max-width: 480px) {
+            header { padding: 10px 12px; height: 56px; }
+            .logo-text { font-size: 16px; }
+            .logo-sub { display: none; } /* 隐藏副标题节省空间 */
+            nav { gap: 12px; }
+            nav a { font-size: 12px; }
+            main { padding: 12px 8px; margin-top: 56px; gap: 12px; }
+            .control-panel { padding: 16px 12px; }
+            .form-input { padding: 12px 14px; font-size: 13px; }
+            .market-tab { padding: 10px 6px; font-size: 11px; }
+            .analyze-btn { padding: 14px; font-size: 15px; }
+            #result-card { padding: 12px; }
+            .result-item { padding: 14px 10px; }
+            .result-value { font-size: 24px; }
+            .ai-bubble { padding: 12px 14px; }
+            #typewriter-text { font-size: 12px; }
             .placeholder-hint { padding: 30px 16px; }
-            .hint-text { font-size: 13px; }
+            .hint-text { font-size: 11px; }
+            #report-pane { padding: 14px 16px; font-size: 12px; }
+            .chart-card { padding: 14px; }
+            .comp-legend-item { padding: 5px 8px; }
+            .comp-name { font-size: 11px; }
+            .comp-rev, .comp-pct { font-size: 11px; }
+        }
+
+        /* 针对横屏模式的优化 */
+        @media (max-height: 500px) and (orientation: landscape) {
+            header { height: 48px; padding: 8px 16px; }
+            .logo-text { font-size: 16px; }
+            .logo-sub { display: none; }
+            main { margin-top: 48px; padding: 12px; }
+            .control-panel { padding: 14px; }
+            .panel-title { font-size: 14px; margin-bottom: 12px; }
+            .form-group { margin-bottom: 12px; }
+            .form-input { padding: 10px 12px; }
+            .analyze-btn { padding: 12px; }
+            #finance-chart, #trend-chart { height: 200px; }
         }
     </style>
 </head>
@@ -638,7 +745,7 @@
 </footer>
 
 <script>
-    const API_BASE = 'http://127.0.0.1:8000';
+    const API_BASE = 'http://8.156.85.111:8000';
     let currentMarket = 'A_STOCK';
     let analysisRunning = false;
     let _searchTimer   = null;
