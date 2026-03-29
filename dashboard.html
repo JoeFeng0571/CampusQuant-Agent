@@ -269,31 +269,141 @@
             .main-grid { grid-template-columns:1fr; }
         }
         @media(max-width:768px) {
-            header { padding:12px 16px; gap:16px; }
+            header { padding:12px 16px; gap:16px; height:60px; }
             .logo { flex-shrink:0; }
+            .logo-text { font-size:18px; }
+            .logo-sub { font-size:10px; }
             nav { flex:1; min-width:0; overflow-x:auto; flex-wrap:nowrap;
-                justify-content:flex-start; gap:20px;
+                justify-content:flex-start; gap:16px;
                 -webkit-overflow-scrolling:touch; padding-right:4px; }
             nav::-webkit-scrollbar { display:none; }
-            nav a { display:inline-block !important; flex-shrink:0; font-size:14px; }
+            nav a { display:inline-block !important; flex-shrink:0; font-size:13px; padding:8px 0; }
             .sidebar-btn { display:flex !important; position:sticky; right:0; flex-shrink:0;
                 background:rgba(11,15,25,.95); box-shadow:-12px 0 10px rgba(11,15,25,.95);
-                padding-left:8px; z-index:10; }
-            .dash-container { padding:80px 16px 40px; gap:18px; }
-            .welcome-card { flex-direction:column; padding:20px; }
+                padding-left:8px; z-index:10; width:36px; height:36px; }
+            .auth-widget { gap:8px; }
+            .auth-avatar { width:26px; height:26px; font-size:11px; }
+            .auth-name { font-size:12px; }
+            .auth-login-btn { font-size:12px; padding:3px 10px; }
+
+            .dash-container { padding:72px 12px 36px; gap:16px; }
+
+            /* Welcome Card */
+            .welcome-card { flex-direction:column; padding:18px; border-radius:16px; gap:12px; }
+            .welcome-left { gap:6px; }
+            .welcome-greeting { font-size:18px; }
+            .welcome-sub { font-size:13px; }
+            .welcome-badges { gap:6px; }
+            .badge { padding:3px 10px; font-size:11px; }
             .welcome-right { width:100%; }
-            .welcome-btn { width:100%; justify-content:center; }
-            .quick-nav-grid { grid-template-columns:repeat(3,1fr); gap:10px; }
-            .qnav-item { padding:14px 8px; }
-            .qnav-icon { font-size:22px; }
-            .qnav-label { font-size:12px; }
+            .welcome-btn { width:100%; justify-content:center; padding:10px 20px; font-size:13px; border-radius:10px; }
+
+            /* Quick Nav */
+            .quick-nav-grid { grid-template-columns:repeat(3,1fr); gap:8px; }
+            .qnav-item { padding:12px 6px; border-radius:12px; gap:8px; }
+            .qnav-icon { font-size:20px; }
+            .qnav-label { font-size:11px; }
             .qnav-desc { display:none; }
-            .acct-grid { grid-template-columns:1fr 1fr; }
-            .chat-panel { height:440px; }
+            .qnav-badge { font-size:9px; padding:1px 4px; }
+
+            /* Panels */
+            .panel { padding:16px; border-radius:12px; }
+            .panel-header { padding-bottom:10px; margin-bottom:12px; }
+            .panel-title { font-size:14px; }
+            .panel-action { font-size:11px; }
+
+            /* Market Tabs */
+            .mkt-tabs { gap:4px; margin-bottom:12px; }
+            .mkt-tab { padding:4px 10px; font-size:11px; border-radius:16px; }
+
+            /* Account Stats */
+            .acct-grid { grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+            .acct-stat { padding:12px; border-radius:10px; }
+            .acct-stat-label { font-size:10px; margin-bottom:4px; }
+            .acct-stat-value { font-size:16px; }
+            .acct-stat-sub { font-size:10px; margin-top:2px; }
+
+            /* Mini Table */
+            .mini-table th { padding:6px 4px; font-size:10px; }
+            .mini-table td { padding:6px 4px; font-size:12px; }
+
+            /* News */
+            .news-item { gap:8px; padding:10px 2px; }
+            .news-rank { width:18px; height:18px; font-size:10px; border-radius:4px; }
+            .news-title { font-size:12px; }
+            .news-src { font-size:10px; }
+
+            /* Chat Panel */
+            .chat-panel { height:400px; }
+            .quick-prompts { gap:4px; margin-bottom:8px; }
+            .qp-btn { padding:3px 8px; font-size:10px; border-radius:16px; }
+            .chat-messages { gap:8px; padding:2px 0 6px; }
+            .msg { gap:6px; max-width:95%; }
+            .msg-avatar { width:24px; height:24px; font-size:11px; }
+            .msg-bubble { padding:8px 10px; font-size:12px; border-radius:12px; }
+            .msg-time { font-size:9px; margin-top:2px; }
+            .chat-input-row { gap:6px; margin-top:8px; }
+            .chat-input { padding:8px 12px; font-size:12px; border-radius:10px; }
+            .chat-send { width:36px; height:36px; border-radius:10px; }
+
+            /* Footer */
+            footer { padding:16px; }
+            .footer-text { font-size:12px; line-height:1.6; }
         }
+
+        /* 超小屏幕优化 */
         @media(max-width:480px) {
-            .quick-nav-grid { grid-template-columns:repeat(2,1fr); }
-            .acct-grid { grid-template-columns:1fr; }
+            header { padding:10px 12px; height:56px; }
+            .logo-text { font-size:16px; }
+            .logo-sub { display:none; } /* 隐藏副标题节省空间 */
+            nav { gap:12px; }
+            nav a { font-size:12px; }
+            .dash-container { padding:68px 8px 32px; gap:12px; }
+
+            .welcome-card { padding:16px; }
+            .welcome-greeting { font-size:16px; }
+            .welcome-sub { font-size:12px; }
+            .badge { padding:2px 8px; font-size:10px; }
+
+            .quick-nav-grid { grid-template-columns:repeat(2,1fr); gap:6px; }
+            .qnav-item { padding:10px 4px; gap:6px; }
+            .qnav-icon { font-size:18px; }
+            .qnav-label { font-size:10px; }
+
+            .panel { padding:14px; }
+            .mkt-tab { padding:3px 8px; font-size:10px; }
+
+            .acct-grid { grid-template-columns:1fr; gap:6px; }
+            .acct-stat { padding:10px; }
+            .acct-stat-value { font-size:15px; }
+
+            .mini-table th, .mini-table td { padding:5px 3px; font-size:11px; }
+
+            .news-item { padding:8px 0; }
+            .news-rank { width:16px; height:16px; font-size:9px; }
+            .news-title { font-size:11px; }
+
+            .chat-panel { height:360px; }
+            .qp-btn { padding:2px 6px; font-size:9px; }
+            .msg-bubble { padding:6px 8px; font-size:11px; }
+            .chat-input { padding:7px 10px; font-size:11px; }
+            .chat-send { width:32px; height:32px; }
+
+            .footer-text { font-size:11px; }
+        }
+
+        /* 横屏模式优化 */
+        @media(max-height:500px) and (orientation:landscape) {
+            header { height:48px; padding:8px 16px; }
+            .logo-text { font-size:16px; }
+            .logo-sub { display:none; }
+            .dash-container { margin-top:48px; padding:56px 12px 24px; }
+            .welcome-card { padding:14px; }
+            .welcome-greeting { font-size:16px; }
+            .quick-nav-grid { gap:6px; }
+            .qnav-item { padding:8px 4px; }
+            .chat-panel { height:320px; }
+            footer { padding:12px; }
         }
     </style>
 </head>
@@ -475,7 +585,7 @@
 
 <script>
 'use strict';
-const API = 'http://localhost:8000';
+const API = 'http://8.156.85.111:8000';
 const CHAT_SK = 'cq_chat_history_v2';
 
 // ══════════════ SIDEBAR ══════════════
