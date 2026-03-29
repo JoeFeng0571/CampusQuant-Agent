@@ -23,18 +23,19 @@
         /* ══ NAV ══ */
         header { position:fixed; top:0; left:0; width:100%;
             display:flex; justify-content:space-between; align-items:center;
-            padding:16px 48px; background:rgba(11,15,25,0.78);
+            padding:12px 24px; background:rgba(11,15,25,0.78);
             backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
             border-bottom:1px solid var(--border); z-index:1000; }
-        .logo { display:flex; align-items:baseline; gap:8px; text-decoration:none; }
-        .logo-text { font-size:22px; font-weight:800;
+        .logo { display:flex; align-items:baseline; gap:6px; text-decoration:none; }
+        .logo-text { font-size:18px; font-weight:800;
             background:linear-gradient(90deg,#4facfe 0%,#00f2fe 100%);
-            -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:0.5px; }
-        .logo-sub { font-size:12px; color:var(--text-dim); }
-        nav { display:flex; gap:28px; align-items:center; }
-        nav a { text-decoration:none; color:var(--text-sub); font-size:14px; font-weight:500;
-            transition:all .25s; position:relative; }
-        nav a:hover, nav a.active { color:var(--secondary); text-shadow:0 0 8px rgba(0,242,254,.45); }
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+        .logo-sub { font-size:10px; color:var(--text-dim); }
+        nav { display:flex; gap:18px; align-items:center; flex-wrap:nowrap; overflow-x:auto; }
+        nav::-webkit-scrollbar { display:none; }
+        nav a { text-decoration:none; color:var(--text-sub); font-size:12px; font-weight:500;
+            transition:all .25s; position:relative; white-space:nowrap; }
+        nav a:hover, nav a.active { color:var(--secondary); }
         nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
             background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .3s; }
         nav a:hover::after, nav a.active::after { width:100%; }
@@ -43,7 +44,7 @@
             animation:blink-dot 2s ease-in-out infinite; }
         @keyframes blink-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
         .sidebar-btn { background:transparent; border:none; color:var(--text-sub);
-            cursor:pointer; display:flex; align-items:center; padding:4px; margin-left:10px; transition:color .3s; }
+            cursor:pointer; display:flex; align-items:center; padding:8px; margin-left:10px; transition:color .3s; }
         .sidebar-btn:hover { color:var(--secondary); }
 
         /* ══ SIDEBAR ══ */
@@ -61,7 +62,7 @@
         .sidebar-header { display:flex; justify-content:space-between; align-items:center;
             margin-bottom:30px; padding-bottom:16px; border-bottom:1px solid var(--border); }
         .sidebar-header h2 { font-size:18px; color:#fff; display:flex; align-items:center; gap:8px; }
-        .close-btn { background:none; border:none; color:var(--text-dim); font-size:28px; cursor:pointer; transition:color .2s; }
+        .close-btn { background:none; border:none; color:var(--text-dim); font-size:28px; cursor:pointer; transition:color .2s; padding:8px; }
         .close-btn:hover { color:var(--danger); }
         .sidebar-content { display:flex; flex-direction:column; gap:16px; }
         .sidebar-link { text-decoration:none; color:var(--text-sub); padding:14px 18px;
@@ -236,6 +237,166 @@
         @media(max-width:1100px) { .trade-grid { grid-template-columns:1fr; } }
         @media(max-width:900px)  { .page-wrap { padding:16px; } .mkt-header { gap:10px; } .mkt-acct-tab { min-width:150px; } }
         @media(max-width:600px)  { header { padding:12px 16px; } .mkt-acct-tab { min-width:120px; padding:14px; } .mat-cash { font-size:16px; } }
+
+        /* ══ 移动端深度优化 ══ */
+        @media (max-width: 768px) {
+            /* 导航栏优化 */
+            header { padding: 12px 16px; gap: 12px; }
+            .logo { flex-shrink: 0; }
+            .logo-text { font-size: 16px; }
+            .logo-sub { font-size: 9px; }
+            nav {
+                flex: 1;
+                min-width: 0;
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                justify-content: flex-start;
+                gap: 14px;
+                -webkit-overflow-scrolling: touch;
+                padding-right: 4px;
+            }
+            nav::-webkit-scrollbar { display: none; }
+            nav a { display: inline-block !important; flex-shrink: 0; font-size: 12px; }
+            .sidebar-btn {
+                display: flex !important;
+                position: sticky;
+                right: 0;
+                flex-shrink: 0;
+                background: rgba(11,15,25,0.95);
+                box-shadow: -12px 0 10px rgba(11,15,25,0.95);
+                padding-left: 8px;
+                z-index: 10;
+            }
+
+            /* 侧边栏优化 */
+            .sidebar {
+                width: 280px;
+                padding: 20px 16px;
+            }
+            .sidebar-header { margin-bottom: 20px; padding-bottom: 12px; }
+            .sidebar-header h2 { font-size: 16px; }
+            .sidebar-link { padding: 12px 14px; font-size: 13px; }
+
+            /* 页面主体 */
+            .page-wrap { padding: 16px; margin-top: 66px; gap: 16px; }
+
+            /* 市场账户标签 */
+            .mkt-header { gap: 8px; }
+            .mkt-acct-tab { min-width: 0; padding: 12px 10px; }
+            .mat-flag { font-size: 16px; }
+            .mat-name { font-size: 11px; gap: 4px; }
+            .mat-ccy { font-size: 9px; padding: 1px 4px; }
+            .mat-cash { font-size: 14px; }
+            .mat-init { font-size: 10px; }
+            .mat-pnl { font-size: 11px; }
+
+            /* 行情面板 */
+            .quote-panel { padding: 16px 18px; }
+            .panel-label { font-size: 10px; margin-bottom: 10px; }
+            .mkt-hint { font-size: 11px; padding: 4px 8px; margin-bottom: 10px; }
+            .quote-search { gap: 8px; margin-bottom: 16px; }
+            .quote-search input { padding: 8px 12px; font-size: 13px; }
+            .quote-search button { padding: 8px 16px; font-size: 12px; }
+
+            .price-display { gap: 12px; margin-bottom: 8px; }
+            .price-symbol { font-size: 12px; margin-bottom: 2px; }
+            .price-big { font-size: 36px; }
+            .price-meta { gap: 2px; }
+            .price-chg { font-size: 15px; }
+            .price-src { font-size: 10px; }
+            #price-timer { font-size: 10px; margin-top: 2px; }
+
+            /* K线图 */
+            .kline-section { margin-top: 14px; }
+            .kline-period-tabs { gap: 4px; margin-bottom: 8px; }
+            .kline-ptab { padding: 3px 8px; font-size: 11px; }
+            #trade-kline-chart { height: 300px; min-height: 300px; }
+
+            /* 下单面板 */
+            .order-panel { padding: 18px; }
+            .order-panel h3 { font-size: 14px; margin-bottom: 12px; }
+            .order-tabs { margin-bottom: 12px; }
+            .order-tab { padding: 8px; font-size: 12px; }
+            .form-row { margin-bottom: 10px; }
+            .form-label { font-size: 11px; margin-bottom: 4px; }
+            .form-input { padding: 8px 12px; font-size: 13px; }
+            .balance-hint { font-size: 10px; margin-top: 2px; }
+            .estimated-cost { padding: 8px 12px; margin-bottom: 10px; }
+            .est-label { font-size: 11px; }
+            .est-value { font-size: 13px; }
+            .btn-order { padding: 11px; font-size: 13px; }
+            #order-result { margin-top: 8px; padding: 8px 12px; font-size: 11px; }
+
+            /* 账户面板 */
+            .account-panel { padding: 18px; }
+            .account-header { margin-bottom: 12px; gap: 8px; }
+            .account-header h3 { font-size: 14px; }
+            .acct-sub-tab { padding: 3px 10px; font-size: 11px; }
+            .account-stats { gap: 16px; }
+            .stat-label { font-size: 10px; margin-bottom: 2px; }
+            .stat-value { font-size: 15px; }
+
+            /* 表格优化 */
+            thead th { font-size: 10px; padding: 6px 8px; }
+            tbody td { padding: 8px 8px; font-size: 12px; }
+            .td-sym { font-size: 11px; }
+            .quick-sell { padding: 3px 8px; font-size: 10px; }
+            .empty-pos { padding: 20px; font-size: 12px; }
+        }
+
+        /* 超小屏幕额外优化 */
+        @media (max-width: 480px) {
+            header { padding: 10px 12px; gap: 8px; }
+            .logo-text { font-size: 15px; }
+            .logo-sub { font-size: 8px; }
+            nav { gap: 12px; }
+            nav a { font-size: 11px; }
+
+            .page-wrap { padding: 12px; margin-top: 56px; }
+
+            /* 市场标签进一步压缩 */
+            .mkt-acct-tab { padding: 10px 8px; }
+            .mat-flag { font-size: 14px; }
+            .mat-name { font-size: 10px; }
+            .mat-cash { font-size: 13px; }
+
+            /* 行情显示优化 */
+            .price-big { font-size: 32px; }
+            .quote-panel, .order-panel, .account-panel { padding: 14px; }
+
+            /* 统计信息换行显示 */
+            .account-stats { flex-direction: column; gap: 12px; }
+            .stat-item { display: flex; justify-content: space-between; align-items: center; }
+
+            /* 表格字体进一步缩小 */
+            thead th { font-size: 9px; padding: 4px 6px; }
+            tbody td { padding: 6px 6px; font-size: 11px; }
+        }
+
+        /* 平板设备优化 */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .page-wrap { padding: 20px 24px; }
+            .trade-grid { gap: 16px; }
+            .mkt-header { gap: 12px; }
+            .mkt-acct-tab { padding: 16px 18px; }
+            .quote-panel, .order-panel, .account-panel { padding: 20px 24px; }
+        }
+
+        /* 优化触摸目标 */
+        @media (max-width: 768px) {
+            .mkt-acct-tab, .order-tab, .btn-order, .quick-sell, .kline-ptab, .acct-sub-tab, .sidebar-link {
+                min-height: 44px; /* 确保触摸目标足够大 */
+            }
+
+            /* 防止表格水平滚动 */
+            #pos-table-wrap, #orders-table-wrap {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            #pos-table-wrap table, #orders-table-wrap table {
+                min-width: 600px; /* 确保表格在小屏幕上可滚动 */
+            }
+        }
 
         footer { text-align:center; padding:20px; font-size:12px; color:var(--text-dim);
             border-top:1px solid var(--border); margin-top:auto; }
@@ -447,7 +608,7 @@
 
 <script>
 'use strict';
-const API_BASE = 'http://127.0.0.1:8000';
+const API_BASE = 'http://8.156.85.111:8000';
 
 // ══ 手数（每手股数）前端查询表 ════════════════════════════════
 // ── 最小交易手数：动态从后端查询，不再硬编码 ────────────────────
