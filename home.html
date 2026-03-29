@@ -207,7 +207,7 @@
         }
         footer a { color:var(--primary); text-decoration:none; }
         /* ══ 学习中心移动端深度优化 ════════════════════════════════════ */
-        
+
         @media (max-width: 900px) {
             /* 中等屏幕（平板等）：左右两栏变成上下单列布局 */
             .content-grid { grid-template-columns: 1fr; }
@@ -215,48 +215,142 @@
 
         @media (max-width: 768px) {
             /* 1. 导航栏：完美复用首页的横向滑动与吸附菜单体验 */
-            header { padding: 12px 16px; gap: 16px; }
+            header { padding: 12px 16px; gap: 16px; height: 60px; }
             .logo { flex-shrink: 0; }
+            .logo-text { font-size: 18px; }
+            .logo-sub { font-size: 10px; }
             nav {
                 flex: 1; min-width: 0; overflow-x: auto; flex-wrap: nowrap;
-                justify-content: flex-start; gap: 20px;
+                justify-content: flex-start; gap: 16px;
                 -webkit-overflow-scrolling: touch; padding-right: 4px;
             }
             nav::-webkit-scrollbar { display: none; }
-            nav a { display: inline-block !important; flex-shrink: 0; font-size: 14px; }
+            nav a { display: inline-block !important; flex-shrink: 0; font-size: 13px; padding: 8px 0; }
             .sidebar-btn {
                 display: flex !important; position: sticky; right: 0; flex-shrink: 0;
                 background: rgba(11,15,25,0.95); box-shadow: -12px 0 10px rgba(11,15,25,0.95);
-                padding-left: 8px; z-index: 10;
+                padding-left: 8px; z-index: 10; width: 36px; height: 36px;
             }
 
             /* 2. 页面主体释放空间：减小上边距和内边距 */
-            main { padding: 20px 16px; margin-top: 70px; }
-            .page-header { margin-bottom: 20px; }
-            .page-header h1 { font-size: 24px; margin-bottom: 4px; }
-            .page-header p { font-size: 13px; }
+            main { padding: 16px 12px; margin-top: 60px; }
+            .page-header { margin-bottom: 16px; }
+            .page-header h1 { font-size: 22px; margin-bottom: 4px; }
+            .page-header p { font-size: 12px; line-height: 1.4; }
 
             /* 3. 顶部数据摘要：改为竖向排列，防止挤压 */
-            .summary-row { grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px; }
-            .sum-card { padding: 16px; gap: 12px; }
-            .sum-icon { font-size: 28px; }
-            .sum-value { font-size: 20px; }
+            .summary-row { grid-template-columns: 1fr; gap: 10px; margin-bottom: 20px; }
+            .sum-card { padding: 16px; gap: 12px; border-radius: 12px; }
+            .sum-icon { font-size: 24px; }
+            .sum-value { font-size: 18px; }
+            .sum-label { font-size: 11px; }
 
             /* 4. 自选股表格：超宽时允许横向滑动保护排版 */
-            .watch-section { 
-                overflow-x: auto; 
-                -webkit-overflow-scrolling: touch; 
+            .watch-section {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                border-radius: 12px;
             }
-            table { 
-                min-width: 600px; /* 强制表格保持合适的宽度，触发父容器滚动 */ 
+            .section-header { padding: 14px 16px; }
+            .section-title { font-size: 14px; }
+            .btn-sm { padding: 4px 12px; font-size: 11px; border-radius: 16px; }
+            table {
+                min-width: 600px; /* 强制表格保持合适的宽度，触发父容器滚动 */
             }
-            thead th, tbody td { padding: 10px 12px; font-size: 13px; }
+            thead th {
+                padding: 8px 10px;
+                font-size: 10px;
+                letter-spacing: 0.2px;
+            }
+            tbody td {
+                padding: 10px;
+                font-size: 12px;
+            }
+            .td-sym { font-size: 13px; }
+            .td-name { font-size: 11px; }
+            .quick-action { font-size: 11px; gap: 4px; }
 
             /* 5. 侧边栏卡片微调 */
-            .right-col { gap: 16px; }
-            .quick-links { gap: 10px; }
-            .ql-btn { padding: 12px 8px; }
-            .prog-item, .hist-item { padding: 12px 14px; }
+            .right-col { gap: 12px; }
+
+            /* 6. 快速入口按钮 */
+            .quick-links { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+            .ql-btn { padding: 12px 6px; border-radius: 10px; gap: 4px; }
+            .ql-icon { font-size: 18px; }
+            .ql-text { font-size: 11px; }
+
+            /* 7. 进度卡片 */
+            .progress-card { border-radius: 12px; }
+            .prog-item { padding: 10px 14px; gap: 8px; }
+            .prog-icon { font-size: 14px; }
+            .prog-label { font-size: 12px; }
+            .prog-status { font-size: 10px; padding: 2px 6px; }
+
+            /* 8. 历史记录 */
+            .hist-item { padding: 10px 14px; }
+            .hist-sym { font-size: 12px; }
+            .hist-time { font-size: 10px; }
+            .hist-action { font-size: 11px; }
+            .hist-conf { font-size: 10px; }
+
+            /* 9. Footer */
+            footer { padding: 16px; margin-top: 20px; }
+        }
+
+        /* 超小屏幕优化 */
+        @media (max-width: 480px) {
+            header { padding: 10px 12px; height: 56px; }
+            .logo-text { font-size: 16px; }
+            .logo-sub { display: none; } /* 隐藏副标题节省空间 */
+            nav { gap: 12px; }
+            nav a { font-size: 12px; }
+            main { padding: 12px 8px; margin-top: 56px; }
+            .page-header h1 { font-size: 20px; }
+            .page-header p { font-size: 11px; }
+
+            .summary-row { gap: 8px; margin-bottom: 16px; }
+            .sum-card { padding: 14px; gap: 10px; }
+            .sum-icon { font-size: 22px; }
+            .sum-value { font-size: 16px; }
+            .sum-label { font-size: 10px; }
+
+            .watch-section .section-header { padding: 12px 14px; }
+            .btn-sm { padding: 3px 10px; font-size: 10px; }
+            thead th, tbody td { padding: 6px 8px; }
+            .td-sym { font-size: 12px; }
+            .td-name { font-size: 10px; }
+
+            .quick-links { gap: 6px; }
+            .ql-btn { padding: 10px 4px; }
+            .ql-icon { font-size: 16px; }
+            .ql-text { font-size: 10px; }
+
+            .prog-item { padding: 8px 12px; }
+            .prog-label { font-size: 11px; }
+            .prog-status { font-size: 9px; padding: 1px 4px; }
+
+            .hist-item { padding: 8px 12px; }
+            .hist-sym { font-size: 11px; }
+            .hist-action { font-size: 10px; }
+
+            footer { padding: 12px; }
+        }
+
+        /* 横屏模式优化 */
+        @media (max-height: 500px) and (orientation: landscape) {
+            header { height: 48px; padding: 8px 16px; }
+            .logo-text { font-size: 16px; }
+            .logo-sub { display: none; }
+            main { margin-top: 48px; padding: 12px; }
+            .page-header { margin-bottom: 12px; }
+            .page-header h1 { font-size: 18px; }
+            .summary-row { margin-bottom: 12px; }
+            .sum-card { padding: 12px; }
+            .sum-icon { font-size: 20px; }
+            .sum-value { font-size: 16px; }
+            .watch-section .section-header { padding: 10px 12px; }
+            .quick-links { gap: 6px; }
+            .ql-btn { padding: 8px 4px; }
         }
     </style>
 </head>
@@ -472,7 +566,7 @@
 
 <script>
     'use strict';
-    const API_BASE = 'http://127.0.0.1:8000';
+    const API_BASE = 'http://8.156.85.111:8000';
 
     // ── 持仓摘要：实时总市值 & 浮盈 ──────────────────────────────
     async function loadPortfolioSummary() {
