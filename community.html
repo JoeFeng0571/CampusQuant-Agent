@@ -3,14 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>投教社区 · CampusQuant 校园财商</title>
+    <title>我的控制台 - CampusQuant · 校园财商智能平台</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box;
             font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif; }
+
         :root {
             --primary:#4facfe; --secondary:#00f2fe; --accent:#a29bfe;
-            --danger:#fd79a8;  --success:#55efc4;  --warn:#fdcb6e;
-            --bg:#0b0f19; --card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.10);
+            --danger:#fd79a8;  --success:#55efc4;   --warn:#fdcb6e;
+            --bg:#0b0f19; --card:rgba(255,255,255,0.04);
+            --border:rgba(255,255,255,0.10);
             --text-dim:#718096; --text-sub:#a0aec0;
         }
         body {
@@ -21,273 +23,408 @@
                 radial-gradient(circle at 85% 28%,rgba(79,172,254,0.07),transparent 32%);
         }
 
-        /* ══ 导航栏 ══ */
+        /* ══ NAV ══ */
         header {
             position:fixed; top:0; left:0; width:100%;
             display:flex; justify-content:space-between; align-items:center;
-            padding:16px 48px; background:rgba(11,15,25,0.78);
+            padding:16px 48px;
+            background:rgba(11,15,25,0.78);
             backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
             border-bottom:1px solid var(--border); z-index:1000;
         }
-        .logo { display:flex; align-items:baseline; gap:8px; text-decoration:none; }
+        .logo { display:flex; align-items:baseline; gap:8px; cursor:pointer; }
         .logo-text { font-size:22px; font-weight:800;
             background:linear-gradient(90deg,#4facfe 0%,#00f2fe 100%);
-            -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:0.5px; }
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
         .logo-sub { font-size:12px; color:var(--text-dim); }
         nav { display:flex; gap:28px; align-items:center; }
         nav a { text-decoration:none; color:var(--text-sub); font-size:14px; font-weight:500;
-            transition:all 0.25s; position:relative; }
-        nav a:hover, nav a.active { color:var(--secondary); text-shadow:0 0 8px rgba(0,242,254,0.45); }
+            transition:all .25s; position:relative; }
+        nav a:hover, nav a.active { color:var(--secondary); text-shadow:0 0 8px rgba(0,242,254,.45); }
         nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
-            background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width 0.3s; }
-        nav a:hover::after, nav a.active::after { width:100%; }
-        /* 导航小红点标签 */
-        .nav-dot {
-            display:inline-block; width:6px; height:6px; background:var(--danger);
+            background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .3s; }
+        nav a:hover::after { width:100%; }
+        .nav-dot { display:inline-block; width:6px; height:6px; background:var(--danger);
             border-radius:50%; margin-left:4px; vertical-align:top; margin-top:2px;
-            animation:blink-dot 2s ease-in-out infinite;
-        }
-        @keyframes blink-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-
-        /* 侧边栏触发按钮 */
-        .sidebar-btn {
-            background:transparent; border:none; color:var(--text-sub);
-            cursor:pointer; display:flex; align-items:center; padding:4px;
-            margin-left:10px; transition:color 0.3s;
-        }
+            animation:blink-dot 2s ease-in-out infinite; }
+        @keyframes blink-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
+        .sidebar-btn { background:transparent; border:none; color:var(--text-sub);
+            cursor:pointer; display:flex; align-items:center; padding:4px; margin-left:10px; transition:color .3s; }
         .sidebar-btn:hover { color:var(--secondary); }
 
-        /* ══ 侧边栏及遮罩层样式 ══ */
-        .sidebar-overlay {
-            position:fixed; top:0; left:0; right:0; bottom:0;
-            background:rgba(0,0,0,0.5); backdrop-filter:blur(3px);
-            z-index:1999; opacity:0; visibility:hidden; transition:all 0.3s ease;
-        }
+        /* auth widget */
+        .auth-widget { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+        .auth-avatar { width:30px; height:30px; border-radius:50%;
+            background:linear-gradient(135deg,var(--primary),var(--accent));
+            display:flex; align-items:center; justify-content:center;
+            font-size:13px; font-weight:700; cursor:pointer; }
+        .auth-name { font-size:13px; color:var(--text-sub); }
+        .auth-login-btn { font-size:13px; color:var(--primary); text-decoration:none;
+            border:1px solid rgba(79,172,254,.4); padding:4px 12px; border-radius:20px;
+            transition:all .2s; }
+        .auth-login-btn:hover { background:rgba(79,172,254,.1); }
+
+        /* ══ SIDEBAR ══ */
+        .sidebar-overlay { position:fixed; top:0;left:0;right:0;bottom:0;
+            background:rgba(0,0,0,.5); backdrop-filter:blur(3px);
+            z-index:1999; opacity:0; visibility:hidden; transition:all .3s; }
         .sidebar-overlay.open { opacity:1; visibility:visible; }
-        .sidebar {
-            position:fixed; top:0; right:-320px; width:320px; max-width:85vw; height:100vh;
-            background:rgba(11, 15, 25, 0.95); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+        .sidebar { position:fixed; top:0; right:-320px; width:320px; max-width:85vw; height:100vh;
+            background:rgba(11,15,25,.95); backdrop-filter:blur(14px);
             border-left:1px solid var(--border); z-index:2000;
-            transition:right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display:flex; flex-direction:column; padding:30px 24px; box-shadow:-10px 0 30px rgba(0,0,0,0.5);
-        }
+            transition:right .3s cubic-bezier(.4,0,.2,1);
+            display:flex; flex-direction:column; padding:30px 24px;
+            box-shadow:-10px 0 30px rgba(0,0,0,.5); }
         .sidebar.open { right:0; }
-        .sidebar-header {
-            display:flex; justify-content:space-between; align-items:center;
-            margin-bottom:30px; padding-bottom:16px; border-bottom:1px solid var(--border);
-        }
+        .sidebar-header { display:flex; justify-content:space-between; align-items:center;
+            margin-bottom:30px; padding-bottom:16px; border-bottom:1px solid var(--border); }
         .sidebar-header h2 { font-size:18px; color:#fff; display:flex; align-items:center; gap:8px; }
-        .close-btn { background:none; border:none; color:var(--text-dim); font-size:28px; line-height:1; cursor:pointer; transition:color 0.2s; }
+        .close-btn { background:none; border:none; color:var(--text-dim); font-size:28px; cursor:pointer; transition:color .2s; }
         .close-btn:hover { color:var(--danger); }
         .sidebar-content { display:flex; flex-direction:column; gap:16px; }
-        .sidebar-link {
-            text-decoration:none; color:var(--text-sub); padding:14px 18px;
+        .sidebar-link { text-decoration:none; color:var(--text-sub); padding:14px 18px;
             background:var(--card); border:1px solid var(--border); border-radius:12px;
-            transition:all 0.25s ease; display:flex; align-items:center; justify-content:space-between; font-weight:500;
-        }
-        .sidebar-link:hover { background:rgba(79,172,254,0.1); border-color:rgba(79,172,254,0.3); color:var(--primary); transform:translateX(4px); }
-        .sidebar-link.featured { background:linear-gradient(135deg,rgba(79,172,254,0.15),rgba(0,242,254,0.05)); border-color:rgba(79,172,254,0.4); color:var(--secondary); }
-        .sidebar-link.featured:hover { background:linear-gradient(135deg,rgba(79,172,254,0.25),rgba(0,242,254,0.15)); box-shadow:0 4px 15px rgba(0,242,254,0.15); }
+            transition:all .25s; display:flex; align-items:center; justify-content:space-between; font-weight:500; }
+        .sidebar-link:hover { background:rgba(79,172,254,.1); border-color:rgba(79,172,254,.3);
+            color:var(--primary); transform:translateX(4px); }
+        .sidebar-link.featured { background:linear-gradient(135deg,rgba(79,172,254,.15),rgba(0,242,254,.05));
+            border-color:rgba(79,172,254,.4); color:var(--secondary); }
 
-        /* ══ 主体 ══ */
-        main { flex:1; margin-top:80px; padding:32px 48px; }
+        /* ══ FOOTER ══ */
+        footer { padding:24px; text-align:center; background:rgba(0,0,0,.28);
+            border-top:1px solid var(--border); margin-top:auto; }
+        .footer-text { color:var(--text-dim); font-size:13px; line-height:1.9; }
+        .footer-text a { color:var(--primary); text-decoration:none; }
 
-        .page-header { text-align:center; margin-bottom:40px; }
-        .page-header h1 { font-size:32px; font-weight:700; margin-bottom:10px; }
-        .page-header p { color:var(--text-sub); font-size:15px; max-width:560px; margin:0 auto; line-height:1.6; }
+        /* ══ PAGE LAYOUT ══ */
+        .dash-container { width:100%; max-width:1280px; margin:0 auto;
+            padding:96px 24px 48px; flex:1; display:flex; flex-direction:column; gap:24px; }
 
-        /* 学习资源四格 */
-        .resource-grid {
-            display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:32px;
+        /* ══ WELCOME CARD ══ */
+        .welcome-card {
+            background:linear-gradient(135deg,rgba(79,172,254,.12),rgba(0,242,254,.04));
+            border:1px solid rgba(79,172,254,.28); border-radius:20px;
+            padding:28px 32px; display:flex; justify-content:space-between; align-items:center; gap:16px;
         }
-        .res-card {
-            background:var(--card); border:1px solid var(--border);
-            border-radius:14px; padding:22px 18px; text-align:center;
-            transition:all 0.25s; cursor:pointer; text-decoration:none; color:inherit;
-            display:flex; flex-direction:column; align-items:center;
+        .welcome-left { display:flex; flex-direction:column; gap:8px; }
+        .welcome-greeting { font-size:22px; font-weight:700; color:#fff; }
+        .welcome-sub { font-size:14px; color:var(--text-sub); }
+        .welcome-badges { display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; }
+        .badge { display:inline-flex; align-items:center; gap:5px; padding:4px 12px;
+            border-radius:20px; font-size:12px; font-weight:500; }
+        .badge-date { background:rgba(79,172,254,.15); color:var(--primary);
+            border:1px solid rgba(79,172,254,.3); }
+        .badge-status { background:rgba(85,239,196,.12); color:var(--success);
+            border:1px solid rgba(85,239,196,.3); }
+        .badge-tip { background:rgba(253,203,110,.12); color:var(--warn);
+            border:1px solid rgba(253,203,110,.3); }
+        .welcome-right { flex-shrink:0; }
+        .welcome-btn {
+            display:inline-flex; align-items:center; gap:8px; padding:12px 24px;
+            background:linear-gradient(90deg,var(--primary),var(--secondary));
+            border:none; border-radius:12px; color:#0b0f19; font-weight:700; font-size:14px;
+            cursor:pointer; text-decoration:none; transition:opacity .2s;
         }
-        .res-card:hover { transform:translateY(-5px); border-color:rgba(79,172,254,0.35);
-            box-shadow:0 10px 28px rgba(0,242,254,0.10); }
-        .res-icon { font-size:36px; margin-bottom:12px; }
-        .res-title { font-size:15px; font-weight:700; color:#fff; margin-bottom:6px; }
-        .res-desc { font-size:12px; color:var(--text-sub); line-height:1.5; }
+        .welcome-btn:hover { opacity:.85; }
 
-        /* 主内容两栏 */
-        .content-grid { display:grid; grid-template-columns:1fr 300px; gap:24px; align-items:start; }
+        /* ══ QUICK NAV GRID ══ */
+        .quick-nav-grid {
+            display:grid; grid-template-columns:repeat(6,1fr); gap:14px;
+        }
+        .qnav-item {
+            background:var(--card); border:1px solid var(--border); border-radius:16px;
+            padding:20px 12px; text-align:center; text-decoration:none;
+            display:flex; flex-direction:column; align-items:center; gap:10px;
+            transition:all .25s; cursor:pointer;
+        }
+        .qnav-item:hover {
+            background:rgba(79,172,254,.08); border-color:rgba(79,172,254,.35);
+            transform:translateY(-3px); box-shadow:0 8px 24px rgba(79,172,254,.12);
+        }
+        .qnav-icon { font-size:28px; line-height:1; }
+        .qnav-label { font-size:13px; font-weight:600; color:#e2e8f0; }
+        .qnav-desc { font-size:11px; color:var(--text-dim); }
+        .qnav-badge { background:rgba(253,121,168,.2); color:var(--danger);
+            font-size:10px; padding:1px 6px; border-radius:8px; }
 
-        /* 帖子列表 */
-        .posts-section {
-            background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden;
-        }
-        .section-header {
-            padding:18px 24px; border-bottom:1px solid var(--border);
-            display:flex; justify-content:space-between; align-items:center;
-        }
-        .section-title { font-size:16px; font-weight:700; }
-        .filter-tabs { display:flex; gap:8px; }
-        .filter-btn {
-            padding:4px 12px; border-radius:16px; font-size:12px; font-weight:600;
-            border:1px solid var(--border); color:var(--text-sub); cursor:pointer;
-            background:transparent; transition:all 0.2s;
-        }
-        .filter-btn.active { border-color:var(--primary); color:var(--primary); background:rgba(79,172,254,0.09); }
+        /* ══ MAIN GRID ══ */
+        .main-grid { display:grid; grid-template-columns:1fr 380px; gap:20px; align-items:start; }
 
-        .post-list { padding:8px 0; }
-        .post-item {
-            padding:16px 24px; border-bottom:1px solid rgba(255,255,255,0.04);
-            cursor:pointer; transition:background 0.2s;
-        }
-        .post-item:last-child { border-bottom:none; }
-        .post-item:hover { background:rgba(79,172,254,0.04); }
-        .post-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
-        .post-title { font-size:15px; font-weight:600; color:#fff; line-height:1.4; flex:1; }
-        .post-meta { display:flex; align-items:center; gap:14px; }
-        .post-author { font-size:12px; color:var(--text-dim); }
-        .post-time { font-size:12px; color:var(--text-dim); }
-        .post-excerpt { font-size:13px; color:var(--text-sub); line-height:1.5; margin-bottom:10px; }
-        .post-footer { display:flex; align-items:center; gap:12px; }
-        .post-tag {
-            padding:2px 9px; border-radius:5px; font-size:11px; font-weight:600;
-        }
-        .tag-learn    { background:rgba(79,172,254,0.15); color:var(--primary); }
-        .tag-analysis { background:rgba(85,239,196,0.15); color:var(--success); }
-        .tag-risk     { background:rgba(253,203,110,0.15); color:var(--warn); }
-        .tag-exp      { background:rgba(162,155,254,0.15); color:var(--accent); }
-        .post-stats { font-size:12px; color:var(--text-dim); display:flex; gap:12px; margin-left:auto; }
+        /* ══ PANEL ══ */
+        .panel { background:var(--card); border:1px solid var(--border); border-radius:16px;
+            padding:20px; display:flex; flex-direction:column; }
+        .panel-header { display:flex; justify-content:space-between; align-items:center;
+            margin-bottom:16px; padding-bottom:12px;
+            border-bottom:1px solid rgba(255,255,255,.05); }
+        .panel-title { font-size:15px; font-weight:600; color:#e2e8f0; display:flex; align-items:center; gap:8px; }
+        .panel-action { font-size:12px; color:var(--primary); text-decoration:none;
+            cursor:pointer; transition:opacity .2s; background:none; border:none; }
+        .panel-action:hover { opacity:.75; }
 
-        /* 侧边栏 */
-        .sidebar { display:flex; flex-direction:column; gap:16px; }
-        .side-card {
-            background:var(--card); border:1px solid var(--border);
-            border-radius:14px; overflow:hidden;
-        }
-        .side-header { padding:14px 18px; border-bottom:1px solid var(--border); font-size:14px; font-weight:700; }
-        .side-body { padding:14px 18px; }
+        /* ══ PORTFOLIO TABS ══ */
+        .mkt-tabs { display:flex; gap:6px; margin-bottom:16px; }
+        .mkt-tab { padding:5px 14px; border-radius:20px; font-size:12px; font-weight:600;
+            cursor:pointer; border:1px solid var(--border);
+            background:transparent; color:var(--text-sub); transition:all .2s; }
+        .mkt-tab.active { background:rgba(79,172,254,.18); border-color:rgba(79,172,254,.5);
+            color:var(--primary); }
+        .mkt-tab:hover:not(.active) { border-color:rgba(255,255,255,.2); color:#fff; }
 
-        /* 学习路径 */
-        .path-list { list-style:none; display:flex; flex-direction:column; gap:10px; }
-        .path-item { display:flex; align-items:center; gap:10px; font-size:13px; cursor:pointer; transition:color 0.2s; }
-        .path-item:hover { color:var(--secondary); }
-        .path-num {
-            width:22px; height:22px; border-radius:50%; flex-shrink:0;
-            background:linear-gradient(135deg,var(--primary),var(--secondary));
+        .acct-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:14px; }
+        .acct-stat { background:rgba(0,0,0,.2); border-radius:12px; padding:14px;
+            border:1px solid rgba(255,255,255,.05); }
+        .acct-stat-label { font-size:11px; color:var(--text-dim); margin-bottom:5px; }
+        .acct-stat-value { font-size:18px; font-weight:700; color:#fff; }
+        .acct-stat-sub { font-size:11px; color:var(--text-sub); margin-top:3px; }
+        .txt-up { color:var(--success) !important; }
+        .txt-down { color:var(--danger) !important; }
+        .txt-neutral { color:var(--warn) !important; }
+
+        /* position mini table */
+        .mini-table { width:100%; border-collapse:collapse; }
+        .mini-table th { font-size:11px; color:var(--text-dim); font-weight:500;
+            padding:8px 6px; border-bottom:1px solid var(--border); text-align:left; }
+        .mini-table td { padding:8px 6px; font-size:13px; color:#e2e8f0;
+            border-bottom:1px solid rgba(255,255,255,.03); }
+        .mini-table tr:last-child td { border-bottom:none; }
+        .mini-table .sym { font-weight:600; color:var(--primary); }
+
+        /* ══ FLASH NEWS ══ */
+        .news-list { display:flex; flex-direction:column; gap:0; }
+        .news-item { display:flex; gap:12px; padding:11px 4px;
+            border-bottom:1px solid rgba(255,255,255,.04); text-decoration:none;
+            transition:background .2s; }
+        .news-item:last-child { border-bottom:none; }
+        .news-item:hover { background:rgba(255,255,255,.02); border-radius:8px; }
+        .news-rank { width:20px; height:20px; border-radius:6px; flex-shrink:0;
             display:flex; align-items:center; justify-content:center;
-            font-size:11px; font-weight:700; color:#0b0f19;
+            font-size:11px; font-weight:700; background:rgba(79,172,254,.15);
+            color:var(--primary); margin-top:1px; }
+        .news-rank.r1 { background:rgba(253,121,168,.2); color:var(--danger); }
+        .news-rank.r2 { background:rgba(253,203,110,.15); color:var(--warn); }
+        .news-rank.r3 { background:rgba(85,239,196,.12); color:var(--success); }
+        .news-body { flex:1; min-width:0; }
+        .news-title { font-size:13px; color:#e2e8f0; line-height:1.45; overflow:hidden;
+            display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+        .news-src { font-size:11px; color:var(--text-dim); margin-top:3px; }
+        .news-src span { display:inline-block; margin-right:8px; }
+
+        /* ══ CHAT WIDGET ══ */
+        .chat-panel { display:flex; flex-direction:column; height:560px; }
+        .chat-panel .panel-header { flex-shrink:0; }
+        .chat-messages { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px;
+            padding:4px 0 8px; scrollbar-width:thin;
+            scrollbar-color:rgba(255,255,255,.08) transparent; }
+        .chat-messages::-webkit-scrollbar { width:4px; }
+        .chat-messages::-webkit-scrollbar-thumb { background:rgba(255,255,255,.1); border-radius:2px; }
+        .msg { display:flex; gap:8px; max-width:90%; }
+        .msg.user { align-self:flex-end; flex-direction:row-reverse; }
+        .msg-avatar { width:28px; height:28px; border-radius:50%; flex-shrink:0;
+            display:flex; align-items:center; justify-content:center; font-size:13px; }
+        .msg.bot .msg-avatar { background:linear-gradient(135deg,var(--primary),var(--accent)); }
+        .msg.user .msg-avatar { background:linear-gradient(135deg,var(--accent),var(--danger)); }
+        .msg-bubble { padding:9px 13px; border-radius:14px; font-size:13px; line-height:1.55; }
+        .msg.bot .msg-bubble { background:rgba(79,172,254,.1); border:1px solid rgba(79,172,254,.2);
+            color:#e2e8f0; border-top-left-radius:4px; }
+        .msg.user .msg-bubble { background:rgba(162,155,254,.15); border:1px solid rgba(162,155,254,.25);
+            color:#e2e8f0; border-top-right-radius:4px; }
+        .msg-time { font-size:10px; color:var(--text-dim); margin-top:4px;
+            text-align:right; padding:0 2px; }
+        .chat-input-row { display:flex; gap:8px; margin-top:12px; flex-shrink:0; }
+        .chat-input { flex:1; background:rgba(255,255,255,.05); border:1px solid var(--border);
+            border-radius:12px; padding:10px 14px; color:#fff; font-size:13px; outline:none;
+            transition:border-color .2s; }
+        .chat-input:focus { border-color:rgba(79,172,254,.5); }
+        .chat-input::placeholder { color:var(--text-dim); }
+        .chat-send { background:linear-gradient(90deg,var(--primary),var(--secondary));
+            border:none; border-radius:12px; width:40px; height:40px; cursor:pointer;
+            display:flex; align-items:center; justify-content:center;
+            color:#0b0f19; transition:opacity .2s; flex-shrink:0; }
+        .chat-send:hover { opacity:.85; }
+        .chat-send:disabled { opacity:.45; cursor:default; }
+        .typing-indicator { display:none; padding:9px 13px; }
+        .typing-indicator.show { display:flex; gap:4px; align-items:center; }
+        .typing-dot { width:6px; height:6px; border-radius:50%; background:var(--primary);
+            animation:typing-bounce .9s infinite; }
+        .typing-dot:nth-child(2) { animation-delay:.2s; }
+        .typing-dot:nth-child(3) { animation-delay:.4s; }
+        @keyframes typing-bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+        /* quick prompts */
+        .quick-prompts { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; flex-shrink:0; }
+        .qp-btn { background:rgba(79,172,254,.08); border:1px solid rgba(79,172,254,.2);
+            color:var(--primary); font-size:11px; padding:4px 10px; border-radius:20px;
+            cursor:pointer; transition:all .2s; }
+        .qp-btn:hover { background:rgba(79,172,254,.18); }
+
+        /* skeleton */
+        .skel { background:linear-gradient(90deg,rgba(255,255,255,.03) 25%,rgba(255,255,255,.06) 50%,rgba(255,255,255,.03) 75%);
+            background-size:400% 100%; border-radius:4px;
+            animation:pulse-bg 1.5s infinite; }
+        @keyframes pulse-bg { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+
+        /* ══ RESPONSIVE ══ */
+        @media(max-width:1100px) {
+            .quick-nav-grid { grid-template-columns:repeat(3,1fr); }
+            .main-grid { grid-template-columns:1fr; }
         }
-        .path-text { color:var(--text-sub); }
-        .path-item:hover .path-text { color:var(--secondary); }
+        @media(max-width:768px) {
+            header { padding:12px 16px; gap:16px; height:60px; }
+            .logo { flex-shrink:0; }
+            .logo-text { font-size:18px; }
+            .logo-sub { font-size:10px; }
+            nav { flex:1; min-width:0; overflow-x:auto; flex-wrap:nowrap;
+                justify-content:flex-start; gap:16px;
+                -webkit-overflow-scrolling:touch; padding-right:4px; }
+            nav::-webkit-scrollbar { display:none; }
+            nav a { display:inline-block !important; flex-shrink:0; font-size:13px; padding:8px 0; }
+            .sidebar-btn { display:flex !important; position:sticky; right:0; flex-shrink:0;
+                background:rgba(11,15,25,.95); box-shadow:-12px 0 10px rgba(11,15,25,.95);
+                padding-left:8px; z-index:10; width:36px; height:36px; }
+            .auth-widget { gap:8px; }
+            .auth-avatar { width:26px; height:26px; font-size:11px; }
+            .auth-name { font-size:12px; }
+            .auth-login-btn { font-size:12px; padding:3px 10px; }
 
-        /* 热门话题 */
-        .topic-tags { display:flex; flex-wrap:wrap; gap:8px; }
-        .topic-tag {
-            padding:5px 12px; border-radius:20px; font-size:12px;
-            border:1px solid var(--border); color:var(--text-sub); cursor:pointer; transition:all 0.2s;
+            .dash-container { padding:72px 12px 36px; gap:16px; }
+
+            /* Welcome Card */
+            .welcome-card { flex-direction:column; padding:18px; border-radius:16px; gap:12px; }
+            .welcome-left { gap:6px; }
+            .welcome-greeting { font-size:18px; }
+            .welcome-sub { font-size:13px; }
+            .welcome-badges { gap:6px; }
+            .badge { padding:3px 10px; font-size:11px; }
+            .welcome-right { width:100%; }
+            .welcome-btn { width:100%; justify-content:center; padding:10px 20px; font-size:13px; border-radius:10px; }
+
+            /* Quick Nav */
+            .quick-nav-grid { grid-template-columns:repeat(3,1fr); gap:8px; }
+            .qnav-item { padding:12px 6px; border-radius:12px; gap:8px; }
+            .qnav-icon { font-size:20px; }
+            .qnav-label { font-size:11px; }
+            .qnav-desc { display:none; }
+            .qnav-badge { font-size:9px; padding:1px 4px; }
+
+            /* Panels */
+            .panel { padding:16px; border-radius:12px; }
+            .panel-header { padding-bottom:10px; margin-bottom:12px; }
+            .panel-title { font-size:14px; }
+            .panel-action { font-size:11px; }
+
+            /* Market Tabs */
+            .mkt-tabs { gap:4px; margin-bottom:12px; }
+            .mkt-tab { padding:4px 10px; font-size:11px; border-radius:16px; }
+
+            /* Account Stats */
+            .acct-grid { grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+            .acct-stat { padding:12px; border-radius:10px; }
+            .acct-stat-label { font-size:10px; margin-bottom:4px; }
+            .acct-stat-value { font-size:16px; }
+            .acct-stat-sub { font-size:10px; margin-top:2px; }
+
+            /* Mini Table */
+            .mini-table th { padding:6px 4px; font-size:10px; }
+            .mini-table td { padding:6px 4px; font-size:12px; }
+
+            /* News */
+            .news-item { gap:8px; padding:10px 2px; }
+            .news-rank { width:18px; height:18px; font-size:10px; border-radius:4px; }
+            .news-title { font-size:12px; }
+            .news-src { font-size:10px; }
+
+            /* Chat Panel */
+            .chat-panel { height:400px; }
+            .quick-prompts { gap:4px; margin-bottom:8px; }
+            .qp-btn { padding:3px 8px; font-size:10px; border-radius:16px; }
+            .chat-messages { gap:8px; padding:2px 0 6px; }
+            .msg { gap:6px; max-width:95%; }
+            .msg-avatar { width:24px; height:24px; font-size:11px; }
+            .msg-bubble { padding:8px 10px; font-size:12px; border-radius:12px; }
+            .msg-time { font-size:9px; margin-top:2px; }
+            .chat-input-row { gap:6px; margin-top:8px; }
+            .chat-input { padding:8px 12px; font-size:12px; border-radius:10px; }
+            .chat-send { width:36px; height:36px; border-radius:10px; }
+
+            /* Footer */
+            footer { padding:16px; }
+            .footer-text { font-size:12px; line-height:1.6; }
         }
-        .topic-tag:hover { border-color:var(--secondary); color:var(--secondary); }
 
-        /* 大学生守则卡 */
-        .rules-card {
-            background:linear-gradient(135deg,rgba(79,172,254,0.08),rgba(0,242,254,0.05));
-            border:1px solid rgba(79,172,254,0.2); border-radius:16px; padding:24px; margin-top:24px;
+        /* 超小屏幕优化 */
+        @media(max-width:480px) {
+            header { padding:10px 12px; height:56px; }
+            .logo-text { font-size:16px; }
+            .logo-sub { display:none; } /* 隐藏副标题节省空间 */
+            nav { gap:12px; }
+            nav a { font-size:12px; }
+            .dash-container { padding:68px 8px 32px; gap:12px; }
+
+            .welcome-card { padding:16px; }
+            .welcome-greeting { font-size:16px; }
+            .welcome-sub { font-size:12px; }
+            .badge { padding:2px 8px; font-size:10px; }
+
+            .quick-nav-grid { grid-template-columns:repeat(2,1fr); gap:6px; }
+            .qnav-item { padding:10px 4px; gap:6px; }
+            .qnav-icon { font-size:18px; }
+            .qnav-label { font-size:10px; }
+
+            .panel { padding:14px; }
+            .mkt-tab { padding:3px 8px; font-size:10px; }
+
+            .acct-grid { grid-template-columns:1fr; gap:6px; }
+            .acct-stat { padding:10px; }
+            .acct-stat-value { font-size:15px; }
+
+            .mini-table th, .mini-table td { padding:5px 3px; font-size:11px; }
+
+            .news-item { padding:8px 0; }
+            .news-rank { width:16px; height:16px; font-size:9px; }
+            .news-title { font-size:11px; }
+
+            .chat-panel { height:360px; }
+            .qp-btn { padding:2px 6px; font-size:9px; }
+            .msg-bubble { padding:6px 8px; font-size:11px; }
+            .chat-input { padding:7px 10px; font-size:11px; }
+            .chat-send { width:32px; height:32px; }
+
+            .footer-text { font-size:11px; }
         }
-        .rules-title { font-size:16px; font-weight:700; margin-bottom:16px; }
-        .rules-list { list-style:none; display:flex; flex-direction:column; gap:8px; }
-        .rules-list li { font-size:13px; color:var(--text-sub); line-height:1.5;
-            display:flex; gap:8px; align-items:flex-start; }
-        .rules-list li::before { content:'✓'; color:var(--success); font-weight:700; flex-shrink:0; }
 
-        /* ══ 页脚 ══ */
-        footer {
-            padding:18px; text-align:center; background:rgba(0,0,0,0.3);
-            border-top:1px solid var(--border); color:var(--text-dim); font-size:13px; margin-top:24px;
-        }
-        footer a { color:var(--primary); text-decoration:none; }
-        /* ══ 投教社区移动端深度优化 ════════════════════════════════════ */
-        
-        @media (max-width: 900px) {
-            /* 中等屏幕：右侧边栏掉到底部，资源卡片变成 2x2 排列 */
-            .content-grid { grid-template-columns: 1fr; }
-            .resource-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-
-        @media (max-width: 768px) {
-            /* 1. 导航栏：复用咱们调好的横向滑动与吸附菜单神仙体验 */
-            header { padding: 12px 16px; gap: 16px; }
-            .logo { flex-shrink: 0; }
-            nav {
-                flex: 1; min-width: 0; overflow-x: auto; flex-wrap: nowrap;
-                justify-content: flex-start; gap: 20px;
-                -webkit-overflow-scrolling: touch; padding-right: 4px;
-            }
-            nav::-webkit-scrollbar { display: none; }
-            nav a { display: inline-block !important; flex-shrink: 0; font-size: 14px; }
-            .sidebar-btn {
-                display: flex !important; position: sticky; right: 0; flex-shrink: 0;
-                background: rgba(11,15,25,0.95); box-shadow: -12px 0 10px rgba(11,15,25,0.95);
-                padding-left: 8px; z-index: 10;
-            }
-
-            /* 2. 页面主体释放空间 */
-            main { padding: 20px 16px; margin-top: 70px; }
-            .page-header { margin-bottom: 24px; }
-            .page-header h1 { font-size: 24px; margin-bottom: 8px; }
-            .page-header p { font-size: 13px; padding: 0 10px; }
-
-            /* 3. 学习资源卡片：手机上变成单列，且图标和文字左右横向排布，节省高度 */
-            .resource-grid { grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px; }
-            .res-card { 
-                flex-direction: row; /* 从上下结构改为左右结构 */
-                text-align: left; 
-                padding: 16px; 
-                gap: 16px; 
-            }
-            .res-icon { margin-bottom: 0; font-size: 28px; flex-shrink: 0; }
-            .res-title { font-size: 15px; margin-bottom: 4px; }
-            .res-desc { font-size: 12px; }
-
-            /* 4. 帖子列表：允许底部元信息（时间、作者、点赞）自然换行 */
-            .content-grid { gap: 20px; }
-            .section-header { padding: 14px 16px; }
-            .post-item { padding: 16px; }
-            .post-title { font-size: 15px; margin-bottom: 8px; }
-            .post-excerpt { font-size: 13px; margin-bottom: 12px; }
-            .post-footer { 
-                flex-wrap: wrap; /* 核心：空间不够时自动换行，不硬挤 */
-                gap: 10px; 
-            }
-            .post-meta { gap: 10px; }
-            .post-stats { margin-left: auto; } /* 确保点赞和评论始终靠右 */
-
-            /* 5. 侧边栏卡片及底部守则微调 */
-            .side-header { padding: 12px 16px; }
-            .side-body { padding: 12px 16px; }
-            .rules-card { padding: 16px; margin-top: 20px; }
-            .rules-title { font-size: 15px; margin-bottom: 12px; }
-            .rules-list li { font-size: 12px; margin-bottom: 8px; }
+        /* 横屏模式优化 */
+        @media(max-height:500px) and (orientation:landscape) {
+            header { height:48px; padding:8px 16px; }
+            .logo-text { font-size:16px; }
+            .logo-sub { display:none; }
+            .dash-container { margin-top:48px; padding:56px 12px 24px; }
+            .welcome-card { padding:14px; }
+            .welcome-greeting { font-size:16px; }
+            .quick-nav-grid { gap:6px; }
+            .qnav-item { padding:8px 4px; }
+            .chat-panel { height:320px; }
+            footer { padding:12px; }
         }
     </style>
 </head>
 <body>
 
 <header>
-    <a href="dashboard.html" class="logo">
+    <div class="logo" onclick="location.href='dashboard.html'">
         <span class="logo-text">CampusQuant</span>
         <span class="logo-sub">校园财商</span>
-    </a>
+    </div>
     <nav>
-        <a href="dashboard.html">仪表盘</a>
+        <a href="dashboard.html" class="active">控制台</a>
         <a href="trade.html">模拟演练<span class="nav-dot"></span></a>
         <a href="analysis.html">个股分析</a>
         <a href="market.html">市场快讯</a>
-        <a href="community.html" class="active">投教社区</a>
+        <a href="community.html">投教社区</a>
         <a href="team.html">关于我们</a>
         <div id="auth-widget" style="display:flex;align-items:center;gap:8px;margin-left:8px;flex-shrink:0;"></div>
-
-        <button id="sidebar-toggle" class="sidebar-btn" title="打开学习中心">
+        <button id="sidebar-toggle" class="sidebar-btn" title="学习中心">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="3" y1="12" x2="21" y2="12"></line>
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <line x1="3" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
         </button>
     </nav>
@@ -298,427 +435,479 @@
     <div class="sidebar-header">
         <h2>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
             </svg>
             校园财商库
         </h2>
         <button id="sidebar-close" class="close-btn">&times;</button>
     </div>
     <div class="sidebar-content">
-        <a href="home.html" class="sidebar-link featured">
-            <span>📚 进入学习中心</span>
-            <span>→</span>
-        </a>
-        <a href="#" class="sidebar-link">
-            <span>📈 基础财商课程</span>
-        </a>
-        <a href="#" class="sidebar-link">
-            <span>🛡️ 大学生防骗指南</span>
-        </a>
-        <a href="#" class="sidebar-link">
-            <span>💡 投资策略锦囊</span>
-        </a>
-        <a href="#" class="sidebar-link">
-            <span>📝 我的模拟笔记</span>
-        </a>
+        <a href="home.html" class="sidebar-link featured"><span>📚 进入学习中心</span><span>→</span></a>
+        <a href="#" class="sidebar-link"><span>📈 基础财商课程</span></a>
+        <a href="#" class="sidebar-link"><span>🛡️ 大学生防骗指南</span></a>
+        <a href="#" class="sidebar-link"><span>💡 投资策略锦囊</span></a>
+        <a href="resources.html" class="sidebar-link"><span>📝 学习资源库</span></a>
     </div>
 </aside>
 
-<main>
-    <div class="page-header">
-        <h1>投教社区</h1>
-        <p>学习 A股、港股、美股基础知识，与同学交流投资心得，共同养成理性财商思维。</p>
-    </div>
+<main class="dash-container">
 
-    <!-- 四大学习资源入口 -->
-    <div class="resource-grid">
-        <a href="resources.html" class="res-card">
-            <div class="res-icon">📚</div>
-            <div class="res-title">入门指南</div>
-            <div class="res-desc">A股开户、港股打新、美股券商选择全攻略</div>
-        </a>
-        <a href="resources.html" class="res-card">
-            <div class="res-icon">📊</div>
-            <div class="res-title">基础分析</div>
-            <div class="res-desc">财务报表解读、PE/PB估值方法、技术形态入门</div>
-        </a>
-        <a href="resources.html" class="res-card">
-            <div class="res-icon">🛡</div>
-            <div class="res-title">风险守则</div>
-            <div class="res-desc">止损原则、仓位管理、大学生投资红线规范</div>
-        </a>
-        <a href="trade.html" class="res-card">
-            <div class="res-icon">🤖</div>
-            <div class="res-title">AI 模拟演练</div>
-            <div class="res-desc">让 AI 分析你选中的股票，学习多维度研判逻辑</div>
-        </a>
-    </div>
-
-    <!-- 主内容 -->
-    <div class="content-grid">
-        <!-- 帖子列表 -->
-        <div class="posts-section">
-            <div class="section-header">
-                <div class="section-title">讨论广场</div>
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <div class="filter-tabs">
-                        <button class="filter-btn active" data-sort="latest" onclick="filterPosts(this,'latest')">最新</button>
-                        <button class="filter-btn" data-sort="featured" onclick="filterPosts(this,'featured')">精选</button>
-                        <button class="filter-btn" data-sort="qa" onclick="filterPosts(this,'qa')">问答</button>
-                    </div>
-                    <button onclick="openPostModal()" style="padding:4px 14px;border-radius:16px;font-size:12px;font-weight:600;border:1px solid var(--primary);color:var(--primary);background:rgba(79,172,254,0.08);cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(79,172,254,0.18)'" onmouseout="this.style.background='rgba(79,172,254,0.08)'">＋ 发帖</button>
-                </div>
-            </div>
-            <div class="post-list" id="post-list">
-                <div style="text-align:center;padding:32px;color:var(--text-dim);font-size:13px;">加载中…</div>
-            </div>
-            <div id="post-load-more" style="text-align:center;padding:16px;display:none;">
-                <button onclick="loadMorePosts()" style="background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text-sub);font-size:13px;padding:8px 24px;cursor:pointer;">加载更多</button>
+    <!-- ① WELCOME CARD -->
+    <div class="welcome-card">
+        <div class="welcome-left">
+            <div class="welcome-greeting" id="welcome-text">欢迎回来 👋</div>
+            <div class="welcome-sub" id="welcome-sub">今天是个学习的好日子，你的模拟账户在等你</div>
+            <div class="welcome-badges">
+                <span class="badge badge-date" id="badge-date">📅 --</span>
+                <span class="badge badge-status" id="badge-status">✅ 账户健康</span>
+                <span class="badge badge-tip" id="badge-tip">💡 建议今日复盘</span>
             </div>
         </div>
-
-        <!-- 侧边栏 -->
-        <div class="sidebar">
-            <!-- 学习路径 -->
-            <div class="side-card">
-                <div class="side-header">📖 推荐学习路径</div>
-                <div class="side-body">
-                    <ul class="path-list">
-                        <li class="path-item">
-                            <div class="path-num">1</div>
-                            <div class="path-text">A股市场结构与开户</div>
-                        </li>
-                        <li class="path-item">
-                            <div class="path-num">2</div>
-                            <div class="path-text">财务报表基础解读</div>
-                        </li>
-                        <li class="path-item">
-                            <div class="path-num">3</div>
-                            <div class="path-text">PE/PB 估值入门</div>
-                        </li>
-                        <li class="path-item">
-                            <div class="path-num">4</div>
-                            <div class="path-text">技术分析：均线与量价</div>
-                        </li>
-                        <li class="path-item">
-                            <div class="path-num">5</div>
-                            <div class="path-text">仓位管理与止损策略</div>
-                        </li>
-                        <li class="path-item">
-                            <div class="path-num">6</div>
-                            <div class="path-text">港股/美股入门指南</div>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- 热门话题 -->
-            <div class="side-card">
-                <div class="side-header">🔥 热门话题</div>
-                <div class="side-body">
-                    <div class="topic-tags">
-                        <span class="topic-tag">#价值投资</span>
-                        <span class="topic-tag">#止损技巧</span>
-                        <span class="topic-tag">#指数基金</span>
-                        <span class="topic-tag">#A股打新</span>
-                        <span class="topic-tag">#港股通</span>
-                        <span class="topic-tag">#美股入门</span>
-                        <span class="topic-tag">#量化学习</span>
-                        <span class="topic-tag">#财报解读</span>
-                        <span class="topic-tag">#白酒板块</span>
-                        <span class="topic-tag">#新能源</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 快速导航 -->
-            <div class="side-card">
-                <div class="side-header">⚡ 快速入口</div>
-                <div class="side-body" style="display:flex;flex-direction:column;gap:10px">
-                    <a href="trade.html" style="text-decoration:none;color:var(--primary);font-size:13px">→ 开始 AI 模拟演练</a>
-
-                    <a href="market.html" style="text-decoration:none;color:var(--primary);font-size:13px">→ 查看市场快讯</a>
-                    <a href="resources.html" style="text-decoration:none;color:var(--primary);font-size:13px">→ 学习资源库</a>
-                </div>
-            </div>
+        <div class="welcome-right">
+            <a href="trade.html" class="welcome-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                开始模拟交易
+            </a>
         </div>
     </div>
 
-    <!-- 大学生守则 -->
-    <div class="rules-card">
-        <div class="rules-title">🎓 大学生投资守则（共同遵守，理性财商）</div>
-        <ul class="rules-list">
-            <li>单只股票仓位不超过可投资资金的 15%，分散持有，降低集中风险。</li>
-            <li>绝不动用生活费、学费、助学金投资，只用闲置资金进行模拟或小额练习。</li>
-            <li>每笔买入必须设定止损位（建议 -8% 至 -10%），达到止损立即执行。</li>
-            <li>不追求短线暴利，不参与高杠杆产品（融资融券、期货、期权等）。</li>
-            <li>定期复盘交易记录，总结盈亏原因，把每次失误当成付费学习。</li>
-        </ul>
+    <!-- ② QUICK NAV GRID -->
+    <div class="quick-nav-grid">
+        <a href="trade.html" class="qnav-item">
+            <div class="qnav-icon">📊</div>
+            <div class="qnav-label">模拟演练</div>
+            <div class="qnav-desc">三市场交易大厅</div>
+        </a>
+        <a href="analysis.html" class="qnav-item">
+            <div class="qnav-icon">🔍</div>
+            <div class="qnav-label">个股分析</div>
+            <div class="qnav-desc">AI 9节点深析</div>
+        </a>
+
+        <a href="market.html" class="qnav-item">
+            <div class="qnav-icon">📰</div>
+            <div class="qnav-label">市场快讯</div>
+            <div class="qnav-desc">热搜 & K线图</div>
+        </a>
+        <a href="community.html" class="qnav-item">
+            <div class="qnav-icon">💬</div>
+            <div class="qnav-label">投教社区</div>
+            <div class="qnav-desc">学员交流广场</div>
+        </a>
+        <a href="home.html" class="qnav-item">
+            <div class="qnav-icon">🎓</div>
+            <div class="qnav-label">学习中心</div>
+            <div class="qnav-desc">财商知识库</div>
+        </a>
     </div>
+
+    <!-- ③ MAIN GRID: left=portfolio+news, right=chat -->
+    <div class="main-grid">
+
+        <!-- LEFT COLUMN -->
+        <div style="display:flex;flex-direction:column;gap:20px;">
+
+            <!-- Portfolio mini card -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">💼 我的模拟资产</div>
+                    <a href="trade.html" class="panel-action">查看全部 →</a>
+                </div>
+                <div class="mkt-tabs">
+                    <button class="mkt-tab active" data-mkt="ALL" onclick="switchMkt(this,'ALL')">全部</button>
+                    <button class="mkt-tab" data-mkt="A" onclick="switchMkt(this,'A')">A股 (CNH)</button>
+                    <button class="mkt-tab" data-mkt="HK" onclick="switchMkt(this,'HK')">港股 (HKD)</button>
+                    <button class="mkt-tab" data-mkt="US" onclick="switchMkt(this,'US')">美股 (USD)</button>
+                </div>
+                <div class="acct-grid" id="acct-stats">
+                    <div class="acct-stat"><div class="acct-stat-label">总资产 (折合CNY)</div><div class="acct-stat-value skel" style="height:24px;width:80%">&nbsp;</div><div class="acct-stat-sub">–</div></div>
+                    <div class="acct-stat"><div class="acct-stat-label">可用资金</div><div class="acct-stat-value skel" style="height:24px;width:60%">&nbsp;</div><div class="acct-stat-sub">–</div></div>
+                    <div class="acct-stat"><div class="acct-stat-label">持仓市值</div><div class="acct-stat-value skel" style="height:24px;width:70%">&nbsp;</div><div class="acct-stat-sub">–</div></div>
+                </div>
+                <div style="overflow-x:auto">
+                    <table class="mini-table" id="mini-pos-table">
+                        <thead><tr><th>标的</th><th>持仓</th><th>成本</th><th>浮盈亏</th><th>市值</th></tr></thead>
+                        <tbody id="mini-pos-body"><tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px">加载中...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Flash news -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">⚡ 快讯热搜</div>
+                    <a href="market.html" class="panel-action">更多资讯 →</a>
+                </div>
+                <div class="news-list" id="news-list">
+                    <div style="text-align:center;color:var(--text-dim);padding:20px;font-size:13px">加载中...</div>
+                </div>
+            </div>
+
+        </div><!-- /LEFT COLUMN -->
+
+        <!-- RIGHT COLUMN: 财商学长 chat -->
+        <div class="panel chat-panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    财商学长 AI
+                </div>
+                <button class="panel-action" onclick="clearChat()">清空对话</button>
+            </div>
+            <div class="quick-prompts">
+                <button class="qp-btn" onclick="quickAsk('什么是ETF定投？')">ETF定投</button>
+                <button class="qp-btn" onclick="quickAsk('如何控制仓位风险？')">仓位管理</button>
+                <button class="qp-btn" onclick="quickAsk('分析一下我的持仓')">持仓分析</button>
+                <button class="qp-btn" onclick="quickAsk('A股入门怎么学？')">A股入门</button>
+            </div>
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-input-row">
+                <input type="text" class="chat-input" id="chat-input"
+                    placeholder="问学长任何财商问题…" maxlength="300"
+                    onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}" />
+                <button class="chat-send" id="chat-send-btn" onclick="sendChat()" title="发送">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+            </div>
+        </div><!-- /RIGHT COLUMN -->
+
+    </div><!-- /MAIN GRID -->
+
 </main>
 
-<!-- 发帖 Modal -->
-<div id="post-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:3000;align-items:center;justify-content:center;">
-    <div style="background:rgba(15,20,35,0.98);border:1px solid var(--border);border-radius:20px;padding:32px 36px;width:100%;max-width:540px;margin:16px;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
-            <h3 style="font-size:18px;">✍️ 发布帖子</h3>
-            <button onclick="closePostModal()" style="background:none;border:none;color:var(--text-dim);font-size:26px;cursor:pointer;line-height:1;">&times;</button>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:16px;">
-            <div>
-                <label style="font-size:12px;color:var(--text-sub);display:block;margin-bottom:6px;">标题</label>
-                <input id="post-title" type="text" maxlength="200" placeholder="一个吸引人的标题…" style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:10px;color:#fff;font-size:14px;outline:none;">
-            </div>
-            <div>
-                <label style="font-size:12px;color:var(--text-sub);display:block;margin-bottom:6px;">标签</label>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;" id="tag-selector">
-                    <button class="tag-sel active" data-tag="learn"    onclick="selectTag(this)" style="padding:5px 14px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--primary);color:var(--primary);background:rgba(79,172,254,0.12);">基础知识</button>
-                    <button class="tag-sel" data-tag="analysis" onclick="selectTag(this)" style="padding:5px 14px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--text-sub);background:transparent;">深度分析</button>
-                    <button class="tag-sel" data-tag="risk"     onclick="selectTag(this)" style="padding:5px 14px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--text-sub);background:transparent;">风险警示</button>
-                    <button class="tag-sel" data-tag="exp"      onclick="selectTag(this)" style="padding:5px 14px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--text-sub);background:transparent;">实战分享</button>
-                </div>
-            </div>
-            <div>
-                <label style="font-size:12px;color:var(--text-sub);display:block;margin-bottom:6px;">正文</label>
-                <textarea id="post-content" rows="6" placeholder="分享你的投资心得、学习笔记或疑问…" style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:10px;color:#fff;font-size:13px;outline:none;resize:vertical;line-height:1.6;"></textarea>
-            </div>
-            <div id="post-modal-msg" style="display:none;padding:8px 12px;border-radius:8px;font-size:13px;text-align:center;"></div>
-            <button onclick="submitPost()" id="btn-post-submit" style="padding:12px;border-radius:12px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;font-size:14px;font-weight:700;">发 布</button>
-        </div>
-    </div>
-</div>
-
 <footer>
-    &copy; 2026 CampusQuant 校园财商 &nbsp;|&nbsp;
-    投教社区 · 共同学习，理性投资 &nbsp;|&nbsp;
-    <a href="team.html">关于我们</a>
+    <div class="footer-text">
+        &copy; 2026 CampusQuant Team &nbsp;·&nbsp; 校园财商智能分析平台<br>
+        致力于用 AI 帮助每位大学生建立正确的财富认知<br>
+        <a href="team.html">关于团队</a> &nbsp;·&nbsp; <a href="community.html">加入社区</a>
+    </div>
 </footer>
 
 <script>
-    'use strict';
-    const API_BASE = 'http://127.0.0.1:8000';
+'use strict';
+const API = 'http://8.156.85.111:8000';
+const CHAT_SK = 'cq_chat_history_v2';
 
-    function navigateTo(url, replace = false) {
-        const isShellRoute = /(?:^|\/)(dashboard|trade|analysis|platforms|market|community|team|resources|home|auth)\.html(?:[?#].*)?$/i.test(String(url));
-        if (isShellRoute && window.CQShell && typeof window.CQShell.navigate === 'function') {
-            window.CQShell.navigate(url, { replace });
-        } else if (replace) {
-            location.replace(url);
-        } else {
-            location.href = url;
-        }
+// ══════════════ SIDEBAR ══════════════
+const sidebar        = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebar-overlay');
+document.getElementById('sidebar-toggle').addEventListener('click', () => {
+    sidebar.classList.add('open'); sidebarOverlay.classList.add('open');
+    document.body.style.overflow='hidden';
+});
+document.getElementById('sidebar-close').addEventListener('click', closeSidebar);
+sidebarOverlay.addEventListener('click', closeSidebar);
+function closeSidebar() {
+    sidebar.classList.remove('open'); sidebarOverlay.classList.remove('open');
+    document.body.style.overflow='';
+}
+
+// ══════════════ AUTH WIDGET ══════════════
+function renderAuthWidget() {
+    const token = localStorage.getItem('cq_token');
+    const name  = localStorage.getItem('cq_username') || '用户';
+    const el    = document.getElementById('auth-widget');
+    if (token) {
+        el.innerHTML = `
+            <div class="auth-avatar" title="${name}">${name[0].toUpperCase()}</div>
+            <span class="auth-name">${name}</span>
+            <button onclick="logout()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px">退出</button>`;
+        document.getElementById('welcome-text').textContent = `欢迎回来，${name} 👋`;
+    } else {
+        el.innerHTML = `<a href="auth.html?redirect=dashboard.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(79,172,254,.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
     }
+}
+function logout() {
+    localStorage.removeItem('cq_token'); localStorage.removeItem('cq_username');
+    location.reload();
+}
 
-    // ══ 认证辅助 ═══════════════════════════════════════════════
-    function getToken()    { return localStorage.getItem('cq_token') || ''; }
-    function getUsername() { return localStorage.getItem('cq_username') || ''; }
-    function authHeaders(json = true) {
-        const h = json ? { 'Content-Type': 'application/json' } : {};
-        const t = getToken();
-        if (t) h['Authorization'] = 'Bearer ' + t;
-        return h;
+// ══════════════ WELCOME DATE ══════════════
+function renderWelcome() {
+    const now = new Date();
+    const days = ['周日','周一','周二','周三','周四','周五','周六'];
+    const dateStr = `${now.getMonth()+1}月${now.getDate()}日 ${days[now.getDay()]}`;
+    document.getElementById('badge-date').textContent = `📅 ${dateStr}`;
+    const h = now.getHours();
+    let sub = h < 10 ? '早安！开市前先看看热榜' : h < 13 ? '上午好！趁午休复盘一下' : h < 18 ? '下午好！看看今日涨跌' : '晚上好！整理今日操作';
+    document.getElementById('welcome-sub').textContent = sub;
+}
+
+// ══════════════ ACCOUNT DATA ══════════════
+let _acctData = null;
+let _curMkt = 'ALL';
+
+async function loadAccount() {
+    try {
+        const headers = {};
+        const tok = localStorage.getItem('cq_token');
+        if (tok) headers['Authorization'] = 'Bearer ' + tok;
+        const r = await fetch(`${API}/api/v1/trade/account`, { headers });
+        if (!r.ok) throw new Error(r.status);
+        _acctData = await r.json();
+        renderAcct(_acctData, _curMkt);
+    } catch(e) {
+        renderAcctOffline();
     }
-    function renderAuthWidget() {
-        const w = document.getElementById('auth-widget');
-        const u = getUsername();
-        if (u) {
-            w.innerHTML = `<span style="font-size:12px;color:var(--text-sub);">👤 ${u}</span>
-                <button onclick="logout()" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;
-        } else {
-            w.innerHTML = `<a href="auth.html?redirect=community.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
-        }
-    }
-    function logout() {
-        ['cq_token','cq_username','cq_user_id'].forEach(k => localStorage.removeItem(k));
-        renderAuthWidget();
-    }
+}
 
-    // ══ 侧边栏 ═════════════════════════════════════════════════
-    const sidebar        = document.getElementById('sidebar');
-    const sidebarOverlay = document.getElementById('sidebar-overlay');
-    const sidebarToggle  = document.getElementById('sidebar-toggle');
-    const sidebarClose   = document.getElementById('sidebar-close');
+function switchMkt(btn, mkt) {
+    document.querySelectorAll('.mkt-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    _curMkt = mkt;
+    if (_acctData) renderAcct(_acctData, mkt);
+}
 
-    function openSidebar()  { sidebar.classList.add('open'); sidebarOverlay.classList.add('open'); document.body.style.overflow='hidden'; }
-    function closeSidebar() { sidebar.classList.remove('open'); sidebarOverlay.classList.remove('open'); document.body.style.overflow=''; }
+function fmtNum(n, dec=2) { return n == null ? '--' : n.toLocaleString('zh-CN',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+function clsForNum(n) { return n > 0 ? 'txt-up' : n < 0 ? 'txt-down' : 'txt-neutral'; }
 
-    sidebarToggle.addEventListener('click', openSidebar);
-    sidebarClose.addEventListener('click', closeSidebar);
-    sidebarOverlay.addEventListener('click', closeSidebar);
+function renderAcct(data, mkt) {
+    const grid = document.getElementById('acct-stats');
+    const ccy  = { ALL:'CNY', A:'CNH', HK:'HKD', US:'USD' };
+    const unit = ccy[mkt] || 'CNY';
 
-    // ══ 帖子加载 ═══════════════════════════════════════════════
-    let _currentSort   = 'latest';
-    let _currentOffset = 0;
-    const PAGE_SIZE    = 20;
+    // pick market slice
+    const src = (mkt === 'ALL') ? data : (data.markets || {})[mkt] || {};
+    const total     = src.total_assets ?? data.total_assets_cny ?? 0;
+    const cash      = src.cash ?? 0;
+    const positions_val = src.positions_value ?? (total - cash);
+    const pnl_pct   = src.total_pnl_pct ?? data.total_pnl_pct ?? 0;
 
-    const TAG_MAP = {
-        learn:    { label:'基础知识', cls:'tag-learn' },
-        analysis: { label:'深度分析', cls:'tag-analysis' },
-        risk:     { label:'风险警示', cls:'tag-risk' },
-        exp:      { label:'实战分享', cls:'tag-exp' },
-    };
-
-    function timeAgo(isoStr) {
-        const diff = (Date.now() - new Date(isoStr)) / 1000;
-        if (diff < 60)   return '刚刚';
-        if (diff < 3600) return Math.floor(diff/60) + '分钟前';
-        if (diff < 86400)return Math.floor(diff/3600) + '小时前';
-        if (diff < 172800) return '昨天';
-        return new Date(isoStr).toLocaleDateString('zh-CN',{month:'2-digit',day:'2-digit'});
-    }
-
-    function renderPost(p) {
-        const tag  = TAG_MAP[p.tag] || TAG_MAP['learn'];
-        return `<div class="post-item" onclick="openPostDetail(${p.id})">
-            <div class="post-top">
-                <div class="post-title">${escHtml(p.title)}</div>
-            </div>
-            <div class="post-excerpt">${escHtml(p.excerpt || '')}</div>
-            <div class="post-footer">
-                <span class="post-tag ${tag.cls}">${tag.label}</span>
-                <div class="post-meta">
-                    <span class="post-author">📍 @${escHtml(p.author)}</span>
-                    <span class="post-time">${timeAgo(p.created_at)}</span>
-                </div>
-                <div class="post-stats">
-                    <span onclick="event.stopPropagation();likePost(${p.id},this)" data-liked="${p.liked}" style="cursor:pointer;" title="点赞">${p.liked?'❤️':'👍'} ${p.like_count}</span>
-                    <span>💬 ${p.comment_count||0}</span>
-                </div>
-            </div>
+    grid.innerHTML = `
+        <div class="acct-stat">
+            <div class="acct-stat-label">总资产 (${unit})</div>
+            <div class="acct-stat-value">${fmtNum(total)}</div>
+            <div class="acct-stat-sub ${clsForNum(pnl_pct)}">${pnl_pct>=0?'+':''}${fmtNum(pnl_pct,2)}%</div>
+        </div>
+        <div class="acct-stat">
+            <div class="acct-stat-label">可用资金</div>
+            <div class="acct-stat-value">${fmtNum(cash)}</div>
+            <div class="acct-stat-sub">${unit}</div>
+        </div>
+        <div class="acct-stat">
+            <div class="acct-stat-label">持仓市值</div>
+            <div class="acct-stat-value">${fmtNum(positions_val)}</div>
+            <div class="acct-stat-sub">${unit}</div>
         </div>`;
+
+    // positions table
+    const allPos = data.positions || [];
+    const filtered = mkt === 'ALL' ? allPos : allPos.filter(p => (p.market_type||'').toUpperCase() === mkt);
+    const tbody = document.getElementById('mini-pos-body');
+    if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px">暂无持仓 · <a href="trade.html" style="color:var(--primary)">去交易</a></td></tr>`;
+        return;
     }
+    tbody.innerHTML = filtered.slice(0,6).map(p => {
+        const pnl = p.unrealized_pnl ?? 0;
+        return `<tr>
+            <td><span class="sym">${p.symbol}</span></td>
+            <td>${p.quantity ?? '--'}</td>
+            <td>${fmtNum(p.avg_cost,3)}</td>
+            <td class="${clsForNum(pnl)}">${pnl>=0?'+':''}${fmtNum(pnl)}</td>
+            <td>${fmtNum(p.market_value)}</td>
+        </tr>`;
+    }).join('');
+}
 
-    function escHtml(s) {
-        return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
+function renderAcctOffline() {
+    document.getElementById('acct-stats').innerHTML = `
+        <div class="acct-stat"><div class="acct-stat-label">A股 (CNH)</div><div class="acct-stat-value">100,000.00</div><div class="acct-stat-sub">初始资金</div></div>
+        <div class="acct-stat"><div class="acct-stat-label">港股 (HKD)</div><div class="acct-stat-value">100,000.00</div><div class="acct-stat-sub">初始资金</div></div>
+        <div class="acct-stat"><div class="acct-stat-label">美股 (USD)</div><div class="acct-stat-value">10,000.00</div><div class="acct-stat-sub">初始资金</div></div>`;
+    document.getElementById('mini-pos-body').innerHTML =
+        `<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px">后端未连接 · <a href="trade.html" style="color:var(--primary)">去交易</a></td></tr>`;
+}
 
-    async function loadPosts(reset = true) {
-        if (reset) _currentOffset = 0;
-        const wrap = document.getElementById('post-list');
-        if (reset) wrap.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-dim);font-size:13px;">加载中…</div>';
+// ══════════════ FLASH NEWS ══════════════
+async function loadNews() {
+    const el = document.getElementById('news-list');
+    try {
+        const r = await fetch(`${API}/api/v1/market/hotnews`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const raw = await r.json();
+        // 兼容两种格式: 直接 list 或 {sources:[...]} wrapper
+        const srcList = Array.isArray(raw) ? raw : (raw.sources || []);
+        console.log('[dashboard] hotnews sources:', srcList.length, srcList);
 
-        try {
-            const url = `${API_BASE}/api/v1/community/posts?sort=${_currentSort}&limit=${PAGE_SIZE}&offset=${_currentOffset}`;
-            const resp = await fetch(url, { headers: authHeaders(false) });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const data = await resp.json();
-
-            if (reset) wrap.innerHTML = '';
-            if (!data.posts.length && reset) {
-                wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px;">暂无帖子，成为第一个发帖的同学吧！</div>';
-            } else {
-                wrap.insertAdjacentHTML('beforeend', data.posts.map(renderPost).join(''));
-                _currentOffset += data.posts.length;
+        // 扁平化: 每个来源取前2条，总共取8条
+        const items = [];
+        for (const src of srcList.slice(0, 4)) {
+            for (const item of (src.items || []).slice(0, 2)) {
+                items.push({ ...item, label: src.label, color: src.color });
+                if (items.length >= 8) break;
             }
-            document.getElementById('post-load-more').style.display = data.posts.length === PAGE_SIZE ? 'block' : 'none';
-        } catch(e) {
-            if (reset) wrap.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-dim);font-size:13px;">加载失败（请确认后端已启动）：${e.message}</div>`;
+            if (items.length >= 8) break;
         }
+        if (!items.length) throw new Error('empty response');
+        el.innerHTML = items.map((item, i) => {
+            const rk = i < 3 ? `r${i+1}` : '';
+            return `<a href="${item.url}" target="_blank" rel="noopener" class="news-item">
+                <div class="news-rank ${rk}">${i+1}</div>
+                <div class="news-body">
+                    <div class="news-title">${item.title}</div>
+                    <div class="news-src"><span style="color:${item.color||'var(--primary)'}">${item.label||''}</span></div>
+                </div>
+            </a>`;
+        }).join('');
+    } catch(e) {
+        console.warn('[dashboard] loadNews error:', e);
+        el.innerHTML = `<div style="text-align:center;color:var(--text-dim);padding:20px;font-size:13px">
+            暂时无法获取快讯 · <a href="market.html" style="color:var(--primary)">前往市场页</a></div>`;
     }
+}
 
-    function loadMorePosts() { loadPosts(false); }
+// ══════════════ CHAT ══════════════
+const MENTOR_INTRO = {
+    role:'bot',
+    text:'你好！我是财商学长 AI 🎓\n\n我能帮你解答股票投资、风险管理、财务规划等各类财商问题。点击下方快捷问题开始，或者直接输入你的问题！',
+    time: fmtTime(new Date())
+};
 
-    function filterPosts(btn, sort) {
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        _currentSort = sort;
-        loadPosts(true);
-    }
+let _chatHistory = [];
 
-    async function likePost(postId, span) {
-        if (!getToken()) { navigateTo('auth.html?redirect=community.html'); return; }
-        try {
-            const resp = await fetch(`${API_BASE}/api/v1/community/posts/${postId}/like`, {
-                method: 'POST', headers: authHeaders(),
-            });
-            if (!resp.ok) return;
-            const data = await resp.json();
-            span.dataset.liked = data.liked ? 'true' : 'false';
-            span.innerHTML     = `${data.liked?'❤️':'👍'} ${data.like_count}`;
-        } catch(e) { console.warn('点赞失败:', e); }
-    }
+function fmtTime(d) {
+    return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+}
 
-    function openPostDetail(postId) {
-        navigateTo(`post_detail.html?id=${postId}`);
-    }
+function loadChatHistory() {
+    try {
+        const saved = localStorage.getItem(CHAT_SK);
+        _chatHistory = saved ? JSON.parse(saved) : [MENTOR_INTRO];
+    } catch(e) { _chatHistory = [MENTOR_INTRO]; }
+    renderAllMessages();
+}
 
-    // ══ 发帖 Modal ══════════════════════════════════════════════
-    let _selectedTag = 'learn';
+function saveChatHistory() {
+    // keep last 40 messages to avoid localStorage bloat
+    const trimmed = _chatHistory.slice(-40);
+    _chatHistory = trimmed;
+    localStorage.setItem(CHAT_SK, JSON.stringify(trimmed));
+}
 
-    function openPostModal() {
-        if (!getToken()) { navigateTo('auth.html?redirect=community.html'); return; }
-        document.getElementById('post-modal-overlay').style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-    }
-    function closePostModal() {
-        document.getElementById('post-modal-overlay').style.display = 'none';
-        document.body.style.overflow = '';
-        document.getElementById('post-modal-msg').style.display = 'none';
-    }
-    function selectTag(btn) {
-        document.querySelectorAll('.tag-sel').forEach(b => {
-            b.style.borderColor = 'var(--border)';
-            b.style.color       = 'var(--text-sub)';
-            b.style.background  = 'transparent';
-            b.classList.remove('active');
+function renderAllMessages() {
+    const container = document.getElementById('chat-messages');
+    container.innerHTML = _chatHistory.map(renderMsgHTML).join('');
+    scrollChatBottom();
+}
+
+function renderMsgHTML(msg) {
+    const cls = msg.role === 'user' ? 'user' : 'bot';
+    const avatar = msg.role === 'user'
+        ? (localStorage.getItem('cq_username')||'U')[0].toUpperCase()
+        : '🎓';
+    const text = (msg.text||'').replace(/\n/g,'<br>');
+    return `<div class="msg ${cls}">
+        <div class="msg-avatar">${avatar}</div>
+        <div>
+            <div class="msg-bubble">${text}</div>
+            <div class="msg-time">${msg.time||''}</div>
+        </div>
+    </div>`;
+}
+
+function appendMsg(msg) {
+    _chatHistory.push(msg);
+    const container = document.getElementById('chat-messages');
+    container.insertAdjacentHTML('beforeend', renderMsgHTML(msg));
+    scrollChatBottom();
+    saveChatHistory();
+}
+
+function scrollChatBottom() {
+    const c = document.getElementById('chat-messages');
+    c.scrollTop = c.scrollHeight;
+}
+
+function showTyping() {
+    const container = document.getElementById('chat-messages');
+    const el = document.createElement('div');
+    el.className = 'msg bot'; el.id = 'typing-msg';
+    el.innerHTML = `<div class="msg-avatar">🎓</div>
+        <div class="msg-bubble typing-indicator show">
+            <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+        </div>`;
+    container.appendChild(el);
+    scrollChatBottom();
+}
+function hideTyping() {
+    const el = document.getElementById('typing-msg');
+    if (el) el.remove();
+}
+
+function quickAsk(text) {
+    document.getElementById('chat-input').value = text;
+    sendChat();
+}
+
+function clearChat() {
+    _chatHistory = [MENTOR_INTRO];
+    saveChatHistory();
+    renderAllMessages();
+}
+
+async function sendChat() {
+    const input = document.getElementById('chat-input');
+    const text  = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    const btn = document.getElementById('chat-send-btn');
+    btn.disabled = true;
+
+    appendMsg({ role:'user', text, time: fmtTime(new Date()) });
+    showTyping();
+
+    try {
+        const tok = localStorage.getItem('cq_token');
+        const headers = { 'Content-Type':'application/json' };
+        if (tok) headers['Authorization'] = 'Bearer ' + tok;
+
+        const body = {
+            message: text,
+            history: _chatHistory.slice(-10).map(m => ({
+                role: m.role === 'user' ? 'user' : 'assistant',
+                content: m.text
+            }))
+        };
+
+        const r = await fetch(`${API}/api/v1/chat/mentor`, {
+            method:'POST', headers, body: JSON.stringify(body)
         });
-        btn.style.borderColor = 'var(--primary)';
-        btn.style.color       = 'var(--primary)';
-        btn.style.background  = 'rgba(79,172,254,0.12)';
-        btn.classList.add('active');
-        _selectedTag = btn.dataset.tag;
+
+        hideTyping();
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        appendMsg({ role:'bot', text: data.reply || '学长暂时无法回答，请稍后再试', time: fmtTime(new Date()) });
+    } catch(e) {
+        hideTyping();
+        // fallback: local rule-based answers
+        const reply = localMentorFallback(text);
+        appendMsg({ role:'bot', text: reply, time: fmtTime(new Date()) });
+    } finally {
+        btn.disabled = false;
+        input.focus();
     }
+}
 
-    async function submitPost() {
-        const title   = document.getElementById('post-title').value.trim();
-        const content = document.getElementById('post-content').value.trim();
-        const msgEl   = document.getElementById('post-modal-msg');
+function localMentorFallback(q) {
+    q = q.toLowerCase();
+    if (q.includes('etf') || q.includes('定投')) return 'ETF定投是指每隔固定时间买入固定金额的ETF基金，利用市场波动摊低成本。核心优势是不需要择时，适合大学生月光族每月定投小额资金。\n\n推荐指数：沪深300、中证500作为入门选择。';
+    if (q.includes('仓位') || q.includes('风险')) return '仓位管理是风控的核心。对于大学生建议：\n• 单只股票不超过总资产的15%\n• 保留20%现金应对突发\n• 学习期间总仓位不超过50%\n\n本平台风控系统会在你越界时提醒你！';
+    if (q.includes('a股') || q.includes('入门')) return 'A股入门学习路径：\n1. 基础概念：股票、市盈率(PE)、市净率(PB)\n2. 看K线：日K/周K形态识别\n3. 基本面：看财报三表（利润表/资产负债表/现金流）\n4. 实践：用本平台模拟账户操作，零风险练手！';
+    if (q.includes('持仓') || q.includes('分析')) return '请前往「持仓体检」页面，输入你的持仓信息，AI会帮你生成全面的风控报告，包括集中度分析、行业分散度、建议仓位调整方案。';
+    if (q.includes('港股') || q.includes('hk')) return '港股市场特点：\n• 实行T+0交易（可当日买卖）\n• 有涨跌幅限制较少，波动更大\n• 港股通可用人民币买入部分港股\n• 最低1手起买，部分个股1手=100/200/500股不等\n\n建议先在本平台用HKD模拟账户练习！';
+    if (q.includes('美股') || q.includes('us')) return '美股市场特点：\n• 24小时交易（北京时间22:30-05:00）\n• 可买卖科技巨头：AAPL、MSFT、NVDA、TSLA\n• 美股可购买零股（不足1股）\n• 本平台USD模拟账户10,000美元起手练习';
+    return `这是个好问题！关于"${q.slice(0,15)}"，建议你：\n1. 查阅学习中心的相关课程\n2. 在模拟账户里实际操作体验\n3. 去投教社区和同学讨论\n\n如果是具体的个股分析问题，可以去「个股分析」页面让AI深度分析！`;
+}
 
-        if (!title || title.length < 5)   { showModalMsg('标题至少5个字符', 'danger'); return; }
-        if (!content || content.length < 10) { showModalMsg('正文至少10个字符', 'danger'); return; }
-
-        const btn = document.getElementById('btn-post-submit');
-        btn.disabled = true; btn.textContent = '发布中…';
-
-        try {
-            const resp = await fetch(`${API_BASE}/api/v1/community/posts`, {
-                method: 'POST',
-                headers: authHeaders(),
-                body: JSON.stringify({ title, content, tag: _selectedTag }),
-            });
-            const data = await resp.json();
-            if (!resp.ok) { showModalMsg(data.detail || '发布失败', 'danger'); return; }
-
-            showModalMsg('发布成功！', 'success');
-            document.getElementById('post-title').value   = '';
-            document.getElementById('post-content').value = '';
-            setTimeout(() => { closePostModal(); loadPosts(true); }, 800);
-        } catch(e) {
-            showModalMsg('网络错误：' + e.message, 'danger');
-        } finally {
-            btn.disabled = false; btn.textContent = '发 布';
-        }
-    }
-
-    function showModalMsg(text, type) {
-        const el = document.getElementById('post-modal-msg');
-        el.textContent = text;
-        el.style.cssText = `display:block;padding:8px 12px;border-radius:8px;font-size:13px;text-align:center;` +
-            (type === 'success'
-                ? 'background:rgba(85,239,196,0.12);border:1px solid rgba(85,239,196,0.3);color:var(--success);'
-                : 'background:rgba(253,121,168,0.12);border:1px solid rgba(253,121,168,0.3);color:var(--danger);');
-    }
-
-    // ══ 初始化 ═════════════════════════════════════════════════
-    document.addEventListener('DOMContentLoaded', () => {
-        renderAuthWidget();
-        loadPosts(true);
-        // 点击 modal 遮罩关闭
-        document.getElementById('post-modal-overlay').addEventListener('click', e => {
-            if (e.target === e.currentTarget) closePostModal();
-        });
-    });
+// ══════════════ INIT ══════════════
+document.addEventListener('DOMContentLoaded', () => {
+    renderAuthWidget();
+    renderWelcome();
+    loadAccount();
+    loadNews();
+    loadChatHistory();
+});
 </script>
 
 <script src="shell-bridge.js"></script>
