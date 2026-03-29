@@ -13,6 +13,7 @@ tools/market_data.py — 市场数据与技术指标工具
 from __future__ import annotations
 
 import json
+import re
 import threading
 import time
 from typing import Any, Dict, Optional
@@ -30,7 +31,7 @@ from utils.market_classifier import MarketClassifier, MarketType
 # 数据获取超时上限（秒）
 # 超过此时间直接放弃，返回兜底 JSON，LangGraph 继续流转
 _FETCH_TIMEOUT  = 8    # 单只实时行情超时（yfinance 通常 2s 内响应）
-_BATCH_TIMEOUT  = 12   # 批量行情超时
+_BATCH_TIMEOUT  = 6    # 批量行情超时（akshare EM 通常 2-3s 响应）
 
 
 # ════════════════════════════════════════════════════════════════
@@ -987,299 +988,118 @@ def get_spot_price_raw(symbol: str) -> dict:
     return {"symbol": symbol, "price": 0.0, "change_pct": 0.0, "is_fallback": True, "source": "none"}
 
 
+def _sina_fetch(sina_keys: list[str]) -> dict[str, tuple[float, float, float]]:
+    """
+    调用新浪财经实时行情接口，一次请求获取多只标的报价。
+    返回 {sina_key: (price, change, change_pct)}，失败则返回 {}。
+    支持 A股(sh/sz)、港股(hk)、美股(gb_) 混合批次。
+    """
+    try:
+        url = f"http://hq.sinajs.cn/list={','.join(sina_keys)}"
+        headers = {
+            "Referer": "https://finance.sina.com.cn",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        }
+        resp = _requests.get(url, headers=headers, timeout=5)
+        text = resp.content.decode("GB18030", errors="replace")
+        logger.info(f"[_sina_fetch] keys={sina_keys[:3]}... status={resp.status_code} len={len(text)}")
+        result: dict[str, tuple[float, float, float]] = {}
+        for m in re.finditer(r'hq_str_(\w+)="([^"]+)"', text):
+            key    = m.group(1)
+            fields = m.group(2).split(",")
+            if not fields or not fields[0]:
+                continue
+            try:
+                if key.startswith("gb_"):
+                    # 美股: [0]=name [1]=price [2]=pct% [4]=chg
+                    price = float(fields[1]) if fields[1] else 0.0
+                    pct   = float(fields[2]) if fields[2] else 0.0
+                    chg   = float(fields[4]) if len(fields) > 4 and fields[4] else 0.0
+                elif key.startswith("hk"):
+                    # 港股: [2]=prev_close [6]=cur [7]=chg [8]=pct%
+                    price = float(fields[6]) if len(fields) > 8 and fields[6] else 0.0
+                    chg   = float(fields[7]) if len(fields) > 8 and fields[7] else 0.0
+                    pct   = float(fields[8]) if len(fields) > 8 and fields[8] else 0.0
+                else:
+                    # A股: [1]=prev_close [3]=cur
+                    price = float(fields[3]) if len(fields) > 5 and fields[3] else 0.0
+                    prev  = float(fields[1]) if fields[1] else 0.0
+                    chg   = round(price - prev, 3)
+                    pct   = round(chg / prev * 100, 2) if prev else 0.0
+                result[key] = (price, chg, pct)
+            except (ValueError, IndexError):
+                pass
+        return result
+    except Exception as _e:
+        logger.error(f"[_sina_fetch] 请求失败: {_e}")
+        return {}
+
+
 def get_batch_quotes_raw(symbols: list, market: str) -> list:
     """
     批量获取热门标的实时行情（供 /api/v1/market/quotes 端点调用）。
 
-    策略：
-      A股  → stock_zh_a_spot_em 一次拉取全表过滤（比逐只调用快 8 倍）
-      港股  → stock_hk_spot_em  一次拉取全表过滤
-      美股  → yfinance.Tickers 批量并行拉取
+    全部走新浪财经实时接口（单次 HTTP 请求，~0.1s，从中国服务器稳定可达）：
+      A股  → sh{code} / sz{code}
+      港股  → hk{code5}
+      美股  → gb_{ticker.lower()}
 
     Returns:
         list of {symbol, name, price, change, change_pct, is_fallback}
     """
+    def _fallback(s: str) -> dict:
+        return {"symbol": s, "name": _SYMBOL_NAMES.get(s, s.split(".")[0]),
+                "price": 0.0, "change": 0.0, "change_pct": 0.0, "is_fallback": True}
+
     if market == "a":
-        # ── A 股批量行情 ────────────────────────────────────────────────────
-        # 策略1: akshare stock_zh_a_spot_em 一次拉取全表（快，但有时被服务器断连）
-        # 策略2: yfinance 并发批量（稳定备用，.SH→.SS/.SZ不变）
-        import concurrent.futures
-
-        _a_results: list = [None]
-        _a_done = threading.Event()
-
-        def _fetch_a_batch():
-            try:
-                # ── 第一层：yfinance 批量（快速稳定，绕过 EM 封禁）───────────
-                try:
-                    import yfinance as yf
-                    yf_syms = [_a_symbol_to_yfinance(s) for s in symbols]
-                    tickers = yf.Tickers(" ".join(yf_syms))
-                    items   = []
-                    for orig, yfs in zip(symbols, yf_syms):
-                        try:
-                            fi    = tickers.tickers[yfs].fast_info
-                            price = float(fi.last_price or 0)
-                            prev  = float(getattr(fi, 'previous_close', None) or 0)
-                            chg_v = round(price - prev, 4) if prev else 0.0
-                            chg_p = round(chg_v / prev * 100, 2) if prev else 0.0
-                            if price > 0:
-                                items.append({
-                                    "symbol":      orig,
-                                    "name":        _SYMBOL_NAMES.get(orig, orig.split(".")[0]),
-                                    "price":       price,
-                                    "change":      chg_v,
-                                    "change_pct":  chg_p,
-                                    "is_fallback": False,
-                                })
-                            else:
-                                items.append(None)
-                        except Exception:
-                            items.append(None)
-                    _a_results[0] = items
-                    if all(it is not None for it in items):
-                        return   # 全部成功，不需要 sina 补充
-                    logger.warning("[get_batch_quotes_raw] A股 yfinance 部分失败，补充 akshare Sina")
-                except Exception as _e_yf:
-                    logger.warning(f"[get_batch_quotes_raw] A股 yfinance 批量失败({_e_yf})，降级 akshare Sina")
-                    items = [None] * len(symbols)
-                    _a_results[0] = items
-
-                # ── 第二层：akshare 新浪财经补充（非 EM）─────────────────────
-                try:
-                    import akshare as ak
-                    df          = ak.stock_zh_a_spot()
-                    code_to_idx = {s.split(".")[0]: i for i, s in enumerate(symbols)}
-                    for code_key, idx in code_to_idx.items():
-                        if _a_results[0][idx] is not None:
-                            continue   # yfinance 已有数据，跳过
-                        row = df[df["代码"] == code_key]
-                        if not row.empty:
-                            r     = row.iloc[0]
-                            price = float(r.get("最新价", 0) or 0)
-                            if price > 0:
-                                sym = symbols[idx]
-                                _a_results[0][idx] = {
-                                    "symbol":      sym,
-                                    "name":        str(r.get("名称", "") or _SYMBOL_NAMES.get(sym, code_key)),
-                                    "price":       price,
-                                    "change":      float(r.get("涨跌额", 0) or 0),
-                                    "change_pct":  float(r.get("涨跌幅", 0) or 0),
-                                    "is_fallback": False,
-                                }
-                except Exception as _e_sina:
-                    logger.error(f"[get_batch_quotes_raw] A股 akshare Sina 也失败: {_e_sina}")
-            except Exception as _e_outer:
-                logger.error(f"[get_batch_quotes_raw] A股获取异常: {_e_outer}")
-            finally:
-                _a_done.set()
-
-        t_a = threading.Thread(target=_fetch_a_batch, daemon=True, name="batch-a-ak")
-        t_a.start()
-        _a_done.wait(timeout=_BATCH_TIMEOUT)
-
-        # 判断哪些标的需要yfinance补充
-        need_yf: list[str] = []
-        ak_map: dict[str, dict] = {}
-        if _a_results[0]:
-            code_to_sym_map = {s.split(".")[0]: s for s in symbols}
-            for i, item in enumerate(_a_results[0]):
-                if item and item["price"] > 0:
-                    ak_map[item["symbol"]] = item
-                else:
-                    sym = list(code_to_sym_map.values())[i] if i < len(symbols) else symbols[i]
-                    need_yf.append(sym)
-        else:
-            need_yf = list(symbols)
-
-        # yfinance 补充缺失标的
-        yf_map: dict[str, dict] = {}
-        if need_yf:
-            _yf_done = threading.Event()
-            _yf_items: list = [None]
-
-            def _fetch_a_yf():
-                try:
-                    import yfinance as yf
-                    yf_syms = [_a_symbol_to_yfinance(s) for s in need_yf]
-                    tickers = yf.Tickers(" ".join(yf_syms))
-                    for orig, yfs in zip(need_yf, yf_syms):
-                        try:
-                            fi = tickers.tickers[yfs].fast_info
-                            price = float(fi.last_price or 0)
-                            prev  = float(getattr(fi, 'previous_close', None) or 0)
-                            chg_v = round(price - prev, 4) if prev else 0.0
-                            chg_p = round(chg_v / prev * 100, 2) if prev else 0.0
-                            if price > 0:
-                                yf_map[orig] = {
-                                    "symbol":      orig,
-                                    "name":        _SYMBOL_NAMES.get(orig, orig.split(".")[0]),
-                                    "price":       price,
-                                    "change":      chg_v,
-                                    "change_pct":  chg_p,
-                                    "is_fallback": False,
-                                }
-                        except Exception:
-                            pass
-                except Exception as _e:
-                    logger.error(f"[get_batch_quotes_raw] A股 yfinance 也失败: {_e}")
-                finally:
-                    _yf_done.set()
-
-            threading.Thread(target=_fetch_a_yf, daemon=True, name="batch-a-yf").start()
-            _yf_done.wait(timeout=_BATCH_TIMEOUT)
-
-        # 合并结果，保持原始排序
-        results_a = []
-        for sym in symbols:
-            if sym in ak_map:
-                results_a.append(ak_map[sym])
-            elif sym in yf_map:
-                results_a.append(yf_map[sym])
+        # 600519.SH → sh600519,  000858.SZ → sz000858
+        def _to_sina(sym: str) -> str:
+            code, exch = sym.upper().split(".")
+            return ("sh" if exch == "SH" else "sz") + code
+        key_map = {_to_sina(s): s for s in symbols}
+        raw = _sina_fetch(list(key_map.keys()))
+        out = []
+        for sina_key, sym in key_map.items():
+            if sina_key in raw and raw[sina_key][0] > 0:
+                p, chg, pct = raw[sina_key]
+                out.append({"symbol": sym, "name": _SYMBOL_NAMES.get(sym, sym.split(".")[0]),
+                            "price": p, "change": chg, "change_pct": pct, "is_fallback": False})
             else:
-                results_a.append({
-                    "symbol": sym, "name": _SYMBOL_NAMES.get(sym, sym.split(".")[0]),
-                    "price": 0.0, "change": 0.0, "change_pct": 0.0, "is_fallback": True,
-                })
-        return results_a
+                out.append(_fallback(sym))
+        return out
 
     elif market == "hk":
-        # ── 港股：yfinance 主力 + akshare stock_hk_spot_em 备用（并发）──
-        _hk_yf: list   = [None]
-        _hk_ak: list   = [None]
-        _hk_yf_done = threading.Event()
-        _hk_ak_done = threading.Event()
-
-        def _fetch_hk_yf():
-            try:
-                import yfinance as yf
-                yf_syms = [_hk_symbol_to_yfinance(s) for s in symbols]
-                tickers = yf.Tickers(" ".join(yf_syms))
-                items = []
-                for orig, yfs in zip(symbols, yf_syms):
-                    try:
-                        fi    = tickers.tickers[yfs].fast_info
-                        price = float(fi.last_price or 0)
-                        prev  = float(getattr(fi, 'previous_close', None) or 0)
-                        chg_v = round(price - prev, 4) if prev else 0.0
-                        chg_p = round(chg_v / prev * 100, 2) if prev else 0.0
-                        items.append({
-                            "symbol":      orig,
-                            "name":        _SYMBOL_NAMES.get(orig, orig.split(".")[0]),
-                            "price":       price,
-                            "change":      chg_v,
-                            "change_pct":  chg_p,
-                            "is_fallback": price <= 0,
-                        })
-                    except Exception:
-                        items.append({"symbol": orig, "name": _SYMBOL_NAMES.get(orig, orig.split(".")[0]),
-                                      "price": 0.0, "change": 0.0, "change_pct": 0.0, "is_fallback": True})
-                _hk_yf[0] = items
-            except Exception as _e:
-                logger.error(f"[get_batch_quotes_raw] 港股 yfinance 失败: {_e}")
-            finally:
-                _hk_yf_done.set()
-
-        def _fetch_hk_ak():
-            try:
-                import akshare as ak
-                df = ak.stock_hk_spot_em()
-                code_map = {sym.split(".")[0]: sym for sym in symbols}
-                items = []
-                for code, sym in code_map.items():
-                    row = df[df["代码"] == code]
-                    if not row.empty:
-                        r = row.iloc[0]
-                        price = float(r.get("最新价", 0) or 0)
-                        items.append({
-                            "symbol":      sym,
-                            "name":        str(r.get("名称", "") or _SYMBOL_NAMES.get(sym) or code),
-                            "price":       price,
-                            "change":      float(r.get("涨跌额", 0) or 0),
-                            "change_pct":  float(r.get("涨跌幅", 0) or 0),
-                            "is_fallback": price <= 0,
-                        })
-                    else:
-                        items.append({"symbol": sym, "name": _SYMBOL_NAMES.get(sym, code),
-                                      "price": 0.0, "change": 0.0, "change_pct": 0.0, "is_fallback": True})
-                _hk_ak[0] = {it["symbol"]: it for it in items}
-            except Exception as _e:
-                logger.warning(f"[get_batch_quotes_raw] 港股 akshare 失败: {_e}")
-            finally:
-                _hk_ak_done.set()
-
-        threading.Thread(target=_fetch_hk_yf, daemon=True, name="batch-hk-yf").start()
-        threading.Thread(target=_fetch_hk_ak, daemon=True, name="batch-hk-ak").start()
-        _hk_yf_done.wait(timeout=_BATCH_TIMEOUT)
-        _hk_ak_done.wait(timeout=10)   # akshare HK 全表，最多等 10s
-
-        yf_list  = _hk_yf[0] or []
-        ak_dict  = _hk_ak[0] or {}
-
-        # yfinance 优先；price=0 时用 akshare 补充
-        result_hk = []
-        for item in yf_list:
-            sym = item["symbol"]
-            if item["price"] > 0:
-                result_hk.append(item)
-            elif sym in ak_dict and ak_dict[sym]["price"] > 0:
-                result_hk.append(ak_dict[sym])
+        # 00700.HK → hk00700
+        def _to_sina(sym: str) -> str:
+            code = sym.split(".")[0].zfill(5)
+            return "hk" + code
+        key_map = {_to_sina(s): s for s in symbols}
+        raw = _sina_fetch(list(key_map.keys()))
+        out = []
+        for sina_key, sym in key_map.items():
+            if sina_key in raw and raw[sina_key][0] > 0:
+                p, chg, pct = raw[sina_key]
+                out.append({"symbol": sym, "name": _SYMBOL_NAMES.get(sym, sym.split(".")[0]),
+                            "price": p, "change": chg, "change_pct": pct, "is_fallback": False})
             else:
-                result_hk.append(item)  # 两路都失败，保留 is_fallback=True 的占位
-
-        if result_hk:
-            return result_hk
-
-        # 全部失败兜底
-        logger.warning("[get_batch_quotes_raw] 港股两路全部失败，返回静态占位")
-        return [{"symbol": s, "name": _SYMBOL_NAMES.get(s, s.split(".")[0]),
-                 "price": 0.0, "change": 0.0, "change_pct": 0.0, "is_fallback": True}
-                for s in symbols]
+                out.append(_fallback(sym))
+        return out
 
     elif market == "us":
-        _items: list = [None]
-        _done = threading.Event()
+        # AAPL → gb_aapl
+        key_map = {"gb_" + s.lower(): s for s in symbols}
+        raw = _sina_fetch(list(key_map.keys()))
+        out = []
+        for sina_key, sym in key_map.items():
+            if sina_key in raw and raw[sina_key][0] > 0:
+                p, chg, pct = raw[sina_key]
+                out.append({"symbol": sym, "name": _SYMBOL_NAMES.get(sym, sym),
+                            "price": p, "change": chg, "change_pct": pct, "is_fallback": False})
+            else:
+                out.append(_fallback(sym))
+        return out
 
-        def _fetch_us():
-            try:
-                import yfinance as yf
-                tickers = yf.Tickers(" ".join(symbols))
-                items = []
-                for sym in symbols:
-                    try:
-                        fi   = tickers.tickers[sym].fast_info
-                        price = float(fi.last_price or 0)
-                        prev  = float(fi.previous_close or 0)
-                        chg   = round(price - prev, 4)
-                        chg_p = round((chg / prev * 100), 2) if prev else 0.0
-                        items.append({
-                            "symbol": sym, "name": sym,
-                            "price": price, "change": chg, "change_pct": chg_p,
-                            "is_fallback": False,
-                        })
-                    except Exception:
-                        items.append({
-                            "symbol": sym, "name": sym,
-                            "price": 0.0, "change": 0.0, "change_pct": 0.0,
-                            "is_fallback": True,
-                        })
-                _items[0] = items
-            except Exception as _e:
-                logger.error(f"[get_batch_quotes_raw] yfinance 批量失败: {_e}")
-            finally:
-                _done.set()
-
-        t = threading.Thread(target=_fetch_us, daemon=True, name="batch-us")
-        t.start()
-        _done.wait(timeout=_BATCH_TIMEOUT)
-
-        if _items[0]:
-            return _items[0]
-
-    # 全部降级
-    return [{"symbol": s, "name": s.split(".")[0], "price": 0.0,
-             "change": 0.0, "change_pct": 0.0, "is_fallback": True}
-            for s in symbols]
+    return [_fallback(s) for s in symbols]
 
 
 # ════════════════════════════════════════════════════════════════
@@ -1311,7 +1131,7 @@ _GLOBAL_YF_MAP: list[tuple[str, str]] = [
     ("^DJI",  "DJIA"),
 ]
 
-_INDEX_TIMEOUT = 15   # yfinance 全球指数超时（s），A股已走 akshare 无需长等
+_INDEX_TIMEOUT = 8    # akshare 全球指数超时（s）
 
 # 新浪财经实时指数接口 —— A股备用（极稳定，延迟 <200ms）
 # 格式: var hq_str_s_sh000001="上证指数,3351.50,-6.49,-0.19,234926,2634074";
@@ -1393,12 +1213,10 @@ def get_market_indices_raw() -> list[dict]:
     _ak_a_ev   = threading.Event()
     _ak_g_ev   = threading.Event()
     _sina_ev   = threading.Event()
-    _yf_ev     = threading.Event()
 
     _ak_a_df:  list = [None]   # stock_zh_index_spot_em DataFrame
     _ak_g_df:  list = [None]   # index_global_spot_em DataFrame
     _sina_buf: list = [{}]     # {code: (price, chg_pct, chg)}
-    _yf_buf:   list = [{}]     # {code: (price, chg_pct, chg)}
 
     def _t_akshare_a():
         try:
@@ -1422,47 +1240,20 @@ def get_market_indices_raw() -> list[dict]:
         _sina_buf[0] = _fetch_a_indices_sina()
         _sina_ev.set()
 
-    def _t_yfinance():
-        try:
-            import yfinance as yf
-            syms = [s for s, _ in _GLOBAL_YF_MAP]
-            tickers = yf.Tickers(" ".join(syms))
-            buf = {}
-            for yf_sym, code in _GLOBAL_YF_MAP:
-                try:
-                    fi    = tickers.tickers[yf_sym].fast_info
-                    price = float(fi.last_price or 0)
-                    prev  = float(getattr(fi, "previous_close", None) or 0)
-                    if price > 0:
-                        buf[code] = (
-                            price,
-                            round((price - prev) / prev * 100, 2) if prev else 0.0,
-                            round(price - prev, 4) if prev else 0.0,
-                        )
-                except Exception:
-                    pass
-            _yf_buf[0] = buf
-        except Exception as _e:
-            logger.warning(f"[get_market_indices_raw] yfinance 失败: {_e}")
-        finally:
-            _yf_ev.set()
-
-    # 同时启动 4 路线程
+    # 同时启动 3 路线程（移除 yfinance，从中国服务器无法访问 Yahoo Finance）
     for tgt, name in [
         (_t_akshare_a, "idx-ak-a"),
         (_t_akshare_g, "idx-ak-g"),
         (_t_sina,      "idx-sina"),
-        (_t_yfinance,  "idx-yf"),
     ]:
         threading.Thread(target=tgt, daemon=True, name=name).start()
 
     # 等待各路完成（各自独立超时）
-    _ak_a_ev.wait(timeout=12)
-    _ak_g_ev.wait(timeout=12)
+    _ak_a_ev.wait(timeout=_INDEX_TIMEOUT)
+    _ak_g_ev.wait(timeout=_INDEX_TIMEOUT)
     _sina_ev.wait(timeout=6)
-    _yf_ev.wait(timeout=_INDEX_TIMEOUT)
 
-    # ── 合并：优先级 yfinance > akshare > 新浪 ───────────────────
+    # ── 合并：优先级 akshare > 新浪 ──────────────────────────────
     price_map: dict[str, tuple] = {}
 
     # 1. 新浪（最低优先，A股保底）
@@ -1487,9 +1278,6 @@ def get_market_indices_raw() -> list[dict]:
                 p = float(row.iloc[0, 3] or 0)
                 if p > 0:
                     price_map[code] = (p, float(row.iloc[0, 5] or 0), float(row.iloc[0, 4] or 0))
-
-    # 4. yfinance（最高优先，覆盖全球指数）
-    price_map.update(_yf_buf[0])
 
     # ── 按固定顺序组装 ────────────────────────────────────────────
     result = []

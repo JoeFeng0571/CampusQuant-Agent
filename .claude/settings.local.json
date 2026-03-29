@@ -131,7 +131,8 @@
       "Bash(cmd //c \"taskkill /PID 45044 /F\")",
       "Bash(find . -name *.py -path */graph/* -o -name server.py)",
       "Bash(xargs wc:*)",
-      "Bash(grep -r m4 --include=*.py -l)"
+      "Bash(grep -r m4 --include=*.py -l)",
+      "Bash(source .venv/Scripts/activate)"
     ]
   }
 }

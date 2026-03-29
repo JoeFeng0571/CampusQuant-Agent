@@ -47,6 +47,8 @@ from typing import AsyncGenerator, Optional
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 from loguru import logger
 from pydantic import BaseModel, Field, field_validator
 from utils.market_classifier import MarketClassifier
@@ -95,7 +97,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -1337,8 +1339,7 @@ async def get_market_quotes(market: str = "a"):
 
     try:
         from tools.market_data import get_batch_quotes_raw
-        loop = asyncio.get_event_loop()
-        quotes = await loop.run_in_executor(None, get_batch_quotes_raw, symbols, market)
+        quotes = await run_in_threadpool(get_batch_quotes_raw, symbols, market)
     except Exception as e:
         logger.error(f"[market/quotes] 批量行情获取失败: {e}")
         raise HTTPException(status_code=502, detail=f"行情获取失败: {str(e)}")
@@ -2269,12 +2270,6 @@ async def chat_mentor(req: MentorChatRequest):
 # 开发模式入口
 # ════════════════════════════════════════════════════════════════
 
-@app.get("/", include_in_schema=False)
-async def root_redirect():
-    """根路径重定向到控制台（dashboard.html）"""
-    return RedirectResponse(url="/dashboard.html", status_code=302)
-
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
@@ -2284,3 +2279,10 @@ if __name__ == "__main__":
         reload=True,
         log_level="info",
     )
+
+# ── 静态文件托管（必须放在所有路由定义之后）──────────────────────
+# 访问 http://127.0.0.1:8000/market.html 等同于直接打开 HTML 文件
+# 但带有正确的 HTTP Origin，不会触发 CORS 拦截
+import os as _os
+_PROJECT_ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+app.mount("/", StaticFiles(directory=_PROJECT_ROOT, html=True), name="static")

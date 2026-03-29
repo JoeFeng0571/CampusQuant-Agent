@@ -669,7 +669,12 @@
 
 <script>
     'use strict';
-    const API_BASE = 'http://8.156.85.111:8000';
+    // 本地开发: http://127.0.0.1:8000/market.html → hostname 是 127.0.0.1，用绝对地址
+    // 线上生产: http://8.156.85.111:8000/market.html → hostname 是服务器 IP，用相对路径（同源）
+    const _h = window.location.hostname;
+    const API_BASE = (_h === 'localhost' || _h === '127.0.0.1')
+        ? 'http://127.0.0.1:8000/api/v1'
+        : '/api/v1';
     let currentTab = 'a';
     // 各市场缓存（避免切换时重复请求）
     const _quoteCache = {};
@@ -738,7 +743,7 @@
         }
         renderLoading();
         try {
-            const resp = await fetch(`${API_BASE}/api/v1/market/quotes?market=${tab}`);
+            const resp = await fetch(`${API_BASE}/market/quotes?market=${tab}`);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const json = await resp.json();
             const quotes = json.quotes || [];
@@ -747,7 +752,7 @@
             document.getElementById('update-time').textContent =
                 '实时行情 · 更新于 ' + new Date().toLocaleString('zh-CN', {hour12:false});
         } catch (err) {
-            console.error('[market] 行情获取失败:', err);
+            console.error(`[market] 行情获取失败 tab=${tab} API_BASE=${API_BASE}`, err);
             renderError('行情接口暂时不可用，请确认后端服务已启动');
             document.getElementById('update-time').textContent = '⚠ 行情加载失败';
         }
@@ -777,14 +782,14 @@
 
     async function fetchIndices() {
         try {
-            const resp = await fetch(`${API_BASE}/api/v1/market/indices`);
+            const resp = await fetch(`${API_BASE}/market/indices`);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
             renderIndices(data.indices || []);
             document.getElementById('update-time').textContent =
                 '实时行情 · 更新于 ' + new Date().toLocaleString('zh-CN', {hour12: false});
         } catch (err) {
-            console.error('[market] 指数获取失败:', err);
+            console.error(`[market] 指数获取失败 API_BASE=${API_BASE}`, err);
             document.getElementById('indices-grid').innerHTML =
                 '<div style="grid-column:1/-1;text-align:center;color:#ff6b6b;padding:16px">⚠ 指数接口不可用，请确认后端已启动</div>';
         }
@@ -817,7 +822,7 @@
 
     async function fetchSectors() {
         try {
-            const resp = await fetch(`${API_BASE}/api/v1/market/sectors`);
+            const resp = await fetch(`${API_BASE}/market/sectors`);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
             renderSectors(data.sectors || []);
@@ -833,7 +838,7 @@
     // ── 市场情绪实时指标 ────────────────────────────────────────
     async function fetchSentiment() {
         try {
-            const resp = await fetch(`${API_BASE}/api/v1/market/sentiment`);
+            const resp = await fetch(`${API_BASE}/market/sentiment`);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const d = await resp.json();
 
@@ -873,7 +878,7 @@
     async function fetchHotNews(force) {
         const grid = document.getElementById('hot-grid');
         try {
-            const url = `${API_BASE}/api/v1/market/hotnews` + (force ? '?force=true' : '');
+            const url = `${API_BASE}/market/hotnews` + (force ? '?force=true' : '');
             const r = await fetch(url);
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
             const raw = await r.json();
