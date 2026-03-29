@@ -117,33 +117,47 @@
             display:grid; grid-template-columns:1fr 80px 90px 28px; gap:6px; align-items:center;
         }
         .pos-input {
-            padding:9px 10px; background:rgba(255,255,255,0.06); border:1px solid var(--border);
-            border-radius:8px; color:#fff; font-size:13px; outline:none; width:100%;
-            transition:border-color 0.2s;
+            padding:12px 10px; background:rgba(255,255,255,0.06); border:1px solid var(--border);
+            border-radius:8px; color:#fff; font-size:14px; outline:none; width:100%;
+            transition:all 0.2s; min-height: 44px; /* 触摸友好的最小高度 */
         }
-        .pos-input:focus { border-color:var(--primary); }
+        .pos-input:focus {
+            border-color:var(--primary);
+            box-shadow: 0 0 0 2px rgba(79,172,254,0.2);
+        }
         .pos-input::placeholder { color:var(--text-dim); }
+        /* 移动端输入优化 */
+        .pos-input {
+            -webkit-appearance: none; /* 移除iOS默认样式 */
+            appearance: none;
+        }
         .del-btn {
             width:28px; height:28px; border-radius:6px; border:1px solid rgba(253,121,168,0.3);
             background:transparent; color:var(--danger); font-size:16px; cursor:pointer;
             display:flex; align-items:center; justify-content:center; transition:all 0.2s;
+            min-height: 28px; /* 确保触摸友好 */
         }
         .del-btn:hover { background:rgba(253,121,168,0.1); }
+        .del-btn:active { background:rgba(253,121,168,0.2); transform: scale(0.95); }
 
         .add-pos-btn {
-            width:100%; padding:9px; background:transparent;
+            width:100%; padding:12px; background:transparent;
             border:1px dashed rgba(255,255,255,0.15); border-radius:8px;
             color:var(--text-sub); font-size:13px; cursor:pointer; transition:all 0.2s;
+            min-height: 44px; /* 触摸友好的最小高度 */
         }
         .add-pos-btn:hover { border-color:var(--primary); color:var(--primary); }
+        .add-pos-btn:active { background:rgba(79,172,254,0.1); }
 
         .check-btn {
-            width:100%; padding:13px; margin-top:12px;
+            width:100%; padding:14px; margin-top:12px;
             background:linear-gradient(90deg,var(--primary) 0%,var(--secondary) 100%);
             border:none; border-radius:10px; color:#0b0f19;
             font-size:15px; font-weight:700; cursor:pointer; transition:all 0.3s;
+            min-height: 48px; /* 触摸友好的最小高度 */
         }
         .check-btn:hover { box-shadow:0 6px 24px rgba(0,242,254,0.4); transform:translateY(-1px); }
+        .check-btn:active { transform:translateY(0) scale(0.98); }
         .check-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
 
         .col-labels {
@@ -230,6 +244,40 @@
             border-top:1px solid var(--border); color:var(--text-dim); font-size:13px; margin-top:24px;
         }
         footer a { color:var(--primary); text-decoration:none; }
+        /* ══ 移动端优化增强 ══ */
+        /* 防止移动端文本选择 */
+        .metric-label, .col-label, .panel-title {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        /* 改善移动端滚动体验 */
+        body {
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 触摸反馈优化 */
+        @media (hover: none) and (pointer: coarse) {
+            /* 在触摸设备上增加按钮的触摸反馈 */
+            .sidebar-link:active,
+            .add-pos-btn:active,
+            .check-btn:active {
+                transform: scale(0.98);
+                transition: transform 0.1s ease;
+            }
+
+            .del-btn:active {
+                transform: scale(0.9);
+            }
+
+            nav a:active {
+                color: var(--secondary);
+                text-shadow: 0 0 8px rgba(0,242,254,0.45);
+            }
+        }
+
         /* ══ 持仓体检移动端深度优化 ════════════════════════════════════ */
         
         @media (max-width: 900px) {
@@ -264,25 +312,25 @@
             /* 3. 输入面板与表单极限瘦身 */
             .input-panel { padding: 20px 16px; }
             .panel-title { font-size: 15px; margin-bottom: 16px; }
-            
+
             /* 微调输入行的列宽比例，压缩数量和成本列，把空间留给股票代码 */
-            .position-row, .col-labels { 
-                grid-template-columns: 1fr 65px 75px 28px; 
-                gap: 6px; 
+            .position-row, .col-labels {
+                grid-template-columns: 1fr 65px 75px 28px;
+                gap: 6px;
             }
             .pos-input { padding: 10px 6px; font-size: 12px; }
             .col-label { font-size: 10px; letter-spacing: 0; }
             .check-btn { padding: 12px; font-size: 14px; }
-            
+
             /* 4. 体检报告区：卡片改上下堆叠 */
-            .score-card { 
+            .score-card {
                 flex-direction: column; /* 图分和文字从左右变成上下排布 */
-                text-align: center; 
-                padding: 24px 16px; 
-                gap: 16px; 
+                text-align: center;
+                padding: 24px 16px;
+                gap: 16px;
             }
             .score-info h3 { font-size: 16px; }
-            
+
             /* 5. 数据指标网格：从 3列 变成 2列，保护文字和数值 */
             .metrics-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
             .metric-card { padding: 14px 12px; }
@@ -294,6 +342,132 @@
             .rec-list li { font-size: 12px; padding: 10px; gap: 8px; }
             .placeholder-hint { padding: 40px 20px; }
             .hint-text { font-size: 12px; }
+        }
+
+        /* 超小屏幕设备优化 (320px-480px) */
+        @media (max-width: 480px) {
+            /* 1. 导航栏进一步优化 */
+            header { padding: 10px 12px; }
+            .logo-text { font-size: 18px; }
+            .logo-sub { font-size: 10px; }
+            nav { gap: 16px; }
+            nav a { font-size: 13px; padding: 4px 0; }
+
+            /* 2. 主体内容进一步压缩 */
+            main { padding: 16px 12px; margin-top: 60px; }
+            .page-header h1 { font-size: 20px; }
+            .page-header p { font-size: 12px; }
+
+            /* 3. 输入面板极致优化 */
+            .input-panel { padding: 16px 12px; }
+            .panel-title { font-size: 14px; margin-bottom: 12px; }
+
+            /* 在小屏幕上将输入行改为垂直布局 */
+            .position-row {
+                grid-template-columns: 1fr;
+                gap: 8px;
+                padding: 12px;
+                background: rgba(255,255,255,0.02);
+                border-radius: 8px;
+                border: 1px solid var(--border);
+            }
+            .col-labels { display: none; }
+
+            /* 为每个输入框添加标签 */
+            .position-row .pos-input:nth-child(1)::placeholder { content: "股票代码"; }
+            .position-row .pos-input:nth-child(2)::placeholder { content: "数量"; }
+            .position-row .pos-input:nth-child(3)::placeholder { content: "成本价"; }
+
+            .pos-input {
+                padding: 12px 8px;
+                font-size: 14px;
+                min-height: 44px; /* 触摸友好的最小高度 */
+            }
+
+            /* 4. 评分卡片优化 */
+            .score-card { padding: 20px 12px; }
+            .score-ring { width: 90px; height: 90px; }
+            .score-num { font-size: 24px; }
+            .score-info h3 { font-size: 15px; }
+
+            /* 5. 指标网格在小屏幕上改为单列 */
+            .metrics-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .metric-card {
+                padding: 16px 12px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .metric-label {
+                font-size: 11px;
+                margin-bottom: 0;
+                text-align: left;
+            }
+            .metric-value {
+                font-size: 16px;
+                text-align: right;
+            }
+
+            /* 6. 建议列表优化 */
+            .recommend-card { padding: 16px 12px; }
+            .rec-title { font-size: 14px; }
+            .rec-list li {
+                font-size: 12px;
+                padding: 12px;
+                line-height: 1.4;
+            }
+
+            /* 7. 按钮触摸优化 */
+            .check-btn, .add-pos-btn, .del-btn {
+                min-height: 44px; /* 触摸友好的最小高度 */
+            }
+
+            .del-btn {
+                width: 100%;
+                margin-top: 8px;
+                height: 36px;
+                font-size: 18px;
+            }
+
+            /* 侧边栏在小屏幕上优化 */
+            .sidebar {
+                width: 280px;
+                max-width: 90vw;
+                padding: 20px 16px;
+            }
+            .sidebar-header h2 {
+                font-size: 16px;
+            }
+            .sidebar-link {
+                padding: 12px 14px;
+                font-size: 13px;
+            }
+        }
+
+        /* 针对320px以下超小屏幕的额外优化 */
+        @media (max-width: 320px) {
+            header { padding: 8px 10px; }
+            .logo-text { font-size: 16px; }
+            .logo-sub { display: none; }
+            nav { gap: 12px; }
+            nav a { font-size: 12px; }
+
+            main { padding: 12px 8px; }
+            .page-header h1 { font-size: 18px; }
+
+            .input-panel { padding: 12px 8px; }
+            .position-row { padding: 8px; }
+
+            .metrics-grid { gap: 8px; }
+            .metric-card { padding: 12px 8px; }
+            .metric-label { font-size: 10px; }
+            .metric-value { font-size: 14px; }
+
+            .recommend-card { padding: 12px 8px; }
+            .rec-list li { padding: 8px; font-size: 11px; }
         }
     </style>
 </head>
@@ -407,7 +581,7 @@
 
 <script>
     'use strict';
-    const API_BASE = 'http://127.0.0.1:8000';
+    const API_BASE = 'http://8.156.85.111:8000';
     let checkRunning = false;
 
     // 初始化两条示例持仓
