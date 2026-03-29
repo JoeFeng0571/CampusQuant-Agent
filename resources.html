@@ -52,7 +52,7 @@
         /* 侧边栏触发按钮 */
         .sidebar-btn {
             background:transparent; border:none; color:var(--text-sub);
-            cursor:pointer; display:flex; align-items:center; padding:4px;
+            cursor:pointer; display:flex; align-items:center; padding:8px;
             margin-left:10px; transition:color 0.3s;
         }
         .sidebar-btn:hover { color:var(--secondary); }
@@ -77,7 +77,7 @@
             margin-bottom:30px; padding-bottom:16px; border-bottom:1px solid var(--border);
         }
         .sidebar-header h2 { font-size:18px; color:#fff; display:flex; align-items:center; gap:8px; }
-        .close-btn { background:none; border:none; color:var(--text-dim); font-size:28px; line-height:1; cursor:pointer; transition:color 0.2s; }
+        .close-btn { background:none; border:none; color:var(--text-dim); font-size:28px; line-height:1; cursor:pointer; transition:color 0.2s; padding:8px; }
         .close-btn:hover { color:var(--danger); }
         .sidebar-content { display:flex; flex-direction:column; gap:16px; }
         .sidebar-link {
@@ -180,17 +180,28 @@
             .book-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
+        /* 优化平板设备显示 */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            main { padding: 24px 32px; }
+            .category-grid { gap: 14px; }
+            .cat-card { padding: 18px 16px; }
+            .book-grid { gap: 14px; }
+            .book-card { padding: 18px 16px; }
+        }
+
         @media (max-width: 768px) {
             /* 1. 导航栏：复用全站统一的横向滑动与菜单吸附体验 */
             header { padding: 12px 16px; gap: 16px; }
             .logo { flex-shrink: 0; }
+            .logo-text { font-size: 18px; }
+            .logo-sub { font-size: 10px; }
             nav {
                 flex: 1; min-width: 0; overflow-x: auto; flex-wrap: nowrap;
-                justify-content: flex-start; gap: 20px;
+                justify-content: flex-start; gap: 16px;
                 -webkit-overflow-scrolling: touch; padding-right: 4px;
             }
             nav::-webkit-scrollbar { display: none; }
-            nav a { display: inline-block !important; flex-shrink: 0; font-size: 14px; }
+            nav a { display: inline-block !important; flex-shrink: 0; font-size: 13px; }
             .sidebar-btn {
                 display: flex !important; position: sticky; right: 0; flex-shrink: 0;
                 background: rgba(11,15,25,0.95); box-shadow: -12px 0 10px rgba(11,15,25,0.95);
@@ -198,59 +209,115 @@
             }
 
             /* 2. 页面主体空间释放 */
-            main { padding: 20px 16px; margin-top: 70px; }
-            .page-header { margin-bottom: 24px; }
-            .page-header h1 { font-size: 24px; margin-bottom: 8px; }
-            .page-header p { font-size: 13px; padding: 0 10px; }
+            main { padding: 16px; margin-top: 66px; }
+            .page-header { margin-bottom: 20px; }
+            .page-header h1 { font-size: 22px; margin-bottom: 6px; }
+            .page-header p { font-size: 13px; padding: 0 8px; line-height: 1.5; }
 
-            /* 3. 分类卡片：改为 2x2 阵列并稍微压扁 */
-            .category-grid { gap: 12px; margin-bottom: 24px; }
-            .cat-card { padding: 16px; }
-            .cat-icon { font-size: 28px; margin-bottom: 6px; }
-            .cat-title { font-size: 13px; }
+            /* 3. 分类卡片：改为 2x2 阵列并优化触摸体验 */
+            .category-grid { gap: 10px; margin-bottom: 20px; }
+            .cat-card { padding: 14px 12px; min-height: 80px; }
+            .cat-icon { font-size: 24px; margin-bottom: 4px; }
+            .cat-title { font-size: 12px; }
+            .cat-count { font-size: 11px; }
 
-            /* 4. 文章列表：左右结构改为上下堆叠，标签横向排列 */
-            .articles-section { margin-bottom: 24px; }
-            .section-header { flex-direction: column; align-items: flex-start; gap: 12px; padding: 14px 16px; }
-            
+            /* 4. 文章列表：优化移动端阅读体验 */
+            .articles-section { margin-bottom: 20px; }
+            .section-header { flex-direction: column; align-items: flex-start; gap: 10px; padding: 12px 16px; }
+
             /* 文章头部过滤器允许滑动 */
             .filter-row { width: 100%; overflow-x: auto; padding-bottom: 4px; }
             .filter-row::-webkit-scrollbar { display: none; }
-            .filter-btn { flex-shrink: 0; }
+            .filter-btn { flex-shrink: 0; font-size: 11px; padding: 4px 10px; }
 
             /* 重组文章单项布局 */
-            .article-item { 
+            .article-item {
                 flex-direction: column; /* 文章标题和右侧标签改为上下排布 */
-                gap: 12px; 
-                padding: 16px; 
+                gap: 10px;
+                padding: 14px 16px;
             }
-            .art-title { font-size: 15px; margin-bottom: 8px; }
-            .art-meta { flex-wrap: wrap; gap: 10px; }
-            .art-right { 
-                margin-left: 0; 
+            .art-title { font-size: 14px; margin-bottom: 6px; line-height: 1.3; }
+            .art-meta { flex-wrap: wrap; gap: 8px; font-size: 11px; }
+            .art-right {
+                margin-left: 0;
                 flex-direction: row; /* 标签从上下叠放改为左右并排 */
-                align-items: center; 
-                justify-content: flex-start; 
-                width: 100%; 
+                align-items: center;
+                justify-content: flex-start;
+                width: 100%;
+                gap: 8px;
             }
+            .art-tag { font-size: 10px; padding: 2px 8px; }
+            .art-level { font-size: 10px; }
 
-            /* 5. 推荐书单（魔法重排）：利用 CSS Grid 把上下排版的卡片变身左右图文列表 */
-            .book-grid { grid-template-columns: 1fr; gap: 12px; }
-            .book-card { 
-                display: grid; 
-                grid-template-columns: 75px 1fr; /* 左边封面，右边文字 */
-                grid-template-areas: 
+            /* 5. 推荐书单：优化移动端显示 */
+            .book-grid { grid-template-columns: 1fr; gap: 10px; }
+            .book-card {
+                display: grid;
+                grid-template-columns: 60px 1fr; /* 减小封面尺寸 */
+                grid-template-areas:
                     "cover title"
                     "cover author"
                     "cover desc";
-                gap: 4px 14px; 
-                padding: 16px; 
-                text-align: left; 
+                gap: 4px 12px;
+                padding: 14px;
+                text-align: left;
             }
-            .book-cover { grid-area: cover; margin-bottom: 0; width: 75px; height: 100px; font-size: 28px; }
-            .book-title { grid-area: title; font-size: 15px; margin-top: 2px; }
-            .book-author { grid-area: author; margin-bottom: 4px; }
-            .book-desc { grid-area: desc; }
+            .book-cover {
+                grid-area: cover;
+                margin-bottom: 0;
+                width: 60px;
+                height: 80px;
+                font-size: 24px;
+            }
+            .book-title { grid-area: title; font-size: 14px; margin-top: 0; }
+            .book-author { grid-area: author; margin-bottom: 2px; font-size: 11px; }
+            .book-desc { grid-area: desc; font-size: 11px; line-height: 1.4; }
+        }
+
+        /* 超小屏幕额外优化 */
+        @media (max-width: 480px) {
+            header { padding: 10px 12px; gap: 12px; }
+            .logo-text { font-size: 16px; }
+            .logo-sub { font-size: 9px; }
+            nav { gap: 12px; }
+            nav a { font-size: 12px; }
+            main { padding: 12px; margin-top: 60px; }
+            .page-header h1 { font-size: 20px; }
+            .page-header p { font-size: 12px; padding: 0 4px; }
+
+            .category-grid { gap: 8px; }
+            .cat-card { padding: 12px 10px; min-height: 70px; }
+            .cat-icon { font-size: 20px; }
+            .cat-title { font-size: 11px; }
+
+            .article-item { padding: 12px 14px; }
+            .art-title { font-size: 13px; }
+            .art-meta { gap: 6px; font-size: 10px; }
+
+            .book-card {
+                grid-template-columns: 50px 1fr;
+                gap: 4px 10px;
+                padding: 12px;
+            }
+            .book-cover { width: 50px; height: 70px; font-size: 20px; }
+            .book-title { font-size: 13px; }
+        }
+
+        /* 优化触摸目标尺寸 */
+        @media (max-width: 768px) {
+            .cat-card, .article-item, .book-card, .sidebar-link, .filter-btn {
+                min-height: 44px; /* 确保触摸目标足够大 */
+            }
+
+            /* 优化侧边栏在超小屏幕上的显示 */
+            .sidebar {
+                width: 280px;
+                max-width: 90vw;
+                padding: 20px 16px;
+            }
+            .sidebar-header { margin-bottom: 20px; padding-bottom: 12px; }
+            .sidebar-header h2 { font-size: 16px; }
+            .sidebar-link { padding: 12px 14px; font-size: 13px; }
         }
     </style>
 </head>
