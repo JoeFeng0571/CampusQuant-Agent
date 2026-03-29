@@ -279,7 +279,7 @@
         }
         footer a { color:var(--primary); text-decoration:none; }
         /* ══ 市场快讯移动端深度优化 ════════════════════════════════════ */
-        
+
         @media (max-width: 900px) {
             /* 中等屏幕：右侧资讯掉到底部，顶部指数改为 3列2行 排布 */
             .content-grid { grid-template-columns: 1fr; }
@@ -289,54 +289,182 @@
 
         @media (max-width: 768px) {
             /* 1. 导航栏：完美复用全站统一的横向滑动与吸附菜单 */
-            header { padding: 12px 16px; gap: 16px; }
+            header { padding: 12px 16px; gap: 16px; height: 60px; }
             .logo { flex-shrink: 0; }
+            .logo-text { font-size: 18px; }
+            .logo-sub { font-size: 10px; }
             nav {
                 flex: 1; min-width: 0; overflow-x: auto; flex-wrap: nowrap;
-                justify-content: flex-start; gap: 20px;
+                justify-content: flex-start; gap: 16px;
                 -webkit-overflow-scrolling: touch; padding-right: 4px;
             }
             nav::-webkit-scrollbar { display: none; }
-            nav a { display: inline-block !important; flex-shrink: 0; font-size: 14px; }
+            nav a { display: inline-block !important; flex-shrink: 0; font-size: 13px; padding: 8px 0; }
             .sidebar-btn {
                 display: flex !important; position: sticky; right: 0; flex-shrink: 0;
                 background: rgba(11,15,25,0.95); box-shadow: -12px 0 10px rgba(11,15,25,0.95);
-                padding-left: 8px; z-index: 10;
+                padding-left: 8px; z-index: 10; width: 36px; height: 36px;
             }
 
             /* 2. 页面主体释放空间 */
-            main { padding: 20px 16px; margin-top: 70px; }
-            
+            main { padding: 16px 12px; margin-top: 60px; }
+
             /* 3. 页面标题：允许更新时间自然换行 */
-            .page-header { flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 24px; }
-            .page-header h1 { font-size: 24px; margin-bottom: 4px; }
-            .page-header p { font-size: 13px; }
+            .page-header { flex-direction: column; align-items: flex-start; gap: 6px; margin-bottom: 20px; }
+            .page-header h1 { font-size: 22px; margin-bottom: 4px; }
+            .page-header p { font-size: 12px; }
+            .update-time { font-size: 11px; }
 
-            /* 4. 顶部指数概览：手机上改成 2列3行 排布，避免数字被挤压 */
-            .indices-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 24px; }
-            .index-card { padding: 12px 10px; }
-            .index-name { font-size: 11px; margin-bottom: 6px; }
-            .index-value { font-size: 16px; } /* 稍微缩小字号 */
+            /* 4. 顶部指数概览：手机上改成 2列 排布，避免数字被挤压 */
+            .indices-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 20px; }
+            .index-card { padding: 12px 8px; border-radius: 10px; }
+            .index-name { font-size: 10px; margin-bottom: 4px; }
+            .index-value { font-size: 15px; margin-bottom: 2px; }
+            .index-change { font-size: 12px; }
 
-            /* 5. 行情表格：通过动态容器增加横向滑动保护 */
-            #table-wrap { 
-                overflow-x: auto; 
-                -webkit-overflow-scrolling: touch; 
+            /* 5. 主内容区域 */
+            .content-grid { gap: 16px; }
+
+            /* 6. 市场情绪栏 */
+            .sentiment-bar { padding: 14px 16px; gap: 12px; border-radius: 12px; }
+            .sentiment-label { font-size: 10px; margin-bottom: 6px; }
+            .sentiment-value { font-size: 16px; }
+
+            /* 7. 行情表格：通过动态容器增加横向滑动保护 */
+            .market-table-section { border-radius: 12px; }
+            .section-header { padding: 14px 16px; }
+            .section-title { font-size: 14px; }
+            .market-tabs { gap: 6px; }
+            .tab-btn { padding: 4px 10px; font-size: 11px; border-radius: 16px; }
+            #table-wrap {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
             }
-            #table-wrap table { 
-                min-width: 500px; /* 强制表格宽度，保护数据列不折行 */ 
+            #table-wrap table {
+                min-width: 500px; /* 强制表格宽度，保护数据列不折行 */
             }
-            thead th, tbody td { padding: 10px 12px; font-size: 13px; }
+            thead th {
+                padding: 8px 10px;
+                font-size: 10px;
+                letter-spacing: 0.2px;
+            }
+            tbody td {
+                padding: 10px;
+                font-size: 12px;
+            }
+            .td-sym { font-size: 13px; }
+            .td-name { font-size: 11px; }
+            .td-price { font-size: 13px; }
 
-            /* 6. 资讯列表与情绪底栏微调 */
-            .news-item { padding: 14px 16px; }
-            .sentiment-bar { padding: 16px; }
-            .sentiment-value { font-size: 18px; }
+            /* 8. 板块热力图 */
+            .sector-panel { border-radius: 12px; }
+            .sector-heatmap {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 4px;
+                padding: 8px 10px 10px;
+            }
+            .sector-tile { padding: 6px 3px; min-height: 44px; border-radius: 6px; }
+            .sector-tile-name { font-size: 9px; margin-bottom: 2px; }
+            .sector-tile-pct { font-size: 10px; }
+
+            /* 9. 热搜聚合 */
+            .hot-section { margin-top: 20px; }
+            .hot-section-header { margin-bottom: 12px; }
+            .hot-section-title { font-size: 15px; gap: 8px; }
+            .hot-refresh-btn { padding: 3px 10px; font-size: 11px; border-radius: 16px; }
+            .hot-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .hot-source-card { border-radius: 12px; }
+            .hot-source-header { padding: 10px 12px; }
+            .hot-source-icon { font-size: 16px; }
+            .hot-source-name { font-size: 12px; }
+            .hot-items { padding: 4px 0; }
+            .hot-item { gap: 6px; padding: 8px 12px; }
+            .hot-item-rank { width: 16px; height: 16px; font-size: 9px; border-radius: 4px; }
+            .hot-item-title { font-size: 11px; }
+
+            /* 10. K线图区域 */
+            .kline-section { margin-top: 20px; padding: 16px 18px; border-radius: 12px; }
+            .kline-header { gap: 10px; margin-bottom: 12px; }
+            .kline-title { font-size: 14px; }
+            .kline-search-wrap { gap: 6px; min-width: auto; flex: 1; }
+            .kline-input { padding: 8px 12px; font-size: 12px; border-radius: 8px; }
+            .kline-btn { padding: 8px 14px; font-size: 12px; border-radius: 8px; }
+            .kline-period-tabs { gap: 4px; }
+            .kp-tab { padding: 4px 10px; font-size: 10px; border-radius: 16px; }
+            .kline-info { gap: 12px; margin-bottom: 8px; }
+            .kline-sym-name { font-size: 14px; }
+            .kline-price { font-size: 18px; }
+            .kline-chart-wrap { height: 280px; }
+            .kline-cta { gap: 8px; }
+            .kline-cta a { padding: 6px 14px; font-size: 12px; border-radius: 8px; }
+            .kline-cta-sub { font-size: 11px; }
+
+            /* 11. 免责声明 */
+            .disclaimer { margin-top: 20px; padding: 10px 14px; font-size: 11px; }
+
+            /* 12. Footer */
+            footer { padding: 16px; margin-top: 20px; }
         }
 
-        /* 针对像 iPhone SE 等超窄屏幕的额外保护 */
+        /* 超小屏幕优化 */
+        @media (max-width: 480px) {
+            header { padding: 10px 12px; height: 56px; }
+            .logo-text { font-size: 16px; }
+            .logo-sub { display: none; } /* 隐藏副标题节省空间 */
+            nav { gap: 12px; }
+            nav a { font-size: 12px; }
+            main { padding: 12px 8px; margin-top: 56px; }
+
+            .page-header h1 { font-size: 20px; }
+            .page-header p { font-size: 11px; }
+
+            .indices-grid { gap: 6px; margin-bottom: 16px; }
+            .index-card { padding: 10px 6px; }
+            .index-name { font-size: 9px; }
+            .index-value { font-size: 14px; }
+            .index-change { font-size: 11px; }
+
+            .sentiment-bar { grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 12px; }
+            .sentiment-value { font-size: 15px; }
+
+            .sector-heatmap { grid-template-columns: repeat(3, 1fr); gap: 3px; }
+            .sector-tile { min-height: 40px; padding: 5px 2px; }
+            .sector-tile-name { font-size: 8px; }
+            .sector-tile-pct { font-size: 9px; }
+
+            .hot-grid { grid-template-columns: 1fr; gap: 8px; }
+            .hot-source-header { padding: 8px 10px; }
+            .hot-item { padding: 6px 10px; }
+            .hot-item-title { font-size: 10px; }
+
+            .kline-section { padding: 14px 16px; }
+            .kline-header { flex-direction: column; align-items: stretch; }
+            .kline-search-wrap { min-width: auto; }
+            .kline-period-tabs { margin-left: 0; margin-top: 8px; }
+            .kline-chart-wrap { height: 240px; }
+
+            .disclaimer { padding: 8px 12px; font-size: 10px; }
+        }
+
+        /* 超窄屏幕额外保护 */
         @media (max-width: 380px) {
-            .sentiment-bar { grid-template-columns: 1fr; } /* 情绪栏变单列上下排布 */
+            .sentiment-bar { grid-template-columns: 1fr; gap: 10px; } /* 情绪栏变单列上下排布 */
+            .sector-heatmap { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        /* 横屏模式优化 */
+        @media (max-height: 500px) and (orientation: landscape) {
+            header { height: 48px; padding: 8px 16px; }
+            .logo-text { font-size: 16px; }
+            .logo-sub { display: none; }
+            main { margin-top: 48px; padding: 12px; }
+            .page-header { margin-bottom: 12px; }
+            .page-header h1 { font-size: 18px; }
+            .indices-grid { margin-bottom: 12px; }
+            .index-card { padding: 8px 6px; }
+            .sentiment-bar { padding: 10px 12px; }
+            .kline-section { margin-top: 12px; padding: 12px 14px; }
+            .kline-chart-wrap { height: 200px; }
         }
     </style>
 </head>
@@ -541,7 +669,7 @@
 
 <script>
     'use strict';
-    const API_BASE = 'http://127.0.0.1:8000';
+    const API_BASE = 'http://8.156.85.111:8000';
     let currentTab = 'a';
     // 各市场缓存（避免切换时重复请求）
     const _quoteCache = {};
