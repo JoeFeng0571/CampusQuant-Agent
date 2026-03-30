@@ -3,82 +3,208 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登录/注册 · CampusQuant 校园财商</title>
+    <title>登录/注册 - CampusQuant</title>
     <style>
-        * { margin:0; padding:0; box-sizing:border-box;
-            font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
         :root {
-            --primary:#4facfe; --secondary:#00f2fe; --accent:#a29bfe;
-            --danger:#fd79a8;  --success:#55efc4;  --warn:#fdcb6e;
-            --bg:#0b0f19; --card:rgba(255,255,255,0.05); --border:rgba(255,255,255,0.10);
-            --text-dim:#718096; --text-sub:#a0aec0;
+            --primary: #4facfe;
+            --secondary: #00f2fe;
+            --danger: #fd79a8;
+            --success: #55efc4;
+            --bg: #0b0f19;
+            --card: rgba(255,255,255,0.05);
+            --border: rgba(255,255,255,0.10);
+            --text-dim: #718096;
+            --text-sub: #a0aec0;
         }
         body {
-            background-color:var(--bg); color:#fff; min-height:100vh;
-            display:flex; flex-direction:column; align-items:center; justify-content:center;
+            background-color: var(--bg);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
             background-image:
-                radial-gradient(circle at 20% 40%,rgba(0,242,254,0.10),transparent 40%),
-                radial-gradient(circle at 80% 60%,rgba(79,172,254,0.10),transparent 40%);
+                radial-gradient(circle at 20% 40%, rgba(0,242,254,0.10), transparent 40%),
+                radial-gradient(circle at 80% 60%, rgba(79,172,254,0.10), transparent 40%);
         }
-        .logo-wrap { text-align:center; margin-bottom:32px; }
-        .logo-text { font-size:28px; font-weight:800;
-            background:linear-gradient(90deg,#4facfe,#00f2fe);
-            -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-        .logo-sub { font-size:13px; color:var(--text-dim); margin-top:4px; }
-
+        .logo-wrap {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .logo-text {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(90deg, #4facfe, #00f2fe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .logo-sub {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
         .card {
-            width:100%; max-width:420px; background:var(--card);
-            border:1px solid var(--border); border-radius:20px;
-            padding:36px 40px; backdrop-filter:blur(12px);
-            box-shadow:0 20px 60px rgba(0,0,0,0.4);
+            width: 100%;
+            max-width: 440px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 36px 40px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
         }
-
-        /* 选项卡 */
-        .tabs { display:flex; gap:0; margin-bottom:28px; border-bottom:1px solid var(--border); }
+        .tabs {
+            display: flex;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
         .tab-btn {
-            flex:1; padding:10px; background:transparent; border:none;
-            color:var(--text-sub); font-size:15px; font-weight:600;
-            cursor:pointer; transition:all 0.2s; border-bottom:2px solid transparent;
-            margin-bottom:-1px;
+            flex: 1;
+            padding: 10px;
+            background: transparent;
+            border: none;
+            color: var(--text-sub);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
         }
-        .tab-btn.active { color:var(--secondary); border-bottom-color:var(--secondary); }
-
-        /* 表单 */
-        .form { display:none; flex-direction:column; gap:18px; }
-        .form.active { display:flex; }
-
-        .field label { display:block; font-size:12px; color:var(--text-sub);
-            margin-bottom:6px; font-weight:500; letter-spacing:0.3px; }
+        .tab-btn.active {
+            color: var(--secondary);
+            border-bottom-color: var(--secondary);
+        }
+        .auth-note {
+            margin-bottom: 18px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            line-height: 1.7;
+            color: var(--text-sub);
+            background: rgba(79,172,254,0.08);
+            border: 1px solid rgba(79,172,254,0.16);
+        }
+        .form {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .form.active {
+            display: flex;
+        }
+        .field label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-sub);
+            margin-bottom: 6px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
         .field input {
-            width:100%; padding:11px 16px; border-radius:10px;
-            background:rgba(255,255,255,0.06); border:1px solid var(--border);
-            color:#fff; font-size:14px; outline:none; transition:border-color 0.2s;
+            width: 100%;
+            padding: 11px 16px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border);
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
         }
-        .field input:focus { border-color:var(--primary); background:rgba(79,172,254,0.08); }
-
+        .field input:focus {
+            border-color: var(--primary);
+            background: rgba(79,172,254,0.08);
+        }
+        .code-row {
+            display: grid;
+            grid-template-columns: 1fr 128px;
+            gap: 10px;
+            align-items: end;
+        }
+        .btn-code,
         .btn-submit {
-            padding:13px; border-radius:12px; border:none; cursor:pointer;
-            background:linear-gradient(135deg,var(--primary),var(--secondary));
-            color:#fff; font-size:15px; font-weight:700;
-            transition:opacity 0.2s, transform 0.1s; width:100%; margin-top:4px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            transition: opacity 0.2s, transform 0.1s;
         }
-        .btn-submit:hover { opacity:0.9; transform:translateY(-1px); }
-        .btn-submit:active { transform:translateY(0); }
-        .btn-submit:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
-
-        .msg { padding:10px 14px; border-radius:8px; font-size:13px; text-align:center; display:none; }
-        .msg.error   { background:rgba(253,121,168,0.12); border:1px solid rgba(253,121,168,0.3); color:var(--danger); }
-        .msg.success { background:rgba(85,239,196,0.12); border:1px solid rgba(85,239,196,0.3); color:var(--success); }
-
+        .btn-code {
+            height: 44px;
+            background: rgba(79,172,254,0.18);
+            border: 1px solid rgba(79,172,254,0.35);
+        }
+        .btn-submit {
+            padding: 13px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+        }
+        .btn-code:hover,
+        .btn-submit:hover {
+            opacity: 0.9;
+        }
+        .btn-code:disabled,
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .msg {
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            text-align: center;
+            display: none;
+        }
+        .msg.error {
+            background: rgba(253,121,168,0.12);
+            border: 1px solid rgba(253,121,168,0.3);
+            color: var(--danger);
+        }
+        .msg.success {
+            background: rgba(85,239,196,0.12);
+            border: 1px solid rgba(85,239,196,0.3);
+            color: var(--success);
+        }
+        .auth-help {
+            margin-top: -4px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-dim);
+        }
         .back-link {
-            text-align:center; font-size:13px; color:var(--text-dim); margin-top:20px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-top: 20px;
         }
-        .back-link a { color:var(--primary); text-decoration:none; }
-        .back-link a:hover { text-decoration:underline; }
-
-        .divider { text-align:center; font-size:12px; color:var(--text-dim);
-            margin:4px 0; display:flex; align-items:center; gap:12px; }
-        .divider::before, .divider::after { content:''; flex:1; height:1px; background:var(--border); }
+        .back-link a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 520px) {
+            .card {
+                padding: 28px 20px;
+            }
+            .code-row {
+                grid-template-columns: 1fr;
+            }
+            .btn-code {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -89,30 +215,37 @@
 </div>
 
 <div class="card">
-    <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('login')">登 录</button>
-        <button class="tab-btn"       onclick="switchTab('register')">注 册</button>
+    <div class="auth-note">
+        当前版本使用邮箱验证码完成注册和登录。注册时仍需设置密码，但登录页优先使用邮箱验证码。
+        若页面提示“邮件服务未配置”，说明服务器还没有配置 SMTP 发信账号。
     </div>
 
-    <!-- 登录表单 -->
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('login')">登录</button>
+        <button class="tab-btn" onclick="switchTab('register')">注册</button>
+    </div>
+
     <form class="form active" id="form-login" onsubmit="handleLogin(event)">
         <div class="field">
             <label>邮箱</label>
             <input type="email" id="login-email" placeholder="your@email.com" required>
         </div>
-        <div class="field">
-            <label>密码</label>
-            <input type="password" id="login-pwd" placeholder="请输入密码" required>
+        <div class="code-row">
+            <div class="field">
+                <label>验证码</label>
+                <input type="text" id="login-code" placeholder="请输入 6 位验证码" maxlength="6" required>
+            </div>
+            <button type="button" class="btn-code" id="btn-send-login-code" onclick="sendCode('login')">发送验证码</button>
         </div>
+        <div class="auth-help">登录默认使用邮箱验证码，不再要求输入密码。</div>
         <div class="msg" id="login-msg"></div>
-        <button type="submit" class="btn-submit" id="btn-login">登 录</button>
+        <button type="submit" class="btn-submit" id="btn-login">登录</button>
     </form>
 
-    <!-- 注册表单 -->
     <form class="form" id="form-register" onsubmit="handleRegister(event)">
         <div class="field">
             <label>用户名</label>
-            <input type="text" id="reg-username" placeholder="2-50位字符" minlength="2" maxlength="50" required>
+            <input type="text" id="reg-username" placeholder="2-50 位字符" minlength="2" maxlength="50" required>
         </div>
         <div class="field">
             <label>邮箱</label>
@@ -120,27 +253,41 @@
         </div>
         <div class="field">
             <label>密码</label>
-            <input type="password" id="reg-pwd" placeholder="至少6位" minlength="6" required>
+            <input type="password" id="reg-pwd" placeholder="至少 6 位" minlength="6" required>
         </div>
         <div class="field">
             <label>确认密码</label>
             <input type="password" id="reg-pwd2" placeholder="再次输入密码" required>
         </div>
+        <div class="code-row">
+            <div class="field">
+                <label>验证码</label>
+                <input type="text" id="reg-code" placeholder="请输入 6 位验证码" maxlength="6" required>
+            </div>
+            <button type="button" class="btn-code" id="btn-send-register-code" onclick="sendCode('register')">发送验证码</button>
+        </div>
+        <div class="auth-help">注册时会向邮箱发送验证码，验证码 10 分钟内有效。</div>
         <div class="msg" id="reg-msg"></div>
-        <button type="submit" class="btn-submit" id="btn-register">注 册</button>
+        <button type="submit" class="btn-submit" id="btn-register">注册</button>
     </form>
 </div>
 
 <div class="back-link">
-    <a href="dashboard.html">← 返回首页</a>
-    &nbsp;·&nbsp;
+    <a href="dashboard.html">返回首页</a>
+    &nbsp;|&nbsp;
     <a href="trade.html">直接体验（游客模式）</a>
 </div>
 
 <script src="shell-bridge.js"></script>
 <script>
     'use strict';
-    const API_BASE = 'http://8.156.85.111:8000';
+
+    const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://127.0.0.1:8000'
+        : window.location.origin;
+
+    const timers = { login: null, register: null };
+    const countdowns = { login: 0, register: 0 };
 
     function navigateTo(url, replace = false) {
         const isShellRoute = /(?:^|\/)(dashboard|trade|analysis|platforms|market|community|team|resources|home|auth)\.html(?:[?#].*)?$/i.test(String(url));
@@ -153,16 +300,15 @@
         }
     }
 
-    // 已登录则直接跳转
     if (localStorage.getItem('cq_token')) {
         const redirect = new URLSearchParams(location.search).get('redirect') || 'trade.html';
         navigateTo(redirect, true);
     }
 
     function switchTab(tab) {
-        document.querySelectorAll('.tab-btn').forEach((b, i) =>
-            b.classList.toggle('active', (i === 0) === (tab === 'login'))
-        );
+        document.querySelectorAll('.tab-btn').forEach((btn, index) => {
+            btn.classList.toggle('active', (index === 0) === (tab === 'login'));
+        });
         document.getElementById('form-login').classList.toggle('active', tab === 'login');
         document.getElementById('form-register').classList.toggle('active', tab === 'register');
     }
@@ -170,75 +316,147 @@
     function showMsg(id, text, type) {
         const el = document.getElementById(id);
         el.textContent = text;
-        el.className   = 'msg ' + type;
+        el.className = 'msg ' + type;
         el.style.display = 'block';
+    }
+
+    function setCodeButton(mode, seconds) {
+        const btn = document.getElementById(mode === 'login' ? 'btn-send-login-code' : 'btn-send-register-code');
+        countdowns[mode] = seconds;
+        if (timers[mode]) clearInterval(timers[mode]);
+
+        const render = () => {
+            if (countdowns[mode] > 0) {
+                btn.disabled = true;
+                btn.textContent = `${countdowns[mode]}s 后重发`;
+                countdowns[mode] -= 1;
+            } else {
+                btn.disabled = false;
+                btn.textContent = '发送验证码';
+                clearInterval(timers[mode]);
+                timers[mode] = null;
+            }
+        };
+
+        render();
+        if (seconds > 0) timers[mode] = setInterval(render, 1000);
+    }
+
+    function getEmail(mode) {
+        return document.getElementById(mode === 'login' ? 'login-email' : 'reg-email').value.trim();
+    }
+
+    async function sendCode(mode) {
+        const email = getEmail(mode);
+        const msgId = mode === 'login' ? 'login-msg' : 'reg-msg';
+        if (!email) {
+            showMsg(msgId, '请先输入邮箱', 'error');
+            return;
+        }
+
+        try {
+            const resp = await fetch(`${API_BASE}/api/v1/auth/send-code`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, purpose: mode }),
+            });
+            const data = await resp.json();
+            if (!resp.ok) {
+                showMsg(msgId, data.detail || '验证码发送失败', 'error');
+                return;
+            }
+            showMsg(msgId, data.message || '验证码已发送', 'success');
+            setCodeButton(mode, data.cooldown || 60);
+        } catch (err) {
+            showMsg(msgId, '网络错误，请检查后端或邮件服务配置', 'error');
+        }
     }
 
     async function handleLogin(e) {
         e.preventDefault();
         const btn = document.getElementById('btn-login');
-        btn.disabled = true; btn.textContent = '登录中…';
+        btn.disabled = true;
+        btn.textContent = '登录中...';
 
         try {
             const resp = await fetch(`${API_BASE}/api/v1/auth/login`, {
-                method:  'POST',
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({
-                    email:    document.getElementById('login-email').value.trim(),
-                    password: document.getElementById('login-pwd').value,
+                body: JSON.stringify({
+                    email: document.getElementById('login-email').value.trim(),
+                    verification_code: document.getElementById('login-code').value.trim(),
                 }),
             });
             const data = await resp.json();
-            if (!resp.ok) { showMsg('login-msg', data.detail || '登录失败', 'error'); return; }
+            if (!resp.ok) {
+                showMsg('login-msg', data.detail || '登录失败', 'error');
+                return;
+            }
 
-            localStorage.setItem('cq_token',    data.token);
+            localStorage.setItem('cq_token', data.token);
             localStorage.setItem('cq_username', data.username);
-            localStorage.setItem('cq_user_id',  data.user_id);
+            localStorage.setItem('cq_user_id', data.user_id);
 
-            showMsg('login-msg', `欢迎回来，${data.username}！跳转中…`, 'success');
+            showMsg('login-msg', `欢迎回来，${data.username}，正在跳转...`, 'success');
             setTimeout(() => {
                 const redirect = new URLSearchParams(location.search).get('redirect') || 'trade.html';
                 navigateTo(redirect);
             }, 800);
-        } catch(err) {
-            showMsg('login-msg', '网络错误，请检查后端是否启动', 'error');
+        } catch (err) {
+            showMsg('login-msg', '网络错误，请检查后端或邮件服务配置', 'error');
         } finally {
-            btn.disabled = false; btn.textContent = '登 录';
+            btn.disabled = false;
+            btn.textContent = '登录';
         }
     }
 
     async function handleRegister(e) {
         e.preventDefault();
-        const pwd  = document.getElementById('reg-pwd').value;
+        const pwd = document.getElementById('reg-pwd').value;
         const pwd2 = document.getElementById('reg-pwd2').value;
-        if (pwd !== pwd2) { showMsg('reg-msg', '两次密码不一致', 'error'); return; }
+        if (pwd !== pwd2) {
+            showMsg('reg-msg', '两次密码不一致', 'error');
+            return;
+        }
 
         const btn = document.getElementById('btn-register');
-        btn.disabled = true; btn.textContent = '注册中…';
+        btn.disabled = true;
+        btn.textContent = '注册中...';
 
         try {
             const resp = await fetch(`${API_BASE}/api/v1/auth/register`, {
-                method:  'POST',
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({
+                body: JSON.stringify({
                     username: document.getElementById('reg-username').value.trim(),
-                    email:    document.getElementById('reg-email').value.trim(),
+                    email: document.getElementById('reg-email').value.trim(),
                     password: pwd,
+                    verification_code: document.getElementById('reg-code').value.trim(),
                 }),
             });
             const data = await resp.json();
-            if (!resp.ok) { showMsg('reg-msg', data.detail || '注册失败', 'error'); return; }
+            if (!resp.ok) {
+                if (String(data.detail || '').includes('该邮箱已被注册')) {
+                    switchTab('login');
+                    document.getElementById('login-email').value = document.getElementById('reg-email').value.trim();
+                    showMsg('login-msg', '该邮箱已注册，请切换到登录并获取登录验证码。', 'error');
+                } else {
+                    showMsg('reg-msg', data.detail || '注册失败', 'error');
+                }
+                return;
+            }
 
-            localStorage.setItem('cq_token',    data.token);
+            localStorage.setItem('cq_token', data.token);
             localStorage.setItem('cq_username', data.username);
-            localStorage.setItem('cq_user_id',  data.user_id);
+            localStorage.setItem('cq_user_id', data.user_id);
 
-            showMsg('reg-msg', data.message || '注册成功！跳转中…', 'success');
-            setTimeout(() => { navigateTo('trade.html'); }, 900);
-        } catch(err) {
-            showMsg('reg-msg', '网络错误，请检查后端是否启动', 'error');
+            showMsg('reg-msg', data.message || '注册成功，正在跳转...', 'success');
+            setTimeout(() => navigateTo('trade.html'), 900);
+        } catch (err) {
+            showMsg('reg-msg', '网络错误，请检查后端或邮件服务配置', 'error');
         } finally {
-            btn.disabled = false; btn.textContent = '注 册';
+            btn.disabled = false;
+            btn.textContent = '注册';
         }
     }
 </script>

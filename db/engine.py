@@ -1,11 +1,9 @@
 """
 db/engine.py — 异步 SQLAlchemy 引擎 & Session 工厂
 
-数据库: SQLite（开发）/ PostgreSQL（生产）
-驱动:   aiosqlite（异步 SQLite）
-
-切换到 PostgreSQL 只需修改 DATABASE_URL：
-  DATABASE_URL = "postgresql+asyncpg://user:pass@host/dbname"
+当前约束：
+  - 默认强制使用外部数据库，不再回落本地 SQLite
+  - 生产默认指向宝塔 MySQL
 """
 from __future__ import annotations
 
@@ -22,10 +20,12 @@ from sqlalchemy.ext.asyncio import (
 from db.models import Base
 
 # ── 连接字符串 ─────────────────────────────────────────────────
-DATABASE_URL: str = os.getenv(
-    "DATABASE_URL",
-    "sqlite+aiosqlite:///./campusquant.db",
+DEFAULT_BAOTA_DATABASE_URL = (
+    "mysql+asyncmy://monijiaoyishuju:fGNFEYSf66tmTeCD@8.156.85.111/"
+    "monijiaoyishuju?charset=utf8mb4"
 )
+
+DATABASE_URL: str = os.getenv("DATABASE_URL", DEFAULT_BAOTA_DATABASE_URL)
 
 # ── 引擎 & Session 工厂 ────────────────────────────────────────
 engine = create_async_engine(
@@ -61,7 +61,6 @@ async def init_db() -> None:
     """在 startup_event 中调用一次，自动创建所有表（幂等），并迁移新列。"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # V1.2 migration：为已有 virtual_accounts 表追加三币种字段
         if DATABASE_URL.startswith("sqlite"):
             await _sqlite_migrate_virtual_accounts(conn)
 

@@ -40,8 +40,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import random
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import AsyncGenerator, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -946,53 +947,140 @@ async def chat_with_advisor(
 # ════════════════════════════════════════════════════════════════
 
 class RegisterRequest(BaseModel):
-    username: str = Field(..., min_length=2, max_length=50, description="用户名")
-    email:    str = Field(..., description="邮箱")
-    password: str = Field(..., min_length=6, description="密码（至少6位）")
+    username: str = Field(..., min_length=2, max_length=50, description="???")
+    email: str = Field(..., description="??")
+    password: str = Field(..., min_length=6, description="??")
 
 
 class LoginRequest(BaseModel):
-    email:    str = Field(..., description="邮箱")
-    password: str = Field(..., description="密码")
+    email: str = Field(..., description="??")
+    password: Optional[str] = Field(default=None, description="??")
 
 
-@app.post("/api/v1/auth/register", summary="用户注册")
-async def register(request: RegisterRequest, db=Depends(_get_db_dep)):
-    from db.crud import create_user, get_user_by_email, get_user_by_username
-    from api.auth import create_access_token
+class AuthRegisterRequest(BaseModel):
+    username: str = Field(..., min_length=2, max_length=50, description="???")
+    email: str = Field(..., description="??")
+    password: str = Field(..., min_length=6, description="??")
+    verification_code: str = Field(..., min_length=6, max_length=6, description="?????")
 
-    if await get_user_by_email(db, request.email):
-        raise HTTPException(status_code=400, detail="该邮箱已被注册")
-    if await get_user_by_username(db, request.username):
-        raise HTTPException(status_code=400, detail="该用户名已被使用")
 
-    user  = await create_user(db, request.username, request.email, request.password)
-    token = create_access_token(user.id, user.username)
+class AuthLoginRequest(BaseModel):
+    email: str = Field(..., description="??")
+    password: Optional[str] = Field(default=None, description="??")
+    verification_code: Optional[str] = Field(default=None, min_length=6, max_length=6, description="?????")
+
+
+class SendCodeRequest(BaseModel):
+    email: str = Field(..., description="??")
+    purpose: str = Field(..., pattern="^(register|login)$", description="?????")
+
+
+_CODE_TTL_MINUTES = 10
+_CODE_COOLDOWN_SECONDS = 60
+
+
+def _make_verification_code() -> str:
+    return f"{random.randint(0, 999999):06d}"
+
+
+@app.post("/api/v1/auth/send-code", summary="???????")
+async def send_auth_code(request: SendCodeRequest, db=Depends(_get_db_dep)):
+    from db.crud import get_email_verification_code, get_user_by_email, upsert_email_verification_code
+    from utils.email_sender import is_email_configured, send_verification_email
+
+    email = request.email.strip().lower()
+    existing_user = await get_user_by_email(db, email)
+    if request.purpose == "register" and existing_user:
+        raise HTTPException(status_code=400, detail="???????")
+    if request.purpose == "login" and not existing_user:
+        raise HTTPException(status_code=404, detail="???????")
+    if not is_email_configured():
+        raise HTTPException(status_code=500, detail="???????????? SMTP")
+
+    record = await get_email_verification_code(db, email, request.purpose)
+    now = datetime.now(timezone.utc)
+    if record and record.last_sent_at and (now - record.last_sent_at).total_seconds() < _CODE_COOLDOWN_SECONDS:
+        raise HTTPException(status_code=429, detail="???????????????")
+
+    code = _make_verification_code()
+    await run_in_threadpool(send_verification_email, email, code, request.purpose)
+    await upsert_email_verification_code(
+        db, email, request.purpose, code, now + timedelta(minutes=_CODE_TTL_MINUTES)
+    )
     return {
-        "token":    token,
-        "user_id":  user.id,
-        "username": user.username,
-        "message":  "注册成功，欢迎加入 CampusQuant！",
+        "message": "????????????",
+        "email": email,
+        "purpose": request.purpose,
+        "expires_in": _CODE_TTL_MINUTES * 60,
+        "cooldown": _CODE_COOLDOWN_SECONDS,
     }
 
 
-@app.post("/api/v1/auth/login", summary="用户登录")
-async def login(request: LoginRequest, db=Depends(_get_db_dep)):
-    from db.crud import get_user_by_email, verify_password
+@app.post("/api/v1/auth/register", summary="???????")
+async def register(request: AuthRegisterRequest, db=Depends(_get_db_dep)):
+    from db.crud import (
+        consume_email_verification_code,
+        create_user,
+        get_user_by_email,
+        get_user_by_username,
+    )
     from api.auth import create_access_token
 
-    user = await get_user_by_email(db, request.email)
-    if not user or not verify_password(request.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="邮箱或密码错误")
+    if await get_user_by_email(db, request.email):
+        raise HTTPException(status_code=400, detail="???????")
+    if await get_user_by_username(db, request.username):
+        raise HTTPException(status_code=400, detail="????????")
+    ok = await consume_email_verification_code(
+        db,
+        request.email.strip().lower(),
+        "register",
+        request.verification_code,
+    )
+    if not ok:
+        raise HTTPException(status_code=400, detail="?????????")
+
+    user = await create_user(db, request.username, request.email, request.password)
+    token = create_access_token(user.id, user.username)
+    return {
+        "token": token,
+        "user_id": user.id,
+        "username": user.username,
+        "message": "????????? CampusQuant?",
+    }
+
+
+@app.post("/api/v1/auth/login", summary="???????")
+async def login(request: AuthLoginRequest, db=Depends(_get_db_dep)):
+    from db.crud import consume_email_verification_code, get_user_by_email, verify_password
+    from api.auth import create_access_token
+
+    user = await get_user_by_email(db, request.email.strip().lower())
+    if not user:
+        raise HTTPException(status_code=401, detail="??????")
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="账号已被禁用")
+        raise HTTPException(status_code=403, detail="??????")
+
+    if request.verification_code:
+        ok = await consume_email_verification_code(
+            db,
+            request.email.strip().lower(),
+            "login",
+            request.verification_code,
+        )
+        if not ok:
+            raise HTTPException(status_code=401, detail="?????????")
+    elif request.password:
+        if not verify_password(request.password, user.hashed_password):
+            raise HTTPException(status_code=401, detail="???????")
+    else:
+        raise HTTPException(status_code=400, detail="?????????")
 
     token = create_access_token(user.id, user.username)
     return {
-        "token":    token,
-        "user_id":  user.id,
+        "token": token,
+        "user_id": user.id,
         "username": user.username,
-        "message":  "登录成功",
+        "message": "????",
     }
 
 

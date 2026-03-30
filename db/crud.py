@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import (
     ChatMessage, ChatSession,
     CommunityComment, CommunityPost, PostLike,
-    NewsCache, Order, Position, User, VirtualAccount,
+    EmailVerificationCode, NewsCache, Order, Position, User, VirtualAccount,
 )
 
 # ── 密码哈希 ───────────────────────────────────────────────────
@@ -70,6 +70,69 @@ async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
 async def get_user_by_username(db: AsyncSession, username: str) -> Optional[User]:
     result = await db.execute(select(User).where(User.username == username))
     return result.scalar_one_or_none()
+
+
+async def get_email_verification_code(
+    db: AsyncSession,
+    email: str,
+    purpose: str,
+) -> Optional[EmailVerificationCode]:
+    result = await db.execute(
+        select(EmailVerificationCode).where(
+            EmailVerificationCode.email == email.lower(),
+            EmailVerificationCode.purpose == purpose,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def upsert_email_verification_code(
+    db: AsyncSession,
+    email: str,
+    purpose: str,
+    code: str,
+    expires_at: datetime,
+) -> EmailVerificationCode:
+    record = await get_email_verification_code(db, email, purpose)
+    now = datetime.now(timezone.utc)
+    if record is None:
+        record = EmailVerificationCode(
+            email=email.lower(),
+            purpose=purpose,
+            code=code,
+            expires_at=expires_at,
+            last_sent_at=now,
+            consumed_at=None,
+        )
+        db.add(record)
+    else:
+        record.code = code
+        record.expires_at = expires_at
+        record.last_sent_at = now
+        record.consumed_at = None
+    await db.flush()
+    return record
+
+
+async def consume_email_verification_code(
+    db: AsyncSession,
+    email: str,
+    purpose: str,
+    code: str,
+) -> bool:
+    record = await get_email_verification_code(db, email, purpose)
+    now = datetime.now(timezone.utc)
+    if not record:
+        return False
+    if record.consumed_at is not None:
+        return False
+    if record.expires_at < now:
+        return False
+    if record.code != str(code).strip():
+        return False
+    record.consumed_at = now
+    await db.flush()
+    return True
 
 
 # ════════════════════════════════════════════════════════════════

@@ -55,6 +55,20 @@ class User(Base):
     comments:  Mapped[list["CommunityComment"]]    = relationship("CommunityComment", back_populates="user")
 
 
+class EmailVerificationCode(Base):
+    __tablename__ = "email_verification_codes"
+    __table_args__ = (UniqueConstraint("email", "purpose", name="uq_email_purpose_code"),)
+
+    id:           Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email:        Mapped[str]      = mapped_column(String(120), nullable=False, index=True)
+    purpose:      Mapped[str]      = mapped_column(String(20), nullable=False)
+    code:         Mapped[str]      = mapped_column(String(6), nullable=False)
+    expires_at:   Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    consumed_at:  Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=None)
+    created_at:   Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class VirtualAccount(Base):
     __tablename__ = "virtual_accounts"
 
