@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import sys
 import os
+import asyncio
 
 # 将项目根目录加入 PYTHONPATH（tests/ 在根目录下一级）
 _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -27,6 +28,7 @@ if _ROOT not in sys.path:
 import pytest
 import unittest
 from unittest.mock import MagicMock, patch
+from fastapi import HTTPException
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -824,6 +826,74 @@ class TestApiResilienceUnderNetworkFailure(unittest.TestCase):
                       "order_count", "timestamp"):
             assert field in data, f"响应体缺少字段: {field}"
         assert data["order_count"] == 3
+
+
+class TestAuthLoginModes:
+    def test_login_accepts_password(self):
+        from api.server import AuthLoginRequest, login
+
+        user = MagicMock()
+        user.id = 5
+        user.username = "xq"
+        user.hashed_password = "hashed"
+        user.is_active = True
+
+        with patch("db.crud.get_user_by_email", return_value=user), \
+             patch("db.crud.verify_password", return_value=True), \
+             patch("api.auth.create_access_token", return_value="token-by-password"), \
+             patch("db.crud.consume_email_verification_code") as consume_mock:
+            resp = asyncio.run(
+                login(
+                    AuthLoginRequest(email="2254670449@qq.com", password="secret123"),
+                    db=object(),
+                )
+            )
+
+        assert resp["token"] == "token-by-password"
+        assert resp["username"] == "xq"
+        consume_mock.assert_not_called()
+
+    def test_login_accepts_verification_code(self):
+        from api.server import AuthLoginRequest, login
+
+        user = MagicMock()
+        user.id = 6
+        user.username = "code-user"
+        user.hashed_password = "hashed"
+        user.is_active = True
+
+        with patch("db.crud.get_user_by_email", return_value=user), \
+             patch("db.crud.consume_email_verification_code", return_value=True) as consume_mock, \
+             patch("api.auth.create_access_token", return_value="token-by-code"):
+            resp = asyncio.run(
+                login(
+                    AuthLoginRequest(email="2254670449@qq.com", verification_code="123456"),
+                    db=object(),
+                )
+            )
+
+        assert resp["token"] == "token-by-code"
+        consume_mock.assert_called_once()
+
+    def test_login_requires_password_or_verification_code(self):
+        from api.server import AuthLoginRequest, login
+
+        user = MagicMock()
+        user.id = 7
+        user.username = "empty-user"
+        user.hashed_password = "hashed"
+        user.is_active = True
+
+        with patch("db.crud.get_user_by_email", return_value=user):
+            with pytest.raises(HTTPException) as exc:
+                asyncio.run(
+                    login(
+                        AuthLoginRequest(email="2254670449@qq.com"),
+                        db=object(),
+                    )
+                )
+
+        assert exc.value.status_code == 400
 
 
 if __name__ == "__main__":
