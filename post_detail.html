@@ -204,7 +204,9 @@
 
 <script>
 'use strict';
-const API_BASE = 'http://8.156.85.111:8000';
+const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://127.0.0.1:8000'
+    : window.location.origin;
 
 // ══ 认证辅助 ═══════════════════════════════════════════════
 function getToken()    { return localStorage.getItem('cq_token') || ''; }

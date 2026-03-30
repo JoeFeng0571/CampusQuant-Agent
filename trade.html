@@ -608,7 +608,9 @@
 
 <script>
 'use strict';
-const API_BASE = 'http://8.156.85.111:8000';
+const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://127.0.0.1:8000'
+    : window.location.origin;
 
 // ══ 手数（每手股数）前端查询表 ════════════════════════════════
 // ── 最小交易手数：动态从后端查询，不再硬编码 ────────────────────

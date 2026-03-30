@@ -585,7 +585,9 @@
 
 <script>
 'use strict';
-const API = 'http://8.156.85.111:8000';
+const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://127.0.0.1:8000'
+    : window.location.origin;
 const CHAT_SK = 'cq_chat_history_v2';
 
 // ══════════════ SIDEBAR ══════════════
