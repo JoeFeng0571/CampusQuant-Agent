@@ -2355,6 +2355,16 @@ async def chat_mentor(req: MentorChatRequest):
 # 开发模式入口
 # ════════════════════════════════════════════════════════════════
 
+import os
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+TRUE_PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
+if not os.path.exists(os.path.join(TRUE_PROJECT_ROOT, "auth.html")):
+    logger.warning(f"Static root may be invalid: {TRUE_PROJECT_ROOT}")
+
+app.mount("/", StaticFiles(directory=TRUE_PROJECT_ROOT, html=True), name="static")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
@@ -2364,15 +2374,3 @@ if __name__ == "__main__":
         reload=True,
         log_level="info",
     )
-
-# ── 静态文件托管（必须放在所有路由定义之后）──────────────────────
-# 访问 http://127.0.0.1:8000/market.html 等同于直接打开 HTML 文件
-# 但带有正确的 HTTP Origin，不会触发 CORS 拦截
-import os
-
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-TRUE_PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
-if not os.path.exists(os.path.join(TRUE_PROJECT_ROOT, "auth.html")):
-    logger.warning(f"Static root may be invalid: {TRUE_PROJECT_ROOT}")
-
-app.mount("/", StaticFiles(directory=TRUE_PROJECT_ROOT, html=True), name="static")
