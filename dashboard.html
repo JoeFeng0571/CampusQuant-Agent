@@ -614,7 +614,7 @@ function renderAuthWidget() {
             <button onclick="logout()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px">退出</button>`;
         document.getElementById('welcome-text').textContent = `欢迎回来，${name} 👋`;
     } else {
-        el.innerHTML = `<a href="auth.html?redirect=dashboard.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(79,172,254,.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
+        el.innerHTML = `<a href="auth.html?v=20260330-auth-code&redirect=dashboard.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(79,172,254,.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
     }
 }
 function logout() {

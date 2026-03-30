@@ -1411,7 +1411,7 @@
             w.innerHTML = `<span style="font-size:12px;color:var(--text-sub)">👤 ${u}</span>
                 <button onclick="['cq_token','cq_username','cq_user_id'].forEach(k=>localStorage.removeItem(k));_renderAuthWidget();" style="background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#8da2b8;font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;
         } else {
-            w.innerHTML = `<a href="auth.html?redirect=${pg}" style="font-size:12px;color:#4facfe;text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
+            w.innerHTML = `<a href="auth.html?v=20260330-auth-code&redirect=${pg}" style="font-size:12px;color:#4facfe;text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
         }
     }
     document.addEventListener('DOMContentLoaded', _renderAuthWidget);

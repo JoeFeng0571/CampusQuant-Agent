@@ -222,7 +222,7 @@ function renderAuthWidget() {
         w.innerHTML = `<span style="font-size:12px;color:var(--text-sub);">👤 ${u}</span>
             <button onclick="logout()" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;
     } else {
-        w.innerHTML = `<a href="auth.html?redirect=community.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
+        w.innerHTML = `<a href="auth.html?v=20260330-auth-code&redirect=community.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
     }
 }
 function logout() {
@@ -335,7 +335,7 @@ let _likeCount  = 0;
 
 async function toggleLike() {
     if (!getToken()) {
-        location.href = `auth.html?redirect=post_detail.html?id=${postId}`;
+        location.href = `auth.html?v=20260330-auth-code&redirect=post_detail.html?id=${postId}`;
         return;
     }
     try {
@@ -356,7 +356,7 @@ async function toggleLike() {
 // ══ 发评论 ══════════════════════════════════════════════════
 async function submitComment() {
     if (!getToken()) {
-        location.href = `auth.html?redirect=post_detail.html?id=${postId}`;
+        location.href = `auth.html?v=20260330-auth-code&redirect=post_detail.html?id=${postId}`;
         return;
     }
     const content = (document.getElementById('comment-input').value || '').trim();

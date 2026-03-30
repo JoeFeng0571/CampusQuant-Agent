@@ -1051,7 +1051,7 @@ async def register(request: AuthRegisterRequest, db=Depends(_get_db_dep)):
 
 @app.post("/api/v1/auth/login", summary="???????")
 async def login(request: AuthLoginRequest, db=Depends(_get_db_dep)):
-    from db.crud import consume_email_verification_code, get_user_by_email, verify_password
+    from db.crud import consume_email_verification_code, get_user_by_email
     from api.auth import create_access_token
 
     user = await get_user_by_email(db, request.email.strip().lower())
@@ -1060,20 +1060,17 @@ async def login(request: AuthLoginRequest, db=Depends(_get_db_dep)):
     if not user.is_active:
         raise HTTPException(status_code=403, detail="??????")
 
-    if request.verification_code:
-        ok = await consume_email_verification_code(
-            db,
-            request.email.strip().lower(),
-            "login",
-            request.verification_code,
-        )
-        if not ok:
-            raise HTTPException(status_code=401, detail="?????????")
-    elif request.password:
-        if not verify_password(request.password, user.hashed_password):
-            raise HTTPException(status_code=401, detail="???????")
-    else:
+    if not request.verification_code:
         raise HTTPException(status_code=400, detail="?????????")
+
+    ok = await consume_email_verification_code(
+        db,
+        request.email.strip().lower(),
+        "login",
+        request.verification_code,
+    )
+    if not ok:
+        raise HTTPException(status_code=401, detail="?????????")
 
     token = create_access_token(user.id, user.username)
     return {
