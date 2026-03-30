@@ -144,6 +144,23 @@ def _parse_relay_kline(symbol: str, payload: dict[str, Any], days: int) -> pd.Da
     return df.tail(max(int(days), 2)).reset_index(drop=True)[["date", "open", "high", "low", "close", "volume"]]
 
 
+def _parse_relay_spot(symbol: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+    items = ((payload or {}).get("quoteResponse") or {}).get("result") or []
+    if not items:
+        return None
+    row = items[0]
+    price = _safe_float(row.get("regularMarketPrice"))
+    if price is None:
+        return None
+    return {
+        "symbol": symbol,
+        "name": row.get("shortName") or row.get("longName") or symbol,
+        "price": price,
+        "change_pct": _safe_float(row.get("regularMarketChangePercent")) or 0.0,
+        "source": "relay",
+    }
+
+
 def _get_a_stock_hist(symbol: str, days: int) -> pd.DataFrame:
     pure = symbol.split(".")[0]
     df = _akshare_with_retry(lambda: ak.stock_zh_a_hist(symbol=pure, period="daily", adjust="qfq"))
@@ -197,6 +214,15 @@ def _get_hist_df(symbol: str, market_type: MarketType, days: int) -> tuple[pd.Da
         _cache_set("kline", cache_key, df)
         return df, "akshare"
 
+    relay_data = _relay_request("kline", symbol, {"period": "1d", "count": days})
+    if relay_data:
+        try:
+            df = _parse_relay_kline(symbol, relay_data, days)
+            _cache_set("kline", cache_key, df)
+            return df, "relay"
+        except Exception as relay_exc:
+            logger.warning(f"[market_data] Relay K 线解析失败，回退 akshare: {symbol} {relay_exc}")
+
     try:
         if market_type == MarketType.HK_STOCK:
             df = _get_hk_stock_hist(symbol, days)
@@ -205,13 +231,8 @@ def _get_hist_df(symbol: str, market_type: MarketType, days: int) -> tuple[pd.Da
         _cache_set("kline", cache_key, df)
         return df, "akshare"
     except Exception as ak_exc:
-        logger.warning(f"[market_data] akshare K 线失败，尝试 Relay: {symbol} {ak_exc}")
-        relay_data = _relay_request("kline", symbol, {"period": "1d", "count": days})
-        if not relay_data:
-            raise ak_exc
-        df = _parse_relay_kline(symbol, relay_data, days)
-        _cache_set("kline", cache_key, df)
-        return df, "relay"
+        logger.warning(f"[market_data] akshare K 线失败: {symbol} {ak_exc}")
+        raise ak_exc
 
 
 def _get_non_a_spot(symbol: str, market_type: MarketType) -> dict[str, Any] | None:
@@ -219,6 +240,12 @@ def _get_non_a_spot(symbol: str, market_type: MarketType) -> dict[str, Any] | No
     cached = _cache_get("spot", cache_key)
     if cached is not None:
         return cached
+
+    relay_data = _relay_request("spot", symbol)
+    if relay_data:
+        parsed = _parse_relay_spot(symbol, relay_data)
+        if parsed:
+            return _cache_set("spot", cache_key, parsed)
 
     try:
         if market_type == MarketType.HK_STOCK:

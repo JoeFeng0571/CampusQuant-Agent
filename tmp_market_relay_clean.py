@@ -20,6 +20,13 @@ def fetch_json(url: str):
     return r.json()
 
 
+@app.get("/relay/market/spot")
+def spot(symbol: str, authorization: str | None = Header(None)):
+    check_auth(authorization)
+    url = f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={symbol}"
+    return JSONResponse(fetch_json(url))
+
+
 @app.get("/relay/market/kline")
 def kline(
     symbol: str = Query(...),
