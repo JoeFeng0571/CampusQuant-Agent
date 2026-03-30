@@ -144,6 +144,36 @@ def _parse_relay_kline(symbol: str, payload: dict[str, Any], days: int) -> pd.Da
     return df.tail(max(int(days), 2)).reset_index(drop=True)[["date", "open", "high", "low", "close", "volume"]]
 
 
+def _source_days_for_period(period: str, count: int) -> int:
+    count = max(int(count), 2)
+    if period == "weekly":
+        return min(max(count * 7 + 30, 180), 5000)
+    if period == "monthly":
+        return min(max(count * 31 + 90, 365), 5000)
+    return count
+
+
+def _resample_ohlcv(ohlcv: pd.DataFrame, period: str, count: int) -> pd.DataFrame:
+    if period == "daily":
+        return ohlcv.tail(max(int(count), 2)).reset_index(drop=True)
+
+    rule = {"weekly": "W-FRI", "monthly": "ME"}.get(period)
+    if not rule:
+        return ohlcv.tail(max(int(count), 2)).reset_index(drop=True)
+
+    df = ohlcv.copy()
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.set_index("date").sort_index()
+    agg = (
+        df.resample(rule)
+        .agg({"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"})
+        .dropna(subset=["open", "high", "low", "close"])
+        .reset_index()
+    )
+    agg["date"] = agg["date"].dt.strftime("%Y-%m-%d")
+    return agg.tail(max(int(count), 2)).reset_index(drop=True)
+
+
 def _get_a_stock_hist(symbol: str, days: int) -> pd.DataFrame:
     pure = symbol.split(".")[0]
     df = _akshare_with_retry(lambda: ak.stock_zh_a_hist(symbol=pure, period="daily", adjust="qfq"))
@@ -201,6 +231,9 @@ def _get_hist_df(symbol: str, market_type: MarketType, days: int) -> tuple[pd.Da
     if relay_data:
         try:
             df = _parse_relay_kline(symbol, relay_data, days)
+            min_required = min(days, max(60, int(days * 0.6)))
+            if len(df) < min_required:
+                raise ValueError(f"Relay 历史长度不足: got={len(df)} need>={min_required}")
             _cache_set("kline", cache_key, df)
             return df, "relay"
         except Exception as relay_exc:
@@ -479,16 +512,13 @@ def calculate_technical_indicators(market_data_json: str) -> str:
 
 
 def get_kline_data_raw(symbol: str, period: str = "daily", count: int = 120) -> list[dict[str, Any]]:
-    period_map = {"daily": "1d", "weekly": "1wk", "monthly": "1mo"}
     market_type, normalized = _normalize_symbol(symbol)
     try:
         if market_type == MarketType.UNKNOWN:
             return []
-        if period == "daily":
-            ohlcv, _ = _get_hist_df(normalized, market_type, count)
-        else:
-            relay_data = _relay_request("kline", normalized, {"period": period_map.get(period, "1d"), "count": count})
-            ohlcv = _parse_relay_kline(normalized, relay_data or {}, count)
+        source_days = _source_days_for_period(period, count)
+        daily_ohlcv, _ = _get_hist_df(normalized, market_type, source_days)
+        ohlcv = _resample_ohlcv(daily_ohlcv, period, count)
         return [
             {
                 "time": row["date"],

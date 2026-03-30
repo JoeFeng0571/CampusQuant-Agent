@@ -2105,7 +2105,7 @@ async def get_kline(
         loop  = asyncio.get_event_loop()
         kline = await loop.run_in_executor(
             None,
-            lambda: get_kline_data_raw(symbol, period=period, count=min(count, 500))
+            lambda: get_kline_data_raw(symbol, period=period, count=min(count, 1000))
         )
     except Exception as e:
         logger.error(f"[market/kline] {symbol} 获取失败: {e}")
