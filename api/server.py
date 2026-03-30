@@ -971,8 +971,8 @@ class AuthLoginRequest(BaseModel):
 
 
 class SendCodeRequest(BaseModel):
-    email: str = Field(..., description="??")
-    purpose: str = Field(..., pattern="^(register|login)$", description="?????")
+    email: str = Field(..., description="邮箱")
+    purpose: str = Field(..., pattern="^(register|login)$", description="验证码用途")
 
 
 _CODE_TTL_MINUTES = 10
@@ -983,7 +983,7 @@ def _make_verification_code() -> str:
     return f"{random.randint(0, 999999):06d}"
 
 
-@app.post("/api/v1/auth/send-code", summary="???????")
+@app.post("/api/v1/auth/send-code", summary="发送邮箱验证码")
 async def send_auth_code(request: SendCodeRequest, db=Depends(_get_db_dep)):
     from db.crud import get_email_verification_code, get_user_by_email, upsert_email_verification_code
     from utils.email_sender import is_email_configured, send_verification_email
@@ -991,16 +991,16 @@ async def send_auth_code(request: SendCodeRequest, db=Depends(_get_db_dep)):
     email = request.email.strip().lower()
     existing_user = await get_user_by_email(db, email)
     if request.purpose == "register" and existing_user:
-        raise HTTPException(status_code=400, detail="???????")
+        raise HTTPException(status_code=400, detail="该邮箱已被注册")
     if request.purpose == "login" and not existing_user:
-        raise HTTPException(status_code=404, detail="???????")
+        raise HTTPException(status_code=404, detail="该邮箱尚未注册")
     if not is_email_configured():
-        raise HTTPException(status_code=500, detail="???????????? SMTP")
+        raise HTTPException(status_code=500, detail="邮件服务未配置，请先完成 SMTP 配置")
 
     record = await get_email_verification_code(db, email, request.purpose)
     now = datetime.utcnow()
     if record and record.last_sent_at and (now - record.last_sent_at).total_seconds() < _CODE_COOLDOWN_SECONDS:
-        raise HTTPException(status_code=429, detail="???????????????")
+        raise HTTPException(status_code=429, detail="验证码发送过于频繁，请稍后再试")
 
     code = _make_verification_code()
     await run_in_threadpool(send_verification_email, email, code, request.purpose)
@@ -1008,7 +1008,7 @@ async def send_auth_code(request: SendCodeRequest, db=Depends(_get_db_dep)):
         db, email, request.purpose, code, now + timedelta(minutes=_CODE_TTL_MINUTES)
     )
     return {
-        "message": "????????????",
+        "message": "验证码已发送，请检查邮箱",
         "email": email,
         "purpose": request.purpose,
         "expires_in": _CODE_TTL_MINUTES * 60,
@@ -1016,7 +1016,7 @@ async def send_auth_code(request: SendCodeRequest, db=Depends(_get_db_dep)):
     }
 
 
-@app.post("/api/v1/auth/register", summary="???????")
+@app.post("/api/v1/auth/register", summary="邮箱验证码注册")
 async def register(request: AuthRegisterRequest, db=Depends(_get_db_dep)):
     from db.crud import (
         consume_email_verification_code,
@@ -1027,9 +1027,9 @@ async def register(request: AuthRegisterRequest, db=Depends(_get_db_dep)):
     from api.auth import create_access_token
 
     if await get_user_by_email(db, request.email):
-        raise HTTPException(status_code=400, detail="???????")
+        raise HTTPException(status_code=400, detail="该邮箱已被注册")
     if await get_user_by_username(db, request.username):
-        raise HTTPException(status_code=400, detail="????????")
+        raise HTTPException(status_code=400, detail="用户名已存在")
     ok = await consume_email_verification_code(
         db,
         request.email.strip().lower(),
@@ -1037,7 +1037,7 @@ async def register(request: AuthRegisterRequest, db=Depends(_get_db_dep)):
         request.verification_code,
     )
     if not ok:
-        raise HTTPException(status_code=400, detail="?????????")
+        raise HTTPException(status_code=400, detail="验证码错误或已过期")
 
     user = await create_user(db, request.username, request.email, request.password)
     token = create_access_token(user.id, user.username)
@@ -1045,30 +1045,30 @@ async def register(request: AuthRegisterRequest, db=Depends(_get_db_dep)):
         "token": token,
         "user_id": user.id,
         "username": user.username,
-        "message": "????????? CampusQuant?",
+        "message": "注册成功，欢迎来到 CampusQuant",
     }
 
 
-@app.post("/api/v1/auth/login", summary="???????")
+@app.post("/api/v1/auth/login", summary="邮箱密码或验证码登录")
 async def login(request: AuthLoginRequest, db=Depends(_get_db_dep)):
     from db.crud import consume_email_verification_code, get_user_by_email, verify_password
     from api.auth import create_access_token
 
     user = await get_user_by_email(db, request.email.strip().lower())
     if not user:
-        raise HTTPException(status_code=401, detail="??????")
+        raise HTTPException(status_code=401, detail="邮箱或密码错误")
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="??????")
+        raise HTTPException(status_code=403, detail="账号已被禁用")
 
     password = (request.password or "").strip()
     verification_code = (request.verification_code or "").strip()
 
     if password:
         if not verify_password(password, user.hashed_password):
-            raise HTTPException(status_code=401, detail="??????")
+            raise HTTPException(status_code=401, detail="邮箱或密码错误")
     else:
         if not verification_code:
-            raise HTTPException(status_code=400, detail="???????????????")
+            raise HTTPException(status_code=400, detail="请输入密码或验证码")
 
         ok = await consume_email_verification_code(
             db,
@@ -1077,14 +1077,14 @@ async def login(request: AuthLoginRequest, db=Depends(_get_db_dep)):
             verification_code,
         )
         if not ok:
-            raise HTTPException(status_code=401, detail="?????????")
+            raise HTTPException(status_code=401, detail="验证码错误或已过期")
 
     token = create_access_token(user.id, user.username)
     return {
         "token": token,
         "user_id": user.id,
         "username": user.username,
-        "message": "????",
+        "message": "登录成功",
     }
 
 

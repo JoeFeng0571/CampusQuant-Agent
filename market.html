@@ -1014,7 +1014,7 @@
             <div>正在获取 ${_klCurSym} K线数据...</div>`);
 
         try {
-            const url = `${API_BASE}/api/v1/market/kline`
+            const url = `${API_BASE}/market/kline`
                       + `?symbol=${encodeURIComponent(_klCurSym)}`
                       + `&period=${_klCurPeriod}&count=120`;
             const resp = await fetch(url);
