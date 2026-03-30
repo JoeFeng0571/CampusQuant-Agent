@@ -144,23 +144,6 @@ def _parse_relay_kline(symbol: str, payload: dict[str, Any], days: int) -> pd.Da
     return df.tail(max(int(days), 2)).reset_index(drop=True)[["date", "open", "high", "low", "close", "volume"]]
 
 
-def _parse_relay_spot(symbol: str, payload: dict[str, Any]) -> dict[str, Any] | None:
-    items = ((payload or {}).get("quoteResponse") or {}).get("result") or []
-    if not items:
-        return None
-    row = items[0]
-    price = _safe_float(row.get("regularMarketPrice"))
-    if price is None:
-        return None
-    return {
-        "symbol": symbol,
-        "name": row.get("shortName") or row.get("longName") or symbol,
-        "price": price,
-        "change_pct": _safe_float(row.get("regularMarketChangePercent")) or 0.0,
-        "source": "relay",
-    }
-
-
 def _get_a_stock_hist(symbol: str, days: int) -> pd.DataFrame:
     pure = symbol.split(".")[0]
     df = _akshare_with_retry(lambda: ak.stock_zh_a_hist(symbol=pure, period="daily", adjust="qfq"))
@@ -241,11 +224,23 @@ def _get_non_a_spot(symbol: str, market_type: MarketType) -> dict[str, Any] | No
     if cached is not None:
         return cached
 
-    relay_data = _relay_request("spot", symbol)
-    if relay_data:
-        parsed = _parse_relay_spot(symbol, relay_data)
-        if parsed:
-            return _cache_set("spot", cache_key, parsed)
+    try:
+        # 复用 2 根日线，避免 Yahoo quote 接口 401，同时可命中 K 线缓存。
+        ohlcv, source = _get_hist_df(symbol, market_type, 2)
+        latest = ohlcv.iloc[-1]
+        prev_close = float(ohlcv.iloc[-2]["close"]) if len(ohlcv) >= 2 else float(latest["close"])
+        price = float(latest["close"])
+        change_pct = ((price - prev_close) / prev_close * 100) if prev_close else 0.0
+        parsed = {
+            "symbol": symbol,
+            "name": symbol,
+            "price": price,
+            "change_pct": change_pct,
+            "source": source,
+        }
+        return _cache_set("spot", cache_key, parsed)
+    except Exception as relay_exc:
+        logger.warning(f"[market_data] relay/kline spot 回退到 akshare: {symbol} {relay_exc}")
 
     try:
         if market_type == MarketType.HK_STOCK:
