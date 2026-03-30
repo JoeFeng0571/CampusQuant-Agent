@@ -94,7 +94,7 @@ async def upsert_email_verification_code(
     expires_at: datetime,
 ) -> EmailVerificationCode:
     record = await get_email_verification_code(db, email, purpose)
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     if record is None:
         record = EmailVerificationCode(
             email=email.lower(),
@@ -121,7 +121,7 @@ async def consume_email_verification_code(
     code: str,
 ) -> bool:
     record = await get_email_verification_code(db, email, purpose)
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     if not record:
         return False
     if record.consumed_at is not None:

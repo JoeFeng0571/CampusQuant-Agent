@@ -998,7 +998,7 @@ async def send_auth_code(request: SendCodeRequest, db=Depends(_get_db_dep)):
         raise HTTPException(status_code=500, detail="???????????? SMTP")
 
     record = await get_email_verification_code(db, email, request.purpose)
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     if record and record.last_sent_at and (now - record.last_sent_at).total_seconds() < _CODE_COOLDOWN_SECONDS:
         raise HTTPException(status_code=429, detail="???????????????")
 
