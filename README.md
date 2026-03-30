@@ -199,27 +199,39 @@ python scripts/build_kb.py
 streamlit run app.py  # → http://localhost:8501
 ```
 
-## Cloudflare Workers Relay
+## Mainland Deployment Notes
 
-For Hong Kong and US market data in mainland deployment environments, you can enable a Cloudflare Workers relay.
+The current production setup is:
+
+- Mainland app server: FastAPI main service
+- Hong Kong relay server: lightweight HTTP relay for HK/US Yahoo-compatible market data
 
 Mainland application `.env`:
 
 ```env
-MARKET_RELAY_BASE_URL=https://your-worker.your-subdomain.workers.dev
-MARKET_RELAY_TOKEN=replace-me
+MARKET_RELAY_BASE_URL=http://47.76.197.100:8001
+MARKET_RELAY_TOKEN=campusquant-relay-hk
 ```
 
-Worker template:
+Current behavior:
 
-- `cloudflare_worker/market-relay/worker.js`
-- `cloudflare_worker/market-relay/wrangler.toml.example`
+- A-shares: local `akshare`
+- HK/US spot: derived from recent kline data, with local fallback
+- HK/US kline: relay first, fallback to local source when relay history is insufficient
+- Weekly/monthly kline: resampled from daily bars on the backend
+- Market hot news: preserves last successful cache and falls back to built-in source-specific mock items
 
-Current relay coverage:
+Notes:
 
-- HK/US spot price
-- HK/US batch quotes
-- HK/US kline
+- The historical `cloudflare_worker/market-relay/` template is still kept in the repo as an optional relay implementation.
+- The current online relay in use is the Hong Kong ECS service rather than `workers.dev`.
+
+## Recent Fixes
+
+- Fixed weekly/monthly K-line 404 by resampling from daily bars instead of relying only on relay intervals.
+- Expanded frontend K-line history request size so chart dragging can reach older candles.
+- Fixed hot news refresh logic so a temporary upstream failure no longer clears existing source data.
+- Restored `community.html` from Git history after it was accidentally replaced by a dashboard-style page.
 
 ---
 
