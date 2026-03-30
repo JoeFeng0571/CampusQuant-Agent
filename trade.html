@@ -785,10 +785,12 @@ async function updateQuoteDisplay(symbol) {
     }
     const price  = q.price || 0;
     const pct    = q.change_pct || 0;
-    const pfx    = prefixFor(symbol);
+    const normalizedSymbol = (q.symbol || symbol || '').toUpperCase();
+    const pfx    = prefixFor(normalizedSymbol || symbol);
     const dir    = pct >= 0 ? 'up' : 'down';
 
-    document.getElementById('price-name').textContent = (q.name || symbol) + ' · ' + symbol.toUpperCase();
+    currentSymbol = normalizedSymbol || currentSymbol;
+    document.getElementById('price-name').textContent = (q.name || normalizedSymbol || symbol) + ' · ' + (normalizedSymbol || symbol).toUpperCase();
     const bigEl = document.getElementById('price-big');
     bigEl.textContent = pfx + Number(price).toFixed(2);
     bigEl.className   = 'price-big ' + dir;
@@ -804,23 +806,22 @@ async function updateQuoteDisplay(symbol) {
 
     currentPrice = price;
     document.getElementById('order-price').value  = pfx + Number(price).toFixed(3);
-    document.getElementById('order-symbol').value = symbol.toUpperCase();
+    document.getElementById('order-symbol').value = normalizedSymbol || symbol.toUpperCase();
     updateBalanceHint();
     updateEstimate();
-    // NOTE: K-line is intentionally NOT triggered here.
-    // It is loaded once in startPriceTimer() to avoid repeated requests on every 5s poll.
+    // Load K-line once after quote normalization, so raw inputs like 600519 can
+    // still render the correct standardized symbol (e.g. 600519.SH).
+    if (normalizedSymbol && _tradeLastKlineSymbol !== normalizedSymbol) {
+        _tradeLastKlineSymbol = normalizedSymbol;
+        document.getElementById('kline-section').style.display = 'block';
+        loadTradeKline(normalizedSymbol, _tradePeriod);
+    }
 }
 
 function startPriceTimer(symbol) {
     if (priceTimer) clearInterval(priceTimer);
     updateQuoteDisplay(symbol);
     priceTimer = setInterval(() => updateQuoteDisplay(symbol), 5000);
-    // Load K-line exactly once per symbol change — never inside the polling callback
-    if (_tradeLastKlineSymbol !== symbol) {
-        _tradeLastKlineSymbol = symbol;
-        document.getElementById('kline-section').style.display = 'block';
-        loadTradeKline(symbol, _tradePeriod);
-    }
 }
 
 async function lookupSymbol() {
