@@ -1,12 +1,14 @@
 """
-tools/market_data.py
+市场数据工具。
 
-市场数据工具：
-1. A 股优先使用本地 akshare
-2. 港股 / 美股行情与 K 线优先使用 akshare 国内接口
-3. 港股 / 美股基本面与新闻优先使用 Relay/FC
-4. 所有 @tool 都返回 JSON 字符串
+职责：
+1. A 股优先使用 akshare 本地接口。
+2. 港股、美股优先使用香港 relay 获取 K 线，失败时回退到 akshare。
+3. 提供市场页依赖的批量行情、指数、快讯、板块和情绪数据。
+4. 所有 @tool 工具都返回 JSON 字符串。
 """
+
+from __future__ import annotations
 
 import json
 import time
@@ -23,26 +25,36 @@ from config import config
 from utils.market_classifier import MarketClassifier, MarketType
 
 _CACHE: dict[str, tuple[float, Any]] = {}
-_TTL = {"spot": 60, "kline": 300, "fundamental": 3600, "news": 900}
+_TTL = {
+    "spot": 60,
+    "kline": 300,
+    "fundamental": 3600,
+    "news": 900,
+    "overview": 120,
+}
 
 
 def _json_dumps(data: dict[str, Any]) -> str:
     return json.dumps(data, ensure_ascii=False, default=str)
 
 
+def _cache_key(namespace: str, key: str) -> str:
+    return f"{namespace}:{key}"
+
+
 def _cache_get(namespace: str, key: str) -> Any:
-    item = _CACHE.get(f"{namespace}:{key}")
+    item = _CACHE.get(_cache_key(namespace, key))
     if not item:
         return None
     expire_at, value = item
     if time.time() > expire_at:
-        _CACHE.pop(f"{namespace}:{key}", None)
+        _CACHE.pop(_cache_key(namespace, key), None)
         return None
     return value
 
 
 def _cache_set(namespace: str, key: str, value: Any, ttl: int | None = None) -> Any:
-    _CACHE[f"{namespace}:{key}"] = (time.time() + (ttl or _TTL.get(namespace, 300)), value)
+    _CACHE[_cache_key(namespace, key)] = (time.time() + (ttl or _TTL.get(namespace, 300)), value)
     return value
 
 
@@ -59,22 +71,27 @@ def _safe_float(value: Any) -> float | None:
         return None
 
 
-def _pick_value(record: dict[str, Any], candidates: list[str]) -> Any:
-    lowered = {str(k).strip().lower(): v for k, v in record.items()}
-    for key in candidates:
-        if key.lower() in lowered:
-            return lowered[key.lower()]
+def _safe_str(value: Any, default: str = "") -> str:
+    if value is None:
+        return default
+    return str(value).strip() or default
+
+
+def _pick_column(df: pd.DataFrame, aliases: list[str]) -> str | None:
+    cols = {str(col).strip().lower(): str(col) for col in df.columns}
+    for alias in aliases:
+        key = alias.strip().lower()
+        if key in cols:
+            return cols[key]
     return None
 
 
 def _normalize_symbol(symbol: str) -> tuple[MarketType, str]:
-    matched = MarketClassifier.fuzzy_match(symbol.strip())
-    market_type, normalized = MarketClassifier.classify(matched)
-    return market_type, normalized
+    matched = MarketClassifier.fuzzy_match((symbol or "").strip())
+    return MarketClassifier.classify(matched)
 
 
 def _to_relay_symbol(symbol: str, market_type: MarketType) -> str:
-    """将内部代码转换为更适合 Yahoo/Relay 的代码格式。"""
     if market_type == MarketType.HK_STOCK and symbol.upper().endswith(".HK"):
         code = symbol.split(".")[0].lstrip("0") or "0"
         return f"{code}.HK"
@@ -82,48 +99,82 @@ def _to_relay_symbol(symbol: str, market_type: MarketType) -> str:
 
 
 def _akshare_with_retry(fn: Callable[[], Any], retries: int = 2, delay: float = 0.8) -> Any:
-    """带重试的 akshare 调用，禁止静默返回 None。"""
     last_error: Exception | None = None
     for attempt in range(retries + 1):
         try:
             result = fn()
             if result is None:
-                raise ValueError("akshare 返回 None")
+                raise ValueError("akshare 返回空结果")
             return result
         except Exception as exc:
             last_error = exc
             if attempt < retries:
                 time.sleep(delay * (attempt + 1))
-    raise last_error or ValueError("akshare 调用失败")
+    raise last_error or RuntimeError("akshare 调用失败")
 
 
 def _relay_request(endpoint: str, symbol: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
-    """通过 Relay 或未来 FC 中转请求港股/美股数据。"""
     base_url = (config.MARKET_RELAY_BASE_URL or "").rstrip("/")
     token = (config.MARKET_RELAY_TOKEN or "").strip()
     if not base_url or not token:
-        logger.warning(f"[market_data] Relay 未配置，无法请求 {endpoint} {symbol}")
         return None
 
-    url = f"{base_url}/relay/market/{endpoint.lstrip('/')}"
-    headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
     market_type, normalized = _normalize_symbol(symbol)
     relay_symbol = _to_relay_symbol(normalized, market_type)
+    url = f"{base_url}/relay/market/{endpoint.lstrip('/')}"
     query = {"symbol": relay_symbol, **(params or {})}
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+    }
     try:
         resp = requests.get(url, params=query, headers=headers, timeout=15)
         resp.raise_for_status()
         data = resp.json()
         return data if isinstance(data, dict) else None
     except Exception as exc:
-        logger.warning(f"[market_data] Relay 请求失败 endpoint={endpoint} symbol={symbol}: {exc}")
+        logger.warning(f"[market_data] relay 请求失败 endpoint={endpoint} symbol={symbol}: {exc}")
         return None
 
 
-def _parse_relay_kline(symbol: str, payload: dict[str, Any], days: int) -> pd.DataFrame:
+def _normalize_ohlcv_df(df: pd.DataFrame) -> pd.DataFrame:
+    aliases = {
+        "date": ["日期", "date", "时间", "trade_date"],
+        "open": ["开盘", "open", "今开", "开盘价"],
+        "high": ["最高", "high", "最高价"],
+        "low": ["最低", "low", "最低价"],
+        "close": ["收盘", "close", "最新价", "close_price"],
+        "volume": ["成交量", "volume", "vol"],
+    }
+
+    mapped: dict[str, str] = {}
+    for target, options in aliases.items():
+        col = _pick_column(df, options)
+        if not col:
+            raise ValueError(f"缺少列: {target}")
+        mapped[target] = col
+
+    out = pd.DataFrame(
+        {
+            "date": pd.to_datetime(df[mapped["date"]], errors="coerce"),
+            "open": pd.to_numeric(df[mapped["open"]], errors="coerce"),
+            "high": pd.to_numeric(df[mapped["high"]], errors="coerce"),
+            "low": pd.to_numeric(df[mapped["low"]], errors="coerce"),
+            "close": pd.to_numeric(df[mapped["close"]], errors="coerce"),
+            "volume": pd.to_numeric(df[mapped["volume"]], errors="coerce"),
+        }
+    )
+    out["volume"] = out["volume"].fillna(0.0)
+    out = out.dropna(subset=["date", "open", "high", "low", "close"])
+    out = out.sort_values("date").drop_duplicates(subset=["date"], keep="last")
+    out["date"] = out["date"].dt.strftime("%Y-%m-%d")
+    return out.reset_index(drop=True)
+
+
+def _parse_relay_kline(symbol: str, payload: dict[str, Any]) -> pd.DataFrame:
     result = ((payload or {}).get("chart") or {}).get("result") or []
     if not result:
-        raise ValueError(f"Relay K 线为空: {symbol}")
+        raise ValueError(f"relay K 线为空: {symbol}")
     node = result[0]
     quote = (((node.get("indicators") or {}).get("quote") or [{}])[0]) or {}
     df = pd.DataFrame(
@@ -137,20 +188,28 @@ def _parse_relay_kline(symbol: str, payload: dict[str, Any], days: int) -> pd.Da
         }
     )
     if df.empty:
-        raise ValueError(f"Relay K 线解析失败: {symbol}")
-    df["date"] = pd.to_datetime(df["timestamp"], unit="s", utc=True).dt.tz_convert("Asia/Shanghai").dt.strftime("%Y-%m-%d")
-    df = df.drop(columns=["timestamp"]).dropna(subset=["open", "high", "low", "close"])
-    df["volume"] = pd.to_numeric(df["volume"], errors="coerce").fillna(0.0)
-    return df.tail(max(int(days), 2)).reset_index(drop=True)[["date", "open", "high", "low", "close", "volume"]]
+        raise ValueError(f"relay K 线解析失败: {symbol}")
+    df["date"] = (
+        pd.to_datetime(df["timestamp"], unit="s", utc=True)
+        .dt.tz_convert("Asia/Shanghai")
+        .dt.strftime("%Y-%m-%d")
+    )
+    out = df[["date", "open", "high", "low", "close", "volume"]].copy()
+    out["open"] = pd.to_numeric(out["open"], errors="coerce")
+    out["high"] = pd.to_numeric(out["high"], errors="coerce")
+    out["low"] = pd.to_numeric(out["low"], errors="coerce")
+    out["close"] = pd.to_numeric(out["close"], errors="coerce")
+    out["volume"] = pd.to_numeric(out["volume"], errors="coerce").fillna(0.0)
+    return out.dropna(subset=["open", "high", "low", "close"]).reset_index(drop=True)
 
 
 def _source_days_for_period(period: str, count: int) -> int:
     count = max(int(count), 2)
     if period == "weekly":
-        return min(max(count * 7 + 30, 180), 5000)
+        return min(max(count * 7 + 30, 260), 3000)
     if period == "monthly":
-        return min(max(count * 31 + 90, 365), 5000)
-    return count
+        return min(max(count * 31 + 90, 600), 4000)
+    return min(max(count, 2), 3000)
 
 
 def _resample_ohlcv(ohlcv: pd.DataFrame, period: str, count: int) -> pd.DataFrame:
@@ -178,42 +237,23 @@ def _get_a_stock_hist(symbol: str, days: int) -> pd.DataFrame:
     pure = symbol.split(".")[0]
     df = _akshare_with_retry(lambda: ak.stock_zh_a_hist(symbol=pure, period="daily", adjust="qfq"))
     if df.empty:
-        raise ValueError(f"A 股行情为空: {symbol}")
-    df = df.rename(columns={"日期": "date", "开盘": "open", "最高": "high", "最低": "low", "收盘": "close", "成交量": "volume"})
-    df = df[["date", "open", "high", "low", "close", "volume"]].copy()
-    for col in ["open", "high", "low", "close", "volume"]:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-    df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
-    df["volume"] = df["volume"].fillna(0.0)
-    return df.dropna(subset=["open", "high", "low", "close"]).tail(max(int(days), 2)).reset_index(drop=True)
+        raise ValueError(f"A 股 K 线为空: {symbol}")
+    return _normalize_ohlcv_df(df).tail(max(int(days), 2)).reset_index(drop=True)
 
 
 def _get_hk_stock_hist(symbol: str, days: int) -> pd.DataFrame:
     pure = symbol.split(".")[0].zfill(5)
     df = _akshare_with_retry(lambda: ak.stock_hk_daily(symbol=pure, adjust="qfq"))
     if df.empty:
-        raise ValueError(f"港股行情为空: {symbol}")
-    df = df.rename(columns={"date": "date", "open": "open", "high": "high", "low": "low", "close": "close", "volume": "volume"})
-    df = df[["date", "open", "high", "low", "close", "volume"]].copy()
-    for col in ["open", "high", "low", "close", "volume"]:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-    df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
-    df["volume"] = df["volume"].fillna(0.0)
-    return df.dropna(subset=["open", "high", "low", "close"]).tail(max(int(days), 2)).reset_index(drop=True)
+        raise ValueError(f"港股 K 线为空: {symbol}")
+    return _normalize_ohlcv_df(df.reset_index(drop=True)).tail(max(int(days), 2)).reset_index(drop=True)
 
 
 def _get_us_stock_hist(symbol: str, days: int) -> pd.DataFrame:
-    pure = symbol.replace(".", "-").upper()
-    df = _akshare_with_retry(lambda: ak.stock_us_daily(symbol=pure, adjust="qfq"))
+    df = _akshare_with_retry(lambda: ak.stock_us_daily(symbol=symbol.upper(), adjust="qfq"))
     if df.empty:
-        raise ValueError(f"美股行情为空: {symbol}")
-    df = df.rename(columns={"date": "date", "open": "open", "high": "high", "low": "low", "close": "close", "volume": "volume"})
-    df = df[["date", "open", "high", "low", "close", "volume"]].copy()
-    for col in ["open", "high", "low", "close", "volume"]:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-    df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
-    df["volume"] = df["volume"].fillna(0.0)
-    return df.dropna(subset=["open", "high", "low", "close"]).tail(max(int(days), 2)).reset_index(drop=True)
+        raise ValueError(f"美股 K 线为空: {symbol}")
+    return _normalize_ohlcv_df(df.reset_index(drop=True)).tail(max(int(days), 2)).reset_index(drop=True)
 
 
 def _get_hist_df(symbol: str, market_type: MarketType, days: int) -> tuple[pd.DataFrame, str]:
@@ -227,153 +267,218 @@ def _get_hist_df(symbol: str, market_type: MarketType, days: int) -> tuple[pd.Da
         _cache_set("kline", cache_key, df)
         return df, "akshare"
 
-    relay_data = _relay_request("kline", symbol, {"period": "1d", "count": days})
-    if relay_data:
+    relay = _relay_request("kline", symbol, {"period": "1d", "count": days})
+    if relay:
         try:
-            df = _parse_relay_kline(symbol, relay_data, days)
-            min_required = min(days, max(60, int(days * 0.6)))
-            if len(df) < min_required:
-                raise ValueError(f"Relay 历史长度不足: got={len(df)} need>={min_required}")
-            _cache_set("kline", cache_key, df)
-            return df, "relay"
-        except Exception as relay_exc:
-            logger.warning(f"[market_data] Relay K 线解析失败，回退 akshare: {symbol} {relay_exc}")
+            df = _parse_relay_kline(symbol, relay)
+            if len(df) >= min(max(int(days * 0.5), 60), days):
+                _cache_set("kline", cache_key, df)
+                return df.tail(max(int(days), 2)).reset_index(drop=True), "relay"
+        except Exception as exc:
+            logger.warning(f"[market_data] relay K 线解析失败，回退 akshare: {symbol} {exc}")
 
-    try:
-        if market_type == MarketType.HK_STOCK:
-            df = _get_hk_stock_hist(symbol, days)
-        else:
-            df = _get_us_stock_hist(symbol, days)
-        _cache_set("kline", cache_key, df)
-        return df, "akshare"
-    except Exception as ak_exc:
-        logger.warning(f"[market_data] akshare K 线失败: {symbol} {ak_exc}")
-        raise ak_exc
+    if market_type == MarketType.HK_STOCK:
+        df = _get_hk_stock_hist(symbol, days)
+    else:
+        df = _get_us_stock_hist(symbol, days)
+    _cache_set("kline", cache_key, df)
+    return df, "akshare"
 
 
-def _get_non_a_spot(symbol: str, market_type: MarketType) -> dict[str, Any] | None:
-    cache_key = f"{market_type.name}:{symbol}"
-    cached = _cache_get("spot", cache_key)
-    if cached is not None:
-        return cached
+def _calc_change(price: float | None, prev_close: float | None) -> tuple[float | None, float | None]:
+    if price is None or prev_close in (None, 0):
+        return None, None
+    change = price - prev_close
+    change_pct = change / prev_close * 100
+    return change, change_pct
 
-    try:
-        # 复用 2 根日线，避免 Yahoo quote 接口 401，同时可命中 K 线缓存。
-        ohlcv, source = _get_hist_df(symbol, market_type, 2)
-        latest = ohlcv.iloc[-1]
-        prev_close = float(ohlcv.iloc[-2]["close"]) if len(ohlcv) >= 2 else float(latest["close"])
-        price = float(latest["close"])
-        change_pct = ((price - prev_close) / prev_close * 100) if prev_close else 0.0
-        parsed = {
+
+def _bars_to_spot(symbol: str, market_type: MarketType) -> dict[str, Any]:
+    bars = get_kline_data_raw(symbol, period="daily", count=2)
+    if not bars:
+        return {
             "symbol": symbol,
             "name": symbol,
-            "price": price,
-            "change_pct": change_pct,
-            "source": source,
+            "market_type": market_type.name,
+            "price": None,
+            "change": None,
+            "change_pct": None,
+            "is_fallback": True,
+            "source": "none",
         }
-        return _cache_set("spot", cache_key, parsed)
-    except Exception as relay_exc:
-        logger.warning(f"[market_data] relay/kline spot 回退到 akshare: {symbol} {relay_exc}")
+    latest = bars[-1]
+    prev_close = bars[-2]["close"] if len(bars) >= 2 else latest["close"]
+    change, change_pct = _calc_change(latest["close"], prev_close)
+    return {
+        "symbol": symbol,
+        "name": symbol,
+        "market_type": market_type.name,
+        "price": latest["close"],
+        "change": round(change, 4) if change is not None else None,
+        "change_pct": round(change_pct, 4) if change_pct is not None else None,
+        "is_fallback": True,
+        "source": "kline",
+    }
 
-    try:
-        if market_type == MarketType.HK_STOCK:
-            df = _akshare_with_retry(lambda: ak.stock_hk_spot_em())
-            key = symbol.split(".")[0].zfill(5)
-            row_df = df[df["代码"].astype(str).str.zfill(5) == key]
-            if row_df.empty:
-                return None
-            row = row_df.iloc[0].to_dict()
-            result = {
-                "symbol": symbol,
-                "name": row.get("名称") or symbol,
-                "price": _safe_float(row.get("最新价")),
-                "change_pct": _safe_float(row.get("涨跌幅")) or 0.0,
-                "source": "akshare",
-            }
-        else:
-            df = _akshare_with_retry(lambda: ak.stock_us_spot_em())
-            key = symbol.replace(".", "-").upper()
-            row_df = df[df["代码"].astype(str).str.upper() == key]
-            if row_df.empty:
-                return None
-            row = row_df.iloc[0].to_dict()
-            result = {
-                "symbol": symbol,
-                "name": row.get("名称") or symbol,
-                "price": _safe_float(row.get("最新价")),
-                "change_pct": _safe_float(row.get("涨跌幅")) or 0.0,
-                "source": "akshare",
-            }
-        if result.get("price") is None:
-            return None
-        return _cache_set("spot", cache_key, result)
-    except Exception as exc:
-        logger.warning(f"[market_data] akshare 实时行情失败: {symbol} {exc}")
-        return None
+
+def _get_a_spot_table() -> pd.DataFrame:
+    cached = _cache_get("overview", "a_spot_table")
+    if cached is not None:
+        return cached
+    df = _akshare_with_retry(ak.stock_zh_a_spot_em)
+    return _cache_set("overview", "a_spot_table", df)
+
+
+def _get_hk_spot_table() -> pd.DataFrame:
+    cached = _cache_get("overview", "hk_spot_table")
+    if cached is not None:
+        return cached
+    df = _akshare_with_retry(ak.stock_hk_spot_em)
+    return _cache_set("overview", "hk_spot_table", df)
+
+
+def _get_us_spot_table() -> pd.DataFrame:
+    cached = _cache_get("overview", "us_spot_table")
+    if cached is not None:
+        return cached
+    df = _akshare_with_retry(ak.stock_us_spot_em)
+    return _cache_set("overview", "us_spot_table", df)
+
+
+def _spot_from_a_share(symbol: str) -> dict[str, Any]:
+    pure = symbol.split(".")[0]
+    df = _get_a_spot_table()
+    row = df[df["代码"].astype(str) == pure]
+    if row.empty:
+        raise ValueError(f"A 股实时行情未命中: {symbol}")
+    item = row.iloc[0]
+    return {
+        "symbol": symbol,
+        "name": _safe_str(item.get("名称"), symbol),
+        "market_type": MarketType.A_STOCK.name,
+        "price": _safe_float(item.get("最新价")),
+        "change": _safe_float(item.get("涨跌额")),
+        "change_pct": _safe_float(item.get("涨跌幅")),
+        "is_fallback": False,
+        "source": "akshare",
+    }
+
+
+def _spot_from_hk_share(symbol: str) -> dict[str, Any]:
+    df = _get_hk_spot_table()
+    pure = symbol.split(".")[0].zfill(5)
+    row = df[df["代码"].astype(str).str.zfill(5) == pure]
+    if row.empty:
+        raise ValueError(f"港股实时行情未命中: {symbol}")
+    item = row.iloc[0]
+    return {
+        "symbol": symbol,
+        "name": _safe_str(item.get("名称"), symbol),
+        "market_type": MarketType.HK_STOCK.name,
+        "price": _safe_float(item.get("最新价")),
+        "change": _safe_float(item.get("涨跌额")),
+        "change_pct": _safe_float(item.get("涨跌幅")),
+        "is_fallback": False,
+        "source": "akshare",
+    }
+
+
+def _spot_from_us_share(symbol: str) -> dict[str, Any]:
+    df = _get_us_spot_table()
+    code_series = df["代码"].astype(str).str.upper()
+    matched = df[code_series == symbol.upper()]
+    if matched.empty:
+        matched = df[code_series.str.startswith(symbol.upper() + ".")]
+    if matched.empty:
+        raise ValueError(f"美股实时行情未命中: {symbol}")
+    item = matched.iloc[0]
+    return {
+        "symbol": symbol,
+        "name": _safe_str(item.get("名称"), symbol),
+        "market_type": MarketType.US_STOCK.name,
+        "price": _safe_float(item.get("最新价")),
+        "change": _safe_float(item.get("涨跌额")),
+        "change_pct": _safe_float(item.get("涨跌幅")),
+        "is_fallback": False,
+        "source": "akshare",
+    }
 
 
 def _build_market_payload(symbol: str, market_type: MarketType, ohlcv: pd.DataFrame, source: str) -> dict[str, Any]:
-    latest = ohlcv.iloc[-1]
-    prev_close = float(ohlcv.iloc[-2]["close"]) if len(ohlcv) >= 2 else float(latest["close"])
-    latest_close = float(latest["close"])
-    change_pct = ((latest_close - prev_close) / prev_close * 100) if prev_close else 0.0
+    records = ohlcv.to_dict(orient="records")
+    latest = records[-1]
+    prev_close = records[-2]["close"] if len(records) >= 2 else latest["close"]
+    change, change_pct = _calc_change(float(latest["close"]), float(prev_close))
     return {
         "status": "success",
         "symbol": symbol,
         "market_type": market_type.name,
         "source": source,
-        "latest_price": round(latest_close, 4),
-        "period_high": round(float(ohlcv["high"].max()), 4),
-        "period_low": round(float(ohlcv["low"].min()), 4),
-        "price_change_pct": round(change_pct, 4),
-        "volume_latest": round(float(latest["volume"]), 4),
-        "data_count": int(len(ohlcv)),
+        "count": len(records),
+        "data": records,
+        "latest_price": round(float(latest["close"]), 4),
+        "change": round(change, 4) if change is not None else None,
+        "change_pct": round(change_pct, 4) if change_pct is not None else None,
         "_ohlcv_json": ohlcv.to_json(orient="records", force_ascii=False),
     }
 
 
 def _calc_indicators_from_ohlcv(ohlcv: pd.DataFrame) -> dict[str, Any]:
-    """基于 OHLCV 计算常用技术指标。"""
     df = ohlcv.copy()
-    for col in ["open", "high", "low", "close", "volume"]:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-    close, high, low, volume = df["close"], df["high"], df["low"], df["volume"]
-    ema12 = close.ewm(span=12, adjust=False).mean()
-    ema26 = close.ewm(span=26, adjust=False).mean()
-    macd = ema12 - ema26
-    macd_signal = macd.ewm(span=9, adjust=False).mean()
+    close = pd.to_numeric(df["close"], errors="coerce")
+    high = pd.to_numeric(df["high"], errors="coerce")
+    low = pd.to_numeric(df["low"], errors="coerce")
+    volume = pd.to_numeric(df["volume"], errors="coerce").fillna(0.0)
+
+    ma5 = close.rolling(5).mean()
+    ma10 = close.rolling(10).mean()
+    ma20 = close.rolling(20).mean()
+
     delta = close.diff()
     gain = delta.clip(lower=0).rolling(14).mean()
     loss = (-delta.clip(upper=0)).rolling(14).mean()
     rs = gain / loss.replace(0, pd.NA)
     rsi14 = 100 - (100 / (1 + rs))
-    ma20 = close.rolling(20).mean()
-    std20 = close.rolling(20).std()
-    boll_up = ma20 + 2 * std20
-    boll_low = ma20 - 2 * std20
-    tr = pd.concat([(high - low), (high - close.shift(1)).abs(), (low - close.shift(1)).abs()], axis=1).max(axis=1)
+
+    ema12 = close.ewm(span=12, adjust=False).mean()
+    ema26 = close.ewm(span=26, adjust=False).mean()
+    macd = ema12 - ema26
+    signal = macd.ewm(span=9, adjust=False).mean()
+    hist = macd - signal
+
+    mid = close.rolling(20).mean()
+    std = close.rolling(20).std()
+    upper = mid + 2 * std
+    lower = mid - 2 * std
+
+    prev_close = close.shift(1)
+    tr = pd.concat([(high - low), (high - prev_close).abs(), (low - prev_close).abs()], axis=1).max(axis=1)
     atr14 = tr.rolling(14).mean()
-    vol_ma10 = volume.rolling(10).mean()
-    volume_ratio = volume.iloc[-1] / vol_ma10.iloc[-1] if len(df) >= 10 and vol_ma10.iloc[-1] else None
+
     last_close = float(close.iloc[-1])
-    tech_signal = "HOLD"
-    if pd.notna(macd.iloc[-1]) and pd.notna(macd_signal.iloc[-1]):
-        cur_rsi = rsi14.iloc[-1] if pd.notna(rsi14.iloc[-1]) else 50
-        if macd.iloc[-1] > macd_signal.iloc[-1] and cur_rsi < 70:
-            tech_signal = "BUY"
-        elif macd.iloc[-1] < macd_signal.iloc[-1] and cur_rsi > 30:
-            tech_signal = "SELL"
+    avg_volume_20 = volume.tail(20).mean()
+    volume_ratio = float(volume.iloc[-1] / avg_volume_20) if avg_volume_20 else None
+
+    tech_signal = "neutral"
+    if pd.notna(ma5.iloc[-1]) and pd.notna(ma20.iloc[-1]):
+        if ma5.iloc[-1] > ma20.iloc[-1] and pd.notna(rsi14.iloc[-1]) and rsi14.iloc[-1] < 70:
+            tech_signal = "bullish"
+        elif ma5.iloc[-1] < ma20.iloc[-1] and pd.notna(rsi14.iloc[-1]) and rsi14.iloc[-1] > 30:
+            tech_signal = "bearish"
+
     return {
         "status": "success",
         "indicators": {
-            "MACD": round(float(macd.iloc[-1]), 4) if pd.notna(macd.iloc[-1]) else None,
-            "MACD_signal": round(float(macd_signal.iloc[-1]), 4) if pd.notna(macd_signal.iloc[-1]) else None,
-            "RSI14": round(float(rsi14.iloc[-1]), 4) if pd.notna(rsi14.iloc[-1]) else None,
+            "MA5": round(float(ma5.iloc[-1]), 4) if pd.notna(ma5.iloc[-1]) else None,
+            "MA10": round(float(ma10.iloc[-1]), 4) if pd.notna(ma10.iloc[-1]) else None,
             "MA20": round(float(ma20.iloc[-1]), 4) if pd.notna(ma20.iloc[-1]) else None,
-            "BOLL_upper": round(float(boll_up.iloc[-1]), 4) if pd.notna(boll_up.iloc[-1]) else None,
-            "BOLL_lower": round(float(boll_low.iloc[-1]), 4) if pd.notna(boll_low.iloc[-1]) else None,
-            "BOLL_pct_B": round(float((last_close - boll_low.iloc[-1]) / (boll_up.iloc[-1] - boll_low.iloc[-1])), 4)
-            if pd.notna(boll_up.iloc[-1]) and pd.notna(boll_low.iloc[-1]) and boll_up.iloc[-1] != boll_low.iloc[-1] else None,
+            "RSI14": round(float(rsi14.iloc[-1]), 4) if pd.notna(rsi14.iloc[-1]) else None,
+            "MACD": round(float(macd.iloc[-1]), 4) if pd.notna(macd.iloc[-1]) else None,
+            "MACD_signal": round(float(signal.iloc[-1]), 4) if pd.notna(signal.iloc[-1]) else None,
+            "MACD_hist": round(float(hist.iloc[-1]), 4) if pd.notna(hist.iloc[-1]) else None,
+            "BOLL_mid": round(float(mid.iloc[-1]), 4) if pd.notna(mid.iloc[-1]) else None,
+            "BOLL_upper": round(float(upper.iloc[-1]), 4) if pd.notna(upper.iloc[-1]) else None,
+            "BOLL_lower": round(float(lower.iloc[-1]), 4) if pd.notna(lower.iloc[-1]) else None,
             "ATR14": round(float(atr14.iloc[-1]), 4) if pd.notna(atr14.iloc[-1]) else None,
             "ATR_pct": round(float(atr14.iloc[-1] / last_close * 100), 4) if pd.notna(atr14.iloc[-1]) and last_close else None,
             "volume_ratio": round(float(volume_ratio), 4) if volume_ratio is not None else None,
@@ -410,21 +515,24 @@ def _get_relay_news(symbol: str, limit: int) -> list[dict[str, Any]]:
         return cached
     payload = _relay_request("news", symbol)
     items = (payload or {}).get("news") or []
-    news = []
+    result: list[dict[str, Any]] = []
     for item in items[: max(int(limit), 1)]:
-        news.append(
+        publisher = item.get("publisher")
+        source = publisher.get("name") if isinstance(publisher, dict) else (publisher or item.get("source") or "Yahoo Finance")
+        publish_time = item.get("providerPublishTime")
+        result.append(
             {
-                "title": str(item.get("title") or "")[:200],
-                "source": str((item.get("publisher") or item.get("source") or {}).get("name") if isinstance(item.get("publisher"), dict) else item.get("publisher") or item.get("source") or "Yahoo Finance"),
-                "time": datetime.fromtimestamp(int(item.get("providerPublishTime", 0))).isoformat() if item.get("providerPublishTime") else "",
+                "title": _safe_str(item.get("title"))[:200],
+                "source": _safe_str(source, "Yahoo Finance"),
+                "time": datetime.fromtimestamp(int(publish_time)).isoformat() if publish_time else "",
             }
         )
-    return _cache_set("news", cache_key, news)
+    return _cache_set("news", cache_key, result)
 
 
 @tool
 def get_market_data(symbol: str, days: int = 180) -> str:
-    """获取股票行情数据，返回统一的 OHLCV JSON 字符串。"""
+    """获取股票行情数据，返回统一的 OHLCV JSON。"""
     try:
         market_type, normalized = _normalize_symbol(symbol)
         if market_type == MarketType.UNKNOWN:
@@ -438,7 +546,7 @@ def get_market_data(symbol: str, days: int = 180) -> str:
 
 @tool
 def get_fundamental_data(symbol: str) -> str:
-    """获取股票基本面数据，返回统一 JSON 字符串。"""
+    """获取股票基本面数据，返回统一 JSON。"""
     try:
         market_type, normalized = _normalize_symbol(symbol)
         if market_type == MarketType.A_STOCK:
@@ -448,18 +556,17 @@ def get_fundamental_data(symbol: str) -> str:
                 raise ValueError("财务摘要为空")
             row = df.iloc[-1].to_dict()
             data = {
-                "report_date": _pick_value(row, ["报告期", "报告日期", "日期"]),
-                "pe": _safe_float(_pick_value(row, ["市盈率", "市盈率ttm", "滚动市盈率"])),
-                "pb": _safe_float(_pick_value(row, ["市净率"])),
-                "roe": _safe_float(_pick_value(row, ["净资产收益率", "净资产收益率roe", "roe"])),
-                "eps": _safe_float(_pick_value(row, ["每股收益", "基本每股收益", "eps"])),
+                "report_date": row.get("报告期") or row.get("报告日期") or row.get("日期"),
+                "pe": _safe_float(row.get("市盈率")) or _safe_float(row.get("市盈率ttm")) or _safe_float(row.get("滚动市盈率")),
+                "pb": _safe_float(row.get("市净率")),
+                "roe": _safe_float(row.get("净资产收益率")) or _safe_float(row.get("ROE")),
+                "eps": _safe_float(row.get("每股收益")) or _safe_float(row.get("基本每股收益")) or _safe_float(row.get("EPS")),
             }
             return _json_dumps({"status": "success", "symbol": normalized, "market_type": market_type.name, "source": "akshare", "data": data})
 
         data = _get_relay_fundamental(normalized)
-        if not any(v is not None and v != "" for v in data.values()):
-            return _json_dumps({"status": "partial", "symbol": normalized, "market_type": market_type.name, "source": "relay", "data": {}, "message": "Relay 基本面数据不可用"})
-        return _json_dumps({"status": "success", "symbol": normalized, "market_type": market_type.name, "source": "relay", "data": data})
+        status = "success" if any(v is not None and v != "" for v in data.values()) else "partial"
+        return _json_dumps({"status": status, "symbol": normalized, "market_type": market_type.name, "source": "relay", "data": data})
     except Exception as exc:
         logger.exception(f"[market_data] get_fundamental_data 失败: {symbol}")
         return _json_dumps({"status": "error", "symbol": symbol, "error": str(exc), "data": {}})
@@ -467,7 +574,7 @@ def get_fundamental_data(symbol: str) -> str:
 
 @tool
 def get_stock_news(symbol: str, limit: int = 5) -> str:
-    """获取股票相关新闻，返回统一 JSON 字符串。"""
+    """获取个股相关新闻，返回统一 JSON。"""
     try:
         market_type, normalized = _normalize_symbol(symbol)
         news: list[dict[str, Any]] = []
@@ -476,13 +583,15 @@ def get_stock_news(symbol: str, limit: int = 5) -> str:
             pure = normalized.split(".")[0]
             df = _akshare_with_retry(lambda: ak.stock_news_em(symbol=pure))
             if not df.empty:
-                df = df.head(max(int(limit), 1))
-                for _, row in df.iterrows():
+                title_col = _pick_column(df, ["标题", "新闻标题", "title"]) or df.columns[0]
+                source_col = _pick_column(df, ["文章来源", "来源", "source"])
+                time_col = _pick_column(df, ["发布时间", "日期", "时间", "publish_time"])
+                for _, row in df.head(max(int(limit), 1)).iterrows():
                     news.append(
                         {
-                            "title": str(_pick_value(row.to_dict(), ["标题", "新闻标题", "title"]) or "")[:200],
-                            "source": str(_pick_value(row.to_dict(), ["文章来源", "来源", "source"]) or "东方财富"),
-                            "time": str(_pick_value(row.to_dict(), ["发布时间", "日期", "时间", "publish_time"]) or ""),
+                            "title": _safe_str(row.get(title_col))[:200],
+                            "source": _safe_str(row.get(source_col), "东方财富") if source_col else "东方财富",
+                            "time": _safe_str(row.get(time_col)) if time_col else "",
                         }
                     )
         else:
@@ -490,7 +599,7 @@ def get_stock_news(symbol: str, limit: int = 5) -> str:
             news = _get_relay_news(normalized, limit)
 
         status = "success" if news else "partial"
-        return _json_dumps({"status": status, "symbol": normalized, "market_type": market_type.name, "source": source, "news": news, "message": "" if news else "暂无新闻数据"})
+        return _json_dumps({"status": status, "symbol": normalized, "market_type": market_type.name, "source": source, "news": news})
     except Exception as exc:
         logger.exception(f"[market_data] get_stock_news 失败: {symbol}")
         return _json_dumps({"status": "error", "symbol": symbol, "error": str(exc), "news": []})
@@ -498,7 +607,7 @@ def get_stock_news(symbol: str, limit: int = 5) -> str:
 
 @tool
 def calculate_technical_indicators(market_data_json: str) -> str:
-    """基于行情 JSON 计算技术指标。"""
+    """根据行情 JSON 计算技术指标。"""
     try:
         payload = json.loads(market_data_json)
         ohlcv_json = payload.get("_ohlcv_json")
@@ -513,12 +622,12 @@ def calculate_technical_indicators(market_data_json: str) -> str:
 
 def get_kline_data_raw(symbol: str, period: str = "daily", count: int = 120) -> list[dict[str, Any]]:
     market_type, normalized = _normalize_symbol(symbol)
+    if market_type == MarketType.UNKNOWN:
+        return []
     try:
-        if market_type == MarketType.UNKNOWN:
-            return []
         source_days = _source_days_for_period(period, count)
         daily_ohlcv, _ = _get_hist_df(normalized, market_type, source_days)
-        ohlcv = _resample_ohlcv(daily_ohlcv, period, count)
+        ohlcv = _resample_ohlcv(daily_ohlcv, period.lower(), count)
         return [
             {
                 "time": row["date"],
@@ -537,97 +646,199 @@ def get_kline_data_raw(symbol: str, period: str = "daily", count: int = 120) -> 
 
 def get_spot_price_raw(symbol: str) -> dict[str, Any]:
     market_type, normalized = _normalize_symbol(symbol)
-    if market_type in (MarketType.HK_STOCK, MarketType.US_STOCK):
-        spot = _get_non_a_spot(normalized, market_type)
-        if spot:
-            return {
-                "symbol": normalized,
-                "name": spot.get("name", normalized),
-                "market_type": market_type.name,
-                "price": spot.get("price"),
-                "change_pct": round(float(spot.get("change_pct") or 0.0), 4),
-                "is_fallback": False,
-                "source": spot.get("source", "akshare"),
-            }
+    if market_type == MarketType.UNKNOWN:
+        return _bars_to_spot(symbol, MarketType.UNKNOWN)
 
-    bars = get_kline_data_raw(normalized, period="daily", count=2)
-    if not bars:
-        return {"symbol": normalized, "name": normalized, "price": None, "change_pct": 0.0, "is_fallback": True, "source": "none"}
-    latest = bars[-1]
-    prev_close = bars[-2]["close"] if len(bars) >= 2 else latest["close"]
-    change_pct = ((latest["close"] - prev_close) / prev_close * 100) if prev_close else 0.0
-    return {
-        "symbol": normalized,
-        "name": normalized,
-        "market_type": market_type.name,
-        "price": latest["close"],
-        "change_pct": round(change_pct, 4),
-        "is_fallback": False,
-        "source": "akshare" if market_type != MarketType.UNKNOWN else "fallback",
-    }
+    cache_key = f"{market_type.name}:{normalized}"
+    cached = _cache_get("spot", cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        if market_type == MarketType.A_STOCK:
+            result = _spot_from_a_share(normalized)
+        elif market_type == MarketType.HK_STOCK:
+            result = _spot_from_hk_share(normalized)
+        else:
+            result = _spot_from_us_share(normalized)
+        return _cache_set("spot", cache_key, result)
+    except Exception as exc:
+        logger.warning(f"[market_data] 实时行情回退日线: {normalized} {exc}")
+        result = _bars_to_spot(normalized, market_type)
+        return _cache_set("spot", cache_key, result)
 
 
 def get_batch_quotes_raw(symbols: list[str], market: str | None = None) -> list[dict[str, Any]]:
-    return [get_spot_price_raw(sym) for sym in symbols]
+    return [get_spot_price_raw(symbol) for symbol in symbols]
+
+
+def _index_from_cn_table(df: pd.DataFrame, code: str, name: str) -> dict[str, Any] | None:
+    row = df[df["代码"].astype(str) == code]
+    if row.empty:
+        return None
+    item = row.iloc[0]
+    return {
+        "symbol": code,
+        "name": name,
+        "price": _safe_float(item.get("最新价")),
+        "change": _safe_float(item.get("涨跌额")),
+        "change_pct": _safe_float(item.get("涨跌幅")),
+        "is_fallback": False,
+        "source": "akshare",
+    }
+
+
+def _index_from_relay(symbol: str, name: str) -> dict[str, Any]:
+    payload = _relay_request("kline", symbol, {"period": "1d", "count": 2})
+    if not payload:
+        raise ValueError(f"relay 指数为空: {symbol}")
+    bars = _parse_relay_kline(symbol, payload)
+    if bars.empty:
+        raise ValueError(f"relay 指数解析失败: {symbol}")
+    latest = bars.iloc[-1]
+    prev_close = bars.iloc[-2]["close"] if len(bars) >= 2 else latest["close"]
+    change, change_pct = _calc_change(float(latest["close"]), float(prev_close))
+    return {
+        "symbol": symbol,
+        "name": name,
+        "price": round(float(latest["close"]), 4),
+        "change": round(change, 4) if change is not None else None,
+        "change_pct": round(change_pct, 4) if change_pct is not None else None,
+        "is_fallback": False,
+        "source": "relay",
+    }
 
 
 def get_market_indices_raw() -> list[dict[str, Any]]:
-    fallback = [
-        {"symbol": "000001.SH", "name": "上证指数", "price": 0.0, "change_pct": 0.0, "is_fallback": True},
-        {"symbol": "399001.SZ", "name": "深证成指", "price": 0.0, "change_pct": 0.0, "is_fallback": True},
-        {"symbol": "^IXIC", "name": "纳斯达克", "price": 0.0, "change_pct": 0.0, "is_fallback": True},
-    ]
+    cache_key = "indices"
+    cached = _cache_get("overview", cache_key)
+    if cached is not None:
+        return cached
+
+    results: list[dict[str, Any]] = []
+
     try:
-        return [
-            get_spot_price_raw("000001.SH") | {"name": "上证指数"},
-            get_spot_price_raw("399001.SZ") | {"name": "深证成指"},
-            get_spot_price_raw("AAPL") | {"symbol": "^IXIC", "name": "纳斯达克观察"},
+        cn_df = _akshare_with_retry(lambda: ak.stock_zh_index_spot_em(symbol="沪深重要指数"))
+        for code, name in [("000001", "上证指数"), ("399001", "深证成指"), ("399006", "创业板指"), ("000300", "沪深300")]:
+            item = _index_from_cn_table(cn_df, code, name)
+            if item:
+                results.append(item)
+    except Exception as exc:
+        logger.warning(f"[market_data] A 股指数获取失败: {exc}")
+
+    for symbol, name in [("^HSI", "恒生指数"), ("^GSPC", "标普500"), ("^IXIC", "纳斯达克")]:
+        try:
+            results.append(_index_from_relay(symbol, name))
+        except Exception as exc:
+            logger.warning(f"[market_data] 全球指数获取失败 {symbol}: {exc}")
+
+    if not results:
+        results = [
+            {"symbol": "000001", "name": "上证指数", "price": 0.0, "change": 0.0, "change_pct": 0.0, "is_fallback": True, "source": "fallback"},
+            {"symbol": "399001", "name": "深证成指", "price": 0.0, "change": 0.0, "change_pct": 0.0, "is_fallback": True, "source": "fallback"},
+            {"symbol": "^IXIC", "name": "纳斯达克", "price": 0.0, "change": 0.0, "change_pct": 0.0, "is_fallback": True, "source": "fallback"},
         ]
-    except Exception:
-        return fallback
+
+    return _cache_set("overview", cache_key, results)
 
 
 def get_market_news_raw(limit: int = 20) -> list[dict[str, Any]]:
     try:
-        from tools.hot_news import get_hot_news
-
-        flat: list[dict[str, Any]] = []
-        for block in get_hot_news(force_refresh=False):
-            label = block.get("label", "")
-            for item in block.get("items", []):
-                flat.append({"title": item.get("title", "")[:200], "source": label, "time": block.get("fetched_at") or "", "url": item.get("url", "")})
-        return flat[:limit]
+        df = _akshare_with_retry(lambda: ak.stock_info_global_cls(symbol="全部"))
+        result: list[dict[str, Any]] = []
+        sorted_df = df.sort_values(["发布日期", "发布时间"], ascending=False)
+        for _, row in sorted_df.head(max(int(limit), 1)).iterrows():
+            publish_at = f"{row.get('发布日期', '')} {row.get('发布时间', '')}".strip()
+            result.append(
+                {
+                    "title": _safe_str(row.get("标题"))[:200],
+                    "source": "财联社",
+                    "time": publish_at,
+                    "url": "https://www.cls.cn/telegraph",
+                }
+            )
+        return result
     except Exception as exc:
         logger.warning(f"[market_data] get_market_news_raw 失败: {exc}")
         return []
 
 
 def get_sector_data_raw() -> list[dict[str, Any]]:
-    return [
-        {"sector": "消费", "change_pct": 0.0},
-        {"sector": "科技", "change_pct": 0.0},
-        {"sector": "金融", "change_pct": 0.0},
-    ]
+    cache_key = "sectors"
+    cached = _cache_get("overview", cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        df = _akshare_with_retry(ak.stock_board_industry_name_em)
+        result = []
+        for _, row in df.sort_values("涨跌幅", ascending=False).head(12).iterrows():
+            result.append(
+                {
+                    "name": _safe_str(row.get("板块名称")),
+                    "sector": _safe_str(row.get("板块名称")),
+                    "change_pct": float(_safe_float(row.get("涨跌幅")) or 0.0),
+                    "leader": _safe_str(row.get("领涨股票")),
+                    "up_count": int(_safe_float(row.get("上涨家数")) or 0),
+                    "down_count": int(_safe_float(row.get("下跌家数")) or 0),
+                }
+            )
+        return _cache_set("overview", cache_key, result)
+    except Exception as exc:
+        logger.warning(f"[market_data] get_sector_data_raw 失败: {exc}")
+        return []
 
 
 def get_market_sentiment_raw() -> dict[str, Any]:
-    indices = get_market_indices_raw()
-    avg_change = sum(float(item.get("change_pct") or 0.0) for item in indices) / max(len(indices), 1)
-    level = "neutral"
-    if avg_change > 1:
-        level = "bullish"
-    elif avg_change < -1:
-        level = "bearish"
-    return {"sentiment": level, "score": round(avg_change, 4), "indices": indices}
+    cache_key = "sentiment"
+    cached = _cache_get("overview", cache_key)
+    if cached is not None:
+        return cached
+
+    limit_up = "--"
+    limit_down = "--"
+    volume = "--"
+    north_flow = "--"
+    north_flow_raw = None
+
+    try:
+        df = _get_a_spot_table()
+        pct = pd.to_numeric(df["涨跌幅"], errors="coerce")
+        limit_up = str(int((pct >= 9.8).sum()))
+        limit_down = str(int((pct <= -9.8).sum()))
+        total_amount = pd.to_numeric(df["成交额"], errors="coerce").fillna(0).sum()
+        volume = f"{total_amount / 1e8:.2f}亿"
+    except Exception as exc:
+        logger.warning(f"[market_data] 市场情绪-A股统计失败: {exc}")
+
+    try:
+        north_df = _akshare_with_retry(ak.stock_hsgt_fund_flow_summary_em)
+        if not north_df.empty:
+            latest_date = north_df["交易日"].max()
+            latest_df = north_df[north_df["交易日"] == latest_date]
+            value = pd.to_numeric(latest_df["成交净买额"], errors="coerce").sum()
+            north_flow_raw = float(value)
+            north_flow = f"{value:+.2f}亿"
+    except Exception as exc:
+        logger.warning(f"[market_data] 市场情绪-北向资金失败: {exc}")
+
+    result = {
+        "limit_up": limit_up,
+        "limit_down": limit_down,
+        "volume": volume,
+        "north_flow": north_flow,
+        "north_flow_raw": north_flow_raw,
+    }
+    return _cache_set("overview", cache_key, result)
 
 
 def get_deep_financial_data_via_relay(symbol: str) -> dict[str, Any]:
     market_type, normalized = _normalize_symbol(symbol)
-    if market_type != MarketType.A_STOCK:
-        payload = _relay_request("deep", normalized) or {}
-        result = (((payload.get("quoteSummary") or {}).get("result")) or [{}])[0]
-        return {"raw": result, "revenue_composition": {}, "performance_trend": {}}
-    return get_deep_financial_data(normalized)
+    if market_type == MarketType.A_STOCK:
+        return get_deep_financial_data(normalized)
+    payload = _relay_request("deep", normalized) or {}
+    result = (((payload.get("quoteSummary") or {}).get("result")) or [{}])[0]
+    return {"symbol": normalized, "raw": result, "revenue_composition": {}, "performance_trend": {}}
 
 
 def get_deep_financial_data(symbol: str) -> dict[str, Any]:
