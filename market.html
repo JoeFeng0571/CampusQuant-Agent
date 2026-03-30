@@ -1014,9 +1014,11 @@
             <div>正在获取 ${_klCurSym} K线数据...</div>`);
 
         try {
-            const url = `${API_BASE}/market/kline`
+            const countMap = { daily: 500, weekly: 260, monthly: 120 };
+            const klineCount = countMap[_klCurPeriod] || 500;
+            const url = `${API_BASE}/api/v1/market/kline`
                       + `?symbol=${encodeURIComponent(_klCurSym)}`
-                      + `&period=${_klCurPeriod}&count=120`;
+                      + `&period=${_klCurPeriod}&count=${klineCount}`;
             const resp = await fetch(url);
 
             if (!resp.ok) {
