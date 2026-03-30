@@ -238,6 +238,16 @@ def _get_a_stock_hist(symbol: str, days: int) -> pd.DataFrame:
     df = _akshare_with_retry(lambda: ak.stock_zh_a_hist(symbol=pure, period="daily", adjust="qfq"))
     if df.empty:
         raise ValueError(f"A 股 K 线为空: {symbol}")
+    df = df.rename(
+        columns={
+            "日期": "date",
+            "开盘": "open",
+            "收盘": "close",
+            "最高": "high",
+            "最低": "low",
+            "成交量": "volume",
+        }
+    )
     return _normalize_ohlcv_df(df).tail(max(int(days), 2)).reset_index(drop=True)
 
 
@@ -669,6 +679,35 @@ def get_spot_price_raw(symbol: str) -> dict[str, Any]:
 
 
 def get_batch_quotes_raw(symbols: list[str], market: str | None = None) -> list[dict[str, Any]]:
+    market = (market or "").lower()
+    if market == "a":
+        try:
+            df = _get_a_spot_table()
+            code_set = {str(sym).split(".")[0] for sym in symbols}
+            filtered = df[df["代码"].astype(str).isin(code_set)]
+            row_map = {str(row["代码"]): row for _, row in filtered.iterrows()}
+            result: list[dict[str, Any]] = []
+            for symbol in symbols:
+                code = symbol.split(".")[0]
+                row = row_map.get(code)
+                if row is None:
+                    result.append(get_spot_price_raw(symbol))
+                    continue
+                result.append(
+                    {
+                        "symbol": symbol,
+                        "name": _safe_str(row.get("名称"), symbol),
+                        "market_type": MarketType.A_STOCK.name,
+                        "price": _safe_float(row.get("最新价")),
+                        "change": _safe_float(row.get("涨跌额")),
+                        "change_pct": _safe_float(row.get("涨跌幅")),
+                        "is_fallback": False,
+                        "source": "akshare",
+                    }
+                )
+            return result
+        except Exception as exc:
+            logger.warning(f"[market_data] A 股批量行情失败，回退逐只获取: {exc}")
     return [get_spot_price_raw(symbol) for symbol in symbols]
 
 
