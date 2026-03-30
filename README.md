@@ -199,6 +199,28 @@ python scripts/build_kb.py
 streamlit run app.py  # → http://localhost:8501
 ```
 
+## Cloudflare Workers Relay
+
+For Hong Kong and US market data in mainland deployment environments, you can enable a Cloudflare Workers relay.
+
+Mainland application `.env`:
+
+```env
+MARKET_RELAY_BASE_URL=https://your-worker.your-subdomain.workers.dev
+MARKET_RELAY_TOKEN=replace-me
+```
+
+Worker template:
+
+- `cloudflare_worker/market-relay/worker.js`
+- `cloudflare_worker/market-relay/wrangler.toml.example`
+
+Current relay coverage:
+
+- HK/US spot price
+- HK/US batch quotes
+- HK/US kline
+
 ---
 
 ## D1-D4 四维评测体系

@@ -73,6 +73,7 @@ from graph.state import (
 from tools.market_data import (
     calculate_technical_indicators,
     get_deep_financial_data,
+    get_deep_financial_data_via_relay,
     get_fundamental_data,
     get_market_data,
     get_stock_news,
@@ -768,7 +769,7 @@ async def fundamental_node(state: TradingGraphState) -> dict:
     # 深度财务数据仅供前端图表，不注入 LLM prompt，故不受截断约束
     try:
         deep = await asyncio.get_event_loop().run_in_executor(
-            None, get_deep_financial_data, symbol
+            None, get_deep_financial_data_via_relay, symbol
         )
         fundamental_data_dict["revenue_composition"] = deep.get("revenue_composition", {})
         fundamental_data_dict["performance_trend"]   = deep.get("performance_trend", {})

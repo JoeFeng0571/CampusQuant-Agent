@@ -109,6 +109,10 @@ class Config:
         "CACHE_EXPIRY_MIN": 10,
     }
 
+    # ==================== 港美股 Relay（Cloudflare Workers） ====================
+    MARKET_RELAY_BASE_URL = os.getenv("MARKET_RELAY_BASE_URL", "").strip().rstrip("/")
+    MARKET_RELAY_TOKEN = os.getenv("MARKET_RELAY_TOKEN", "").strip()
+
     # ==================== 系统参数 ====================
     SYSTEM_PARAMS = {
         # 初始资金假设（大学生场景，单位：人民币）

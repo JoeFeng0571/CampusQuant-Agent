@@ -1,0 +1,7 @@
+name = "campusquant-market-relay"
+main = "worker.js"
+compatibility_date = "2026-03-30"
+
+[vars]
+# Set this in Cloudflare dashboard or via `wrangler secret put RELAY_TOKEN`
+# RELAY_TOKEN = "replace-me"
