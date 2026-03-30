@@ -2368,6 +2368,10 @@ if __name__ == "__main__":
 # ── 静态文件托管（必须放在所有路由定义之后）──────────────────────
 # 访问 http://127.0.0.1:8000/market.html 等同于直接打开 HTML 文件
 # 但带有正确的 HTTP Origin，不会触发 CORS 拦截
-import os as _os
-_PROJECT_ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
-app.mount("/", StaticFiles(directory=_PROJECT_ROOT, html=True), name="static")
+from pathlib import Path as _Path
+
+_PROJECT_ROOT = _Path(__file__).resolve().parent.parent
+if not (_PROJECT_ROOT / "auth.html").exists():
+    raise RuntimeError(f"Static root is invalid: {_PROJECT_ROOT}")
+
+app.mount("/", StaticFiles(directory=str(_PROJECT_ROOT), html=True), name="static")
