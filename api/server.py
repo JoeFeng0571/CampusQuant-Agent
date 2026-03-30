@@ -2373,6 +2373,6 @@ import os
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 TRUE_PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
 if not os.path.exists(os.path.join(TRUE_PROJECT_ROOT, "auth.html")):
-    raise RuntimeError(f"Static root is invalid: {TRUE_PROJECT_ROOT}")
+    logger.warning(f"Static root may be invalid: {TRUE_PROJECT_ROOT}")
 
 app.mount("/", StaticFiles(directory=TRUE_PROJECT_ROOT, html=True), name="static")
