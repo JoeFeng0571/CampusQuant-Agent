@@ -669,12 +669,12 @@
 
 <script>
     'use strict';
-    // 本地开发: http://127.0.0.1:8000/market.html → hostname 是 127.0.0.1，用绝对地址
-    // 线上生产: http://8.156.85.111:8000/market.html → hostname 是服务器 IP，用相对路径（同源）
+    // 本地开发: 直连 FastAPI 8000
+    // 线上生产: 走当前站点同源，由网关转发 /api/v1/*
     const _h = window.location.hostname;
     const API_BASE = (_h === 'localhost' || _h === '127.0.0.1')
-        ? 'http://127.0.0.1:8000/api/v1'
-        : '/api/v1';
+        ? 'http://127.0.0.1:8000'
+        : window.location.origin;
     let currentTab = 'a';
     // 各市场缓存（避免切换时重复请求）
     const _quoteCache = {};
