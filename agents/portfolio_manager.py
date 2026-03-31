@@ -16,6 +16,11 @@ from utils import MarketClassifier, MarketType
 
 
 # ==================== 市场差异化决策策略配置 ====================
+# ⚠️ DEPRECATED: 以下权重未被 LangGraph 图使用。
+# 实际运行时权重见 graph/nodes.py _MARKET_WEIGHTS
+# A_STOCK: fundamental=0.40, technical=0.25, sentiment=0.35
+# HK_STOCK: fundamental=0.55, technical=0.20, sentiment=0.25
+# US_STOCK: fundamental=0.50, technical=0.25, sentiment=0.25
 MARKET_PORTFOLIO_STRATEGIES = {
     MarketType.A_STOCK: {
         "name": "A股景气度与政策驱动策略",

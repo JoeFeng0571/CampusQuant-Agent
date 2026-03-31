@@ -450,9 +450,17 @@ _ANALYST_REPORT_SKELETON = """
   "key_factors": ["支撑建议的关键因素1", "因素2", "因素3"],
   "price_target": null,
   "risk_factors": ["主要风险1", "风险2"],
-  "signal_strength": "STRONG或MODERATE或WEAK（三选一，默认MODERATE）"
+  "signal_strength": "STRONG或MODERATE或WEAK（三选一，默认MODERATE）",
+  "investment_thesis": "2-3句话概括投资论点（基本面分析必填，技术/情绪分析留空）",
+  "business_model": "商业模式与收入驱动分析（基本面分析必填，技术/情绪分析留空）",
+  "moat_assessment": "护城河与竞争优势评估（基本面分析必填，技术/情绪分析留空）",
+  "catalysts": ["催化剂1", "催化剂2"],
+  "peer_comparison": "同行估值对比（基本面分析必填，技术/情绪分析留空）",
+  "bull_case": "乐观情景描述（基本面分析必填，技术/情绪分析留空）",
+  "bear_case": "悲观情景描述（基本面分析必填，技术/情绪分析留空）"
 }
 规则：recommendation 只能是 BUY/SELL/HOLD；confidence 必须是经过上述加减法计算的精准小数；reasoning 不得为空。
+注意：investment_thesis/business_model/moat_assessment/catalysts/peer_comparison/bull_case/bear_case 仅基本面分析师必须填写，技术面和情绪面分析师可留空字符串。
 """
 
 # 【CampusQuant 不可豁免规则】写在基础 Prompt 后，所有分析师节点共用
@@ -472,19 +480,40 @@ _PROMPTS: Dict[str, Dict[str, str]] = {
         "A_STOCK": (
             "你是专注A股市场的景气度与政策驱动分析专家。\n"
             "核心框架：行业景气度（30%）+ EPS增速/PEG（30%）+ 政策催化剂（25%）+ 资金热度（15%）\n"
-            "原则：不以低静态PE/PB作为主要买入理由；重视【业绩高增+政策利好+资金介入】三重共振。"
+            "原则：不以低静态PE/PB作为主要买入理由；重视【业绩高增+政策利好+资金介入】三重共振。\n\n"
+            "【必须覆盖的分析维度 — 缺一不可】\n"
+            "1. 商业模式 & 收入驱动：公司主营业务是什么？靠什么赚钱？收入结构如何？\n"
+            "2. 护城河 & 竞争优势：品牌认知度、技术壁垒、规模效应、政策牌照、行业地位如何？\n"
+            "3. 催化剂：未来1-2个季度可能推动股价的事件（业绩发布、政策落地、新产品、行业变化）\n"
+            "4. 同行对比：相比同行业龙头，PE/PB/增速是偏高还是偏低？\n"
+            "5. 情景分析：乐观情景（什么条件下大涨）和悲观情景（什么风险导致下跌）\n"
+            "6. 投资论点：用2-3句话概括为什么推荐/不推荐这只股票"
             + _CAMPUS_RULES
         ),
         "HK_STOCK": (
             "你是专注港股市场的价值投资分析专家，融合香港市场特色与全球视野。\n"
             "核心框架：合理估值PE/PB（35%）+ 自由现金流FCF（25%）+ 分红/回购（20%）+ 宏观因素（20%）\n"
-            "原则：港股需更高安全边际；关注A/H溢价与南向资金；美联储降息是重要催化剂。"
+            "原则：港股需更高安全边际；关注A/H溢价与南向资金；美联储降息是重要催化剂。\n\n"
+            "【必须覆盖的分析维度 — 缺一不可】\n"
+            "1. 商业模式 & 收入驱动：公司主营业务是什么？靠什么赚钱？收入结构如何？\n"
+            "2. 护城河 & 竞争优势：品牌、技术、网络效应、生态壁垒、市场份额如何？\n"
+            "3. 催化剂：未来1-2个季度可能推动股价的事件（业绩、回购、南向资金、政策）\n"
+            "4. 同行对比：相比同行业公司，估值水平和增长前景如何？\n"
+            "5. 情景分析：乐观情景和悲观情景\n"
+            "6. 投资论点：用2-3句话概括为什么推荐/不推荐这只股票"
             + _CAMPUS_RULES
         ),
         "US_STOCK": (
             "你是专注美股市场的成长价值双轨分析专家。\n"
             "核心框架：EPS增速/PEG（30%）+ 自由现金流（25%）+ AI/科技主题（25%）+ 宏观Beta（20%）\n"
-            "原则：关注美联储降息周期对成长股估值扩张；AI算力主题享有估值溢价。"
+            "原则：关注美联储降息周期对成长股估值扩张；AI算力主题享有估值溢价。\n\n"
+            "【必须覆盖的分析维度 — 缺一不可】\n"
+            "1. 商业模式 & 收入驱动：公司靠什么赚钱？各业务线收入占比如何？\n"
+            "2. 护城河 & 竞争优势：技术领先性、生态锁定、品牌、专利、网络效应如何？\n"
+            "3. 催化剂：未来1-2个季度可能推动股价的事件（财报、产品发布、AI进展、并购）\n"
+            "4. 同行对比：相比行业 peers，P/E、P/S、增速是偏高还是偏低？\n"
+            "5. 情景分析：乐观情景和悲观情景\n"
+            "6. 投资论点：用2-3句话概括为什么推荐/不推荐这只股票"
             + _CAMPUS_RULES
         ),
     },
@@ -1162,12 +1191,13 @@ async def sentiment_node(state: TradingGraphState) -> dict:
 # 【审计修复 P1-2】fundamental 权重提升（因已有真实 PE/PB 数据支撑），
 # sentiment 权重适当下调（仍可能受限于新闻数据可用性）
 _MARKET_WEIGHTS = {
-    # A股：技术面信号最强（量化交易主导），基本面权重提升（有真实财务数据）
-    "A_STOCK":  {"fundamental": 0.35, "technical": 0.40, "sentiment": 0.25},
+    # A股：基本面权重提升（商业模式+护城河分析），投资周期≥3个月不宜过度偏技术面
+    # sentiment 含 0.10 宏观/政策上下文权重（A股政策驱动特性）
+    "A_STOCK":  {"fundamental": 0.40, "technical": 0.25, "sentiment": 0.35},
     # 港股：价值投资导向，基本面最重要
-    "HK_STOCK": {"fundamental": 0.50, "technical": 0.25, "sentiment": 0.25},
-    # 美股：成长+价值双轨，基本面与技术并重
-    "US_STOCK": {"fundamental": 0.40, "technical": 0.35, "sentiment": 0.25},
+    "HK_STOCK": {"fundamental": 0.55, "technical": 0.20, "sentiment": 0.25},
+    # 美股：基本面主导（EPS+FCF），技术面辅助
+    "US_STOCK": {"fundamental": 0.50, "technical": 0.25, "sentiment": 0.25},
 }
 
 # 信号评分映射（用于数学预加权）
@@ -1730,7 +1760,7 @@ async def risk_node(state: TradingGraphState) -> dict:
 - 综合置信度: {current_conf:.2f}
 - 推理: {portfolio_decision.get('reasoning', 'N/A')[:200]}
 
-【风控修订次数】{risk_rejection_count}（若已多次拒绝请放宽标准，给出条件审批）
+【风控修订次数】{risk_rejection_count}（若已多次拒绝，说明风险确实不可接受，维持拒绝或给出更严格的条件）
 
 请给出 APPROVED / CONDITIONAL / REJECTED 决策，并设定仓位、止损、止盈比例。
 """

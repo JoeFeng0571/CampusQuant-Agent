@@ -556,76 +556,162 @@ async def _stream_graph_events(
             f"\n> ⚠ **分析流程异常中断**（{_graph_error}）。以下为各节点已完成的部分结果，供参考。\n\n---\n\n"
             if _graph_error else ""
         )
-        markdown_report = f"""# {symbol} · 多智能体深度研报
+        # ── 研报增强字段提取 ──────────────────────────────────
+        _thesis = fundamental.get('investment_thesis', '') or ''
+        _biz_model = fundamental.get('business_model', '') or ''
+        _moat = fundamental.get('moat_assessment', '') or ''
+        _catalysts = fundamental.get('catalysts') or []
+        _peer = fundamental.get('peer_comparison', '') or ''
+        _bull = fundamental.get('bull_case', '') or ''
+        _bear = fundamental.get('bear_case', '') or ''
+        _fund_key_metrics = fundamental.get('key_metrics') or {}
 
-> 生成时间：{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}　｜　分析引擎：LangGraph Multi-Agent
+        # 催化剂列表格式化
+        _catalysts_md = "\n".join(f"- {c}" for c in _catalysts) if _catalysts else "暂无明确催化剂"
+
+        # 风险因素列表格式化
+        _risk_factors = fundamental.get('risk_factors') or []
+        _risk_factors_md = "\n".join(f"- {r}" for r in _risk_factors) if _risk_factors else "暂无特别风险提示"
+
+        # 估值指标
+        _pe = _fund_key_metrics.get('pe', 'N/A')
+        _pb = _fund_key_metrics.get('pb', 'N/A')
+        _roe = _fund_key_metrics.get('roe', 'N/A')
+
+        # 学生行动建议
+        _action_rec = final_order.get('action', 'HOLD')
+        if _action_rec == 'BUY':
+            _student_advice = (
+                "- 建议分批建仓，不要一次性满仓买入\n"
+                "- 严格设置止损位，亏损超过止损线立即执行\n"
+                "- 持仓周期建议 3 个月以上，不要因短期波动恐慌卖出\n"
+                "- 持续关注上述催化剂的兑现情况"
+            )
+        elif _action_rec == 'SELL':
+            _student_advice = (
+                "- 如已持有，建议分批减仓而非一次性清仓\n"
+                "- 观察是否有反转信号再做最终决策\n"
+                "- 卖出后资金可配置宽基 ETF（如沪深300ETF）降低风险"
+            )
+        else:
+            _student_advice = (
+                "- 当前信号不够明确，建议观望等待\n"
+                "- 可以先少量建观察仓（不超过 5%），等信号明朗再加仓\n"
+                "- 利用等待时间继续研究公司基本面和行业动态"
+            )
+
+        markdown_report = f"""# {symbol} · 投资研报
+
+> 生成时间：{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}　｜　CampusQuant 多智能体分析引擎
 {_error_banner}
----
 
-## 一、基本面分析
+## 投资建议
 
-| 指标 | 结论 |
-|------|------|
-| 综合建议 | **{fundamental.get('recommendation', 'N/A')}** |
-| 置信度   | {_pct(fundamental.get('confidence', 0))} |
-| 信号强度 | {fundamental.get('signal_strength', 'N/A')} |
-
-{fundamental.get('reasoning', '暂无详细推理') or '暂无详细推理'}
-
----
-
-## 二、技术面分析
-
-| 指标 | 结论 |
-|------|------|
-| 综合建议 | **{technical.get('recommendation', 'N/A')}** |
-| 置信度   | {_pct(technical.get('confidence', 0))} |
-| 信号强度 | {technical.get('signal_strength', 'N/A')} |
-
-{technical.get('reasoning', '暂无详细推理') or '暂无详细推理'}
-
----
-
-## 三、市场情绪分析
-
-| 指标 | 结论 |
-|------|------|
-| 综合建议 | **{sentiment.get('recommendation', 'N/A')}** |
-| 置信度   | {_pct(sentiment.get('confidence', 0))} |
-
-{sentiment.get('reasoning', '暂无详细推理') or '暂无详细推理'}
-
----
-
-## 四、风控决策
-
-| 指标 | 数值 |
-|------|------|
-| 审批状态 | **{risk.get('approval_status', 'N/A')}** |
-| 建议仓位 | {_pct(risk.get('position_pct') or 0)} |
-| 止损线   | {_pct(risk.get('stop_loss_pct') or 0)} |
-| 止盈线   | {_pct(risk.get('take_profit_pct') or 0)} |
-| 风险等级 | {risk.get('risk_level', 'N/A')} |
+| 操作 | 置信度 | 建议仓位 | 止损 | 止盈 | 风险等级 |
+|------|--------|----------|------|------|----------|
+| **{final_order.get('action', 'N/A')}** | {_pct(final_order.get('confidence', 0))} | {_pct(final_order.get('quantity_pct') or 0)} | {final_order.get('stop_loss', 'N/A')} | {final_order.get('take_profit', 'N/A')} | {risk.get('risk_level', 'N/A')} |
 
 {f"> 辩论裁决：{debate.get('resolved_recommendation','N/A')} | 决定因素：{debate.get('deciding_factor','')}" if debate else ""}
 
 ---
 
-## 五、最终交易指令
+## 投资论点
 
-| 字段 | 值 |
-|------|----|
-| 操作方向 | **{final_order.get('action', 'N/A')}** |
-| 建议仓位 | {_pct(final_order.get('quantity_pct') or 0)} |
-| 止损价   | {final_order.get('stop_loss', 'N/A')} |
-| 止盈价   | {final_order.get('take_profit', 'N/A')} |
-| 置信度   | {_pct(final_order.get('confidence', 0))} |
-
-> **核心逻辑**：{final_order.get('rationale', '暂无')}
+{_thesis if _thesis else fundamental.get('reasoning', '暂无详细推理')[:200]}
 
 ---
 
-⚠ *本研报由 AI 多智能体自动生成，仅供学习参考，不构成投资建议。请遵守大学生守则：单股仓位 ≤ 15%，务必设置止损，切勿加杠杆。*
+## 商业模式 & 收入驱动
+
+{_biz_model if _biz_model else '（基本面数据不足，无法生成商业模式分析）'}
+
+---
+
+## 护城河 & 竞争优势
+
+{_moat if _moat else '（基本面数据不足，无法生成护城河评估）'}
+
+---
+
+## 估值 & 同行对比
+
+{_peer if _peer else '（暂无同行对比数据）'}
+
+| PE | PB | ROE |
+|----|----|-----|
+| {_pe} | {_pb} | {_roe} |
+
+---
+
+## 催化剂（未来 1-2 季度）
+
+{_catalysts_md}
+
+---
+
+## 核心风险
+
+{_risk_factors_md}
+
+---
+
+## 情景分析
+
+| 情景 | 描述 |
+|------|------|
+| 乐观 | {_bull if _bull else '暂无'} |
+| 悲观 | {_bear if _bear else '暂无'} |
+
+---
+
+## 学生行动建议
+
+{_student_advice}
+
+---
+
+<details>
+<summary>详细分析过程（点击展开）</summary>
+
+### 基本面分析
+
+| 建议 | 置信度 | 信号强度 |
+|------|--------|----------|
+| **{fundamental.get('recommendation', 'N/A')}** | {_pct(fundamental.get('confidence', 0))} | {fundamental.get('signal_strength', 'N/A')} |
+
+{fundamental.get('reasoning', '暂无') or '暂无'}
+
+**关键因素**：{', '.join(fundamental.get('key_factors') or ['暂无'])}
+
+### 技术面分析
+
+| 建议 | 置信度 | 信号强度 |
+|------|--------|----------|
+| **{technical.get('recommendation', 'N/A')}** | {_pct(technical.get('confidence', 0))} | {technical.get('signal_strength', 'N/A')} |
+
+{technical.get('reasoning', '暂无') or '暂无'}
+
+**关键因素**：{', '.join(technical.get('key_factors') or ['暂无'])}
+
+### 市场情绪分析
+
+| 建议 | 置信度 |
+|------|--------|
+| **{sentiment.get('recommendation', 'N/A')}** | {_pct(sentiment.get('confidence', 0))} |
+
+{sentiment.get('reasoning', '暂无') or '暂无'}
+
+### 风控决策
+
+| 审批状态 | 仓位 | 止损 | 止盈 |
+|----------|------|------|------|
+| **{risk.get('approval_status', 'N/A')}** | {_pct(risk.get('position_pct') or 0)} | {_pct(risk.get('stop_loss_pct') or 0)} | {_pct(risk.get('take_profit_pct') or 0)} |
+
+</details>
+
+---
+
+⚠ *本研报由 AI 多智能体自动生成，仅供学习参考，不构成投资建议。大学生守则：单股仓位 ≤ 15%，务必设止损，切勿加杠杆。*
 """
 
         # 图表数据：从基本面 key_metrics 中提取实际历年数据

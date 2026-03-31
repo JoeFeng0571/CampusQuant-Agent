@@ -82,6 +82,37 @@ class AnalystReport(BaseModel):
         description="信号强度"
     )
 
+    # ── 研报增强字段（v2.0）──────────────────────────────────────
+    # 主要由 fundamental_node 填充；technical/sentiment 节点保持默认空值
+    investment_thesis: str = Field(
+        default="",
+        description="2-3 句投资论点摘要"
+    )
+    business_model: str = Field(
+        default="",
+        description="商业模式 & 收入驱动分析"
+    )
+    moat_assessment: str = Field(
+        default="",
+        description="护城河 / 竞争优势评估"
+    )
+    catalysts: List[str] = Field(
+        default_factory=list,
+        description="未来 1-2 季度的潜在催化剂"
+    )
+    peer_comparison: str = Field(
+        default="",
+        description="同行估值对比"
+    )
+    bull_case: str = Field(
+        default="",
+        description="乐观情景描述"
+    )
+    bear_case: str = Field(
+        default="",
+        description="悲观情景描述"
+    )
+
 
 class RiskDecision(BaseModel):
     """风控官结构化决策输出"""
