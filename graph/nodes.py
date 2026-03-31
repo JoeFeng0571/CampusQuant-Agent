@@ -805,10 +805,17 @@ async def fundamental_node(state: TradingGraphState) -> dict:
         )
         fundamental_data_dict["revenue_composition"] = deep.get("revenue_composition", {})
         fundamental_data_dict["performance_trend"]   = deep.get("performance_trend", {})
+        # 历年营收/净利润（供前端 ECharts 柱状图）
+        if deep.get("years"):
+            fundamental_data_dict["years"] = deep["years"]
+            fundamental_data_dict["revenue_history"] = deep.get("revenue_history", [])
+            fundamental_data_dict["profit_history"] = deep.get("profit_history", [])
+            fundamental_data_dict["revenue_label"] = deep.get("revenue_label", "营业收入（亿元）")
+            fundamental_data_dict["profit_label"] = deep.get("profit_label", "净利润（亿元）")
         logger.info(
             f"[fundamental_node] 深度财务注入完成: "
-            f"构成产品={len(deep.get('revenue_composition', {}).get('product', []))}项 "
-            f"趋势年份={len(deep.get('performance_trend', {}).get('years', []))}年"
+            f"历年数据={len(deep.get('years', []))}年 "
+            f"构成产品={len(deep.get('revenue_composition', {}).get('product', []))}项"
         )
     except Exception as _de:
         logger.warning(f"[fundamental_node] 深度财务数据获取失败（非致命）: {_de}")

@@ -786,25 +786,26 @@ def a_stock_deep_financial(symbol: str):
         if df.empty:
             return {"status": "partial", "data": {}}
 
-        # 取最近 5 年数据（tail(5)，因为 ascending 排序最旧在前）
-        recent = df.tail(5)
+        # 按年去重：同一年有多条（季报/半年报/年报），取每年最后一条（最完整）
+        year_data: dict[str, dict] = {}
+        for _, row in df.iterrows():
+            report_date = str(row.get("报告期", ""))[:4]
+            if not report_date or len(report_date) != 4:
+                continue
+            # 同一年后出现的数据覆盖前面的（年报 > 三季报 > 半年报）
+            year_data[report_date] = row
+
+        # 取最近 5 年
+        sorted_years = sorted(year_data.keys())[-5:]
         years = []
         revenue_history = []
         profit_history = []
 
-        for _, row in recent.iterrows():
-            # 报告期格式：2024-12-31 或 20241231
-            report_date = str(row.get("报告期", ""))[:4]
-            if report_date and len(report_date) == 4:
-                years.append(report_date)
-            else:
-                continue
-
-            # 营业总收入
+        for y in sorted_years:
+            row = year_data[y]
+            years.append(y)
             rev = _to_yi(str(row.get("营业总收入", row.get("营业收入", ""))))
             revenue_history.append(rev or 0)
-
-            # 净利润
             profit = _to_yi(str(row.get("净利润", row.get("归母净利润", ""))))
             profit_history.append(profit or 0)
 
