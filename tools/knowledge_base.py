@@ -593,27 +593,28 @@ def search_knowledge_base(query: str, market_type: str = "ALL", max_length: int 
     """
     global _ensemble_retriever, _web_search_tool
 
-    # 惰性初始化（若应用启动时未主动调用 init_knowledge_base）
-    if _ensemble_retriever is None:
-        logger.info("[RAG] 触发惰性初始化...")
-        init_knowledge_base()
-
-    # ── 构建增强查询（在原始 query 基础上注入市场上下文关键词）──────
-    # 目的：提升 BM25 关键词检索对特定市场文档的召回率
-    _MARKET_HINTS = {
-        "A_STOCK":  "A股 中国 上证 深证 政策 行业景气度 ETF定投",
-        "HK_STOCK": "港股 香港 恒生 南向资金 估值折价 安全边际",
-        "US_STOCK": "美股 纳斯达克 标普500 美联储 EPS FCF 盈利",
-    }
-    market_hint    = _MARKET_HINTS.get(market_type, "")
-    enhanced_query = f"{query} {market_hint}".strip()
-
     sections: List[str] = []
 
     # ────────────────────────────────────────────────────────────────
-    # ① 本地混合检索：EnsembleRetriever（BM25 + Chroma）
+    # ① 本地混合检索：优先走内地 relay（RAG 部署在内地服务器）
     # ────────────────────────────────────────────────────────────────
-    sections.append(_search_local(enhanced_query, original_query=query))
+    inland_result = _search_local_via_inland_relay(query, market_type, max_length)
+    if inland_result:
+        sections.append(inland_result)
+    else:
+        # 回退：本地 RAG 检索
+        if _ensemble_retriever is None:
+            logger.info("[RAG] 触发惰性初始化...")
+            init_knowledge_base()
+
+        _MARKET_HINTS = {
+            "A_STOCK":  "A股 中国 上证 深证 政策 行业景气度 ETF定投",
+            "HK_STOCK": "港股 香港 恒生 南向资金 估值折价 安全边际",
+            "US_STOCK": "美股 纳斯达克 标普500 美联储 EPS FCF 盈利",
+        }
+        market_hint    = _MARKET_HINTS.get(market_type, "")
+        enhanced_query = f"{query} {market_hint}".strip()
+        sections.append(_search_local(enhanced_query, original_query=query))
 
     # ────────────────────────────────────────────────────────────────
     # ② 实时联网搜索：DuckDuckGo
@@ -627,6 +628,37 @@ def search_knowledge_base(query: str, market_type: str = "ALL", max_length: int 
 # ════════════════════════════════════════════════════════════════════
 # 内部执行函数（不对外暴露）
 # ════════════════════════════════════════════════════════════════════
+
+def _search_local_via_inland_relay(query: str, market_type: str, max_length: int) -> Optional[str]:
+    """
+    通过内地 relay 服务执行 RAG 检索。
+    成功返回格式化文本，失败返回 None（触发本地回退）。
+    """
+    try:
+        from config import config
+        import requests as _requests
+
+        base_url = (getattr(config, "INLAND_RELAY_BASE_URL", "") or "").rstrip("/")
+        token = (getattr(config, "INLAND_RELAY_TOKEN", "") or "").strip()
+        if not base_url or not token:
+            return None
+
+        resp = _requests.get(
+            f"{base_url}/relay/rag/search",
+            params={"query": query, "market_type": market_type, "max_length": max_length},
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if data.get("status") in ("success", "partial") and data.get("local_results"):
+            logger.info(f"[RAG] 内地 relay 检索成功，{data.get('doc_count', 0)} 条结果")
+            return data["local_results"]
+        return None
+    except Exception as exc:
+        logger.warning(f"[RAG] 内地 relay 检索失败，回退本地: {exc}")
+        return None
+
 
 def _search_local(enhanced_query: str, original_query: str) -> str:
     """

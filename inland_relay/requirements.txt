@@ -1,0 +1,24 @@
+# CampusQuant 内地数据中继服务 — 精简依赖
+# 部署: pip install -r requirements.txt
+
+# Web 框架
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# 数据源
+akshare>=1.14.0
+pandas>=2.0.0
+requests>=2.31.0
+
+# RAG（可选，如不部署 RAG 可注释掉）
+chromadb>=0.4.0
+langchain>=0.2.0
+langchain-openai>=0.1.0
+langchain-community>=0.2.0
+rank_bm25>=0.2.2
+
+# 日志
+loguru>=0.7.0
+
+# 环境变量
+python-dotenv>=1.0.0

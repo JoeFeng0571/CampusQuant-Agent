@@ -172,6 +172,29 @@ def _do_refresh() -> None:
     logger.info(f"[hot_news] 热榜缓存刷新完成，{sum(len(v) for v in new_data.values())} 条")
 
 
+def _try_inland_relay_hot_news() -> Optional[list[dict]]:
+    """尝试从内地 relay 获取国内新闻源（财联社+新浪+澎湃），失败返回 None"""
+    try:
+        from config import config
+        base_url = (getattr(config, "INLAND_RELAY_BASE_URL", "") or "").rstrip("/")
+        token = (getattr(config, "INLAND_RELAY_TOKEN", "") or "").strip()
+        if not base_url or not token:
+            return None
+        resp = requests.get(
+            f"{base_url}/relay/hot-news",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if data.get("status") == "success" and data.get("data"):
+            return data["data"]
+        return None
+    except Exception as exc:
+        logger.warning(f"[hot_news] 内地 relay 热榜获取失败，回退本地: {exc}")
+        return None
+
+
 def get_hot_news(force_refresh: bool = False) -> list[dict]:
     """
     返回全部热榜数据，格式：
@@ -186,13 +209,31 @@ def get_hot_news(force_refresh: bool = False) -> list[dict]:
       ...
     ]
     TTL 超时或 force_refresh=True 时触发同步刷新。
+    优先走内地 relay 获取国内新闻源，华尔街见闻仍走本地（国际接口）。
     """
     global _cache_ts
 
     need_refresh = force_refresh or (time.time() - _cache_ts > _CACHE_TTL)
 
     if need_refresh:
-        _do_refresh()
+        # 尝试内地 relay（财联社+新浪+澎湃）
+        inland_data = _try_inland_relay_hot_news()
+        if inland_data:
+            with _cache_lock:
+                # 用 relay 返回的国内源数据更新缓存
+                for item in inland_data:
+                    src = item.get("source")
+                    if src:
+                        _cache_data[src] = item.get("items", [])
+                # 华尔街见闻仍走本地抓取
+                try:
+                    _cache_data["wallstreetcn"] = _fetch_wallstreetcn()
+                except Exception as e:
+                    logger.warning(f"[hot_news] 华尔街见闻抓取失败: {e}")
+                    _cache_data.setdefault("wallstreetcn", [])
+                _cache_ts = time.time()
+        else:
+            _do_refresh()
 
     with _cache_lock:
         result = []

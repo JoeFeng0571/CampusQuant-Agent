@@ -113,6 +113,11 @@ class Config:
     MARKET_RELAY_BASE_URL = os.getenv("MARKET_RELAY_BASE_URL", "").strip().rstrip("/")
     MARKET_RELAY_TOKEN = os.getenv("MARKET_RELAY_TOKEN", "").strip()
 
+    # ==================== 内地数据 Relay（阿里云内地服务器） ====================
+    # 提供 akshare A股/港股/美股数据 + RAG 知识库检索 + 国内新闻源
+    INLAND_RELAY_BASE_URL = os.getenv("INLAND_RELAY_BASE_URL", "").strip().rstrip("/")
+    INLAND_RELAY_TOKEN = os.getenv("INLAND_RELAY_TOKEN", "").strip()
+
     # ==================== 系统参数 ====================
     SYSTEM_PARAMS = {
         # 初始资金假设（大学生场景，单位：人民币）

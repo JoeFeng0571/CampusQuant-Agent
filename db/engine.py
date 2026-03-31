@@ -20,12 +20,15 @@ from sqlalchemy.ext.asyncio import (
 from db.models import Base
 
 # ── 连接字符串 ─────────────────────────────────────────────────
-DEFAULT_BAOTA_DATABASE_URL = (
-    "mysql+asyncmy://monijiaoyishuju:fGNFEYSf66tmTeCD@8.156.85.111/"
+# 香港服务器: 远程连接内地 MySQL → DATABASE_URL=mysql+asyncmy://...@47.108.191.110/...
+# 内地服务器: 本机连接 → DATABASE_URL=mysql+asyncmy://...@127.0.0.1/...
+# 本地开发:   按需指向任一服务器
+DEFAULT_DATABASE_URL = (
+    "mysql+asyncmy://monijiaoyishuju:fGNFEYSf66tmTeCD@47.108.191.110/"
     "monijiaoyishuju?charset=utf8mb4"
 )
 
-DATABASE_URL: str = os.getenv("DATABASE_URL", DEFAULT_BAOTA_DATABASE_URL)
+DATABASE_URL: str = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
 
 # ── 引擎 & Session 工厂 ────────────────────────────────────────
 engine = create_async_engine(

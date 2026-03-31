@@ -141,6 +141,24 @@ def _relay_request(endpoint: str, symbol: str, params: dict[str, Any] | None = N
         return None
 
 
+def _inland_relay_request(endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    """请求内地数据中继服务（akshare A股/港美股 + RAG + 新闻）"""
+    base_url = (config.INLAND_RELAY_BASE_URL or "").rstrip("/")
+    token = (config.INLAND_RELAY_TOKEN or "").strip()
+    if not base_url or not token:
+        return None
+    url = f"{base_url}/relay/{endpoint.lstrip('/')}"
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+    try:
+        resp = requests.get(url, params=params or {}, headers=headers, timeout=20)
+        resp.raise_for_status()
+        data = resp.json()
+        return data if isinstance(data, dict) else None
+    except Exception as exc:
+        logger.warning(f"[market_data] inland relay 请求失败 endpoint={endpoint}: {exc}")
+        return None
+
+
 def _normalize_ohlcv_df(df: pd.DataFrame) -> pd.DataFrame:
     aliases = {
         "date": ["日期", "date", "时间", "trade_date"],
@@ -238,6 +256,15 @@ def _resample_ohlcv(ohlcv: pd.DataFrame, period: str, count: int) -> pd.DataFram
 
 
 def _get_a_stock_hist(symbol: str, days: int) -> pd.DataFrame:
+    # 优先走内地 relay
+    inland = _inland_relay_request("a-stock/kline", {"symbol": symbol, "days": days})
+    if inland and inland.get("status") == "success" and inland.get("data"):
+        df = pd.DataFrame(inland["data"])
+        if not df.empty:
+            logger.debug(f"[market_data] A 股 K 线走内地 relay: {symbol}")
+            return df.tail(max(int(days), 2)).reset_index(drop=True)
+
+    # 回退本地 akshare
     pure = symbol.split(".")[0]
     sina_symbol = ("sh" if pure.startswith(("6", "9")) else "sz") + pure
     try:
@@ -269,6 +296,14 @@ def _get_a_stock_hist(symbol: str, days: int) -> pd.DataFrame:
 
 
 def _get_hk_stock_hist(symbol: str, days: int) -> pd.DataFrame:
+    # 优先走内地 relay（akshare 港股数据）
+    inland = _inland_relay_request("hk-stock/kline", {"symbol": symbol, "days": days})
+    if inland and inland.get("status") == "success" and inland.get("data"):
+        df = pd.DataFrame(inland["data"])
+        if not df.empty:
+            logger.debug(f"[market_data] 港股 K 线走内地 relay: {symbol}")
+            return df.tail(max(int(days), 2)).reset_index(drop=True)
+
     pure = symbol.split(".")[0].zfill(5)
     df = _akshare_with_retry(lambda: ak.stock_hk_daily(symbol=pure, adjust="qfq"))
     if df.empty:
@@ -277,6 +312,14 @@ def _get_hk_stock_hist(symbol: str, days: int) -> pd.DataFrame:
 
 
 def _get_us_stock_hist(symbol: str, days: int) -> pd.DataFrame:
+    # 优先走内地 relay（akshare 美股数据）
+    inland = _inland_relay_request("us-stock/kline", {"symbol": symbol, "days": days})
+    if inland and inland.get("status") == "success" and inland.get("data"):
+        df = pd.DataFrame(inland["data"])
+        if not df.empty:
+            logger.debug(f"[market_data] 美股 K 线走内地 relay: {symbol}")
+            return df.tail(max(int(days), 2)).reset_index(drop=True)
+
     df = _akshare_with_retry(lambda: ak.stock_us_daily(symbol=symbol.upper(), adjust="qfq"))
     if df.empty:
         raise ValueError(f"美股 K 线为空: {symbol}")
@@ -354,11 +397,16 @@ def _get_a_spot_table() -> pd.DataFrame:
         if isinstance(cached, str) and cached == "__FAILED__":
             raise ValueError("A 股行情表暂时不可用（短期负缓存）")
         return cached
+    # 优先走内地 relay
+    inland = _inland_relay_request("a-stock/spot-table")
+    if inland and inland.get("status") == "success" and inland.get("data"):
+        df = pd.DataFrame(inland["data"])
+        if not df.empty:
+            return _cache_set("overview", "a_spot_table", df)
     try:
         df = _akshare_with_retry(ak.stock_zh_a_spot_em)
         return _cache_set("overview", "a_spot_table", df)
     except Exception:
-        # 缓存失败标记 30s，防止并发重试风暴
         _cache_set("overview", "a_spot_table", "__FAILED__", ttl=30)
         raise
 
@@ -367,6 +415,11 @@ def _get_hk_spot_table() -> pd.DataFrame:
     cached = _cache_get("overview", "hk_spot_table")
     if cached is not None:
         return cached
+    inland = _inland_relay_request("hk-stock/spot-table")
+    if inland and inland.get("status") == "success" and inland.get("data"):
+        df = pd.DataFrame(inland["data"])
+        if not df.empty:
+            return _cache_set("overview", "hk_spot_table", df)
     df = _akshare_with_retry(ak.stock_hk_spot_em)
     return _cache_set("overview", "hk_spot_table", df)
 
@@ -375,6 +428,11 @@ def _get_us_spot_table() -> pd.DataFrame:
     cached = _cache_get("overview", "us_spot_table")
     if cached is not None:
         return cached
+    inland = _inland_relay_request("us-stock/spot-table")
+    if inland and inland.get("status") == "success" and inland.get("data"):
+        df = pd.DataFrame(inland["data"])
+        if not df.empty:
+            return _cache_set("overview", "us_spot_table", df)
     df = _akshare_with_retry(ak.stock_us_spot_em)
     return _cache_set("overview", "us_spot_table", df)
 
@@ -592,6 +650,11 @@ def get_fundamental_data(symbol: str) -> str:
     try:
         market_type, normalized = _normalize_symbol(symbol)
         if market_type == MarketType.A_STOCK:
+            # 优先走内地 relay
+            inland = _inland_relay_request("a-stock/fundamental", {"symbol": normalized})
+            if inland and inland.get("status") == "success" and inland.get("data"):
+                return _json_dumps({"status": "success", "symbol": normalized, "market_type": market_type.name, "source": "inland_relay", "data": inland["data"]})
+            # 回退本地 akshare
             pure = normalized.split(".")[0]
             df = _akshare_with_retry(lambda: ak.stock_financial_abstract_ths(symbol=pure))
             if df.empty:
@@ -622,20 +685,26 @@ def get_stock_news(symbol: str, limit: int = 5) -> str:
         news: list[dict[str, Any]] = []
         source = "akshare"
         if market_type == MarketType.A_STOCK:
-            pure = normalized.split(".")[0]
-            df = _akshare_with_retry(lambda: ak.stock_news_em(symbol=pure))
-            if not df.empty:
-                title_col = _pick_column(df, ["标题", "新闻标题", "title"]) or df.columns[0]
-                source_col = _pick_column(df, ["文章来源", "来源", "source"])
-                time_col = _pick_column(df, ["发布时间", "日期", "时间", "publish_time"])
-                for _, row in df.head(max(int(limit), 1)).iterrows():
-                    news.append(
-                        {
-                            "title": _safe_str(row.get(title_col))[:200],
-                            "source": _safe_str(row.get(source_col), "东方财富") if source_col else "东方财富",
-                            "time": _safe_str(row.get(time_col)) if time_col else "",
-                        }
-                    )
+            # 优先走内地 relay
+            inland = _inland_relay_request("a-stock/news", {"symbol": normalized, "limit": limit})
+            if inland and inland.get("news"):
+                news = inland["news"]
+                source = "inland_relay"
+            else:
+                pure = normalized.split(".")[0]
+                df = _akshare_with_retry(lambda: ak.stock_news_em(symbol=pure))
+                if not df.empty:
+                    title_col = _pick_column(df, ["标题", "新闻标题", "title"]) or df.columns[0]
+                    source_col = _pick_column(df, ["文章来源", "来源", "source"])
+                    time_col = _pick_column(df, ["发布时间", "日期", "时间", "publish_time"])
+                    for _, row in df.head(max(int(limit), 1)).iterrows():
+                        news.append(
+                            {
+                                "title": _safe_str(row.get(title_col))[:200],
+                                "source": _safe_str(row.get(source_col), "东方财富") if source_col else "东方财富",
+                                "time": _safe_str(row.get(time_col)) if time_col else "",
+                            }
+                        )
         else:
             source = "relay"
             news = _get_relay_news(normalized, limit)
@@ -817,34 +886,41 @@ def get_market_indices_raw() -> list[dict[str, Any]]:
 
     results: list[dict[str, Any]] = []
 
-    try:
-        cn_df = _akshare_with_retry(lambda: ak.stock_zh_index_spot_em(symbol="沪深重要指数"))
-        for code, name in [("000001", "上证指数"), ("399001", "深证成指"), ("399006", "创业板指"), ("000300", "沪深300")]:
-            item = _index_from_cn_table(cn_df, code, name)
-            if item:
-                results.append(item)
-    except Exception as exc:
-        logger.warning(f"[market_data] A 股指数获取失败: {exc}")
+    # 优先走内地 relay 获取 A 股指数
+    inland = _inland_relay_request("indices")
+    if inland and inland.get("status") == "success" and inland.get("data"):
+        for item in inland["data"]:
+            item["is_fallback"] = False
+            results.append(item)
+    else:
         try:
-            cn_df = _akshare_with_retry(ak.stock_zh_index_spot_sina)
-            for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sz399006", "创业板指"), ("sh000300", "沪深300")]:
-                row = cn_df[cn_df["代码"].astype(str) == code]
-                if row.empty:
-                    continue
-                item = row.iloc[0]
-                results.append(
-                    {
-                        "symbol": code[-6:],
-                        "name": name,
-                        "price": _safe_float(item.get("最新价")),
-                        "change": _safe_float(item.get("涨跌额")),
-                        "change_pct": _safe_float(item.get("涨跌幅")),
-                        "is_fallback": False,
-                        "source": "akshare",
-                    }
-                )
-        except Exception as sina_exc:
-            logger.warning(f"[market_data] A 股指数新浪回退失败: {sina_exc}")
+            cn_df = _akshare_with_retry(lambda: ak.stock_zh_index_spot_em(symbol="沪深重要指数"))
+            for code, name in [("000001", "上证指数"), ("399001", "深证成指"), ("399006", "创业板指"), ("000300", "沪深300")]:
+                item = _index_from_cn_table(cn_df, code, name)
+                if item:
+                    results.append(item)
+        except Exception as exc:
+            logger.warning(f"[market_data] A 股指数获取失败: {exc}")
+            try:
+                cn_df = _akshare_with_retry(ak.stock_zh_index_spot_sina)
+                for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sz399006", "创业板指"), ("sh000300", "沪深300")]:
+                    row = cn_df[cn_df["代码"].astype(str) == code]
+                    if row.empty:
+                        continue
+                    item = row.iloc[0]
+                    results.append(
+                        {
+                            "symbol": code[-6:],
+                            "name": name,
+                            "price": _safe_float(item.get("最新价")),
+                            "change": _safe_float(item.get("涨跌额")),
+                            "change_pct": _safe_float(item.get("涨跌幅")),
+                            "is_fallback": False,
+                            "source": "akshare",
+                        }
+                    )
+            except Exception as sina_exc:
+                logger.warning(f"[market_data] A 股指数新浪回退失败: {sina_exc}")
 
     for symbol, name in [("^HSI", "恒生指数"), ("^GSPC", "标普500"), ("^IXIC", "纳斯达克")]:
         try:
@@ -863,6 +939,11 @@ def get_market_indices_raw() -> list[dict[str, Any]]:
 
 
 def get_market_news_raw(limit: int = 20) -> list[dict[str, Any]]:
+    # 优先走内地 relay
+    inland = _inland_relay_request("market-news", {"limit": limit})
+    if inland and inland.get("status") == "success" and inland.get("data"):
+        return inland["data"]
+
     try:
         df = _akshare_with_retry(lambda: ak.stock_info_global_cls(symbol="全部"))
         result: list[dict[str, Any]] = []
@@ -888,6 +969,11 @@ def get_sector_data_raw() -> list[dict[str, Any]]:
     cached = _cache_get("overview", cache_key)
     if cached is not None:
         return cached
+
+    # 优先走内地 relay
+    inland = _inland_relay_request("sectors")
+    if inland and inland.get("status") == "success" and inland.get("data"):
+        return _cache_set("overview", cache_key, inland["data"])
 
     try:
         df = _akshare_with_retry(ak.stock_board_industry_name_em)
@@ -919,6 +1005,11 @@ def get_market_sentiment_raw() -> dict[str, Any]:
     cached = _cache_get("overview", cache_key)
     if cached is not None:
         return cached
+
+    # 优先走内地 relay
+    inland = _inland_relay_request("sentiment")
+    if inland and inland.get("status") == "success" and inland.get("data"):
+        return _cache_set("overview", cache_key, inland["data"])
 
     limit_up = "--"
     limit_down = "--"
