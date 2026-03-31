@@ -119,8 +119,12 @@ def _relay_request(endpoint: str, symbol: str, params: dict[str, Any] | None = N
     if not base_url or not token:
         return None
 
-    market_type, normalized = _normalize_symbol(symbol)
-    relay_symbol = _to_relay_symbol(normalized, market_type)
+    # 指数符号（^GSPC, ^HSI, ^IXIC 等）直接透传给 relay，不做模糊匹配
+    if symbol.startswith("^"):
+        relay_symbol = symbol
+    else:
+        market_type, normalized = _normalize_symbol(symbol)
+        relay_symbol = _to_relay_symbol(normalized, market_type)
     url = f"{base_url}/relay/market/{endpoint.lstrip('/')}"
     query = {"symbol": relay_symbol, **(params or {})}
     headers = {
@@ -235,20 +239,33 @@ def _resample_ohlcv(ohlcv: pd.DataFrame, period: str, count: int) -> pd.DataFram
 
 def _get_a_stock_hist(symbol: str, days: int) -> pd.DataFrame:
     pure = symbol.split(".")[0]
-    df = _akshare_with_retry(lambda: ak.stock_zh_a_hist(symbol=pure, period="daily", adjust="qfq"))
-    if df.empty:
-        raise ValueError(f"A 股 K 线为空: {symbol}")
-    df = df.rename(
-        columns={
-            "日期": "date",
-            "开盘": "open",
-            "收盘": "close",
-            "最高": "high",
-            "最低": "low",
-            "成交量": "volume",
-        }
-    )
-    return _normalize_ohlcv_df(df).tail(max(int(days), 2)).reset_index(drop=True)
+    sina_symbol = ("sh" if pure.startswith(("6", "9")) else "sz") + pure
+    try:
+        df = _akshare_with_retry(lambda: ak.stock_zh_a_hist(symbol=pure, period="daily", adjust="qfq"))
+        if df.empty:
+            raise ValueError(f"A 股 K 线为空: {symbol}")
+        df = df.rename(
+            columns={
+                "日期": "date",
+                "开盘": "open",
+                "收盘": "close",
+                "最高": "high",
+                "最低": "low",
+                "成交量": "volume",
+            }
+        )
+        return _normalize_ohlcv_df(df).tail(max(int(days), 2)).reset_index(drop=True)
+    except Exception:
+        try:
+            df = _akshare_with_retry(lambda: ak.stock_zh_a_hist_tx(symbol=sina_symbol, adjust="qfq"))
+            if df.empty:
+                raise ValueError(f"A 股 K 线为空: {symbol}")
+            return _normalize_ohlcv_df(df).tail(max(int(days), 2)).reset_index(drop=True)
+        except Exception:
+            df = _akshare_with_retry(lambda: ak.stock_zh_a_daily(symbol=sina_symbol, adjust="qfq"))
+            if df.empty:
+                raise ValueError(f"A 股 K 线为空: {symbol}")
+            return _normalize_ohlcv_df(df).tail(max(int(days), 2)).reset_index(drop=True)
 
 
 def _get_hk_stock_hist(symbol: str, days: int) -> pd.DataFrame:
@@ -334,9 +351,16 @@ def _bars_to_spot(symbol: str, market_type: MarketType) -> dict[str, Any]:
 def _get_a_spot_table() -> pd.DataFrame:
     cached = _cache_get("overview", "a_spot_table")
     if cached is not None:
+        if isinstance(cached, str) and cached == "__FAILED__":
+            raise ValueError("A 股行情表暂时不可用（短期负缓存）")
         return cached
-    df = _akshare_with_retry(ak.stock_zh_a_spot_em)
-    return _cache_set("overview", "a_spot_table", df)
+    try:
+        df = _akshare_with_retry(ak.stock_zh_a_spot_em)
+        return _cache_set("overview", "a_spot_table", df)
+    except Exception:
+        # 缓存失败标记 30s，防止并发重试风暴
+        _cache_set("overview", "a_spot_table", "__FAILED__", ttl=30)
+        raise
 
 
 def _get_hk_spot_table() -> pd.DataFrame:
@@ -357,11 +381,19 @@ def _get_us_spot_table() -> pd.DataFrame:
 
 def _spot_from_a_share(symbol: str) -> dict[str, Any]:
     pure = symbol.split(".")[0]
-    df = _get_a_spot_table()
-    row = df[df["代码"].astype(str) == pure]
-    if row.empty:
-        raise ValueError(f"A 股实时行情未命中: {symbol}")
-    item = row.iloc[0]
+    try:
+        df = _get_a_spot_table()
+        row = df[df["代码"].astype(str) == pure]
+        if row.empty:
+            raise ValueError(f"A 股实时行情未命中: {symbol}")
+        item = row.iloc[0]
+    except Exception:
+        df = _akshare_with_retry(ak.stock_zh_a_spot)
+        code_series = df["代码"].astype(str)
+        row = df[(code_series == pure) | (code_series == f"sh{pure}") | (code_series == f"sz{pure}")]
+        if row.empty:
+            raise ValueError(f"A 股实时行情未命中: {symbol}")
+        item = row.iloc[0]
     return {
         "symbol": symbol,
         "name": _safe_str(item.get("名称"), symbol),
@@ -708,6 +740,35 @@ def get_batch_quotes_raw(symbols: list[str], market: str | None = None) -> list[
             return result
         except Exception as exc:
             logger.warning(f"[market_data] A 股批量行情失败，回退逐只获取: {exc}")
+            try:
+                df = _akshare_with_retry(ak.stock_zh_a_spot)
+                code_series = df["代码"].astype(str)
+                row_map = {str(code): row for code, row in zip(code_series, df.to_dict(orient="records"))}
+                result = []
+                for symbol in symbols:
+                    code = symbol.split(".")[0]
+                    row = row_map.get(code) or row_map.get(f"sh{code}") or row_map.get(f"sz{code}")
+                    if row is None:
+                        result.append(get_spot_price_raw(symbol))
+                        continue
+                    result.append(
+                        {
+                            "symbol": symbol,
+                            "name": _safe_str(row.get("名称"), symbol),
+                            "market_type": MarketType.A_STOCK.name,
+                            "price": _safe_float(row.get("最新价")),
+                            "change": _safe_float(row.get("涨跌额")),
+                            "change_pct": _safe_float(row.get("涨跌幅")),
+                            "is_fallback": False,
+                            "source": "akshare",
+                        }
+                    )
+                return result
+            except Exception as sina_exc:
+                logger.warning(f"[market_data] A 股批量行情新浪回退失败: {sina_exc}")
+        # A 股批量表都失败了，直接用 K 线收盘价回退，避免逐只再尝试表查询（触发限流）
+        logger.info("[market_data] A 股批量行情全部失败，回退 K 线收盘价")
+        return [_bars_to_spot(sym, MarketType.A_STOCK) for sym in symbols]
     return [get_spot_price_raw(symbol) for symbol in symbols]
 
 
@@ -764,6 +825,26 @@ def get_market_indices_raw() -> list[dict[str, Any]]:
                 results.append(item)
     except Exception as exc:
         logger.warning(f"[market_data] A 股指数获取失败: {exc}")
+        try:
+            cn_df = _akshare_with_retry(ak.stock_zh_index_spot_sina)
+            for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sz399006", "创业板指"), ("sh000300", "沪深300")]:
+                row = cn_df[cn_df["代码"].astype(str) == code]
+                if row.empty:
+                    continue
+                item = row.iloc[0]
+                results.append(
+                    {
+                        "symbol": code[-6:],
+                        "name": name,
+                        "price": _safe_float(item.get("最新价")),
+                        "change": _safe_float(item.get("涨跌额")),
+                        "change_pct": _safe_float(item.get("涨跌幅")),
+                        "is_fallback": False,
+                        "source": "akshare",
+                    }
+                )
+        except Exception as sina_exc:
+            logger.warning(f"[market_data] A 股指数新浪回退失败: {sina_exc}")
 
     for symbol, name in [("^HSI", "恒生指数"), ("^GSPC", "标普500"), ("^IXIC", "纳斯达克")]:
         try:
@@ -810,22 +891,27 @@ def get_sector_data_raw() -> list[dict[str, Any]]:
 
     try:
         df = _akshare_with_retry(ak.stock_board_industry_name_em)
-        result = []
-        for _, row in df.sort_values("涨跌幅", ascending=False).head(12).iterrows():
-            result.append(
-                {
-                    "name": _safe_str(row.get("板块名称")),
-                    "sector": _safe_str(row.get("板块名称")),
-                    "change_pct": float(_safe_float(row.get("涨跌幅")) or 0.0),
-                    "leader": _safe_str(row.get("领涨股票")),
-                    "up_count": int(_safe_float(row.get("上涨家数")) or 0),
-                    "down_count": int(_safe_float(row.get("下跌家数")) or 0),
-                }
-            )
-        return _cache_set("overview", cache_key, result)
     except Exception as exc:
-        logger.warning(f"[market_data] get_sector_data_raw 失败: {exc}")
-        return []
+        logger.warning(f"[market_data] 行业板块获取失败，回退概念板块: {exc}")
+        try:
+            df = _akshare_with_retry(ak.stock_board_concept_name_em)
+        except Exception as concept_exc:
+            logger.warning(f"[market_data] get_sector_data_raw 失败: {concept_exc}")
+            return []
+
+    result = []
+    for _, row in df.sort_values("涨跌幅", ascending=False).head(12).iterrows():
+        result.append(
+            {
+                "name": _safe_str(row.get("板块名称")),
+                "sector": _safe_str(row.get("板块名称")),
+                "change_pct": float(_safe_float(row.get("涨跌幅")) or 0.0),
+                "leader": _safe_str(row.get("领涨股票")),
+                "up_count": int(_safe_float(row.get("上涨家数")) or 0),
+                "down_count": int(_safe_float(row.get("下跌家数")) or 0),
+            }
+        )
+    return _cache_set("overview", cache_key, result)
 
 
 def get_market_sentiment_raw() -> dict[str, Any]:

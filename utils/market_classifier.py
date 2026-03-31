@@ -226,6 +226,10 @@ class MarketClassifier:
         if not query:
             return query
 
+        # 指数符号（^GSPC, ^HSI, ^IXIC 等）直接返回，不做模糊匹配
+        if query.strip().startswith("^"):
+            return query.strip().upper()
+
         query_lower = query.lower().strip()
 
         # 1. 精确匹配
