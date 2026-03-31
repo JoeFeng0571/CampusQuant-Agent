@@ -90,7 +90,7 @@ def _safe_str(value: Any, default: str = "") -> str:
     return str(value).strip() or default
 
 
-def _akshare_with_retry(fn, retries: int = 2, delay: float = 0.8) -> Any:
+def _akshare_with_retry(fn, retries: int = 3, delay: float = 2.0) -> Any:
     last_error = None
     for attempt in range(retries + 1):
         try:
@@ -101,7 +101,9 @@ def _akshare_with_retry(fn, retries: int = 2, delay: float = 0.8) -> Any:
         except Exception as exc:
             last_error = exc
             if attempt < retries:
-                time.sleep(delay * (attempt + 1))
+                wait = delay * (attempt + 1)
+                logger.debug(f"akshare 重试 {attempt+1}/{retries}, 等待 {wait:.1f}s")
+                time.sleep(wait)
     raise last_error or RuntimeError("akshare 调用失败")
 
 
@@ -382,35 +384,29 @@ def _prewarm_cache() -> None:
     """启动时预热常用数据缓存，避免首次请求超时"""
     import threading
 
+    # 前端观察股列表（预热 K 线用）
+    _WATCHLIST_A = ["600519.SH", "000858.SZ", "601318.SH", "002594.SZ", "300750.SZ", "600036.SH", "601899.SH", "000001.SZ"]
+
     def _do_prewarm():
-        logger.info("预热缓存开始...")
-        # 指数（轻量）
+        logger.info("预热缓存开始（每步间隔 5s 避免限流）...")
+        time.sleep(5)
+
+        # 1. 指数：先试东财，失败用新浪
         try:
             cn_df = _akshare_with_retry(lambda: ak.stock_zh_index_spot_em(symbol="沪深重要指数"))
             _cache_set("overview", "cn_indices_df", cn_df)
-            logger.info("预热: A 股指数 OK")
-        except Exception as e:
-            logger.warning(f"预热: A 股指数失败: {e}")
+            logger.info("预热: A 股指数(东财) OK")
+        except Exception:
+            try:
+                cn_df = _akshare_with_retry(ak.stock_zh_index_spot_sina)
+                _cache_set("overview", "cn_indices_df_sina", cn_df)
+                logger.info("预热: A 股指数(新浪回退) OK")
+            except Exception as e2:
+                logger.warning(f"预热: A 股指数全部失败: {e2}")
 
-        # 板块（中量）
-        try:
-            df = _akshare_with_retry(ak.stock_board_industry_name_em)
-            result = []
-            for _, row in df.sort_values("涨跌幅", ascending=False).head(12).iterrows():
-                result.append({
-                    "name": _safe_str(row.get("板块名称")),
-                    "sector": _safe_str(row.get("板块名称")),
-                    "change_pct": float(_safe_float(row.get("涨跌幅")) or 0.0),
-                    "leader": _safe_str(row.get("领涨股票")),
-                    "up_count": int(_safe_float(row.get("上涨家数")) or 0),
-                    "down_count": int(_safe_float(row.get("下跌家数")) or 0),
-                })
-            _cache_set("overview", "sectors", result)
-            logger.info("预热: 板块数据 OK")
-        except Exception as e:
-            logger.warning(f"预热: 板块数据失败: {e}")
+        time.sleep(5)
 
-        # 北向资金（轻量，不依赖全量行情表）
+        # 2. 北向资金（轻量）
         try:
             north_df = _akshare_with_retry(ak.stock_hsgt_fund_flow_summary_em)
             if not north_df.empty:
@@ -422,7 +418,50 @@ def _prewarm_cache() -> None:
         except Exception as e:
             logger.warning(f"预热: 北向资金失败: {e}")
 
+        time.sleep(5)
+
+        # 3. 观察股 K 线（前端 watchlist 的 8 只 A 股，预热后秒回）
+        ok_count = 0
+        for sym in _WATCHLIST_A:
+            try:
+                _get_a_stock_hist(sym, 2)
+                ok_count += 1
+            except Exception:
+                pass
+            time.sleep(1)
+        logger.info(f"预热: A 股观察股 K 线 {ok_count}/{len(_WATCHLIST_A)}")
+
+        time.sleep(5)
+
+        # 4. 板块（东财，容易限流，后台持续重试）
+        _try_prewarm_sectors()
+
         logger.info("预热缓存完成")
+
+    def _try_prewarm_sectors():
+        """板块数据后台重试，成功后缓存"""
+        for attempt in range(10):
+            cached = _cache_get("overview", "sectors")
+            if cached:
+                return
+            try:
+                df = _akshare_with_retry(ak.stock_board_industry_name_em, retries=2, delay=3.0)
+                result = []
+                for _, row in df.sort_values("涨跌幅", ascending=False).head(12).iterrows():
+                    result.append({
+                        "name": _safe_str(row.get("板块名称")),
+                        "sector": _safe_str(row.get("板块名称")),
+                        "change_pct": float(_safe_float(row.get("涨跌幅")) or 0.0),
+                        "leader": _safe_str(row.get("领涨股票")),
+                        "up_count": int(_safe_float(row.get("上涨家数")) or 0),
+                        "down_count": int(_safe_float(row.get("下跌家数")) or 0),
+                    })
+                _cache_set("overview", "sectors", result)
+                logger.info(f"预热: 板块数据 OK (第 {attempt+1} 次)")
+                return
+            except Exception as e:
+                logger.warning(f"预热: 板块数据第 {attempt+1} 次失败: {e}")
+                time.sleep(120)  # 每 2 分钟重试一次
 
     t = threading.Thread(target=_do_prewarm, daemon=True, name="prewarm")
     t.start()
@@ -612,7 +651,9 @@ def market_indices():
         except Exception as sina_exc:
             logger.warning(f"A 股指数新浪回退失败: {sina_exc}")
 
-    _cache_set("overview", "cn_indices", results)
+    # 只缓存非空结果，避免空结果被缓存导致后续请求也拿不到数据
+    if results:
+        _cache_set("overview", "cn_indices", results)
     return {"status": "success", "data": results}
 
 

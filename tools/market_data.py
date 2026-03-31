@@ -147,7 +147,7 @@ def _relay_request(endpoint: str, symbol: str, params: dict[str, Any] | None = N
         return None
 
 
-def _inland_relay_request(endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
+def _inland_relay_request(endpoint: str, params: dict[str, Any] | None = None, timeout: int = 45) -> dict[str, Any] | None:
     """请求内地数据中继服务（akshare A股/港美股 + RAG + 新闻）"""
     base_url = (config.INLAND_RELAY_BASE_URL or "").rstrip("/")
     token = (config.INLAND_RELAY_TOKEN or "").strip()
@@ -156,7 +156,7 @@ def _inland_relay_request(endpoint: str, params: dict[str, Any] | None = None) -
     url = f"{base_url}/relay/{endpoint.lstrip('/')}"
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
     try:
-        resp = requests.get(url, params=params or {}, headers=headers, timeout=20)
+        resp = requests.get(url, params=params or {}, headers=headers, timeout=timeout)
         resp.raise_for_status()
         data = resp.json()
         return data if isinstance(data, dict) else None
