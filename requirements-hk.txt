@@ -1,0 +1,55 @@
+# ============================================================
+#  CampusQuant — 香港服务器精简依赖
+#  RAG/Chroma/Streamlit 已搬到内地 relay，此处不装
+# ============================================================
+
+# Core Data Science
+pandas
+numpy
+
+# Market Data (港美股本地直取)
+yfinance
+
+# Technical Analysis
+pandas-ta
+
+# LangGraph & LangChain Agent Framework
+langgraph
+langchain
+langchain-core
+langchain-community
+langchain-openai
+langchain-anthropic
+
+# LLM Providers
+openai
+anthropic
+
+# FastAPI & Async Server
+fastapi
+uvicorn[standard]
+sse-starlette
+httpx
+python-multipart
+
+# Utilities
+requests
+python-dotenv
+pydantic
+tenacity
+
+# Logging
+loguru
+
+# Database (远程连接内地 MySQL)
+sqlalchemy[asyncio]
+asyncmy
+pymysql
+
+# Auth
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==4.0.1
+
+# DuckDuckGo (联网搜索仍在香港执行)
+duckduckgo-search
