@@ -296,6 +296,19 @@ _NODE_LABELS = {
     "trade_executor":   "交易指令生成",
 }
 
+# 节点开始时的详细描述（增加用户等待期间的信息量）
+_NODE_START_DESC = {
+    "data_node":        "正在获取实时行情、历史K线、技术指标数据...",
+    "rag_node":         "正在检索金融研报知识库，匹配相关行业分析与政策解读...",
+    "fundamental_node": "正在分析商业模式、护城河、估值水平、同行对比，生成投资论点...",
+    "technical_node":   "正在计算 MA均线/MACD/RSI/布林带/ATR 等技术指标，判断趋势与买卖信号...",
+    "sentiment_node":   "正在抓取最新财经新闻，分析市场情绪、资金热度与板块轮动...",
+    "portfolio_node":   "基金经理正在综合三路分析师意见，按市场权重计算综合评分，检测是否存在多空分歧...",
+    "debate_node":      "检测到基本面与技术面意见冲突，多空双方正在辩论，裁判将综合双方论据做出裁决...",
+    "risk_node":        "风控官正在审核：ATR波动率检查、仓位上限检查、单次亏损上限反算、置信度惩罚...",
+    "trade_executor":   "正在生成最终交易指令，计算止损止盈价位，撰写完整投资研报...",
+}
+
 
 async def _stream_graph_events(
     symbol:    str,
@@ -358,12 +371,13 @@ async def _stream_graph_events(
                 if node_name not in notified_start:
                     notified_start.add(node_name)
                     label = _NODE_LABELS[node_name]
+                    desc = _NODE_START_DESC.get(node_name, "")
                     seq += 1
                     yield _make_sse_event(
                         event="node_start",
                         node=node_name,
-                        message=f"⚙️ {label} 开始工作...",
-                        data={"label": label},
+                        message=f"⚙️ {label} 开始工作...\n   {desc}",
+                        data={"label": label, "description": desc},
                         seq=seq,
                     )
                     await asyncio.sleep(0)

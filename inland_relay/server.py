@@ -762,6 +762,67 @@ def a_stock_fundamental(symbol: str):
 
 
 # ════════════════════════════════════════════════════════════════
+# A 股深度财务数据（历年营收/净利润，供前端 ECharts 渲染）
+# ════════════════════════════════════════════════════════════════
+
+def _to_yi(val_str: str) -> float | None:
+    """将 '862.28亿' 这样的字符串转为浮点数（亿元）"""
+    if not val_str or not isinstance(val_str, str):
+        return _safe_float(val_str)
+    s = val_str.replace("亿", "").replace(",", "").strip()
+    return _safe_float(s)
+
+
+@app.get("/relay/a-stock/deep-financial", dependencies=[Depends(verify_token)])
+def a_stock_deep_financial(symbol: str):
+    """获取 A 股历年营收/净利润，用于前端财务图表"""
+    cache_key = f"deep:{symbol}"
+    cached = _cache_get("fundamental", cache_key)
+    if cached is not None:
+        return {"status": "success", "data": cached}
+    try:
+        pure = symbol.split(".")[0]
+        df = _akshare_with_retry(lambda: ak.stock_financial_abstract_ths(symbol=pure))
+        if df.empty:
+            return {"status": "partial", "data": {}}
+
+        # 取最近 5 年数据（tail(5)，因为 ascending 排序最旧在前）
+        recent = df.tail(5)
+        years = []
+        revenue_history = []
+        profit_history = []
+
+        for _, row in recent.iterrows():
+            # 报告期格式：2024-12-31 或 20241231
+            report_date = str(row.get("报告期", ""))[:4]
+            if report_date and len(report_date) == 4:
+                years.append(report_date)
+            else:
+                continue
+
+            # 营业总收入
+            rev = _to_yi(str(row.get("营业总收入", row.get("营业收入", ""))))
+            revenue_history.append(rev or 0)
+
+            # 净利润
+            profit = _to_yi(str(row.get("净利润", row.get("归母净利润", ""))))
+            profit_history.append(profit or 0)
+
+        data = {
+            "years": years,
+            "revenue_history": revenue_history,
+            "profit_history": profit_history,
+            "revenue_label": "营业收入（亿元）",
+            "profit_label": "净利润（亿元）",
+        }
+        _cache_set("fundamental", cache_key, data)
+        return {"status": "success", "data": data}
+    except Exception as e:
+        logger.warning(f"深度财务数据获取失败: {symbol} {e}")
+        return {"status": "error", "data": {}}
+
+
+# ════════════════════════════════════════════════════════════════
 # A 股个股新闻
 # ════════════════════════════════════════════════════════════════
 

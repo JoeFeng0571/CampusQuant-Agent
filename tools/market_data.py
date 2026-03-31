@@ -1056,4 +1056,18 @@ def get_deep_financial_data_via_relay(symbol: str) -> dict[str, Any]:
 
 
 def get_deep_financial_data(symbol: str) -> dict[str, Any]:
+    """A 股深度财务数据：历年营收/净利润（走内地 relay）"""
+    inland = _inland_relay_request("a-stock/deep-financial", {"symbol": symbol})
+    if inland and inland.get("status") == "success" and inland.get("data"):
+        data = inland["data"]
+        return {
+            "symbol": symbol,
+            "years": data.get("years", []),
+            "revenue_history": data.get("revenue_history", []),
+            "profit_history": data.get("profit_history", []),
+            "revenue_label": data.get("revenue_label", "营业收入（亿元）"),
+            "profit_label": data.get("profit_label", "净利润（亿元）"),
+            "revenue_composition": {},
+            "performance_trend": {},
+        }
     return {"symbol": symbol, "revenue_composition": {}, "performance_trend": {}}

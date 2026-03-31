@@ -446,7 +446,7 @@ _ANALYST_REPORT_SKELETON = """
 {
   "recommendation": "BUY或SELL或HOLD（三选一，必填）",
   "confidence": 0.73,
-  "reasoning": "你的完整分析推导过程，不少于50字（必填）",
+  "reasoning": "你的完整分析推导过程，不少于200字，需包含具体数据佐证和逻辑链条（必填）",
   "key_factors": ["支撑建议的关键因素1", "因素2", "因素3"],
   "price_target": null,
   "risk_factors": ["主要风险1", "风险2"],
@@ -460,7 +460,10 @@ _ANALYST_REPORT_SKELETON = """
   "bear_case": "悲观情景描述（基本面分析必填，技术/情绪分析留空）"
 }
 规则：recommendation 只能是 BUY/SELL/HOLD；confidence 必须是经过上述加减法计算的精准小数；reasoning 不得为空。
-注意：investment_thesis/business_model/moat_assessment/catalysts/peer_comparison/bull_case/bear_case 仅基本面分析师必须填写，技术面和情绪面分析师可留空字符串。
+注意：
+- investment_thesis/business_model/moat_assessment/catalysts/peer_comparison/bull_case/bear_case 仅基本面分析师必须填写，技术面和情绪面分析师可留空字符串。
+- 基本面分析师：reasoning 不少于 200 字，business_model/moat_assessment/peer_comparison 每项不少于 100 字，bull_case/bear_case 每项不少于 50 字。
+- 技术面/情绪面分析师：reasoning 不少于 200 字。
 """
 
 # 【CampusQuant 不可豁免规则】写在基础 Prompt 后，所有分析师节点共用

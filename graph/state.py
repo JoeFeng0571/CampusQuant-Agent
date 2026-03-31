@@ -63,7 +63,7 @@ class AnalystReport(BaseModel):
         description="置信度，范围 [0.0, 1.0]"
     )
     reasoning: str = Field(
-        description="详细的分析推理，不少于50字"
+        description="详细的分析推理，不少于200字，需包含具体数据和逻辑推导"
     )
     key_factors: List[str] = Field(
         default_factory=list,
