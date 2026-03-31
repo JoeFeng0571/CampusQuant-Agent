@@ -132,7 +132,12 @@
       "Bash(find . -name *.py -path */graph/* -o -name server.py)",
       "Bash(xargs wc:*)",
       "Bash(grep -r m4 --include=*.py -l)",
-      "Bash(source .venv/Scripts/activate)"
+      "Bash(source .venv/Scripts/activate)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(grep -r \"import akshare\\\\|from akshare\\\\|ak\\\\.\" /d/000intern/0agent/trading_agents_system/*.py /d/000intern/0agent/trading_agents_system/**/*.py)",
+      "Bash(grep:*)"
     ]
   }
 }

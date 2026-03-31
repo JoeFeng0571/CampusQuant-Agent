@@ -787,64 +787,9 @@ def get_spot_price_raw(symbol: str) -> dict[str, Any]:
 
 def get_batch_quotes_raw(symbols: list[str], market: str | None = None) -> list[dict[str, Any]]:
     market = (market or "").lower()
-    if market == "a":
-        try:
-            df = _get_a_spot_table()
-            code_set = {str(sym).split(".")[0] for sym in symbols}
-            filtered = df[df["代码"].astype(str).isin(code_set)]
-            row_map = {str(row["代码"]): row for _, row in filtered.iterrows()}
-            result: list[dict[str, Any]] = []
-            for symbol in symbols:
-                code = symbol.split(".")[0]
-                row = row_map.get(code)
-                if row is None:
-                    result.append(get_spot_price_raw(symbol))
-                    continue
-                result.append(
-                    {
-                        "symbol": symbol,
-                        "name": _safe_str(row.get("名称"), symbol),
-                        "market_type": MarketType.A_STOCK.name,
-                        "price": _safe_float(row.get("最新价")),
-                        "change": _safe_float(row.get("涨跌额")),
-                        "change_pct": _safe_float(row.get("涨跌幅")),
-                        "is_fallback": False,
-                        "source": "akshare",
-                    }
-                )
-            return result
-        except Exception as exc:
-            logger.warning(f"[market_data] A 股批量行情失败，回退逐只获取: {exc}")
-            try:
-                df = _akshare_with_retry(ak.stock_zh_a_spot)
-                code_series = df["代码"].astype(str)
-                row_map = {str(code): row for code, row in zip(code_series, df.to_dict(orient="records"))}
-                result = []
-                for symbol in symbols:
-                    code = symbol.split(".")[0]
-                    row = row_map.get(code) or row_map.get(f"sh{code}") or row_map.get(f"sz{code}")
-                    if row is None:
-                        result.append(get_spot_price_raw(symbol))
-                        continue
-                    result.append(
-                        {
-                            "symbol": symbol,
-                            "name": _safe_str(row.get("名称"), symbol),
-                            "market_type": MarketType.A_STOCK.name,
-                            "price": _safe_float(row.get("最新价")),
-                            "change": _safe_float(row.get("涨跌额")),
-                            "change_pct": _safe_float(row.get("涨跌幅")),
-                            "is_fallback": False,
-                            "source": "akshare",
-                        }
-                    )
-                return result
-            except Exception as sina_exc:
-                logger.warning(f"[market_data] A 股批量行情新浪回退失败: {sina_exc}")
-        # A 股批量表都失败了，直接用 K 线收盘价回退，避免逐只再尝试表查询（触发限流）
-        logger.info("[market_data] A 股批量行情全部失败，回退 K 线收盘价")
-        return [_bars_to_spot(sym, MarketType.A_STOCK) for sym in symbols]
-    return [get_spot_price_raw(symbol) for symbol in symbols]
+    # 所有市场统一：直接用 K 线收盘价构造行情，轻量无需拉全量表
+    # 前端只展示 8-10 只观察股，不需要 5000 股的全量行情表
+    return [_bars_to_spot(sym, _normalize_symbol(sym)[0]) for sym in symbols]
 
 
 def _index_from_cn_table(df: pd.DataFrame, code: str, name: str) -> dict[str, Any] | None:
@@ -976,10 +921,13 @@ def get_sector_data_raw() -> list[dict[str, Any]]:
     if cached is not None:
         return cached
 
-    # 优先走内地 relay
+    # 走内地 relay（板块数据只能在内地服务器用 akshare 获取）
     inland = _inland_relay_request("sectors")
     if inland and inland.get("status") == "success" and inland.get("data"):
         return _cache_set("overview", cache_key, inland["data"])
+
+    if ak is None:
+        return []
 
     try:
         df = _akshare_with_retry(ak.stock_board_industry_name_em)
@@ -1012,10 +960,17 @@ def get_market_sentiment_raw() -> dict[str, Any]:
     if cached is not None:
         return cached
 
-    # 优先走内地 relay
+    # 走内地 relay（涨停/跌停统计需要全量 A 股表，只能在内地服务器算）
     inland = _inland_relay_request("sentiment")
     if inland and inland.get("status") == "success" and inland.get("data"):
         return _cache_set("overview", cache_key, inland["data"])
+
+    # 内地 relay 不可用时回退本地 akshare（仅本地开发环境）
+    if ak is None:
+        return _cache_set("overview", cache_key, {
+            "limit_up": "--", "limit_down": "--", "volume": "--",
+            "north_flow": "--", "north_flow_raw": None,
+        })
 
     limit_up = "--"
     limit_down = "--"

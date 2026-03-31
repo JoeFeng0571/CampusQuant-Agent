@@ -378,10 +378,61 @@ def _refresh_hot_news() -> None:
 # FastAPI 应用
 # ════════════════════════════════════════════════════════════════
 
+def _prewarm_cache() -> None:
+    """启动时预热常用数据缓存，避免首次请求超时"""
+    import threading
+
+    def _do_prewarm():
+        logger.info("预热缓存开始...")
+        # 指数（轻量）
+        try:
+            cn_df = _akshare_with_retry(lambda: ak.stock_zh_index_spot_em(symbol="沪深重要指数"))
+            _cache_set("overview", "cn_indices_df", cn_df)
+            logger.info("预热: A 股指数 OK")
+        except Exception as e:
+            logger.warning(f"预热: A 股指数失败: {e}")
+
+        # 板块（中量）
+        try:
+            df = _akshare_with_retry(ak.stock_board_industry_name_em)
+            result = []
+            for _, row in df.sort_values("涨跌幅", ascending=False).head(12).iterrows():
+                result.append({
+                    "name": _safe_str(row.get("板块名称")),
+                    "sector": _safe_str(row.get("板块名称")),
+                    "change_pct": float(_safe_float(row.get("涨跌幅")) or 0.0),
+                    "leader": _safe_str(row.get("领涨股票")),
+                    "up_count": int(_safe_float(row.get("上涨家数")) or 0),
+                    "down_count": int(_safe_float(row.get("下跌家数")) or 0),
+                })
+            _cache_set("overview", "sectors", result)
+            logger.info("预热: 板块数据 OK")
+        except Exception as e:
+            logger.warning(f"预热: 板块数据失败: {e}")
+
+        # 北向资金（轻量，不依赖全量行情表）
+        try:
+            north_df = _akshare_with_retry(ak.stock_hsgt_fund_flow_summary_em)
+            if not north_df.empty:
+                latest_date = north_df["交易日"].max()
+                latest_df = north_df[north_df["交易日"] == latest_date]
+                value = pd.to_numeric(latest_df["成交净买额"], errors="coerce").sum()
+                _cache_set("overview", "north_flow", {"north_flow": f"{value:+.2f}亿", "north_flow_raw": float(value)})
+                logger.info("预热: 北向资金 OK")
+        except Exception as e:
+            logger.warning(f"预热: 北向资金失败: {e}")
+
+        logger.info("预热缓存完成")
+
+    t = threading.Thread(target=_do_prewarm, daemon=True, name="prewarm")
+    t.start()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("内地 Relay 服务启动，初始化 RAG 索引...")
     _init_rag()
+    _prewarm_cache()
     yield
     logger.info("内地 Relay 服务关闭")
 
@@ -471,13 +522,15 @@ def us_stock_kline(symbol: str, days: int = 180):
 
 @app.get("/relay/a-stock/spot-table", dependencies=[Depends(verify_token)])
 def a_stock_spot_table():
+    """A 股行情表 — 使用轻量接口 stock_zh_a_spot 代替重量级 stock_zh_a_spot_em"""
     cached = _cache_get("overview", "a_spot_table")
     if cached is not None:
         if isinstance(cached, str) and cached == "__FAILED__":
             raise HTTPException(status_code=502, detail="A 股行情表暂时不可用")
         return {"status": "success", "count": len(cached), "data": cached.to_dict(orient="records")}
     try:
-        df = _akshare_with_retry(ak.stock_zh_a_spot_em)
+        # 用 stock_zh_a_spot（新浪，轻量）代替 stock_zh_a_spot_em（东财，5000+行太重）
+        df = _akshare_with_retry(ak.stock_zh_a_spot)
         _cache_set("overview", "a_spot_table", df)
         return {"status": "success", "count": len(df), "data": df.to_dict(orient="records")}
     except Exception as e:
@@ -687,26 +740,35 @@ def market_sentiment():
     north_flow = "--"
     north_flow_raw = None
 
+    # 涨停/跌停/成交额：用轻量接口 stock_zh_a_spot() 代替重量级 stock_zh_a_spot_em()
+    # stock_zh_a_spot() 数据量较小，2G 内存可以承受
     try:
-        df = _akshare_with_retry(ak.stock_zh_a_spot_em)
+        df = _akshare_with_retry(ak.stock_zh_a_spot)
         pct = pd.to_numeric(df["涨跌幅"], errors="coerce")
         limit_up = str(int((pct >= 9.8).sum()))
         limit_down = str(int((pct <= -9.8).sum()))
-        total_amount = pd.to_numeric(df["成交额"], errors="coerce").fillna(0).sum()
-        volume = f"{total_amount / 1e8:.2f}亿"
+        if "成交额" in df.columns:
+            total_amount = pd.to_numeric(df["成交额"], errors="coerce").fillna(0).sum()
+            volume = f"{total_amount / 1e8:.2f}亿"
     except Exception as exc:
         logger.warning(f"市场情绪-A股统计失败: {exc}")
+        # 使用预热缓存的北向资金
+        prewarm_north = _cache_get("overview", "north_flow")
+        if prewarm_north:
+            north_flow = prewarm_north.get("north_flow", "--")
+            north_flow_raw = prewarm_north.get("north_flow_raw")
 
-    try:
-        north_df = _akshare_with_retry(ak.stock_hsgt_fund_flow_summary_em)
-        if not north_df.empty:
-            latest_date = north_df["交易日"].max()
-            latest_df = north_df[north_df["交易日"] == latest_date]
-            value = pd.to_numeric(latest_df["成交净买额"], errors="coerce").sum()
-            north_flow_raw = float(value)
-            north_flow = f"{value:+.2f}亿"
-    except Exception as exc:
-        logger.warning(f"市场情绪-北向资金失败: {exc}")
+    if north_flow == "--":
+        try:
+            north_df = _akshare_with_retry(ak.stock_hsgt_fund_flow_summary_em)
+            if not north_df.empty:
+                latest_date = north_df["交易日"].max()
+                latest_df = north_df[north_df["交易日"] == latest_date]
+                value = pd.to_numeric(latest_df["成交净买额"], errors="coerce").sum()
+                north_flow_raw = float(value)
+                north_flow = f"{value:+.2f}亿"
+        except Exception as exc:
+            logger.warning(f"市场情绪-北向资金失败: {exc}")
 
     result = {
         "limit_up": limit_up, "limit_down": limit_down,
