@@ -609,7 +609,7 @@ async def _stream_graph_events(
 
 | 操作 | 置信度 | 建议仓位 | 止损 | 止盈 | 风险等级 |
 |------|--------|----------|------|------|----------|
-| **{final_order.get('action', 'N/A')}** | {_pct(final_order.get('confidence', 0))} | {_pct(final_order.get('quantity_pct') or 0)} | {final_order.get('stop_loss', 'N/A')} | {final_order.get('take_profit', 'N/A')} | {risk.get('risk_level', 'N/A')} |
+| **{final_order.get('action', 'N/A')}** | {_pct(final_order.get('confidence', 0))} | {float(final_order.get('quantity_pct') or 0):.1f}% | {final_order.get('stop_loss', 'N/A')} | {final_order.get('take_profit', 'N/A')} | {risk.get('risk_level', 'N/A')} |
 
 {f"> 辩论裁决：{debate.get('resolved_recommendation','N/A')} | 决定因素：{debate.get('deciding_factor','')}" if debate else ""}
 
@@ -705,7 +705,7 @@ async def _stream_graph_events(
 
 | 审批状态 | 仓位 | 止损 | 止盈 |
 |----------|------|------|------|
-| **{risk.get('approval_status', 'N/A')}** | {_pct(risk.get('position_pct') or 0)} | {_pct(risk.get('stop_loss_pct') or 0)} | {_pct(risk.get('take_profit_pct') or 0)} |
+| **{risk.get('approval_status', 'N/A')}** | {float(risk.get('position_pct') or 0):.1f}% | {float(risk.get('stop_loss_pct') or 0):.1f}% | {float(risk.get('take_profit_pct') or 0):.1f}% |
 
 </details>
 
