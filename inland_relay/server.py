@@ -90,7 +90,7 @@ def _safe_str(value: Any, default: str = "") -> str:
     return str(value).strip() or default
 
 
-def _akshare_with_retry(fn, retries: int = 3, delay: float = 2.0) -> Any:
+def _akshare_with_retry(fn, retries: int = 2, delay: float = 1.5) -> Any:
     last_error = None
     for attempt in range(retries + 1):
         try:
@@ -253,8 +253,13 @@ def _normalize_ohlcv_df(df: pd.DataFrame) -> pd.DataFrame:
 def _get_a_stock_hist(symbol: str, days: int) -> pd.DataFrame:
     pure = symbol.split(".")[0]
     sina_symbol = ("sh" if pure.startswith(("6", "9")) else "sz") + pure
+    # 计算起始日期，多取 50% 余量应对节假日
+    from datetime import timedelta
+    start_date = (datetime.now() - timedelta(days=int(days * 1.5) + 30)).strftime("%Y%m%d")
     try:
-        df = _akshare_with_retry(lambda: ak.stock_zh_a_hist(symbol=pure, period="daily", adjust="qfq"))
+        df = _akshare_with_retry(lambda: ak.stock_zh_a_hist(
+            symbol=pure, period="daily", adjust="qfq", start_date=start_date
+        ))
         if df.empty:
             raise ValueError(f"A 股 K 线为空: {symbol}")
         df = df.rename(columns={"日期": "date", "开盘": "open", "收盘": "close", "最高": "high", "最低": "low", "成交量": "volume"})

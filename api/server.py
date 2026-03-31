@@ -920,7 +920,7 @@ _MARKET_WATCHLISTS: dict[str, list[str]] = {
     "a":  ["600519.SH", "000858.SZ", "601318.SH", "002594.SZ",
            "300750.SZ", "600036.SH", "601899.SH", "000001.SZ"],
     "hk": ["00700.HK", "09988.HK", "03690.HK", "02318.HK", "01398.HK", "09999.HK", "09618.HK", "01810.HK"],
-    "us": ["AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "TSLA", "META"],
+    "us": ["AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "TSLA", "META", "AMD"],
 }
 
 # 后端内存模拟持仓（成本价基于某日收盘，演示用）

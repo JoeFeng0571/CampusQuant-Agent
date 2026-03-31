@@ -274,7 +274,9 @@ def _get_a_stock_hist(symbol: str, days: int) -> pd.DataFrame:
     pure = symbol.split(".")[0]
     sina_symbol = ("sh" if pure.startswith(("6", "9")) else "sz") + pure
     try:
-        df = _akshare_with_retry(lambda: ak.stock_zh_a_hist(symbol=pure, period="daily", adjust="qfq"))
+        from datetime import timedelta
+        _start = (datetime.now() - timedelta(days=int(days * 1.5) + 30)).strftime("%Y%m%d")
+        df = _akshare_with_retry(lambda: ak.stock_zh_a_hist(symbol=pure, period="daily", adjust="qfq", start_date=_start))
         if df.empty:
             raise ValueError(f"A 股 K 线为空: {symbol}")
         df = df.rename(
