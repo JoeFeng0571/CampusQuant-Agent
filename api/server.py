@@ -653,7 +653,7 @@ async def _stream_graph_events(
 
 | PE | PB | ROE |
 |----|----|-----|
-| {_pe} | {_pb} | {_roe} |
+| {_pe if _pe and _pe != 'N/A' else '--'} | {_pb if _pb and _pb != 'N/A' else '--'} | {_roe if _roe and _roe != 'N/A' else '--'} |
 
 ---
 
@@ -1733,7 +1733,7 @@ async def get_market_news(limit: int = 20):
             logger.error(f"[market/news] 紧急抓取失败: {e}")
             raise HTTPException(status_code=502, detail=f"快讯获取失败: {str(e)}")
 
-    news = _MARKET_CACHE["news"][:limit]
+    news = [n for n in _MARKET_CACHE["news"] if n.get("title", "").strip()][:limit]
     return {
         "news":      news,
         "count":     len(news),

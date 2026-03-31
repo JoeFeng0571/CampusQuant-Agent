@@ -623,9 +623,11 @@
             <div class="kline-title">📊 K线图</div>
             <div class="kline-search-wrap">
                 <input class="kline-input" id="kline-input" type="text"
-                    placeholder="输入股票代码，如 600519.SH / AAPL / 00700.HK"
-                    onkeydown="if(event.key==='Enter')loadKline()">
+                    placeholder="输入股票代码或名称，如 茅台 / AAPL / 00700.HK"
+                    onkeydown="if(event.key==='Enter')loadKline()"
+                    oninput="_onKlineSearch(this.value)">
                 <button class="kline-btn" onclick="loadKline()">查 K 线</button>
+                <div id="kline-suggest" style="display:none;position:absolute;top:100%;left:0;right:60px;background:#1a1f2e;border:1px solid var(--border);border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;"></div>
             </div>
             <div class="kline-period-tabs">
                 <button class="kp-tab active" data-period="daily"   onclick="switchPeriod(this,'daily')">日K</button>
@@ -831,7 +833,7 @@
         } catch (err) {
             console.error('[market] 板块数据获取失败:', err);
             const el = document.getElementById('sector-heatmap');
-            if (el) el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;color:#ff6b6b;font-size:13px">⚠ 板块接口不可用，请确认后端已启动</div>';
+            if (el) el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--text-dim);font-size:13px">板块数据更新中，请稍后刷新页面</div>';
         }
     }
 
@@ -997,6 +999,37 @@
         });
         _klRO.observe(chartEl.parentElement);
     }
+
+    // ── K线搜索自动补全 ─────────────────────────────
+    let _suggestTimer = null;
+    function _onKlineSearch(q) {
+        clearTimeout(_suggestTimer);
+        const box = document.getElementById('kline-suggest');
+        if (!q || q.length < 1) { box.style.display = 'none'; return; }
+        _suggestTimer = setTimeout(async () => {
+            try {
+                const r = await fetch(`${API_BASE}/market/search?q=${encodeURIComponent(q)}`);
+                const d = await r.json();
+                const items = d.suggestions || [];
+                if (!items.length) { box.style.display = 'none'; return; }
+                box.innerHTML = items.map(s =>
+                    `<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);color:#e2e8f0;font-size:13px;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background=''" onclick="_selectKlineSuggest('${s.symbol}','${s.name}')">${s.symbol} <span style="color:var(--text-dim)">${s.name}</span> <span style="font-size:11px;color:var(--accent)">${s.type||''}</span></div>`
+                ).join('');
+                box.style.display = 'block';
+            } catch(e) { box.style.display = 'none'; }
+        }, 300);
+    }
+    function _selectKlineSuggest(symbol, name) {
+        document.getElementById('kline-input').value = symbol;
+        document.getElementById('kline-suggest').style.display = 'none';
+        loadKline();
+    }
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.kline-search-wrap')) {
+            const box = document.getElementById('kline-suggest');
+            if (box) box.style.display = 'none';
+        }
+    });
 
     async function loadKline() {
         if (_klLoading) return;

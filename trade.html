@@ -1080,7 +1080,7 @@ function renderPositions(positions, pfx, mkt) {
             <td>${pfx}${Number(p.avg_cost||0).toFixed(3)}</td>
             <td>${pfx}${Number(p.market_value||0).toFixed(2)}</td>
             <td class="${pnlDir}">${(p.pnl_pct>=0?'+':'') + Number(p.pnl_pct||0).toFixed(2)}%</td>
-            <td><button class="quick-sell" onclick="quickSell('${p.symbol}',${p.quantity})">一键卖出</button></td>
+            <td><button class="quick-sell" onclick="quickSell('${p.symbol}',${p.quantity})">卖出</button></td>
         </tr>`;
     }).join('');
     wrap.innerHTML = `<table>
@@ -1094,13 +1094,42 @@ function renderPositions(positions, pfx, mkt) {
 
 function quickSell(symbol, qty) {
     document.getElementById('sym-input').value = symbol;
-    document.getElementById('order-qty').value = qty;
+    document.getElementById('order-qty').value = '';
     currentSymbol = symbol.toUpperCase();
+    _quickSellMaxQty = qty;
     _currentLotSize = 1; _lotFetchSymbol = '';
     switchSide('SELL');
     startPriceTimer(currentSymbol);
     fetchLotSize(currentSymbol);
     document.getElementById('order-result').style.display = 'none';
+    // 显示比例快捷按钮
+    _showSellRatioButtons(qty);
+}
+var _quickSellMaxQty = 0;
+
+function _showSellRatioButtons(maxQty) {
+    let wrap = document.getElementById('sell-ratio-wrap');
+    if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.id = 'sell-ratio-wrap';
+        wrap.style.cssText = 'display:flex;gap:6px;margin:8px 0;flex-wrap:wrap;';
+        const qtyInput = document.getElementById('order-qty');
+        qtyInput.parentNode.insertBefore(wrap, qtyInput.nextSibling);
+    }
+    wrap.innerHTML = [25,50,75,100].map(pct => {
+        const q = Math.floor(maxQty * pct / 100);
+        return `<button type="button" onclick="_fillSellQty(${q})" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text-sub);cursor:pointer;font-size:12px;">${pct}%</button>`;
+    }).join('') + `<span style="font-size:11px;color:var(--text-dim);align-self:center;">持仓 ${maxQty} 股</span>`;
+    wrap.style.display = 'flex';
+}
+
+function _fillSellQty(qty) {
+    document.getElementById('order-qty').value = qty;
+}
+
+function _hideSellRatioButtons() {
+    const wrap = document.getElementById('sell-ratio-wrap');
+    if (wrap) wrap.style.display = 'none';
 }
 
 // ══ Orders history ════════════════════════════════════════════
