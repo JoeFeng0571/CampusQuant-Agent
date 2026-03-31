@@ -15,8 +15,12 @@ import time
 from datetime import datetime
 from typing import Any, Callable
 
-import akshare as ak
 import pandas as pd
+
+try:
+    import akshare as ak
+except ImportError:
+    ak = None  # 香港服务器不装 akshare，数据走内地 relay
 import requests
 from langchain_core.tools import tool
 from loguru import logger
@@ -99,6 +103,8 @@ def _to_relay_symbol(symbol: str, market_type: MarketType) -> str:
 
 
 def _akshare_with_retry(fn: Callable[[], Any], retries: int = 2, delay: float = 0.8) -> Any:
+    if ak is None:
+        raise RuntimeError("akshare 未安装，数据应走内地 relay")
     last_error: Exception | None = None
     for attempt in range(retries + 1):
         try:
