@@ -369,12 +369,29 @@ def _calc_change(price: float | None, prev_close: float | None) -> tuple[float |
     return change, change_pct
 
 
+_STOCK_NAME_MAP = {
+    "600519": "贵州茅台", "000858": "五粮液", "601318": "中国平安",
+    "002594": "比亚迪", "300750": "宁德时代", "600036": "招商银行",
+    "601899": "紫金矿业", "000001": "平安银行",
+    "00700": "腾讯控股", "09988": "阿里巴巴", "03690": "美团",
+    "02318": "中国平安", "01398": "工商银行", "09999": "网易",
+    "09618": "京东集团", "01810": "小米集团",
+    "AAPL": "苹果", "MSFT": "微软", "NVDA": "英伟达",
+    "GOOGL": "谷歌", "AMZN": "亚马逊", "TSLA": "特斯拉", "META": "Meta",
+}
+
+
+def _get_display_name(symbol: str) -> str:
+    pure = symbol.split(".")[0]
+    return _STOCK_NAME_MAP.get(pure, symbol)
+
+
 def _bars_to_spot(symbol: str, market_type: MarketType) -> dict[str, Any]:
     bars = get_kline_data_raw(symbol, period="daily", count=2)
     if not bars:
         return {
             "symbol": symbol,
-            "name": symbol,
+            "name": _get_display_name(symbol),
             "market_type": market_type.name,
             "price": None,
             "change": None,
@@ -387,7 +404,7 @@ def _bars_to_spot(symbol: str, market_type: MarketType) -> dict[str, Any]:
     change, change_pct = _calc_change(latest["close"], prev_close)
     return {
         "symbol": symbol,
-        "name": symbol,
+        "name": _get_display_name(symbol),
         "market_type": market_type.name,
         "price": latest["close"],
         "change": round(change, 4) if change is not None else None,
@@ -786,9 +803,27 @@ def get_spot_price_raw(symbol: str) -> dict[str, Any]:
 
 
 def get_batch_quotes_raw(symbols: list[str], market: str | None = None) -> list[dict[str, Any]]:
-    market = (market or "").lower()
-    # 所有市场统一：直接用 K 线收盘价构造行情，轻量无需拉全量表
-    # 前端只展示 8-10 只观察股，不需要 5000 股的全量行情表
+    """批量获取行情，优先走内地 relay 批量接口（一次请求），回退逐只 K 线"""
+    # 优先走内地 relay 批量 K 线接口
+    symbols_str = ",".join(symbols)
+    inland = _inland_relay_request("batch-kline", {"symbols": symbols_str, "days": 2}, timeout=120)
+    if inland and inland.get("status") == "success" and inland.get("data"):
+        results = []
+        for item in inland["data"]:
+            market_type, _ = _normalize_symbol(item.get("symbol", ""))
+            results.append({
+                "symbol": item.get("symbol", ""),
+                "name": item.get("name", item.get("symbol", "")),
+                "market_type": market_type.name,
+                "price": item.get("price"),
+                "change": item.get("change"),
+                "change_pct": item.get("change_pct"),
+                "is_fallback": True,
+                "source": item.get("source", "kline"),
+            })
+        return results
+
+    # 回退：逐只用 K 线收盘价
     return [_bars_to_spot(sym, _normalize_symbol(sym)[0]) for sym in symbols]
 
 

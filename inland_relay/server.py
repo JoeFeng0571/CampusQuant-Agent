@@ -502,6 +502,82 @@ def health():
 
 
 # ════════════════════════════════════════════════════════════════
+# 批量 K 线（一次请求多只股票，避免逐只串行）
+# ════════════════════════════════════════════════════════════════
+
+# 股票名称映射（前端展示用）
+_STOCK_NAMES = {
+    "600519": "贵州茅台", "000858": "五粮液", "601318": "中国平安",
+    "002594": "比亚迪", "300750": "宁德时代", "600036": "招商银行",
+    "601899": "紫金矿业", "000001": "平安银行", "000333": "美的集团",
+    "600900": "长江电力", "601012": "隆基绿能",
+    "00700": "腾讯控股", "09988": "阿里巴巴", "03690": "美团",
+    "02318": "中国平安", "01398": "工商银行", "09999": "网易",
+    "09618": "京东集团", "01810": "小米集团",
+    "AAPL": "苹果", "MSFT": "微软", "NVDA": "英伟达",
+    "GOOGL": "谷歌", "AMZN": "亚马逊", "TSLA": "特斯拉", "META": "Meta",
+}
+
+
+def _get_stock_name(symbol: str) -> str:
+    pure = symbol.split(".")[0].lstrip("0") if ".HK" in symbol.upper() else symbol.split(".")[0]
+    # 先查精确匹配
+    name = _STOCK_NAMES.get(symbol.split(".")[0])
+    if name:
+        return name
+    # 港股去前导零
+    name = _STOCK_NAMES.get(pure)
+    return name or symbol
+
+
+@app.get("/relay/batch-kline", dependencies=[Depends(verify_token)])
+def batch_kline(symbols: str, days: int = 2):
+    """批量获取 K 线，symbols 用逗号分隔，如 600519.SH,000858.SZ"""
+    symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
+    results = []
+    for sym in symbol_list[:20]:  # 最多 20 只
+        cache_key = f"batch:{sym}:{days}"
+        cached = _cache_get("kline", cache_key)
+        if cached is not None:
+            results.append(cached)
+            continue
+        try:
+            # 判断市场
+            upper = sym.upper()
+            if upper.endswith(".SH") or upper.endswith(".SZ"):
+                df = _get_a_stock_hist(sym, days)
+            elif upper.endswith(".HK"):
+                df = _get_hk_stock_hist(sym, days)
+            else:
+                df = _get_us_stock_hist(sym, days)
+
+            records = df.to_dict(orient="records")
+            latest = records[-1] if records else {}
+            prev_close = records[-2]["close"] if len(records) >= 2 else latest.get("close", 0)
+            price = latest.get("close")
+            change = round(price - prev_close, 4) if price and prev_close else None
+            change_pct = round(change / prev_close * 100, 4) if change and prev_close else None
+
+            item = {
+                "symbol": sym,
+                "name": _get_stock_name(sym),
+                "price": price,
+                "change": change,
+                "change_pct": change_pct,
+                "source": "kline",
+            }
+            _cache_set("kline", cache_key, item, ttl=300)
+            results.append(item)
+        except Exception as e:
+            results.append({
+                "symbol": sym, "name": _get_stock_name(sym),
+                "price": None, "change": None, "change_pct": None,
+                "source": "error",
+            })
+    return {"status": "success", "data": results, "count": len(results)}
+
+
+# ════════════════════════════════════════════════════════════════
 # A 股 K 线
 # ════════════════════════════════════════════════════════════════
 

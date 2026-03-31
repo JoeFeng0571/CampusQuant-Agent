@@ -158,6 +158,27 @@ _SOURCE_META = {
 
 def _do_refresh() -> None:
     global _cache_ts
+
+    # 优先走内地 relay 获取国内新闻源
+    inland_data = _try_inland_relay_hot_news()
+    if inland_data:
+        with _cache_lock:
+            for item in inland_data:
+                src = item.get("source")
+                if src:
+                    _cache_data[src] = item.get("items", [])
+            # 华尔街见闻走本地
+            try:
+                _cache_data["wallstreetcn"] = _fetch_wallstreetcn()
+            except Exception as e:
+                logger.warning(f"[hot_news] 华尔街见闻抓取失败: {e}")
+                _cache_data.setdefault("wallstreetcn", [])
+            _cache_ts = time.time()
+        total = sum(len(v) for v in _cache_data.values())
+        logger.info(f"[hot_news] 热榜缓存刷新完成（relay），{total} 条")
+        return
+
+    # relay 不可用时回退本地抓取
     new_data: dict[str, list] = {}
     for source, fetcher in _FETCHERS.items():
         try:
@@ -169,7 +190,7 @@ def _do_refresh() -> None:
     with _cache_lock:
         _cache_data.update(new_data)
         _cache_ts = time.time()
-    logger.info(f"[hot_news] 热榜缓存刷新完成，{sum(len(v) for v in new_data.values())} 条")
+    logger.info(f"[hot_news] 热榜缓存刷新完成（本地），{sum(len(v) for v in new_data.values())} 条")
 
 
 def _try_inland_relay_hot_news() -> Optional[list[dict]]:
