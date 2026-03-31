@@ -30,8 +30,8 @@ from utils.market_classifier import MarketClassifier, MarketType
 
 _CACHE: dict[str, tuple[float, Any]] = {}
 _TTL = {
-    "spot": 60,
-    "kline": 300,
+    "spot": 3600,
+    "kline": 3600,
     "fundamental": 3600,
     "news": 900,
     "overview": 120,

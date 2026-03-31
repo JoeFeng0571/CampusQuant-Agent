@@ -51,7 +51,7 @@ DASHSCOPE_EMBEDDING_MODEL = os.getenv("DASHSCOPE_EMBEDDING_MODEL", "text-embeddi
 # ════════════════════════════════════════════════════════════════
 
 _CACHE: dict[str, tuple[float, Any]] = {}
-_TTL = {"spot": 60, "kline": 300, "fundamental": 3600, "news": 900, "overview": 120}
+_TTL = {"spot": 3600, "kline": 3600, "fundamental": 3600, "news": 900, "overview": 3600}
 
 
 def _cache_get(ns: str, key: str) -> Any:
@@ -393,8 +393,8 @@ def _prewarm_cache() -> None:
     _WATCHLIST_A = ["600519.SH", "000858.SZ", "601318.SH", "002594.SZ", "300750.SZ", "600036.SH", "601899.SH", "000001.SZ"]
 
     def _do_prewarm():
-        logger.info("预热缓存开始（每步间隔 5s 避免限流）...")
-        time.sleep(5)
+        logger.info("预热缓存开始...")
+        time.sleep(3)
 
         # 1. 指数：先试东财，失败用新浪
         try:
@@ -409,7 +409,7 @@ def _prewarm_cache() -> None:
             except Exception as e2:
                 logger.warning(f"预热: A 股指数全部失败: {e2}")
 
-        time.sleep(5)
+        time.sleep(2)
 
         # 2. 北向资金（轻量）
         try:
@@ -423,7 +423,7 @@ def _prewarm_cache() -> None:
         except Exception as e:
             logger.warning(f"预热: 北向资金失败: {e}")
 
-        time.sleep(5)
+        time.sleep(2)
 
         # 3. 观察股行情（前端 watchlist 的 8 只 A 股，用 _get_spot_from_kline 预热到统一缓存）
         ok_count = 0
@@ -434,10 +434,10 @@ def _prewarm_cache() -> None:
                     ok_count += 1
             except Exception:
                 pass
-            time.sleep(2)
+            time.sleep(1)
         logger.info(f"预热: A 股观察股行情 {ok_count}/{len(_WATCHLIST_A)}")
 
-        time.sleep(5)
+        time.sleep(2)
 
         # 4. 板块（东财，容易限流，后台持续重试）
         _try_prewarm_sectors()
@@ -563,7 +563,7 @@ def _get_spot_from_kline(sym: str, days: int = 2) -> dict[str, Any]:
             "price": price, "change": change, "change_pct": change_pct,
             "source": "kline",
         }
-        return _cache_set("spot", cache_key, item, ttl=300)
+        return _cache_set("spot", cache_key, item)
     except Exception:
         return {"symbol": sym, "name": _get_stock_name(sym),
                 "price": None, "change": None, "change_pct": None, "source": "error"}
