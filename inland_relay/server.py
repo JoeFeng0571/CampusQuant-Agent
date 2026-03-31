@@ -425,16 +425,17 @@ def _prewarm_cache() -> None:
 
         time.sleep(5)
 
-        # 3. 观察股 K 线（前端 watchlist 的 8 只 A 股，预热后秒回）
+        # 3. 观察股行情（前端 watchlist 的 8 只 A 股，用 _get_spot_from_kline 预热到统一缓存）
         ok_count = 0
         for sym in _WATCHLIST_A:
             try:
-                _get_a_stock_hist(sym, 2)
-                ok_count += 1
+                result = _get_spot_from_kline(sym, 2)
+                if result.get("price") is not None:
+                    ok_count += 1
             except Exception:
                 pass
-            time.sleep(1)
-        logger.info(f"预热: A 股观察股 K 线 {ok_count}/{len(_WATCHLIST_A)}")
+            time.sleep(2)
+        logger.info(f"预热: A 股观察股行情 {ok_count}/{len(_WATCHLIST_A)}")
 
         time.sleep(5)
 
@@ -519,7 +520,7 @@ _STOCK_NAMES = {
     "00700": "腾讯控股", "09988": "阿里巴巴", "03690": "美团",
     "02318": "中国平安", "01398": "工商银行", "09999": "网易",
     "09618": "京东集团", "01810": "小米集团",
-    "AAPL": "苹果", "MSFT": "微软", "NVDA": "英伟达",
+    "AAPL": "苹果", "MSFT": "微软", "NVDA": "英伟达", "AMD": "AMD",
     "GOOGL": "谷歌", "AMZN": "亚马逊", "TSLA": "特斯拉", "META": "Meta",
 }
 
@@ -535,50 +536,44 @@ def _get_stock_name(symbol: str) -> str:
     return name or symbol
 
 
+def _get_spot_from_kline(sym: str, days: int = 2) -> dict[str, Any]:
+    """获取单只股票的最新价+涨跌，结果缓存 5 分钟"""
+    cache_key = f"spot:{sym}"
+    cached = _cache_get("spot", cache_key)
+    if cached is not None:
+        return cached
+    try:
+        upper = sym.upper()
+        if upper.endswith(".SH") or upper.endswith(".SZ"):
+            df = _get_a_stock_hist(sym, max(days, 2))
+        elif upper.endswith(".HK"):
+            df = _get_hk_stock_hist(sym, max(days, 2))
+        else:
+            df = _get_us_stock_hist(sym, max(days, 2))
+
+        records = df.to_dict(orient="records")
+        latest = records[-1] if records else {}
+        prev_close = records[-2]["close"] if len(records) >= 2 else latest.get("close", 0)
+        price = latest.get("close")
+        change = round(price - prev_close, 4) if price and prev_close else None
+        change_pct = round(change / prev_close * 100, 4) if change and prev_close else None
+
+        item = {
+            "symbol": sym, "name": _get_stock_name(sym),
+            "price": price, "change": change, "change_pct": change_pct,
+            "source": "kline",
+        }
+        return _cache_set("spot", cache_key, item, ttl=300)
+    except Exception:
+        return {"symbol": sym, "name": _get_stock_name(sym),
+                "price": None, "change": None, "change_pct": None, "source": "error"}
+
+
 @app.get("/relay/batch-kline", dependencies=[Depends(verify_token)])
 def batch_kline(symbols: str, days: int = 2):
-    """批量获取 K 线，symbols 用逗号分隔，如 600519.SH,000858.SZ"""
+    """批量获取 K 线，symbols 用逗号分隔"""
     symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
-    results = []
-    for sym in symbol_list[:20]:  # 最多 20 只
-        cache_key = f"batch:{sym}:{days}"
-        cached = _cache_get("kline", cache_key)
-        if cached is not None:
-            results.append(cached)
-            continue
-        try:
-            # 判断市场
-            upper = sym.upper()
-            if upper.endswith(".SH") or upper.endswith(".SZ"):
-                df = _get_a_stock_hist(sym, days)
-            elif upper.endswith(".HK"):
-                df = _get_hk_stock_hist(sym, days)
-            else:
-                df = _get_us_stock_hist(sym, days)
-
-            records = df.to_dict(orient="records")
-            latest = records[-1] if records else {}
-            prev_close = records[-2]["close"] if len(records) >= 2 else latest.get("close", 0)
-            price = latest.get("close")
-            change = round(price - prev_close, 4) if price and prev_close else None
-            change_pct = round(change / prev_close * 100, 4) if change and prev_close else None
-
-            item = {
-                "symbol": sym,
-                "name": _get_stock_name(sym),
-                "price": price,
-                "change": change,
-                "change_pct": change_pct,
-                "source": "kline",
-            }
-            _cache_set("kline", cache_key, item, ttl=300)
-            results.append(item)
-        except Exception as e:
-            results.append({
-                "symbol": sym, "name": _get_stock_name(sym),
-                "price": None, "change": None, "change_pct": None,
-                "source": "error",
-            })
+    results = [_get_spot_from_kline(sym, days) for sym in symbol_list[:20]]
     return {"status": "success", "data": results, "count": len(results)}
 
 
