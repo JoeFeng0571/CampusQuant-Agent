@@ -409,6 +409,7 @@ def _fetch_jin10_relay() -> list[dict]:
         text = resp.text.strip()
         if text.startswith("var newest = "):
             text = text[len("var newest = "):]
+        text = text.rstrip(";").strip()
         items = json.loads(text)
         results = []
         for item in items:

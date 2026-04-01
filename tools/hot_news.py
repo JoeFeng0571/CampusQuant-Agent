@@ -150,10 +150,11 @@ def _fetch_jin10() -> list[dict]:
             headers={**_HEADERS, "Referer": "https://www.jin10.com/"},
             timeout=8,
         )
-        # 格式: var newest = [{...}, ...]
+        # 格式: var newest = [{...}, ...];
         text = resp.text.strip()
         if text.startswith("var newest = "):
             text = text[len("var newest = "):]
+        text = text.rstrip(";").strip()
         import json
         items = json.loads(text)
         results = []
