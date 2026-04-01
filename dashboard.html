@@ -129,7 +129,7 @@
 
         /* ══ QUICK NAV GRID ══ */
         .quick-nav-grid {
-            display:grid; grid-template-columns:repeat(6,1fr); gap:14px;
+            display:grid; grid-template-columns:repeat(4,1fr); gap:14px;
         }
         .qnav-item {
             background:var(--card); border:1px solid var(--border); border-radius:16px;
@@ -416,10 +416,9 @@
     </div>
     <nav>
         <a href="dashboard.html" class="active">控制台</a>
-        <a href="trade.html">模拟演练<span class="nav-dot"></span></a>
-        <a href="analysis.html">个股分析</a>
-        <a href="platforms.html">持仓体检</a>
         <a href="market.html">市场快讯</a>
+        <a href="analysis.html">个股分析</a>
+        <a href="trade.html">模拟演练<span class="nav-dot"></span></a>
         <a href="community.html">投教社区</a>
         <a href="team.html">关于我们</a>
         <div id="auth-widget" style="display:flex;align-items:center;gap:8px;margin-left:8px;flex-shrink:0;"></div>
@@ -474,31 +473,25 @@
 
     <!-- ② QUICK NAV GRID -->
     <div class="quick-nav-grid">
-        <a href="trade.html" class="qnav-item">
-            <div class="qnav-icon">📊</div>
-            <div class="qnav-label">模拟演练</div>
-            <div class="qnav-desc">三市场交易大厅</div>
+        <a href="market.html" class="qnav-item">
+            <div class="qnav-icon">📰</div>
+            <div class="qnav-label">市场快讯</div>
+            <div class="qnav-desc">实时行情 & K线图</div>
         </a>
         <a href="analysis.html" class="qnav-item">
             <div class="qnav-icon">🔍</div>
             <div class="qnav-label">个股分析</div>
-            <div class="qnav-desc">AI 9节点深析</div>
+            <div class="qnav-desc">AI 多智能体深析</div>
         </a>
-
-        <a href="market.html" class="qnav-item">
-            <div class="qnav-icon">📰</div>
-            <div class="qnav-label">市场快讯</div>
-            <div class="qnav-desc">热搜 & K线图</div>
+        <a href="trade.html" class="qnav-item">
+            <div class="qnav-icon">📊</div>
+            <div class="qnav-label">模拟交易</div>
+            <div class="qnav-desc">三市场交易大厅</div>
         </a>
         <a href="community.html" class="qnav-item">
             <div class="qnav-icon">💬</div>
             <div class="qnav-label">投教社区</div>
             <div class="qnav-desc">学员交流广场</div>
-        </a>
-        <a href="home.html" class="qnav-item">
-            <div class="qnav-icon">🎓</div>
-            <div class="qnav-label">学习中心</div>
-            <div class="qnav-desc">财商知识库</div>
         </a>
     </div>
 
