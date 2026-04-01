@@ -12,20 +12,23 @@
             --danger:#fd79a8;  --success:#55efc4;  --warn:#fdcb6e;
             --bg:#0b0f19; --card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.10);
             --text-dim:#718096; --text-sub:#a0aec0;
+            --header-h:56px;
+            --ticker-h:44px;
         }
+        html, body { height:100%; overflow:hidden; }
         body {
-            background-color:var(--bg); color:#fff; min-height:100vh;
-            display:flex; flex-direction:column; overflow-x:hidden;
+            background-color:var(--bg); color:#fff;
+            display:flex; flex-direction:column;
             background-image:
                 radial-gradient(circle at 15% 50%,rgba(0,242,254,0.07),transparent 32%),
                 radial-gradient(circle at 85% 28%,rgba(79,172,254,0.07),transparent 32%);
         }
 
-        /* ══ 导航栏 ══ */
+        /* ══ 导航栏（不变） ══ */
         header {
-            position:fixed; top:0; left:0; width:100%;
+            position:fixed; top:0; left:0; width:100%; height:var(--header-h);
             display:flex; justify-content:space-between; align-items:center;
-            padding:16px 48px; background:rgba(11,15,25,0.78);
+            padding:0 48px; background:rgba(11,15,25,0.78);
             backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
             border-bottom:1px solid var(--border); z-index:1000;
         }
@@ -41,15 +44,12 @@
         nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
             background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width 0.3s; }
         nav a:hover::after, nav a.active::after { width:100%; }
-        /* 导航小红点标签 */
         .nav-dot {
             display:inline-block; width:6px; height:6px; background:var(--danger);
             border-radius:50%; margin-left:4px; vertical-align:top; margin-top:2px;
             animation:blink-dot 2s ease-in-out infinite;
         }
         @keyframes blink-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-
-        /* 侧边栏触发按钮 */
         .sidebar-btn {
             background:transparent; border:none; color:var(--text-sub);
             cursor:pointer; display:flex; align-items:center; padding:4px;
@@ -57,7 +57,7 @@
         }
         .sidebar-btn:hover { color:var(--secondary); }
 
-        /* ══ 侧边栏及遮罩层样式 ══ */
+        /* ══ 侧边栏 ══ */
         .sidebar-overlay {
             position:fixed; top:0; left:0; right:0; bottom:0;
             background:rgba(0,0,0,0.5); backdrop-filter:blur(3px);
@@ -66,7 +66,7 @@
         .sidebar-overlay.open { opacity:1; visibility:visible; }
         .sidebar {
             position:fixed; top:0; right:-320px; width:320px; max-width:85vw; height:100vh;
-            background:rgba(11, 15, 25, 0.95); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+            background:rgba(11, 15, 25, 0.95); backdrop-filter:blur(14px);
             border-left:1px solid var(--border); z-index:2000;
             transition:right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display:flex; flex-direction:column; padding:30px 24px; box-shadow:-10px 0 30px rgba(0,0,0,0.5);
@@ -77,7 +77,7 @@
             margin-bottom:30px; padding-bottom:16px; border-bottom:1px solid var(--border);
         }
         .sidebar-header h2 { font-size:18px; color:#fff; display:flex; align-items:center; gap:8px; }
-        .close-btn { background:none; border:none; color:var(--text-dim); font-size:28px; line-height:1; cursor:pointer; transition:color 0.2s; }
+        .close-btn { background:none; border:none; color:var(--text-dim); font-size:28px; line-height:1; cursor:pointer; }
         .close-btn:hover { color:var(--danger); }
         .sidebar-content { display:flex; flex-direction:column; gap:16px; }
         .sidebar-link {
@@ -85,387 +85,201 @@
             background:var(--card); border:1px solid var(--border); border-radius:12px;
             transition:all 0.25s ease; display:flex; align-items:center; justify-content:space-between; font-weight:500;
         }
-        .sidebar-link:hover { background:rgba(79,172,254,0.1); border-color:rgba(79,172,254,0.3); color:var(--primary); transform:translateX(4px); }
+        .sidebar-link:hover { background:rgba(79,172,254,0.1); border-color:rgba(79,172,254,0.3); color:var(--primary); }
         .sidebar-link.featured { background:linear-gradient(135deg,rgba(79,172,254,0.15),rgba(0,242,254,0.05)); border-color:rgba(79,172,254,0.4); color:var(--secondary); }
-        .sidebar-link.featured:hover { background:linear-gradient(135deg,rgba(79,172,254,0.25),rgba(0,242,254,0.15)); box-shadow:0 4px 15px rgba(0,242,254,0.15); }
 
-        /* ══ 主体 ══ */
-        main { flex:1; margin-top:80px; padding:32px 48px; }
-
-        .page-header { margin-bottom:32px; display:flex; justify-content:space-between; align-items:flex-end; }
-        .page-header h1 { font-size:28px; font-weight:700; }
-        .page-header p { color:var(--text-sub); font-size:14px; }
-        .update-time { font-size:12px; color:var(--text-dim); }
-
-        /* 指数概览 */
-        .indices-grid {
-            display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:32px;
+        /* ══ 指数横条 ══ */
+        .ticker-bar {
+            margin-top:var(--header-h);
+            height:var(--ticker-h);
+            display:flex; align-items:center; gap:0;
+            background:rgba(0,0,0,0.3);
+            border-bottom:1px solid var(--border);
+            padding:0 24px;
+            overflow-x:auto;
+            flex-shrink:0;
         }
-        .index-card {
-            background:var(--card); border:1px solid var(--border);
-            border-radius:12px; padding:16px 14px; text-align:center;
-            transition:all 0.25s; cursor:default;
+        .ticker-bar::-webkit-scrollbar { display:none; }
+        .ticker-item {
+            display:flex; align-items:center; gap:8px;
+            padding:0 18px; white-space:nowrap;
+            border-right:1px solid rgba(255,255,255,0.06);
+            flex-shrink:0;
         }
-        .index-card:hover { border-color:rgba(79,172,254,0.3); transform:translateY(-3px); }
-        .index-name { font-size:11px; color:var(--text-sub); margin-bottom:8px; }
-        .index-value { font-size:18px; font-weight:700; color:#fff; margin-bottom:4px; }
-        .index-change { font-size:13px; font-weight:600; }
+        .ticker-item:last-child { border-right:none; }
+        .ticker-name { font-size:11px; color:var(--text-sub); }
+        .ticker-price { font-size:13px; font-weight:700; color:#fff; }
+        .ticker-pct { font-size:11px; font-weight:700; }
         .up   { color:var(--success); }
         .down { color:var(--danger); }
         .flat { color:var(--text-sub); }
 
-        /* 主内容两栏 */
-        .content-grid { display:grid; grid-template-columns:1fr 340px; gap:24px; align-items:stretch; }
-
-        /* 左列：情绪栏 + 行情表 */
-        .left-col { display:flex; flex-direction:column; gap:16px; }
-
-        /* 市场行情表 */
-        .market-table-section {
-            background:var(--card); border:1px solid var(--border);
-            border-radius:16px; overflow:hidden;
+        /* ══ 三栏主体 ══ */
+        .terminal-grid {
+            flex:1;
+            display:grid;
+            grid-template-columns: 2fr 5fr 3fr;
+            gap:0;
+            height:calc(100vh - var(--header-h) - var(--ticker-h));
+            overflow:hidden;
         }
-        .section-header {
-            padding:18px 24px; border-bottom:1px solid var(--border);
+
+        .col { overflow-y:auto; border-right:1px solid var(--border); padding:12px; }
+        .col:last-child { border-right:none; }
+        .col::-webkit-scrollbar { width:4px; }
+        .col::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:2px; }
+
+        /* ══ 左栏：板块 ══ */
+        .col-left { padding:8px 6px; }
+        .col-title {
+            font-size:12px; font-weight:700; color:var(--text-sub);
+            text-transform:uppercase; letter-spacing:0.5px;
+            padding:6px 8px; margin-bottom:6px;
             display:flex; justify-content:space-between; align-items:center;
         }
-        .section-title { font-size:16px; font-weight:700; }
-        .market-tabs { display:flex; gap:8px; }
+        .col-title-time { font-size:10px; color:var(--text-dim); font-weight:400; }
+        .sector-heatmap {
+            display:grid;
+            grid-template-columns: 1fr 1fr;
+            gap:3px;
+        }
+        .sector-tile {
+            border-radius:5px; padding:5px 3px;
+            display:flex; flex-direction:column;
+            align-items:center; justify-content:center;
+            cursor:default; transition:opacity .2s;
+            min-height:36px;
+        }
+        .sector-tile:hover { opacity:.8; }
+        .sector-tile-name { font-size:9px; font-weight:600; color:rgba(255,255,255,.9); text-align:center; line-height:1.2; margin-bottom:1px; }
+        .sector-tile-pct { font-size:10px; font-weight:800; color:rgba(255,255,255,.95); }
+
+        /* ══ 中栏 ══ */
+        .col-mid { display:flex; flex-direction:column; gap:10px; padding:10px 14px; }
+
+        /* 情绪条 */
+        .sentiment-row {
+            display:flex; gap:12px; flex-shrink:0;
+        }
+        .sent-chip {
+            flex:1; background:var(--card); border:1px solid var(--border);
+            border-radius:8px; padding:6px 10px; text-align:center;
+        }
+        .sent-label { font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.3px; }
+        .sent-val { font-size:15px; font-weight:700; margin-top:2px; }
+
+        /* 热门标的 */
+        .quotes-panel {
+            background:var(--card); border:1px solid var(--border); border-radius:10px;
+            overflow:hidden; flex-shrink:0;
+        }
+        .quotes-header {
+            padding:8px 14px; border-bottom:1px solid var(--border);
+            display:flex; justify-content:space-between; align-items:center;
+        }
+        .quotes-title { font-size:13px; font-weight:700; }
+        .market-tabs { display:flex; gap:4px; }
         .tab-btn {
-            padding:5px 14px; border-radius:20px; font-size:12px; font-weight:600;
+            padding:3px 10px; border-radius:14px; font-size:11px; font-weight:600;
             border:1px solid var(--border); color:var(--text-sub); cursor:pointer;
             background:transparent; transition:all 0.2s;
         }
-        .tab-btn.active { border-color:var(--primary); color:var(--primary); background:rgba(79,172,254,0.09); }
+        .tab-btn.active { border-color:var(--primary); color:var(--primary); background:rgba(79,172,254,.09); }
 
+        #table-wrap { max-height:260px; overflow-y:auto; }
         table { width:100%; border-collapse:collapse; }
-        thead th {
-            padding:11px 16px; text-align:left; font-size:11px; font-weight:600;
-            color:var(--text-dim); text-transform:uppercase; letter-spacing:0.4px;
-            border-bottom:1px solid var(--border);
-        }
-        tbody tr { border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.2s; }
-        tbody tr:last-child { border-bottom:none; }
+        thead th { padding:6px 10px; text-align:left; font-size:10px; font-weight:600; color:var(--text-dim); border-bottom:1px solid var(--border); position:sticky; top:0; background:#0d1120; }
+        tbody tr { border-bottom:1px solid rgba(255,255,255,0.03); }
         tbody tr:hover { background:rgba(255,255,255,0.02); }
-        tbody td { padding:13px 16px; font-size:14px; }
+        tbody td { padding:7px 10px; font-size:12px; }
         .td-sym { font-weight:600; color:#fff; }
-        .td-name { color:var(--text-sub); font-size:13px; }
+        .td-name { color:var(--text-sub); font-size:11px; }
         .td-price { font-weight:600; color:#fff; }
         .td-chg { font-weight:600; }
 
-        /* 右侧板块热力图 */
-        .sector-panel {
-            background:var(--card); border:1px solid var(--border);
-            border-radius:16px; overflow:hidden;
-            display:flex; flex-direction:column;
+        /* K线区域 */
+        .kline-panel {
+            flex:1; background:var(--card); border:1px solid var(--border);
+            border-radius:10px; display:flex; flex-direction:column; overflow:hidden; min-height:200px;
         }
-        .sector-heatmap {
-            padding:10px 12px 12px;
-            display:grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap:5px;
-            flex:1; overflow-y:auto;
+        .kline-toolbar {
+            display:flex; align-items:center; gap:8px; padding:8px 12px;
+            border-bottom:1px solid var(--border); flex-shrink:0;
         }
-        .sector-tile {
-            border-radius:7px; padding:7px 4px;
-            display:flex; flex-direction:column;
-            align-items:center; justify-content:center;
-            cursor:default; transition:opacity .2s, transform .15s;
-            min-height:48px; position:relative;
+        .kline-search-wrap { display:flex; gap:6px; flex:1; position:relative; }
+        .kline-input {
+            flex:1; background:rgba(255,255,255,.06); border:1px solid var(--border);
+            border-radius:8px; padding:6px 10px; color:#fff; font-size:12px; outline:none;
         }
-        .sector-tile:hover { opacity:.82; transform:scale(1.04); }
-        .sector-tile-name {
-            font-size:10.5px; font-weight:600; color:rgba(255,255,255,.92);
-            text-align:center; line-height:1.25; margin-bottom:3px;
-            word-break:break-all; max-width:100%;
-        }
-        .sector-tile-pct {
-            font-size:11.5px; font-weight:800; color:rgba(255,255,255,.95);
-        }
-
-        /* 市场情绪 */
-        .sentiment-bar {
-            background:var(--card); border:1px solid var(--border);
-            border-radius:16px; padding:20px 24px;
-            display:grid; grid-template-columns:repeat(4,1fr); gap:20px;
-        }
-        .sentiment-item { text-align:center; }
-        .sentiment-label { font-size:11px; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px; }
-        .sentiment-value { font-size:22px; font-weight:700; }
-
-        /* ══ 热搜聚合网格 ══ */
-        .hot-section { margin-top:28px; }
-        .hot-section-header { display:flex; justify-content:space-between; align-items:center;
-            margin-bottom:16px; }
-        .hot-section-title { font-size:17px; font-weight:700; display:flex; align-items:center; gap:10px; }
-        .hot-refresh-btn { background:transparent; border:1px solid var(--border);
-            border-radius:20px; color:var(--text-sub); font-size:12px; padding:4px 12px;
-            cursor:pointer; transition:all .2s; }
-        .hot-refresh-btn:hover { border-color:var(--primary); color:var(--primary); }
-        .hot-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; }
-        .hot-source-card { background:var(--card); border:1px solid var(--border);
-            border-radius:14px; overflow:hidden; transition:all .25s; }
-        .hot-source-card:hover { border-color:rgba(79,172,254,.3); transform:translateY(-2px); }
-        .hot-source-header { padding:12px 14px; display:flex; align-items:center; gap:8px;
-            border-bottom:1px solid rgba(255,255,255,.04); }
-        .hot-source-icon { font-size:18px; }
-        .hot-source-name { font-size:13px; font-weight:700; }
-        .hot-items { padding:6px 0; }
-        .hot-item { display:flex; gap:8px; padding:8px 14px; align-items:flex-start;
-            text-decoration:none; transition:background .15s; }
-        .hot-item:hover { background:rgba(255,255,255,.03); }
-        .hot-item-rank { width:18px; height:18px; border-radius:5px; flex-shrink:0;
-            display:flex; align-items:center; justify-content:center;
-            font-size:10px; font-weight:800; background:rgba(79,172,254,.12); color:var(--primary); }
-        .hot-item-rank.r1 { background:rgba(253,121,168,.2); color:var(--danger); }
-        .hot-item-rank.r2 { background:rgba(253,203,110,.15); color:var(--warn); }
-        .hot-item-rank.r3 { background:rgba(85,239,196,.12); color:var(--success); }
-        .hot-item-title { font-size:12px; color:#e2e8f0; line-height:1.45;
-            overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
-        .hot-fetching { padding:16px; text-align:center; color:var(--text-dim); font-size:12px; }
-
-        /* ══ K线图区域 ══ */
-        .kline-section { margin-top:28px; background:var(--card);
-            border:1px solid var(--border); border-radius:16px; padding:20px 24px; }
-        .kline-header { display:flex; align-items:center; gap:14px; margin-bottom:16px; flex-wrap:wrap; }
-        .kline-title { font-size:16px; font-weight:700; flex-shrink:0; }
-        .kline-search-wrap { display:flex; gap:8px; flex:1; min-width:220px; position:relative; }
-        .kline-input { flex:1; background:rgba(255,255,255,.06); border:1px solid var(--border);
-            border-radius:10px; padding:9px 14px; color:#fff; font-size:13px; outline:none;
-            transition:border-color .2s; }
         .kline-input:focus { border-color:var(--primary); }
         .kline-input::placeholder { color:var(--text-dim); }
-        .kline-btn { padding:9px 18px; border-radius:10px; border:none; cursor:pointer;
+        .kline-btn {
+            padding:6px 14px; border-radius:8px; border:none; cursor:pointer;
             background:linear-gradient(90deg,var(--primary),var(--secondary));
-            color:#0b0f19; font-size:13px; font-weight:600; white-space:nowrap; transition:opacity .2s; }
-        .kline-btn:hover { opacity:.85; }
-        .kline-period-tabs { display:flex; gap:5px; margin-left:auto; }
-        .kp-tab { padding:5px 12px; border-radius:20px; font-size:11px; font-weight:600;
-            border:1px solid var(--border); color:var(--text-sub); cursor:pointer;
-            background:transparent; transition:all .2s; }
+            color:#0b0f19; font-size:12px; font-weight:600; white-space:nowrap;
+        }
+        .kline-period-tabs { display:flex; gap:3px; }
+        .kp-tab {
+            padding:3px 8px; border-radius:12px; font-size:10px; font-weight:600;
+            border:1px solid var(--border); color:var(--text-sub); cursor:pointer; background:transparent;
+        }
         .kp-tab.active { border-color:var(--primary); color:var(--primary); background:rgba(79,172,254,.1); }
-        .kline-info { display:flex; align-items:center; gap:16px; margin-bottom:12px; flex-wrap:wrap; }
-        .kline-sym-name { font-size:15px; font-weight:700; color:#fff; }
-        .kline-price { font-size:22px; font-weight:800; }
-        .kline-chart-wrap { height:380px; position:relative; }
-        #kline-chart { width:100%; height:100%; }
+
+        .kline-info { display:flex; align-items:center; gap:10px; padding:4px 12px; flex-wrap:wrap; flex-shrink:0; }
+        .kline-sym-name { font-size:13px; font-weight:700; color:#fff; }
+        .kline-price { font-size:16px; font-weight:800; }
+        .kline-chart-wrap { flex:1; position:relative; min-height:180px; }
+        #kline-chart { width:100%; height:100%; position:absolute; inset:0; }
         .kline-placeholder { position:absolute; inset:0; display:flex; flex-direction:column;
-            align-items:center; justify-content:center; color:var(--text-dim); gap:10px; font-size:13px; }
+            align-items:center; justify-content:center; color:var(--text-dim); gap:8px; font-size:12px; }
         .kline-placeholder.hide { display:none; }
-        .kline-cta { margin-top:12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-        .kline-cta a { display:inline-flex; align-items:center; gap:6px; padding:8px 18px;
+        .kline-cta { padding:4px 12px; display:flex; align-items:center; gap:8px; flex-shrink:0; }
+        .kline-cta a { display:inline-flex; align-items:center; gap:4px; padding:5px 12px;
             background:linear-gradient(90deg,var(--primary),var(--secondary));
-            border-radius:10px; color:#0b0f19; font-weight:700; font-size:13px;
-            text-decoration:none; transition:opacity .2s; }
-        .kline-cta a:hover { opacity:.85; }
-        .kline-cta-sub { font-size:12px; color:var(--text-sub); }
+            border-radius:8px; color:#0b0f19; font-weight:700; font-size:11px; text-decoration:none; }
+        .kline-cta-sub { font-size:11px; color:var(--text-sub); }
 
-        /* ══ 热搜 + K线 响应式 ══ */
-        @media(max-width:1100px) { .hot-grid { grid-template-columns:repeat(3,1fr); } }
-        @media(max-width:768px)  { .hot-grid { grid-template-columns:repeat(2,1fr); } .kline-chart-wrap { height:280px; } }
-        @media(max-width:480px)  { .hot-grid { grid-template-columns:1fr 1fr; } }
+        /* ══ 右栏：新闻 Tab ══ */
+        .col-right { display:flex; flex-direction:column; padding:8px 10px; }
+        .news-panel { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+        .news-tabs {
+            display:flex; gap:0; border-bottom:1px solid var(--border); flex-shrink:0;
+        }
+        .news-tab {
+            flex:1; padding:8px 4px; text-align:center;
+            font-size:11px; font-weight:600; color:var(--text-sub);
+            cursor:pointer; border-bottom:2px solid transparent;
+            transition:all 0.2s; background:transparent; border-top:none; border-left:none; border-right:none;
+        }
+        .news-tab:hover { color:var(--primary); }
+        .news-tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+        .news-content { flex:1; overflow-y:auto; }
+        .news-source-panel { display:none; }
+        .news-source-panel.active { display:block; }
+        .news-item {
+            display:flex; gap:8px; padding:10px 8px; align-items:flex-start;
+            border-bottom:1px solid rgba(255,255,255,0.03);
+            text-decoration:none; transition:background .15s;
+        }
+        .news-item:hover { background:rgba(255,255,255,.03); }
+        .news-rank {
+            width:18px; height:18px; border-radius:5px; flex-shrink:0;
+            display:flex; align-items:center; justify-content:center;
+            font-size:10px; font-weight:800; background:rgba(79,172,254,.12); color:var(--primary);
+        }
+        .news-rank.r1 { background:rgba(253,121,168,.2); color:var(--danger); }
+        .news-rank.r2 { background:rgba(253,203,110,.15); color:var(--warn); }
+        .news-rank.r3 { background:rgba(85,239,196,.12); color:var(--success); }
+        .news-title { font-size:12px; color:#e2e8f0; line-height:1.45;
+            overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+        .news-empty { padding:20px; text-align:center; color:var(--text-dim); font-size:12px; }
 
-        /* 数据免责 */
-        .disclaimer {
-            margin-top:24px; padding:12px 16px;
-            background:rgba(113,128,150,0.08); border:1px solid rgba(113,128,150,0.2);
-            border-radius:8px; font-size:12px; color:var(--text-dim); line-height:1.6; text-align:center;
+        .update-bar {
+            flex-shrink:0; padding:6px 8px; text-align:center;
+            font-size:10px; color:var(--text-dim); border-top:1px solid var(--border);
         }
 
-        /* ══ 页脚 ══ */
-        footer {
-            padding:18px; text-align:center; background:rgba(0,0,0,0.3);
-            border-top:1px solid var(--border); color:var(--text-dim); font-size:13px; margin-top:24px;
-        }
-        footer a { color:var(--primary); text-decoration:none; }
-        /* ══ 市场快讯移动端深度优化 ════════════════════════════════════ */
-
-        @media (max-width: 900px) {
-            /* 中等屏幕：右侧资讯掉到底部，顶部指数改为 3列2行 排布 */
-            .content-grid { grid-template-columns: 1fr; }
-            .indices-grid { grid-template-columns: repeat(2, 1fr); }
-            .sentiment-bar { grid-template-columns: repeat(2, 1fr); gap: 16px; }
-        }
-
-        @media (max-width: 768px) {
-            /* 1. 导航栏：完美复用全站统一的横向滑动与吸附菜单 */
-            header { padding: 12px 16px; gap: 16px; height: 60px; }
-            .logo { flex-shrink: 0; }
-            .logo-text { font-size: 18px; }
-            .logo-sub { font-size: 10px; }
-            nav {
-                flex: 1; min-width: 0; overflow-x: auto; flex-wrap: nowrap;
-                justify-content: flex-start; gap: 16px;
-                -webkit-overflow-scrolling: touch; padding-right: 4px;
-            }
-            nav::-webkit-scrollbar { display: none; }
-            nav a { display: inline-block !important; flex-shrink: 0; font-size: 13px; padding: 8px 0; }
-            .sidebar-btn {
-                display: flex !important; position: sticky; right: 0; flex-shrink: 0;
-                background: rgba(11,15,25,0.95); box-shadow: -12px 0 10px rgba(11,15,25,0.95);
-                padding-left: 8px; z-index: 10; width: 36px; height: 36px;
-            }
-
-            /* 2. 页面主体释放空间 */
-            main { padding: 16px 12px; margin-top: 60px; }
-
-            /* 3. 页面标题：允许更新时间自然换行 */
-            .page-header { flex-direction: column; align-items: flex-start; gap: 6px; margin-bottom: 20px; }
-            .page-header h1 { font-size: 22px; margin-bottom: 4px; }
-            .page-header p { font-size: 12px; }
-            .update-time { font-size: 11px; }
-
-            /* 4. 顶部指数概览：手机上改成 2列 排布，避免数字被挤压 */
-            .indices-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 20px; }
-            .index-card { padding: 12px 8px; border-radius: 10px; }
-            .index-name { font-size: 10px; margin-bottom: 4px; }
-            .index-value { font-size: 15px; margin-bottom: 2px; }
-            .index-change { font-size: 12px; }
-
-            /* 5. 主内容区域 */
-            .content-grid { gap: 16px; }
-
-            /* 6. 市场情绪栏 */
-            .sentiment-bar { padding: 14px 16px; gap: 12px; border-radius: 12px; }
-            .sentiment-label { font-size: 10px; margin-bottom: 6px; }
-            .sentiment-value { font-size: 16px; }
-
-            /* 7. 行情表格：通过动态容器增加横向滑动保护 */
-            .market-table-section { border-radius: 12px; }
-            .section-header { padding: 14px 16px; }
-            .section-title { font-size: 14px; }
-            .market-tabs { gap: 6px; }
-            .tab-btn { padding: 4px 10px; font-size: 11px; border-radius: 16px; }
-            #table-wrap {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-            }
-            #table-wrap table {
-                min-width: 500px; /* 强制表格宽度，保护数据列不折行 */
-            }
-            thead th {
-                padding: 8px 10px;
-                font-size: 10px;
-                letter-spacing: 0.2px;
-            }
-            tbody td {
-                padding: 10px;
-                font-size: 12px;
-            }
-            .td-sym { font-size: 13px; }
-            .td-name { font-size: 11px; }
-            .td-price { font-size: 13px; }
-
-            /* 8. 板块热力图 */
-            .sector-panel { border-radius: 12px; }
-            .sector-heatmap {
-                grid-template-columns: repeat(4, 1fr);
-                gap: 4px;
-                padding: 8px 10px 10px;
-            }
-            .sector-tile { padding: 6px 3px; min-height: 44px; border-radius: 6px; }
-            .sector-tile-name { font-size: 9px; margin-bottom: 2px; }
-            .sector-tile-pct { font-size: 10px; }
-
-            /* 9. 热搜聚合 */
-            .hot-section { margin-top: 20px; }
-            .hot-section-header { margin-bottom: 12px; }
-            .hot-section-title { font-size: 15px; gap: 8px; }
-            .hot-refresh-btn { padding: 3px 10px; font-size: 11px; border-radius: 16px; }
-            .hot-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-            .hot-source-card { border-radius: 12px; }
-            .hot-source-header { padding: 10px 12px; }
-            .hot-source-icon { font-size: 16px; }
-            .hot-source-name { font-size: 12px; }
-            .hot-items { padding: 4px 0; }
-            .hot-item { gap: 6px; padding: 8px 12px; }
-            .hot-item-rank { width: 16px; height: 16px; font-size: 9px; border-radius: 4px; }
-            .hot-item-title { font-size: 11px; }
-
-            /* 10. K线图区域 */
-            .kline-section { margin-top: 20px; padding: 16px 18px; border-radius: 12px; }
-            .kline-header { gap: 10px; margin-bottom: 12px; }
-            .kline-title { font-size: 14px; }
-            .kline-search-wrap { gap: 6px; min-width: auto; flex: 1; }
-            .kline-input { padding: 8px 12px; font-size: 12px; border-radius: 8px; }
-            .kline-btn { padding: 8px 14px; font-size: 12px; border-radius: 8px; }
-            .kline-period-tabs { gap: 4px; }
-            .kp-tab { padding: 4px 10px; font-size: 10px; border-radius: 16px; }
-            .kline-info { gap: 12px; margin-bottom: 8px; }
-            .kline-sym-name { font-size: 14px; }
-            .kline-price { font-size: 18px; }
-            .kline-chart-wrap { height: 280px; }
-            .kline-cta { gap: 8px; }
-            .kline-cta a { padding: 6px 14px; font-size: 12px; border-radius: 8px; }
-            .kline-cta-sub { font-size: 11px; }
-
-            /* 11. 免责声明 */
-            .disclaimer { margin-top: 20px; padding: 10px 14px; font-size: 11px; }
-
-            /* 12. Footer */
-            footer { padding: 16px; margin-top: 20px; }
-        }
-
-        /* 超小屏幕优化 */
-        @media (max-width: 480px) {
-            header { padding: 10px 12px; height: 56px; }
-            .logo-text { font-size: 16px; }
-            .logo-sub { display: none; } /* 隐藏副标题节省空间 */
-            nav { gap: 12px; }
-            nav a { font-size: 12px; }
-            main { padding: 12px 8px; margin-top: 56px; }
-
-            .page-header h1 { font-size: 20px; }
-            .page-header p { font-size: 11px; }
-
-            .indices-grid { gap: 6px; margin-bottom: 16px; }
-            .index-card { padding: 10px 6px; }
-            .index-name { font-size: 9px; }
-            .index-value { font-size: 14px; }
-            .index-change { font-size: 11px; }
-
-            .sentiment-bar { grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 12px; }
-            .sentiment-value { font-size: 15px; }
-
-            .sector-heatmap { grid-template-columns: repeat(3, 1fr); gap: 3px; }
-            .sector-tile { min-height: 40px; padding: 5px 2px; }
-            .sector-tile-name { font-size: 8px; }
-            .sector-tile-pct { font-size: 9px; }
-
-            .hot-grid { grid-template-columns: 1fr; gap: 8px; }
-            .hot-source-header { padding: 8px 10px; }
-            .hot-item { padding: 6px 10px; }
-            .hot-item-title { font-size: 10px; }
-
-            .kline-section { padding: 14px 16px; }
-            .kline-header { flex-direction: column; align-items: stretch; }
-            .kline-search-wrap { min-width: auto; }
-            .kline-period-tabs { margin-left: 0; margin-top: 8px; }
-            .kline-chart-wrap { height: 240px; }
-
-            .disclaimer { padding: 8px 12px; font-size: 10px; }
-        }
-
-        /* 超窄屏幕额外保护 */
-        @media (max-width: 380px) {
-            .sentiment-bar { grid-template-columns: 1fr; gap: 10px; } /* 情绪栏变单列上下排布 */
-            .sector-heatmap { grid-template-columns: repeat(2, 1fr); }
-        }
-
-        /* 横屏模式优化 */
-        @media (max-height: 500px) and (orientation: landscape) {
-            header { height: 48px; padding: 8px 16px; }
-            .logo-text { font-size: 16px; }
-            .logo-sub { display: none; }
-            main { margin-top: 48px; padding: 12px; }
-            .page-header { margin-bottom: 12px; }
-            .page-header h1 { font-size: 18px; }
-            .indices-grid { margin-bottom: 12px; }
-            .index-card { padding: 8px 6px; }
-            .sentiment-bar { padding: 10px 12px; }
-            .kline-section { margin-top: 12px; padding: 12px 14px; }
-            .kline-chart-wrap { height: 200px; }
-        }
+        @keyframes spin{to{transform:rotate(360deg)}}
     </style>
 </head>
 <body>
@@ -479,15 +293,13 @@
         <a href="dashboard.html">仪表盘</a>
         <a href="trade.html">模拟演练<span class="nav-dot"></span></a>
         <a href="analysis.html">个股分析</a>
-        <a href="market.html">市场快讯</a>
+        <a href="market.html" class="active">市场快讯</a>
         <a href="community.html">投教社区</a>
         <a href="team.html">关于我们</a>
         <div id="auth-widget" style="display:flex;align-items:center;gap:8px;margin-left:8px;flex-shrink:0;"></div>
         <button id="sidebar-toggle" class="sidebar-btn" title="打开学习中心">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="3" y1="12" x2="21" y2="12"></line>
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <line x1="3" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
             </svg>
         </button>
     </nav>
@@ -497,311 +309,159 @@
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <h2>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-            </svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
             校园财商库
         </h2>
         <button id="sidebar-close" class="close-btn">&times;</button>
     </div>
     <div class="sidebar-content">
-        <a href="learning.html" class="sidebar-link featured">
-            <span>📚 进入学习中心</span>
-            <span>→</span>
-        </a>
-        <a href="#" class="sidebar-link">
-            <span>📈 基础财商课程</span>
-        </a>
-        <a href="#" class="sidebar-link">
-            <span>🛡️ 大学生防骗指南</span>
-        </a>
-        <a href="#" class="sidebar-link">
-            <span>💡 投资策略锦囊</span>
-        </a>
-        <a href="#" class="sidebar-link">
-            <span>📝 我的模拟笔记</span>
-        </a>
+        <a href="learning.html" class="sidebar-link featured"><span>进入学习中心</span><span>-></span></a>
+        <a href="#" class="sidebar-link"><span>基础财商课程</span></a>
+        <a href="#" class="sidebar-link"><span>大学生防骗指南</span></a>
+        <a href="#" class="sidebar-link"><span>投资策略锦囊</span></a>
     </div>
 </aside>
 
-<main>
-    <div class="page-header">
-        <div>
-            <h1>市场快讯</h1>
-            <p>A股 · 港股 · 美股 行情与资讯汇总</p>
+<!-- 指数横条 -->
+<div class="ticker-bar" id="ticker-bar">
+    <div class="ticker-item"><span class="ticker-name">加载中...</span></div>
+</div>
+
+<!-- 三栏主体 -->
+<div class="terminal-grid">
+
+    <!-- 左栏：板块热力图 -->
+    <div class="col col-left">
+        <div class="col-title">
+            <span>A股行业板块</span>
+            <span class="col-title-time" id="sector-update-time">--</span>
         </div>
-        <div class="update-time" id="update-time">数据仅供学习参考，非实时行情</div>
-    </div>
-
-    <!-- 主要指数（动态渲染） -->
-    <div class="indices-grid" id="indices-grid">
-        <!-- 占位骨架，JS 渲染后替换 -->
-        <div class="index-card" style="opacity:0.4"><div class="index-name">加载中…</div><div class="index-value">--</div><div class="index-change">--</div></div>
-        <div class="index-card" style="opacity:0.4"><div class="index-name">加载中…</div><div class="index-value">--</div><div class="index-change">--</div></div>
-        <div class="index-card" style="opacity:0.4"><div class="index-name">加载中…</div><div class="index-value">--</div><div class="index-change">--</div></div>
-        <div class="index-card" style="opacity:0.4"><div class="index-name">加载中…</div><div class="index-value">--</div><div class="index-change">--</div></div>
-        <div class="index-card" style="opacity:0.4"><div class="index-name">加载中…</div><div class="index-value">--</div><div class="index-change">--</div></div>
-        <div class="index-card" style="opacity:0.4"><div class="index-name">加载中…</div><div class="index-value">--</div><div class="index-change">--</div></div>
-    </div>
-
-    <!-- 主内容 -->
-    <div class="content-grid">
-        <!-- 左列：情绪栏 + 行情表 -->
-        <div class="left-col">
-            <!-- 市场情绪栏 -->
-            <div class="sentiment-bar">
-                <div class="sentiment-item">
-                    <div class="sentiment-label">A股涨停家数</div>
-                    <div class="sentiment-value up" id="sent-limit-up">--</div>
-                </div>
-                <div class="sentiment-item">
-                    <div class="sentiment-label">A股跌停家数</div>
-                    <div class="sentiment-value down" id="sent-limit-down">--</div>
-                </div>
-                <div class="sentiment-item">
-                    <div class="sentiment-label">沪深两市成交额</div>
-                    <div class="sentiment-value" id="sent-volume" style="color:var(--accent)">--</div>
-                </div>
-                <div class="sentiment-item">
-                    <div class="sentiment-label">北向资金净流入</div>
-                    <div class="sentiment-value" id="sent-north">--</div>
-                </div>
-            </div>
-
-            <!-- 行情表 -->
-            <div class="market-table-section">
-                <div class="section-header">
-                    <div class="section-title">热门标的</div>
-                    <div class="market-tabs">
-                        <button class="tab-btn active" onclick="switchTab(this,'a')">A 股</button>
-                        <button class="tab-btn" onclick="switchTab(this,'hk')">港 股</button>
-                        <button class="tab-btn" onclick="switchTab(this,'us')">美 股</button>
-                    </div>
-                </div>
-                <div id="table-wrap">
-                    <!-- 由 JS 渲染 -->
-                </div>
-            </div>
-        </div>
-
-        <!-- 板块热力图（动态渲染） -->
-        <div class="sector-panel">
-            <div class="section-header">
-                <div class="section-title">A股行业板块</div>
-                <div id="sector-update-time" style="font-size:11px;color:var(--text-dim)">加载中…</div>
-            </div>
-            <div class="sector-heatmap" id="sector-heatmap">
-                <div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--text-dim);font-size:13px">
-                    ⏳ 正在加载板块数据…
-                </div>
-            </div>
+        <div class="sector-heatmap" id="sector-heatmap">
+            <div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-dim);font-size:11px">加载中...</div>
         </div>
     </div>
 
-    <!-- 热搜聚合网格 -->
-    <div class="hot-section">
-        <div class="hot-section-header">
-            <div class="hot-section-title">
-                <span>🔥</span> 全网热搜聚合
-                <span style="font-size:12px;color:var(--text-dim);font-weight:400">财联社·华尔街见闻·新浪·澎湃</span>
-            </div>
-            <button class="hot-refresh-btn" onclick="fetchHotNews(true)">↻ 刷新</button>
+    <!-- 中栏 -->
+    <div class="col col-mid">
+        <!-- 情绪条 -->
+        <div class="sentiment-row">
+            <div class="sent-chip"><div class="sent-label">涨停</div><div class="sent-val up" id="sent-limit-up">--</div></div>
+            <div class="sent-chip"><div class="sent-label">跌停</div><div class="sent-val down" id="sent-limit-down">--</div></div>
+            <div class="sent-chip"><div class="sent-label">成交额</div><div class="sent-val" id="sent-volume" style="color:var(--accent)">--</div></div>
+            <div class="sent-chip"><div class="sent-label">北向资金</div><div class="sent-val" id="sent-north">--</div></div>
         </div>
-        <div class="hot-grid" id="hot-grid">
-            <div class="hot-source-card"><div class="hot-fetching">加载中...</div></div>
-            <div class="hot-source-card"><div class="hot-fetching">加载中...</div></div>
-            <div class="hot-source-card"><div class="hot-fetching">加载中...</div></div>
-            <div class="hot-source-card"><div class="hot-fetching">加载中...</div></div>
-            <div class="hot-source-card"><div class="hot-fetching">加载中...</div></div>
+
+        <!-- 热门标的 -->
+        <div class="quotes-panel">
+            <div class="quotes-header">
+                <div class="quotes-title">热门标的</div>
+                <div class="market-tabs">
+                    <button class="tab-btn active" onclick="switchTab(this,'a')">A 股</button>
+                    <button class="tab-btn" onclick="switchTab(this,'hk')">港 股</button>
+                    <button class="tab-btn" onclick="switchTab(this,'us')">美 股</button>
+                </div>
+            </div>
+            <div id="table-wrap"></div>
+        </div>
+
+        <!-- K线 -->
+        <div class="kline-panel">
+            <div class="kline-toolbar">
+                <div class="kline-search-wrap">
+                    <input class="kline-input" id="kline-input" type="text"
+                        placeholder="搜索股票代码或名称..."
+                        onkeydown="if(event.key==='Enter')loadKline()"
+                        oninput="_onKlineSearch(this.value)">
+                    <button class="kline-btn" onclick="loadKline()">查K线</button>
+                    <div id="kline-suggest" style="display:none;position:absolute;top:100%;left:0;right:60px;background:#1a1f2e;border:1px solid var(--border);border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;"></div>
+                </div>
+                <div class="kline-period-tabs">
+                    <button class="kp-tab active" data-period="daily" onclick="switchPeriod(this,'daily')">日K</button>
+                    <button class="kp-tab" data-period="weekly" onclick="switchPeriod(this,'weekly')">周K</button>
+                    <button class="kp-tab" data-period="monthly" onclick="switchPeriod(this,'monthly')">月K</button>
+                </div>
+            </div>
+            <div class="kline-info" id="kline-info" style="display:none">
+                <span class="kline-sym-name" id="kline-sym-name">--</span>
+                <span class="kline-price up" id="kline-price">--</span>
+                <span style="font-size:11px;color:var(--text-sub)" id="kline-meta">--</span>
+            </div>
+            <div class="kline-chart-wrap">
+                <div id="kline-chart"></div>
+                <div class="kline-placeholder" id="kline-placeholder">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    <div>输入代码查看K线</div>
+                </div>
+            </div>
+            <div class="kline-cta" id="kline-cta" style="display:none">
+                <a href="analysis.html" id="kline-cta-link">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    AI 深度分析
+                </a>
+                <span class="kline-cta-sub">多智能体研报</span>
+            </div>
         </div>
     </div>
 
-    <!-- K线图区域 -->
-    <div class="kline-section">
-        <div class="kline-header">
-            <div class="kline-title">📊 K线图</div>
-            <div class="kline-search-wrap">
-                <input class="kline-input" id="kline-input" type="text"
-                    placeholder="输入股票代码或名称，如 茅台 / AAPL / 00700.HK"
-                    onkeydown="if(event.key==='Enter')loadKline()"
-                    oninput="_onKlineSearch(this.value)">
-                <button class="kline-btn" onclick="loadKline()">查 K 线</button>
-                <div id="kline-suggest" style="display:none;position:absolute;top:100%;left:0;right:60px;background:#1a1f2e;border:1px solid var(--border);border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;"></div>
-            </div>
-            <div class="kline-period-tabs">
-                <button class="kp-tab active" data-period="daily"   onclick="switchPeriod(this,'daily')">日K</button>
-                <button class="kp-tab"        data-period="weekly"  onclick="switchPeriod(this,'weekly')">周K</button>
-                <button class="kp-tab"        data-period="monthly" onclick="switchPeriod(this,'monthly')">月K</button>
-            </div>
+    <!-- 右栏：新闻 Tab -->
+    <div class="col col-right">
+        <div class="news-panel">
+            <div class="news-tabs" id="news-tabs"></div>
+            <div class="news-content" id="news-content"></div>
         </div>
-        <div class="kline-info" id="kline-info" style="display:none">
-            <span class="kline-sym-name" id="kline-sym-name">--</span>
-            <span class="kline-price up" id="kline-price">--</span>
-            <span style="font-size:12px;color:var(--text-sub)" id="kline-meta">--</span>
-        </div>
-        <div class="kline-chart-wrap">
-            <div id="kline-chart" style="width:100%;height:100%;min-height:380px;position:relative;"></div>
-            <div class="kline-placeholder" id="kline-placeholder">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                <div>输入代码点击「查 K 线」查看蜡烛图</div>
-                <div style="font-size:12px">支持 A股 · 港股 · 美股</div>
-            </div>
-        </div>
-        <div class="kline-cta" id="kline-cta" style="display:none">
-            <a href="analysis.html" id="kline-cta-link">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                AI 深度分析此股
-            </a>
-            <span class="kline-cta-sub">使用 9 节点多智能体进行全面研报</span>
-        </div>
+        <div class="update-bar" id="update-time">数据仅供学习参考</div>
     </div>
 
-    <div class="disclaimer">
-        ⚠ 以上数据来自东方财富/财联社实时接口，存在延迟，仅供学习参考，不构成投资建议。
-        投资有风险，决策需谨慎。本平台不提供任何证券投资建议，不承担任何投资损失责任。
-    </div>
-</main>
-
-<footer>
-    &copy; 2026 CampusQuant 校园财商 &nbsp;|&nbsp;
-    数据仅供学习参考，不构成投资建议 &nbsp;|&nbsp;
-    <a href="team.html">关于我们</a>
-</footer>
+</div>
 
 <script>
     'use strict';
-    // 本地开发: http://127.0.0.1:8000/market.html → hostname 是 127.0.0.1，用绝对地址
-    // 线上生产: http://8.156.85.111:8000/market.html → hostname 是服务器 IP，用相对路径（同源）
     const _h = window.location.hostname;
     const API_BASE = (_h === 'localhost' || _h === '127.0.0.1')
         ? 'http://127.0.0.1:8000/api/v1'
         : '/api/v1';
     let currentTab = 'a';
-    // 各市场缓存（避免切换时重复请求）
     const _quoteCache = {};
 
-    function switchTab(btn, tab) {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentTab = tab;
-        fetchAndRender(tab);
-    }
-
-    function renderLoading() {
-        document.getElementById('table-wrap').innerHTML =
-            '<div style="text-align:center;padding:40px;color:var(--text-sub)">⏳ 正在获取实时行情…</div>';
-    }
-
-    function renderError(msg) {
-        document.getElementById('table-wrap').innerHTML =
-            `<div style="text-align:center;padding:40px;color:#ff6b6b">⚠ ${msg}</div>`;
-    }
-
-    function renderQuotes(quotes, market) {
-        if (!quotes || quotes.length === 0) { renderError('暂无行情数据'); return; }
-        const isUS = market === 'us';
-        const prefix = isUS ? '$' : (market === 'hk' ? 'HK$' : '¥');
-        const html = `
-            <table>
-                <thead>
-                    <tr>
-                        <th>代码</th><th>名称</th><th>最新价</th>
-                        <th>涨跌额</th><th>涨跌幅</th><th>来源</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${quotes.map(q => {
-                        const dir      = (q.change_pct >= 0) ? 'up' : 'down';
-                        const chgSign  = (q.change >= 0) ? '+' : '';
-                        const pctSign  = (q.change_pct >= 0) ? '+' : '';
-                        const price    = q.price != null ? prefix + Number(q.price).toFixed(isUS ? 2 : 2) : '--';
-                        const chg      = q.change != null ? chgSign + Number(q.change).toFixed(2) : '--';
-                        const pct      = q.change_pct != null ? pctSign + Number(q.change_pct).toFixed(2) + '%' : '--';
-                        const srcLabel = q.is_fallback ? '日线收盘' : '实时';
-                        return `
-                        <tr>
-                            <td class="td-sym">${q.symbol}</td>
-                            <td class="td-name">${q.name || q.symbol}</td>
-                            <td class="td-price">${price}</td>
-                            <td class="td-chg ${dir}">${chg}</td>
-                            <td class="td-chg ${dir}">${pct}</td>
-                            <td><span style="font-size:11px;color:var(--text-sub)">${srcLabel}</span></td>
-                        </tr>`;
-                    }).join('')}
-                </tbody>
-            </table>`;
-        document.getElementById('table-wrap').innerHTML = html;
-    }
-
-    async function fetchAndRender(tab) {
-        // 命中缓存（30s 内）
-        const cached = _quoteCache[tab];
-        if (cached && Date.now() - cached.ts < 30000) {
-            renderQuotes(cached.quotes, tab);
-            document.getElementById('update-time').textContent =
-                '实时行情 · ' + new Date(cached.ts).toLocaleString('zh-CN', {hour12:false});
+    // ── 指数横条 ────────────────────────────────────────────
+    function renderTicker(indices) {
+        const bar = document.getElementById('ticker-bar');
+        if (!indices || !indices.length) {
+            bar.innerHTML = '<div class="ticker-item"><span class="ticker-name">指数加载中...</span></div>';
             return;
         }
-        renderLoading();
-        try {
-            const resp = await fetch(`${API_BASE}/market/quotes?market=${tab}`);
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const json = await resp.json();
-            const quotes = json.quotes || [];
-            _quoteCache[tab] = { quotes, ts: Date.now() };
-            renderQuotes(quotes, tab);
-            document.getElementById('update-time').textContent =
-                '实时行情 · 更新于 ' + new Date().toLocaleString('zh-CN', {hour12:false});
-        } catch (err) {
-            console.error(`[market] 行情获取失败 tab=${tab} API_BASE=${API_BASE}`, err);
-            renderError('行情接口暂时不可用，请确认后端服务已启动');
-            document.getElementById('update-time').textContent = '⚠ 行情加载失败';
-        }
-    }
-
-    // ── 大盘指数渲染 ───────────────────────────────────────────
-    function renderIndices(indices) {
-        const grid = document.getElementById('indices-grid');
-        if (!indices || indices.length === 0) {
-            grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-dim);padding:20px">⚠ 指数数据暂不可用</div>';
-            return;
-        }
-        grid.innerHTML = indices.map(idx => {
-            const pct     = idx.change_pct;
-            const dir     = pct > 0 ? 'up' : (pct < 0 ? 'down' : 'flat');
-            const sign    = pct > 0 ? '+' : '';
-            const price   = idx.price > 0 ? Number(idx.price).toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '--';
-            const pctStr  = idx.is_fallback ? '--' : `${sign}${Number(pct).toFixed(2)}%`;
-            const fallbk  = idx.is_fallback ? ' style="opacity:0.5"' : '';
-            return `<div class="index-card"${fallbk}>
-                <div class="index-name">${idx.name}</div>
-                <div class="index-value">${price}</div>
-                <div class="index-change ${dir}">${pctStr}</div>
+        bar.innerHTML = indices.map(idx => {
+            const pct = idx.change_pct;
+            const dir = pct > 0 ? 'up' : (pct < 0 ? 'down' : 'flat');
+            const sign = pct > 0 ? '+' : '';
+            const price = idx.price > 0 ? Number(idx.price).toLocaleString('zh-CN',{maximumFractionDigits:2}) : '--';
+            const pctStr = `${sign}${Number(pct).toFixed(2)}%`;
+            return `<div class="ticker-item">
+                <span class="ticker-name">${idx.name}</span>
+                <span class="ticker-price">${price}</span>
+                <span class="ticker-pct ${dir}">${pctStr}</span>
             </div>`;
         }).join('');
     }
 
     async function fetchIndices() {
         try {
-            const resp = await fetch(`${API_BASE}/market/indices`);
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const data = await resp.json();
-            renderIndices(data.indices || []);
+            const r = await fetch(`${API_BASE}/market/indices`);
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const d = await r.json();
+            renderTicker(d.indices || []);
             document.getElementById('update-time').textContent =
-                '实时行情 · 更新于 ' + new Date().toLocaleString('zh-CN', {hour12: false});
-        } catch (err) {
-            console.error(`[market] 指数获取失败 API_BASE=${API_BASE}`, err);
-            document.getElementById('indices-grid').innerHTML =
-                '<div style="grid-column:1/-1;text-align:center;color:#ff6b6b;padding:16px">⚠ 指数接口不可用，请确认后端已启动</div>';
+                '更新于 ' + new Date().toLocaleTimeString('zh-CN',{hour12:false});
+        } catch(e) {
+            console.error('[market] indices error:', e);
         }
     }
 
-    // ── 板块热力图渲染 ─────────────────────────────────────────
+    // ── 板块热力图 ──────────────────────────────────────────
     function sectorBgColor(pct) {
         const abs = Math.abs(pct);
         const alpha = Math.min(0.88, abs / 5 * 0.75 + 0.13);
-        if (pct >  0.05) return `rgba(239,68,68,${alpha.toFixed(2)})`;
+        if (pct > 0.05) return `rgba(239,68,68,${alpha.toFixed(2)})`;
         if (pct < -0.05) return `rgba(34,197,94,${alpha.toFixed(2)})`;
         return 'rgba(255,255,255,0.06)';
     }
@@ -809,13 +469,12 @@
     function renderSectors(sectors) {
         const el = document.getElementById('sector-heatmap');
         if (!sectors || !sectors.length) {
-            el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--text-dim);font-size:13px">板块数据暂不可用</div>';
+            el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--text-dim);font-size:11px">板块数据仅在交易时段可用</div>';
             return;
         }
         el.innerHTML = sectors.map(s => {
             const sign = s.change_pct > 0 ? '+' : '';
-            const bg   = sectorBgColor(s.change_pct);
-            return `<div class="sector-tile" style="background:${bg}" title="${s.name} ${sign}${s.change_pct}%">
+            return `<div class="sector-tile" style="background:${sectorBgColor(s.change_pct)}" title="${s.name} ${sign}${s.change_pct}% | 领涨:${s.leader||''}">
                 <div class="sector-tile-name">${s.name}</div>
                 <div class="sector-tile-pct">${sign}${s.change_pct.toFixed(2)}%</div>
             </div>`;
@@ -825,120 +484,151 @@
     async function fetchSectors() {
         try {
             const ctrl = new AbortController();
-            const tid = setTimeout(() => ctrl.abort(), 10000);
-            const resp = await fetch(`${API_BASE}/market/sectors`, {signal: ctrl.signal});
-            clearTimeout(tid);
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const data = await resp.json();
-            renderSectors(data.sectors || []);
+            setTimeout(() => ctrl.abort(), 10000);
+            const r = await fetch(`${API_BASE}/market/sectors`, {signal: ctrl.signal});
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const d = await r.json();
+            renderSectors(d.sectors || []);
             const el = document.getElementById('sector-update-time');
-            if (el) el.textContent = new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'}) + ' 更新';
-        } catch (err) {
-            console.error('[market] 板块数据获取失败:', err);
+            if (el) el.textContent = new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+        } catch(e) {
             const el = document.getElementById('sector-heatmap');
-            if (el) el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--text-dim);font-size:13px">板块数据仅在交易时段可用（9:30-15:00）</div>';
+            if (el) el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--text-dim);font-size:11px">板块数据仅在交易时段可用</div>';
         }
     }
 
-    // ── 市场情绪实时指标 ────────────────────────────────────────
+    // ── 情绪 ────────────────────────────────────────────────
     async function fetchSentiment() {
         try {
-            const resp = await fetch(`${API_BASE}/market/sentiment`);
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const d = await resp.json();
-
-            const elUp   = document.getElementById('sent-limit-up');
+            const r = await fetch(`${API_BASE}/market/sentiment`);
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const d = await r.json();
+            const elUp = document.getElementById('sent-limit-up');
             const elDown = document.getElementById('sent-limit-down');
-            const elVol  = document.getElementById('sent-volume');
-            const elNorth= document.getElementById('sent-north');
-
-            if (elUp)   elUp.textContent   = d.limit_up   || '--';
+            const elVol = document.getElementById('sent-volume');
+            const elNorth = document.getElementById('sent-north');
+            if (elUp) elUp.textContent = d.limit_up || '--';
             if (elDown) elDown.textContent = d.limit_down || '--';
-            if (elVol)  elVol.textContent  = d.volume     || '--';
-
+            if (elVol) elVol.textContent = d.volume || '--';
             if (elNorth && d.north_flow && d.north_flow !== '--') {
                 elNorth.textContent = d.north_flow;
-                const raw = d.north_flow_raw;
-                elNorth.className = 'sentiment-value ' + (raw >= 0 ? 'up' : 'down');
+                elNorth.className = 'sent-val ' + ((d.north_flow_raw||0) >= 0 ? 'up' : 'down');
             } else if (elNorth) {
                 elNorth.textContent = d.north_flow || '--';
             }
-        } catch (err) {
-            console.warn('[market] 情绪数据获取失败:', err);
+        } catch(e) {}
+    }
+
+    // ── 热门标的 ────────────────────────────────────────────
+    function switchTab(btn, tab) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentTab = tab;
+        fetchAndRender(tab);
+    }
+
+    function renderQuotes(quotes, market) {
+        const wrap = document.getElementById('table-wrap');
+        if (!quotes || !quotes.length) { wrap.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-sub);font-size:12px">暂无数据</div>'; return; }
+        const pfx = market === 'us' ? '$' : (market === 'hk' ? 'HK$' : '');
+        wrap.innerHTML = `<table><thead><tr><th>代码</th><th>名称</th><th>最新价</th><th>涨跌幅</th></tr></thead><tbody>${
+            quotes.map(q => {
+                const dir = (q.change_pct >= 0) ? 'up' : 'down';
+                const pctSign = (q.change_pct >= 0) ? '+' : '';
+                const price = q.price != null ? pfx + Number(q.price).toFixed(2) : '--';
+                const pct = q.change_pct != null ? pctSign + Number(q.change_pct).toFixed(2) + '%' : '--';
+                return `<tr><td class="td-sym">${q.symbol}</td><td class="td-name">${q.name||q.symbol}</td><td class="td-price">${price}</td><td class="td-chg ${dir}">${pct}</td></tr>`;
+            }).join('')
+        }</tbody></table>`;
+    }
+
+    async function fetchAndRender(tab) {
+        const cached = _quoteCache[tab];
+        if (cached && Date.now() - cached.ts < 30000) { renderQuotes(cached.quotes, tab); return; }
+        document.getElementById('table-wrap').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-sub);font-size:12px">加载中...</div>';
+        try {
+            const r = await fetch(`${API_BASE}/market/quotes?market=${tab}`);
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const d = await r.json();
+            _quoteCache[tab] = { quotes: d.quotes||[], ts: Date.now() };
+            renderQuotes(d.quotes||[], tab);
+        } catch(e) {
+            document.getElementById('table-wrap').innerHTML = '<div style="text-align:center;padding:20px;color:#ff6b6b;font-size:12px">行情加载失败</div>';
         }
     }
 
-    // 初始化：加载 A 股行情 + 大盘指数 + 板块热力图（并发）
-    fetchAndRender('a');
-    fetchIndices();
-    fetchSectors();
-    fetchSentiment();
+    // ── 新闻 Tab ────────────────────────────────────────────
+    let _hotSources = [];
+    let _activeNewsTab = 0;
 
-    // 定时刷新指数（每60s）、板块（每120s）、情绪（每3分钟）
-    setInterval(fetchIndices,   60000);
-    setInterval(fetchSectors,  120000);
-    setInterval(fetchSentiment, 180000);
+    function renderNewsTabs(sources) {
+        _hotSources = sources;
+        const tabs = document.getElementById('news-tabs');
+        const content = document.getElementById('news-content');
+        if (!sources || !sources.length) {
+            tabs.innerHTML = '';
+            content.innerHTML = '<div class="news-empty">新闻加载中...</div>';
+            return;
+        }
+        tabs.innerHTML = sources.map((s, i) =>
+            `<button class="news-tab ${i===_activeNewsTab?'active':''}" onclick="switchNewsTab(${i})">${s.label||s.source}</button>`
+        ).join('');
+        renderNewsPanel(_activeNewsTab);
+    }
 
-    // ══ 热搜聚合 ════════════════════════════════════════════════
+    function switchNewsTab(idx) {
+        _activeNewsTab = idx;
+        document.querySelectorAll('.news-tab').forEach((t,i) => t.classList.toggle('active', i===idx));
+        renderNewsPanel(idx);
+    }
+
+    function renderNewsPanel(idx) {
+        const content = document.getElementById('news-content');
+        const src = _hotSources[idx];
+        if (!src) { content.innerHTML = '<div class="news-empty">暂无数据</div>'; return; }
+        const items = (src.items || []).slice(0,5);
+        if (!items.length) { content.innerHTML = '<div class="news-empty">暂无数据</div>'; return; }
+        content.innerHTML = items.map((item, i) => {
+            const rk = i < 3 ? `r${i+1}` : '';
+            return `<a href="${item.url||'#'}" target="_blank" rel="noopener" class="news-item">
+                <div class="news-rank ${rk}">${i+1}</div>
+                <div class="news-title">${item.title}</div>
+            </a>`;
+        }).join('');
+    }
+
     async function fetchHotNews(force) {
-        const grid = document.getElementById('hot-grid');
         try {
             const url = `${API_BASE}/market/hotnews` + (force ? '?force=true' : '');
             const r = await fetch(url);
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
             const raw = await r.json();
-            // 兼容 list 直接返回 或 {sources:[...]} wrapper
             const srcList = Array.isArray(raw) ? raw : (raw.sources || []);
-            console.log('[market] hotnews srcList:', srcList.length);
-            renderHotGrid(srcList);
+            renderNewsTabs(srcList);
         } catch(e) {
-            console.warn('[market] fetchHotNews error:', e);
-            grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text-dim);padding:20px">热榜暂时不可用，请确认后端已启动</div>`;
+            document.getElementById('news-content').innerHTML = '<div class="news-empty">新闻加载失败</div>';
         }
     }
 
-    function renderHotGrid(sources) {
-        const grid = document.getElementById('hot-grid');
-        if (!sources || !sources.length) {
-            grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text-dim);padding:20px">暂无热搜数据</div>`;
-            return;
-        }
-        grid.innerHTML = sources.map(src => {
-            const items = (src.items || []).slice(0,3);
-            const itemsHTML = items.length ? items.map((item,i) => {
-                const rk = i < 3 ? `r${i+1}` : '';
-                return `<a href="${item.url}" target="_blank" rel="noopener" class="hot-item">
-                    <div class="hot-item-rank ${rk}">${i+1}</div>
-                    <div class="hot-item-title">${item.title}</div>
-                </a>`;
-            }).join('') : '<div class="hot-fetching">暂无数据</div>';
-            return `<div class="hot-source-card">
-                <div class="hot-source-header" style="border-left:3px solid ${src.color||'var(--primary)'}">
-                    <span class="hot-source-icon">${src.icon||'📰'}</span>
-                    <span class="hot-source-name" style="color:${src.color||'#fff'}">${src.label||src.source}</span>
-                </div>
-                <div class="hot-items">${itemsHTML}</div>
-            </div>`;
-        }).join('');
-    }
-
+    // ── 初始化 ──────────────────────────────────────────────
+    fetchAndRender('a');
+    fetchIndices();
+    fetchSectors();
+    fetchSentiment();
     fetchHotNews(false);
-    setInterval(() => fetchHotNews(false), 15 * 60 * 1000);
+
+    setInterval(fetchIndices, 60000);
+    setInterval(fetchSectors, 120000);
+    setInterval(fetchSentiment, 180000);
+    setInterval(() => fetchHotNews(false), 15*60*1000);
 </script>
 
-<!-- Lightweight Charts by TradingView -->
+<!-- Lightweight Charts -->
 <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-
 <script>
     'use strict';
-    // ══ K线图（Lightweight Charts） ═══════════════════════════════
-    // _klChart 全局实例：切换品种时先 remove() 再重建，避免残影
-    let _klChart    = null;
-    let _klSeries   = null;
-    let _klRO       = null;   // ResizeObserver
-    let _klCurSym   = '';
-    let _klCurPeriod = 'daily';
-    let _klLoading  = false;
+    let _klChart = null, _klSeries = null, _klRO = null;
+    let _klCurSym = '', _klCurPeriod = 'daily', _klLoading = false;
 
     function switchPeriod(btn, period) {
         document.querySelectorAll('.kp-tab').forEach(b => b.classList.remove('active'));
@@ -949,61 +639,44 @@
 
     function _showKlinePlaceholder(html) {
         const ph = document.getElementById('kline-placeholder');
-        ph.innerHTML = html;
-        ph.classList.remove('hide');
+        ph.innerHTML = html; ph.classList.remove('hide');
         document.getElementById('kline-info').style.display = 'none';
-        document.getElementById('kline-cta').style.display  = 'none';
+        document.getElementById('kline-cta').style.display = 'none';
     }
 
     function _destroyChart() {
-        if (_klRO)    { _klRO.disconnect(); _klRO = null; }
+        if (_klRO) { _klRO.disconnect(); _klRO = null; }
         if (_klChart) { try { _klChart.remove(); } catch(e){} _klChart = null; _klSeries = null; }
-        // 清空容器内 canvas（remove() 应已处理，保险起见）
         const el = document.getElementById('kline-chart');
         if (el) el.innerHTML = '';
     }
 
     function _buildChart() {
-        const chartEl = document.getElementById('kline-chart');
-        // 容器必须有高度；CSS 设置了 height:380px 但 clientHeight 有时读 0（渲染时机），兜底 380
-        const h = chartEl.offsetHeight || 380;
-        const w = chartEl.offsetWidth  || chartEl.parentElement.offsetWidth || 800;
-
-        _klChart = LightweightCharts.createChart(chartEl, {
-            layout: {
-                background: { color: '#0b0f19' },
-                textColor: '#a0aec0',
-            },
-            grid: {
-                vertLines: { color: 'rgba(255,255,255,0.05)' },
-                horzLines: { color: 'rgba(255,255,255,0.05)' },
-            },
-            crosshair:       { mode: 1 },   // Normal = 1（枚举值，CDN 版本兼容）
+        const el = document.getElementById('kline-chart');
+        const h = el.parentElement.offsetHeight || 200;
+        const w = el.parentElement.offsetWidth || 600;
+        _klChart = LightweightCharts.createChart(el, {
+            layout: { background: { color: '#0b0f19' }, textColor: '#a0aec0' },
+            grid: { vertLines: { color: 'rgba(255,255,255,0.05)' }, horzLines: { color: 'rgba(255,255,255,0.05)' } },
+            crosshair: { mode: 1 },
             rightPriceScale: { borderColor: 'rgba(255,255,255,0.12)' },
-            timeScale:       { borderColor: 'rgba(255,255,255,0.12)', timeVisible: true },
-            handleScroll:    { mouseWheel: true, pressedMouseMove: true },
-            handleScale:     { axisPressedMouseMove: true },
-            width:  w,
-            height: h,
+            timeScale: { borderColor: 'rgba(255,255,255,0.12)', timeVisible: true },
+            width: w, height: h,
         });
-
         _klSeries = _klChart.addCandlestickSeries({
-            upColor:        '#00b894', downColor:        '#d63031',
-            borderUpColor:  '#00b894', borderDownColor:  '#d63031',
-            wickUpColor:    '#00b894', wickDownColor:    '#d63031',
+            upColor: '#00b894', downColor: '#d63031',
+            borderUpColor: '#00b894', borderDownColor: '#d63031',
+            wickUpColor: '#00b894', wickDownColor: '#d63031',
         });
-
-        // 响应式 resize
         _klRO = new ResizeObserver(() => {
             if (!_klChart) return;
-            const el2 = document.getElementById('kline-chart');
-            const newW = el2.parentElement.offsetWidth || el2.offsetWidth;
-            if (newW > 0) _klChart.applyOptions({ width: newW });
+            const nw = el.parentElement.offsetWidth;
+            const nh = el.parentElement.offsetHeight;
+            if (nw > 0) _klChart.applyOptions({ width: nw, height: nh });
         });
-        _klRO.observe(chartEl.parentElement);
+        _klRO.observe(el.parentElement);
     }
 
-    // ── K线搜索自动补全 ─────────────────────────────
     let _suggestTimer = null;
     function _onKlineSearch(q) {
         clearTimeout(_suggestTimer);
@@ -1016,13 +689,13 @@
                 const items = d.suggestions || [];
                 if (!items.length) { box.style.display = 'none'; return; }
                 box.innerHTML = items.map(s =>
-                    `<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);color:#e2e8f0;font-size:13px;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background=''" onclick="_selectKlineSuggest('${s.symbol}','${s.name}')">${s.symbol} <span style="color:var(--text-dim)">${s.name}</span> <span style="font-size:11px;color:var(--accent)">${s.type||''}</span></div>`
+                    `<div style="padding:6px 10px;cursor:pointer;border-bottom:1px solid var(--border);color:#e2e8f0;font-size:12px;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background=''" onclick="_selectKlineSuggest('${s.symbol}','${s.name}')">${s.symbol} <span style="color:var(--text-dim)">${s.name}</span></div>`
                 ).join('');
                 box.style.display = 'block';
             } catch(e) { box.style.display = 'none'; }
         }, 300);
     }
-    function _selectKlineSuggest(symbol, name) {
+    function _selectKlineSuggest(symbol) {
         document.getElementById('kline-input').value = symbol;
         document.getElementById('kline-suggest').style.display = 'none';
         loadKline();
@@ -1038,99 +711,42 @@
         if (_klLoading) return;
         const sym = document.getElementById('kline-input').value.trim();
         if (!sym) return;
-        _klCurSym  = sym.toUpperCase();
+        _klCurSym = sym.toUpperCase();
         _klLoading = true;
-
-        // 显示 Loading
-        _showKlinePlaceholder(`
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)"
-                 stroke-width="2" opacity=".7" style="animation:spin 1s linear infinite">
-                <circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/>
-            </svg>
-            <div>正在获取 ${_klCurSym} K线数据...</div>`);
-
+        _showKlinePlaceholder(`<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" style="animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg><div>加载 ${_klCurSym}...</div>`);
         try {
-            const url = `${API_BASE}/market/kline`
-                      + `?symbol=${encodeURIComponent(_klCurSym)}`
-                      + `&period=${_klCurPeriod}&count=120`;
-            const resp = await fetch(url);
-
-            if (!resp.ok) {
-                const err = await resp.json().catch(() => ({}));
-                throw new Error(err.detail || `HTTP ${resp.status}`);
-            }
-
-            const data = await resp.json();
-            console.log('[kline] received:', data.count, 'bars for', data.symbol);
-
+            const r = await fetch(`${API_BASE}/market/kline?symbol=${encodeURIComponent(_klCurSym)}&period=${_klCurPeriod}&count=120`);
+            if (!r.ok) throw new Error((await r.json().catch(()=>({}))).detail || `HTTP ${r.status}`);
+            const data = await r.json();
             const candles = data.kline || [];
-            if (!candles.length) {
-                _showKlinePlaceholder(`<div style="color:var(--danger)">⚠ ${_klCurSym} 暂无 K线数据，请检查代码格式（如 600519.SH / AAPL / 00700.HK）</div>`);
-                return;
-            }
-
-            // 每次搜索都重建图表，确保干净状态
-            _destroyChart();
-            _buildChart();
-
-            // 隐藏 placeholder，让 canvas 可见
+            if (!candles.length) { _showKlinePlaceholder(`<div style="color:var(--danger)">暂无K线数据</div>`); return; }
+            _destroyChart(); _buildChart();
             document.getElementById('kline-placeholder').classList.add('hide');
-
-            console.log("[kline] 即将渲染的K线数据:", candles.length, "根，首条:", candles[0]);
             _klSeries.setData(candles);
             _klChart.timeScale().fitContent();
-
-            // 信息栏
-            const last = candles[candles.length - 1];
-            const prev = candles[candles.length - 2] || last;
-            const chg  = last.close - prev.close;
-            const pct  = prev.close > 0 ? (chg / prev.close * 100) : 0;
-            const priceEl = document.getElementById('kline-price');
-            priceEl.textContent = Number(last.close).toFixed(2) + '  (' + (chg >= 0 ? '+' : '') + pct.toFixed(2) + '%)';
-            priceEl.className   = 'kline-price ' + (chg >= 0 ? 'up' : 'down');
-            document.getElementById('kline-sym-name').textContent =
-                (data.name && data.name !== _klCurSym ? data.name + '  ' : '') + _klCurSym;
-            document.getElementById('kline-meta').textContent =
-                `${candles.length} 根K线 · ${{ daily:'日K', weekly:'周K', monthly:'月K' }[_klCurPeriod]}`;
+            const last = candles[candles.length-1], prev = candles[candles.length-2]||last;
+            const chg = last.close - prev.close, pct = prev.close > 0 ? chg/prev.close*100 : 0;
+            const pe = document.getElementById('kline-price');
+            pe.textContent = Number(last.close).toFixed(2) + ' (' + (chg>=0?'+':'') + pct.toFixed(2) + '%)';
+            pe.className = 'kline-price ' + (chg >= 0 ? 'up' : 'down');
+            document.getElementById('kline-sym-name').textContent = (data.name && data.name !== _klCurSym ? data.name+' ' : '') + _klCurSym;
+            document.getElementById('kline-meta').textContent = `${candles.length}根 ${{daily:'日K',weekly:'周K',monthly:'月K'}[_klCurPeriod]}`;
             document.getElementById('kline-info').style.display = 'flex';
-
-            // CTA
-            document.getElementById('kline-cta-link').href =
-                `analysis.html?sym=${encodeURIComponent(_klCurSym)}`;
+            document.getElementById('kline-cta-link').href = `analysis.html?sym=${encodeURIComponent(_klCurSym)}`;
             document.getElementById('kline-cta').style.display = 'flex';
-
         } catch(e) {
-            console.error('[kline] error:', e);
-            _showKlinePlaceholder(`<div style="color:var(--danger)">⚠ K线加载失败：${e.message}<br><span style="font-size:11px;color:var(--text-dim)">请确认后端已启动且代码格式正确</span></div>`);
-        } finally {
-            _klLoading = false;
-        }
+            _showKlinePlaceholder(`<div style="color:var(--danger)">K线失败: ${e.message}</div>`);
+        } finally { _klLoading = false; }
     }
 </script>
-<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 
 <script>
     'use strict';
-    const sidebar        = document.getElementById('sidebar');
+    const sidebar = document.getElementById('sidebar');
     const sidebarOverlay = document.getElementById('sidebar-overlay');
-    const sidebarToggle  = document.getElementById('sidebar-toggle');
-    const sidebarClose   = document.getElementById('sidebar-close');
-
-    function openSidebar() {
-        sidebar.classList.add('open');
-        sidebarOverlay.classList.add('open');
-        document.body.style.overflow = 'hidden'; 
-    }
-
-    function closeSidebar() {
-        sidebar.classList.remove('open');
-        sidebarOverlay.classList.remove('open');
-        document.body.style.overflow = '';
-    }
-
-    sidebarToggle.addEventListener('click', openSidebar);
-    sidebarClose.addEventListener('click', closeSidebar);
-    sidebarOverlay.addEventListener('click', closeSidebar);
+    document.getElementById('sidebar-toggle').addEventListener('click', () => { sidebar.classList.add('open'); sidebarOverlay.classList.add('open'); document.body.style.overflow='hidden'; });
+    document.getElementById('sidebar-close').addEventListener('click', () => { sidebar.classList.remove('open'); sidebarOverlay.classList.remove('open'); document.body.style.overflow=''; });
+    sidebarOverlay.addEventListener('click', () => { sidebar.classList.remove('open'); sidebarOverlay.classList.remove('open'); document.body.style.overflow=''; });
 </script>
 
 <script>
@@ -1140,7 +756,7 @@
         const u = localStorage.getItem('cq_username') || '';
         const pg = window.location.pathname.split('/').pop() || 'dashboard.html';
         if (u) {
-            w.innerHTML = `<span style="font-size:12px;color:var(--text-sub)">👤 ${u}</span>
+            w.innerHTML = `<span style="font-size:12px;color:var(--text-sub)">${u}</span>
                 <button onclick="['cq_token','cq_username','cq_user_id'].forEach(k=>localStorage.removeItem(k));_renderAuthWidget();" style="background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#8da2b8;font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;
         } else {
             w.innerHTML = `<a href="auth.html?v=20260330-auth-code&redirect=${pg}" style="font-size:12px;color:#4facfe;text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
