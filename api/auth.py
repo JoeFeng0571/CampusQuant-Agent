@@ -22,7 +22,11 @@ from db.engine import get_db
 from db.models import User
 
 # ── 配置 ───────────────────────────────────────────────────────
-SECRET_KEY:  str = os.getenv("JWT_SECRET_KEY", "campusquant-dev-secret-change-in-prod")
+SECRET_KEY:  str = os.getenv("JWT_SECRET_KEY", "")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "JWT_SECRET_KEY 环境变量未设置。请在 .env 中配置一个强随机密钥。"
+    )
 ALGORITHM:   str = "HS256"
 EXPIRE_DAYS: int = 7    # Token 有效期 7 天（学生频繁使用，减少重新登录摩擦）
 

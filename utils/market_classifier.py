@@ -390,8 +390,8 @@ class MarketClassifier:
                     seen_symbols.add(code)
                     market_type, norm_code = MarketClassifier.classify(code)
                     type_label = market_type.value if market_type != MarketType.UNKNOWN else "其他"
-                    # 用 key 的标题化作为展示名（去掉拼音缩写类键）
-                    if not re.match(r'^[a-z]+$', key):
+                    # 用 key 做展示名，跳过纯拼音缩写和代码格式的 key
+                    if not re.match(r'^[a-z]+$', key) and not re.match(r'^[a-z]{2}\d{5,6}$', key):
                         results.append({"symbol": norm_code, "name": key, "type": type_label})
                     if len(results) >= 5:
                         break
@@ -421,11 +421,13 @@ class MarketClassifier:
                     if not entry.strip():
                         continue
                     fields = entry.split(",")
-                    if len(fields) < 3:
+                    if len(fields) < 4:
                         continue
-                    name      = fields[0].strip()
+                    # 新浪格式: 名称,类型码,代码,简称,拼音,...
+                    # 有时 fields[0] 带分号前缀，用 fields[3](简称)更可靠
                     type_code = fields[1].strip()
                     raw_code  = fields[2].strip()
+                    name      = (fields[3].strip() or fields[0].strip()).lstrip(";；")
                     if not raw_code or not name:
                         continue
 

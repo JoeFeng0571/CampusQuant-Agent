@@ -418,6 +418,7 @@
         <a href="dashboard.html" class="active">控制台</a>
         <a href="trade.html">模拟演练<span class="nav-dot"></span></a>
         <a href="analysis.html">个股分析</a>
+        <a href="platforms.html">持仓体检</a>
         <a href="market.html">市场快讯</a>
         <a href="community.html">投教社区</a>
         <a href="team.html">关于我们</a>
@@ -443,9 +444,9 @@
     </div>
     <div class="sidebar-content">
         <a href="home.html" class="sidebar-link featured"><span>📚 进入学习中心</span><span>→</span></a>
-        <a href="#" class="sidebar-link"><span>📈 基础财商课程</span></a>
-        <a href="#" class="sidebar-link"><span>🛡️ 大学生防骗指南</span></a>
-        <a href="#" class="sidebar-link"><span>💡 投资策略锦囊</span></a>
+        <a href="javascript:void(0)" onclick="alert('即将上线，敬请期待！')" class="sidebar-link"><span>📈 基础财商课程</span></a>
+        <a href="javascript:void(0)" onclick="alert('即将上线，敬请期待！')" class="sidebar-link"><span>🛡️ 大学生防骗指南</span></a>
+        <a href="javascript:void(0)" onclick="alert('即将上线，敬请期待！')" class="sidebar-link"><span>💡 投资策略锦囊</span></a>
         <a href="resources.html" class="sidebar-link"><span>📝 学习资源库</span></a>
     </div>
 </aside>
@@ -590,6 +591,12 @@ const API = (location.hostname === 'localhost' || location.hostname === '127.0.0
     : window.location.origin;
 const CHAT_SK = 'cq_chat_history_v2';
 
+function escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
 // ══════════════ SIDEBAR ══════════════
 const sidebar        = document.getElementById('sidebar');
 const sidebarOverlay = document.getElementById('sidebar-overlay');
@@ -611,8 +618,8 @@ function renderAuthWidget() {
     const el    = document.getElementById('auth-widget');
     if (token) {
         el.innerHTML = `
-            <div class="auth-avatar" title="${name}">${name[0].toUpperCase()}</div>
-            <span class="auth-name">${name}</span>
+            <div class="auth-avatar" title="${escHtml(name)}">${escHtml(name[0].toUpperCase())}</div>
+            <span class="auth-name">${escHtml(name)}</span>
             <button onclick="logout()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px">退出</button>`;
         document.getElementById('welcome-text').textContent = `欢迎回来，${name} 👋`;
     } else {
@@ -703,7 +710,7 @@ function renderAcct(data, mkt) {
     tbody.innerHTML = filtered.slice(0,6).map(p => {
         const pnl = p.unrealized_pnl ?? 0;
         return `<tr>
-            <td><span class="sym">${p.symbol}</span></td>
+            <td><span class="sym">${escHtml(p.symbol)}</span></td>
             <td>${p.quantity ?? '--'}</td>
             <td>${fmtNum(p.avg_cost,3)}</td>
             <td class="${clsForNum(pnl)}">${pnl>=0?'+':''}${fmtNum(pnl)}</td>
@@ -744,11 +751,11 @@ async function loadNews() {
         if (!items.length) throw new Error('empty response');
         el.innerHTML = items.map((item, i) => {
             const rk = i < 3 ? `r${i+1}` : '';
-            return `<a href="${item.url}" target="_blank" rel="noopener" class="news-item">
+            return `<a href="${escHtml(item.url)}" target="_blank" rel="noopener" class="news-item">
                 <div class="news-rank ${rk}">${i+1}</div>
                 <div class="news-body">
-                    <div class="news-title">${item.title}</div>
-                    <div class="news-src"><span style="color:${item.color||'var(--primary)'}">${item.label||''}</span></div>
+                    <div class="news-title">${escHtml(item.title)}</div>
+                    <div class="news-src"><span style="color:${item.color||'var(--primary)'}">${escHtml(item.label||'')}</span></div>
                 </div>
             </a>`;
         }).join('');
@@ -798,7 +805,7 @@ function renderMsgHTML(msg) {
     const avatar = msg.role === 'user'
         ? (localStorage.getItem('cq_username')||'U')[0].toUpperCase()
         : '🎓';
-    const text = (msg.text||'').replace(/\n/g,'<br>');
+    const text = escHtml(msg.text||'').replace(/\n/g,'<br>');
     return `<div class="msg ${cls}">
         <div class="msg-avatar">${avatar}</div>
         <div>

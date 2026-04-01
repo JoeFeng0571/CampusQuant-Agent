@@ -55,6 +55,11 @@
             cursor:pointer; display:flex; align-items:center; padding:4px;
             margin-left:10px; transition:color 0.3s;
         }
+        .auth-avatar { width:30px; height:30px; border-radius:50%;
+            background:linear-gradient(135deg,var(--primary),var(--accent));
+            display:flex; align-items:center; justify-content:center;
+            font-size:13px; font-weight:700; cursor:pointer; }
+        .auth-name { font-size:13px; color:var(--text-sub); }
         .sidebar-btn:hover { color:var(--secondary); }
 
         /* ══ 侧边栏及遮罩层样式 ══ */
@@ -479,14 +484,14 @@
         <span class="logo-sub">校园财商</span>
     </a>
     <nav>
-        <a href="dashboard.html">仪表盘</a>
+        <a href="dashboard.html">控制台</a>
         <a href="trade.html">模拟演练<span class="nav-dot"></span></a>
         <a href="analysis.html">个股分析</a>
-        <a href="platforms.html">持仓体检</a>
+        <a href="platforms.html" class="active">持仓体检</a>
         <a href="market.html">市场快讯</a>
         <a href="community.html">投教社区</a>
         <a href="team.html">关于我们</a>
-        
+        <div id="auth-widget" style="display:flex;align-items:center;gap:8px;margin-left:8px;flex-shrink:0;"></div>
         <button id="sidebar-toggle" class="sidebar-btn" title="打开学习中心">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -514,16 +519,16 @@
             <span>📚 进入学习中心</span>
             <span>→</span>
         </a>
-        <a href="#" class="sidebar-link">
+        <a href="javascript:void(0)" onclick="alert('即将上线，敬请期待！')" class="sidebar-link">
             <span>📈 基础财商课程</span>
         </a>
-        <a href="#" class="sidebar-link">
+        <a href="javascript:void(0)" onclick="alert('即将上线，敬请期待！')" class="sidebar-link">
             <span>🛡️ 大学生防骗指南</span>
         </a>
-        <a href="#" class="sidebar-link">
+        <a href="javascript:void(0)" onclick="alert('即将上线，敬请期待！')" class="sidebar-link">
             <span>💡 投资策略锦囊</span>
         </a>
-        <a href="#" class="sidebar-link">
+        <a href="javascript:void(0)" onclick="alert('即将上线，敬请期待！')" class="sidebar-link">
             <span>📝 我的模拟笔记</span>
         </a>
     </div>
@@ -784,6 +789,25 @@
     sidebarToggle.addEventListener('click', openSidebar);
     sidebarClose.addEventListener('click', closeSidebar);
     sidebarOverlay.addEventListener('click', closeSidebar);
+
+    // ══════════════ AUTH WIDGET ══════════════
+    function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function renderAuthWidget() {
+        const token = localStorage.getItem('cq_token');
+        const name  = localStorage.getItem('cq_username') || '用户';
+        const el    = document.getElementById('auth-widget');
+        if (!el) return;
+        if (token) {
+            el.innerHTML = `
+                <div class="auth-avatar" title="${escHtml(name)}">${escHtml(name[0].toUpperCase())}</div>
+                <span class="auth-name">${escHtml(name)}</span>
+                <button onclick="logout()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px">退出</button>`;
+        } else {
+            el.innerHTML = `<a href="auth.html?redirect=platforms.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(79,172,254,.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
+        }
+    }
+    function logout() { localStorage.removeItem('cq_token'); localStorage.removeItem('cq_username'); location.reload(); }
+    renderAuthWidget();
 </script>
 
 <script src="shell-bridge.js"></script>

@@ -190,6 +190,12 @@ class TradeOrder(BaseModel):
         description="是否为模拟交易（始终为 True，本系统不接入真实交易所）"
     )
 
+    # 【安全校验】强制 simulated=True，即使 LLM 输出 false 也会被覆盖
+    @model_validator(mode="after")
+    def force_simulated_true(self) -> "TradeOrder":
+        self.simulated = True
+        return self
+
     # 【审计修复 P1-2】跨字段校验：LIMIT 订单若无 limit_price 则降级为 MARKET
     @model_validator(mode="after")
     def ensure_limit_price(self) -> "TradeOrder":

@@ -51,6 +51,7 @@ import asyncio
 import functools
 import json
 import os
+import re as _re_top
 from datetime import datetime
 from typing import Any, Dict
 
@@ -150,6 +151,17 @@ def _ts() -> str:
 
 def _log_entry(node: str, msg: str) -> str:
     return f"[{_ts()}] [{node}] {msg}"
+
+
+def _sanitize_symbol(s: str) -> str:
+    """
+    Sanitize user-supplied stock symbol to prevent prompt injection.
+    Only allow alphanumeric, dots, hyphens, and carets; max 20 chars.
+    """
+    if not s:
+        return "UNKNOWN"
+    cleaned = _re_top.sub(r"[^A-Za-z0-9.\-\^]", "", str(s))
+    return cleaned[:20] if cleaned else "UNKNOWN"
 
 
 # ════════════════════════════════════════════════════════════════
@@ -594,7 +606,7 @@ async def data_node(state: TradingGraphState) -> dict:
 
     Anti-Loop: 使用 _check_tool_limit() 防止工具调用死循环
     """
-    symbol = state.get("symbol") or state.get("stock_code", "UNKNOWN")
+    symbol = _sanitize_symbol(state.get("symbol") or state.get("stock_code", "UNKNOWN"))
     logger.info(f"[data_node] 开始获取市场数据: {symbol}")
 
     # 工具调用计数器初始化（首次进入此节点）
@@ -745,7 +757,7 @@ async def fundamental_node(state: TradingGraphState) -> dict:
       - 调用 LLM + with_structured_output(AnalystReport)
       - 结合 RAG 上下文（state.rag_context）提升分析深度
     """
-    symbol      = state.get("symbol") or state.get("stock_code", "UNKNOWN")
+    symbol      = _sanitize_symbol(state.get("symbol") or state.get("stock_code", "UNKNOWN"))
     market_type = state.get("market_type", "US_STOCK")
     market_data = state.get("market_data", {})
     counts      = state.get("tool_call_counts") or {}
@@ -925,7 +937,7 @@ async def technical_node(state: TradingGraphState) -> dict:
       - Prompt 从 _PROMPTS["technical"] 字典取值（外化管理）
       - 使用 with_structured_output(AnalystReport) 输出结构化报告
     """
-    symbol      = state.get("symbol") or state.get("stock_code", "UNKNOWN")
+    symbol      = _sanitize_symbol(state.get("symbol") or state.get("stock_code", "UNKNOWN"))
     market_type = state.get("market_type", "US_STOCK")
     market_data = state.get("market_data", {})
     indicators  = market_data.get("indicators", {})
@@ -1064,7 +1076,7 @@ async def sentiment_node(state: TradingGraphState) -> dict:
       - 仍保留量价动量特征作为辅助输入
       - Prompt 从 _PROMPTS["sentiment"] 字典取值（外化管理）
     """
-    symbol      = state.get("symbol") or state.get("stock_code", "UNKNOWN")
+    symbol      = _sanitize_symbol(state.get("symbol") or state.get("stock_code", "UNKNOWN"))
     market_type = state.get("market_type", "US_STOCK")
     market_data = state.get("market_data", {})
     indicators  = market_data.get("indicators", {})
@@ -1262,7 +1274,7 @@ def _compute_weighted_score(
     }
 
 
-@_guard_node("fundamental_report")
+@_guard_node("_portfolio_guard")
 async def portfolio_node(state: TradingGraphState) -> dict:
     """
     基金经理综合决策节点:
@@ -1271,7 +1283,7 @@ async def portfolio_node(state: TradingGraphState) -> dict:
       - 若 risk_rejection_count > 0，进入风控修订模式（降仓/调仓）
       - 输出最终投资建议（供后续辩论或风控使用）
     """
-    symbol               = state.get("symbol") or state.get("stock_code", "UNKNOWN")
+    symbol               = _sanitize_symbol(state.get("symbol") or state.get("stock_code", "UNKNOWN"))
     market_type          = state.get("market_type", "US_STOCK")
     fundamental          = state.get("fundamental_report", {}) or {}
     technical            = state.get("technical_report", {})   or {}
@@ -1286,13 +1298,31 @@ async def portfolio_node(state: TradingGraphState) -> dict:
     is_revision = risk_rejection_count > 0 and risk_decision is not None
     fund_rec    = fundamental.get("recommendation", "HOLD")
     tech_rec    = technical.get("recommendation", "HOLD")
+    sent_rec    = sentiment.get("recommendation", "HOLD")
+    sent_conf   = sentiment.get("confidence", 0.0)
+
+    # 冲突检测：基本面 vs 技术面直接矛盾
+    fund_tech_conflict = (
+        fund_rec in ("BUY", "SELL")
+        and tech_rec in ("BUY", "SELL")
+        and fund_rec != tech_rec
+    )
+
+    # 冲突检测：基本面+技术面一致，但舆情以高置信度强烈反对
+    sentiment_dissent = False
+    if (
+        fund_rec == tech_rec
+        and fund_rec in ("BUY", "SELL")
+        and sent_rec in ("BUY", "SELL")
+        and sent_rec != fund_rec
+        and sent_conf >= 0.8
+    ):
+        sentiment_dissent = True
 
     has_conflict = (
         not is_revision
         and debate_outcome is None
-        and fund_rec in ("BUY", "SELL")
-        and tech_rec in ("BUY", "SELL")
-        and fund_rec != tech_rec
+        and (fund_tech_conflict or sentiment_dissent)
     )
 
     weights = _MARKET_WEIGHTS.get(market_type, _MARKET_WEIGHTS["US_STOCK"])
@@ -1507,7 +1537,7 @@ async def debate_node(state: TradingGraphState) -> dict:
     """
     import re as _re
 
-    symbol        = state.get("symbol") or state.get("stock_code", "UNKNOWN")
+    symbol        = _sanitize_symbol(state.get("symbol") or state.get("stock_code", "UNKNOWN"))
     fundamental   = state.get("fundamental_report", {}) or {}
     technical     = state.get("technical_report", {})   or {}
     debate_rounds = state.get("debate_rounds", 0)
@@ -1709,7 +1739,7 @@ async def risk_node(state: TradingGraphState) -> dict:
       - Prompt 从 _PROMPTS["risk"] 取基础前缀，动态拼装市场规则
       - 若 REJECTED，risk_rejection_count += 1，触发 portfolio_node 修订
     """
-    symbol               = state.get("symbol") or state.get("stock_code", "UNKNOWN")
+    symbol               = _sanitize_symbol(state.get("symbol") or state.get("stock_code", "UNKNOWN"))
     market_type          = state.get("market_type", "US_STOCK")
     market_data          = state.get("market_data", {})
     indicators           = market_data.get("indicators", {})
@@ -1869,15 +1899,16 @@ async def risk_node(state: TradingGraphState) -> dict:
     except Exception as e:
         _log_node_error("risk_node", e)
         fallback_decision = {
-            "approval_status": "CONDITIONAL", "risk_level": "MEDIUM",
-            "position_pct": 10.0, "stop_loss_pct": 7.0, "take_profit_pct": 15.0,
-            "rejection_reason": None, "conditions": ["风控评估异常，降级使用保守仓位"],
+            "approval_status": "REJECTED", "risk_level": "HIGH",
+            "position_pct": 5.0, "stop_loss_pct": 7.0, "take_profit_pct": 15.0,
+            "rejection_reason": f"风控评估异常，安全降级拒绝: {str(e)[:100]}",
+            "conditions": ["风控评估异常，安全降级拒绝"],
             "max_loss_amount": None,
         }
         return {
             "risk_decision":        fallback_decision,
-            "risk_rejection_count": risk_rejection_count,
-            "execution_log":        [_log_entry("risk_node", f"⚠️ 降级处理: {e}")],
+            "risk_rejection_count": risk_rejection_count + 1,
+            "execution_log":        [_log_entry("risk_node", f"⚠️ 降级处理（REJECTED）: {e}")],
             "error_type":           "llm_error",
             "messages":             [AIMessage(content=f"风控异常: {e}", name="risk_node")],
         }
@@ -1895,7 +1926,7 @@ async def trade_executor(state: TradingGraphState) -> dict:
       - TradeOrder.simulated = True，指向本地模拟撮合引擎，不连接任何真实交易所
       - 填充 state.trade_order，标记 status = "completed"
     """
-    symbol         = state.get("symbol") or state.get("stock_code", "UNKNOWN")
+    symbol         = _sanitize_symbol(state.get("symbol") or state.get("stock_code", "UNKNOWN"))
     market_type    = state.get("market_type", "US_STOCK")
     market_data    = state.get("market_data", {})
     fundamental    = state.get("fundamental_report", {}) or {}
@@ -2085,7 +2116,7 @@ async def health_node(state: TradingGraphState) -> dict:
     可由 builder.py 单独路由到 END。
     """
     positions_raw = state.get("portfolio_positions") or []
-    symbol        = state.get("symbol", "PORTFOLIO")  # 持仓体检时 symbol 为 "PORTFOLIO"
+    symbol        = _sanitize_symbol(state.get("symbol", "PORTFOLIO"))  # 持仓体检时 symbol 为 "PORTFOLIO"
 
     if not positions_raw:
         logger.warning("[health_node] portfolio_positions 为空，无法执行体检")

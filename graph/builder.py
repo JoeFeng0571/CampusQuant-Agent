@@ -155,25 +155,39 @@ def build_graph(checkpointer=None):
 # 工厂函数：带内存检查点的图（适合单次分析 + 流式传输场景）
 # ────────────────────────────────────────────────────────────────
 
+_MAX_MEMORY_THREADS = 200  # 最多保留 200 个会话，防止内存无限增长
+
 def build_graph_with_memory():
     """
     构建带 MemorySaver checkpointer 的图，支持 thread_id 会话追踪。
-
     用于 FastAPI SSE 场景，每个分析请求使用独立的 thread_id。
-
-    【审计说明 P1-4】MemorySaver 在进程内存中存储所有 thread_id 状态，
-    无 TTL 驱逐机制。对于低并发的学生项目可接受；生产级部署建议改用
-    SqliteSaver 或 RedisSaver，并定期清理过期会话。
+    内置简易驱逐：超过 _MAX_MEMORY_THREADS 时清理最旧的会话。
     """
     try:
         from langgraph.checkpoint.memory import MemorySaver
         checkpointer = MemorySaver()
-        logger.info("✅ 使用 MemorySaver 检查点")
+        logger.info("✅ 使用 MemorySaver 检查点（上限 %d 会话）", _MAX_MEMORY_THREADS)
     except ImportError:
         logger.warning("MemorySaver 不可用，使用无持久化模式")
         checkpointer = None
 
     return build_graph(checkpointer=checkpointer)
+
+
+def cleanup_memory_saver(checkpointer) -> int:
+    """清理超限的 MemorySaver 会话，返回清理数量"""
+    try:
+        storage = getattr(checkpointer, "storage", None) or getattr(checkpointer, "store", {})
+        if hasattr(storage, '__len__') and len(storage) > _MAX_MEMORY_THREADS:
+            # 删除最旧的一半
+            keys = list(storage.keys())
+            to_remove = keys[:len(keys) // 2]
+            for k in to_remove:
+                storage.pop(k, None)
+            return len(to_remove)
+    except Exception:
+        pass
+    return 0
 
 
 # ────────────────────────────────────────────────────────────────

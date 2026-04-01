@@ -302,9 +302,10 @@
         <span class="logo-sub">校园财商</span>
     </a>
     <nav>
-        <a href="dashboard.html">仪表盘</a>
+        <a href="dashboard.html">控制台</a>
         <a href="trade.html">模拟演练<span class="nav-dot"></span></a>
         <a href="analysis.html">个股分析</a>
+        <a href="platforms.html">持仓体检</a>
         <a href="market.html" class="active">市场快讯</a>
         <a href="community.html">投教社区</a>
         <a href="team.html">关于我们</a>
@@ -327,10 +328,11 @@
         <button id="sidebar-close" class="close-btn">&times;</button>
     </div>
     <div class="sidebar-content">
-        <a href="learning.html" class="sidebar-link featured"><span>进入学习中心</span><span>-></span></a>
-        <a href="#" class="sidebar-link"><span>基础财商课程</span></a>
-        <a href="#" class="sidebar-link"><span>大学生防骗指南</span></a>
-        <a href="#" class="sidebar-link"><span>投资策略锦囊</span></a>
+        <a href="home.html" class="sidebar-link featured"><span>📚 进入学习中心</span><span>→</span></a>
+        <a href="javascript:void(0)" onclick="alert('即将上线，敬请期待！')" class="sidebar-link"><span>📈 基础财商课程</span></a>
+        <a href="javascript:void(0)" onclick="alert('即将上线，敬请期待！')" class="sidebar-link"><span>🛡️ 大学生防骗指南</span></a>
+        <a href="javascript:void(0)" onclick="alert('即将上线，敬请期待！')" class="sidebar-link"><span>💡 投资策略锦囊</span></a>
+        <a href="resources.html" class="sidebar-link"><span>📝 学习资源库</span></a>
     </div>
 </aside>
 
@@ -438,6 +440,12 @@
     let currentTab = 'a';
     const _quoteCache = {};
 
+    function escHtml(s) {
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
     // ── 指数滚动屏（逐行向上循环，每 5 秒滚 1 行）────────
     let _tickerRow = 0;
     let _tickerTotalRows = 0;
@@ -451,7 +459,7 @@
         const price = idx.price > 0 ? Number(idx.price).toLocaleString('zh-CN',{maximumFractionDigits:2}) : '--';
         const pctStr = idx.name === '--' ? '' : `${sign}${Number(pct).toFixed(2)}%`;
         return `<div class="ticker-item">
-            <span class="ticker-name">${idx.name}</span>
+            <span class="ticker-name">${escHtml(idx.name)}</span>
             <span class="ticker-price">${price}</span>
             <span class="ticker-pct ${dir}">${pctStr}</span>
         </div>`;
@@ -530,8 +538,8 @@
         }
         el.innerHTML = sectors.map(s => {
             const sign = s.change_pct > 0 ? '+' : '';
-            return `<div class="sector-tile" style="background:${sectorBgColor(s.change_pct)}" title="${s.name} ${sign}${s.change_pct}% | 领涨:${s.leader||''}">
-                <div class="sector-tile-name">${s.name}</div>
+            return `<div class="sector-tile" style="background:${sectorBgColor(s.change_pct)}" title="${escHtml(s.name)} ${sign}${s.change_pct}% | 领涨:${escHtml(s.leader||'')}">
+                <div class="sector-tile-name">${escHtml(s.name)}</div>
                 <div class="sector-tile-pct">${sign}${s.change_pct.toFixed(2)}%</div>
             </div>`;
         }).join('');
@@ -593,7 +601,7 @@
                 const pctSign = (q.change_pct >= 0) ? '+' : '';
                 const price = q.price != null ? pfx + Number(q.price).toFixed(2) : '--';
                 const pct = q.change_pct != null ? pctSign + Number(q.change_pct).toFixed(2) + '%' : '--';
-                return `<tr><td class="td-sym">${q.symbol}</td><td class="td-name">${q.name||q.symbol}</td><td class="td-price">${price}</td><td class="td-chg ${dir}">${pct}</td></tr>`;
+                return `<tr><td class="td-sym">${escHtml(q.symbol)}</td><td class="td-name">${escHtml(q.name||q.symbol)}</td><td class="td-price">${price}</td><td class="td-chg ${dir}">${pct}</td></tr>`;
             }).join('')
         }</tbody></table>`;
     }
@@ -624,14 +632,14 @@
             const items = (src.items || []).slice(0, 3);
             const itemsHTML = items.length ? items.map((item, i) => {
                 const rk = i < 3 ? `r${i+1}` : '';
-                return `<a href="${item.url||'#'}" target="_blank" rel="noopener" class="news-item">
+                return `<a href="${escHtml(item.url||'#')}" target="_blank" rel="noopener" class="news-item">
                     <div class="news-rank ${rk}">${i+1}</div>
-                    <div class="news-title">${item.title}</div>
+                    <div class="news-title">${escHtml(item.title)}</div>
                 </a>`;
             }).join('') : '<div class="news-empty">暂无数据</div>';
             return `<div class="news-source-block">
                 <div class="news-source-header" style="border-left:3px solid ${src.color||'var(--primary)'}">
-                    <span style="color:${src.color||'#fff'}">${src.label||src.source}</span>
+                    <span style="color:${src.color||'#fff'}">${escHtml(src.label||src.source||'')}</span>
                 </div>
                 <div class="news-items-list">${itemsHTML}</div>
             </div>`;
@@ -730,7 +738,7 @@
                 const items = d.suggestions || [];
                 if (!items.length) { box.style.display = 'none'; return; }
                 box.innerHTML = items.map(s =>
-                    `<div style="padding:6px 10px;cursor:pointer;border-bottom:1px solid var(--border);color:#e2e8f0;font-size:12px;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background=''" onclick="_selectKlineSuggest('${s.symbol}','${s.name}')">${s.symbol} <span style="color:var(--text-dim)">${s.name}</span></div>`
+                    `<div style="padding:6px 10px;cursor:pointer;border-bottom:1px solid var(--border);color:#e2e8f0;font-size:12px;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background=''" onclick="_selectKlineSuggest('${escHtml(s.symbol)}','${escHtml(s.name)}')">${escHtml(s.symbol)} <span style="color:var(--text-dim)">${escHtml(s.name)}</span></div>`
                 ).join('');
                 box.style.display = 'block';
             } catch(e) { box.style.display = 'none'; }
@@ -754,7 +762,7 @@
         if (!sym) return;
         _klCurSym = sym.toUpperCase();
         _klLoading = true;
-        _showKlinePlaceholder(`<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" style="animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg><div>加载 ${_klCurSym}...</div>`);
+        _showKlinePlaceholder(`<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" style="animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg><div>加载 ${escHtml(_klCurSym)}...</div>`);
         try {
             const r = await fetch(`${API_BASE}/market/kline?symbol=${encodeURIComponent(_klCurSym)}&period=${_klCurPeriod}&count=120`);
             if (!r.ok) throw new Error((await r.json().catch(()=>({}))).detail || `HTTP ${r.status}`);
@@ -776,7 +784,7 @@
             document.getElementById('kline-cta-link').href = `analysis.html?sym=${encodeURIComponent(_klCurSym)}`;
             document.getElementById('kline-cta').style.display = 'flex';
         } catch(e) {
-            _showKlinePlaceholder(`<div style="color:var(--danger)">K线失败: ${e.message}</div>`);
+            _showKlinePlaceholder(`<div style="color:var(--danger)">K线失败: ${escHtml(e.message)}</div>`);
         } finally { _klLoading = false; }
     }
 </script>
@@ -797,10 +805,10 @@
         const u = localStorage.getItem('cq_username') || '';
         const pg = window.location.pathname.split('/').pop() || 'dashboard.html';
         if (u) {
-            w.innerHTML = `<span style="font-size:12px;color:var(--text-sub)">${u}</span>
+            w.innerHTML = `<span style="font-size:12px;color:var(--text-sub)">${escHtml(u)}</span>
                 <button onclick="['cq_token','cq_username','cq_user_id'].forEach(k=>localStorage.removeItem(k));_renderAuthWidget();" style="background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#8da2b8;font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;
         } else {
-            w.innerHTML = `<a href="auth.html?v=20260330-auth-code&redirect=${pg}" style="font-size:12px;color:#4facfe;text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
+            w.innerHTML = `<a href="auth.html?v=20260330-auth-code&redirect=${escHtml(pg)}" style="font-size:12px;color:#4facfe;text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
         }
     }
     document.addEventListener('DOMContentLoaded', _renderAuthWidget);

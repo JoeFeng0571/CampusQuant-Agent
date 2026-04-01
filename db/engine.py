@@ -23,12 +23,11 @@ from db.models import Base
 # 香港服务器: 远程连接内地 MySQL → DATABASE_URL=mysql+asyncmy://...@47.108.191.110/...
 # 内地服务器: 本机连接 → DATABASE_URL=mysql+asyncmy://...@127.0.0.1/...
 # 本地开发:   按需指向任一服务器
-DEFAULT_DATABASE_URL = (
-    "mysql+asyncmy://monijiaoyishuju:fGNFEYSf66tmTeCD@47.108.191.110/"
-    "monijiaoyishuju?charset=utf8mb4"
-)
-
-DATABASE_URL: str = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
+DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL 环境变量未设置。请在 .env 中配置数据库连接字符串。"
+    )
 
 # ── 引擎 & Session 工厂 ────────────────────────────────────────
 engine = create_async_engine(

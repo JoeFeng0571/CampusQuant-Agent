@@ -40,12 +40,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-import random
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import AsyncGenerator, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -97,11 +97,41 @@ app = FastAPI(
 # CORS（允许 Streamlit / Vue / React 前端跨域调用）
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=[
+        "http://47.76.197.100",
+        "https://47.76.197.100",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ════════════════════════════════════════════════════════════════
+# 简易速率限制器（IP 维度，防滥用 LLM 端点）
+# ════════════════════════════════════════════════════════════════
+import time as _time
+from collections import defaultdict as _defaultdict
+
+_RATE_BUCKETS: dict[str, dict[str, list[float]]] = _defaultdict(lambda: _defaultdict(list))
+_RATE_LIMITS = {
+    "analyze":      (3,  300),   # 5 分钟内最多 3 次
+    "health_check": (5,  300),   # 5 分钟内最多 5 次
+    "chat":         (20, 60),    # 1 分钟内最多 20 次
+}
+
+def _check_rate_limit(endpoint: str, client_ip: str) -> bool:
+    """返回 True 表示允许，False 表示超限"""
+    limit, window = _RATE_LIMITS.get(endpoint, (100, 60))
+    now = _time.time()
+    bucket = _RATE_BUCKETS[endpoint][client_ip]
+    # 清理过期记录
+    bucket[:] = [t for t in bucket if now - t < window]
+    if len(bucket) >= limit:
+        return False
+    bucket.append(now)
+    return True
 
 # ════════════════════════════════════════════════════════════════
 # 启动时初始化（FAISS 知识库 + LangGraph 图）
@@ -112,6 +142,7 @@ _compiled_graph = None
 # ════════════════════════════════════════════════════════════════
 # 全局市场数据缓存（Background Polling，TTL = 5 分钟）
 # ════════════════════════════════════════════════════════════════
+# 使用 copy-on-write 模式：poller 构建新 dict 后原子替换引用，读取端无需加锁
 _MARKET_CACHE: dict = {"indices": [], "news": [], "sectors": [], "sentiment": {}, "ts": 0.0}
 
 
@@ -125,7 +156,7 @@ async def _market_data_poller():
                 get_market_indices_raw, get_market_news_raw,
                 get_sector_data_raw, get_market_sentiment_raw,
             )
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             indices, news, sectors, sentiment = await asyncio.gather(
                 loop.run_in_executor(None, get_market_indices_raw),
                 loop.run_in_executor(None, get_market_news_raw, 20),
@@ -133,15 +164,18 @@ async def _market_data_poller():
                 loop.run_in_executor(None, get_market_sentiment_raw),
                 return_exceptions=True,
             )
+            # 原子更新：构建新快照后一次性替换，避免读取端看到不一致状态
+            new_cache = dict(_MARKET_CACHE)  # 浅拷贝当前值
             if not isinstance(indices, Exception) and indices:
-                _MARKET_CACHE["indices"] = indices
+                new_cache["indices"] = indices
             if not isinstance(news, Exception) and news:
-                _MARKET_CACHE["news"] = news
+                new_cache["news"] = news
             if not isinstance(sectors, Exception) and sectors:
-                _MARKET_CACHE["sectors"] = sectors
+                new_cache["sectors"] = sectors
             if not isinstance(sentiment, Exception) and sentiment:
-                _MARKET_CACHE["sentiment"] = sentiment
-            _MARKET_CACHE["ts"] = datetime.now(timezone.utc).timestamp()
+                new_cache["sentiment"] = sentiment
+            new_cache["ts"] = datetime.now(timezone.utc).timestamp()
+            _MARKET_CACHE.update(new_cache)
 
             fallback_n = sum(1 for r in _MARKET_CACHE["indices"] if r.get("is_fallback"))
             logger.info(
@@ -564,7 +598,7 @@ async def _stream_graph_events(
 
         def _pct(v):
             try: return f"{float(v):.1%}"
-            except: return str(v)
+            except (TypeError, ValueError): return str(v)
 
         _error_banner = (
             f"\n> ⚠ **分析流程异常中断**（{_graph_error}）。以下为各节点已完成的部分结果，供参考。\n\n---\n\n"
@@ -805,8 +839,11 @@ async def _stream_graph_events(
     ),
     response_description="SSE 事件流（Content-Type: text/event-stream）",
 )
-async def analyze_symbol(request: AnalyzeRequest):
+async def analyze_symbol(request: AnalyzeRequest, raw_request: Request = None):
     """POST /api/v1/analyze — SSE 流式分析"""
+    client_ip = raw_request.client.host if raw_request and raw_request.client else "unknown"
+    if not _check_rate_limit("analyze", client_ip):
+        raise HTTPException(status_code=429, detail="分析请求过于频繁，请 5 分钟后再试")
     raw_symbol = request.symbol.strip()
     if not raw_symbol:
         raise HTTPException(status_code=400, detail="symbol 不能为空")
@@ -883,8 +920,11 @@ async def get_graph_mermaid():
         "返回持仓健康评分、集中度/回撤/流动性指标与 AI 优化建议。"
     ),
 )
-async def portfolio_health_check(request: PortfolioCheckRequest):
+async def portfolio_health_check(request: PortfolioCheckRequest, raw_request: Request = None):
     """POST /api/v1/health-check — 持仓健康诊断（JSON 请求/响应）"""
+    client_ip = raw_request.client.host if raw_request and raw_request.client else "unknown"
+    if not _check_rate_limit("health_check", client_ip):
+        raise HTTPException(status_code=429, detail="体检请求过于频繁，请 5 分钟后再试")
     from graph.builder import build_health_graph, make_health_initial_state
     from graph.state import PortfolioPosition
     from utils.market_classifier import MarketClassifier
@@ -912,7 +952,7 @@ async def portfolio_health_check(request: PortfolioCheckRequest):
         result_state = await health_graph.ainvoke(initial_state)
     except Exception as e:
         logger.error(f"[health-check] 体检图执行失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"持仓体检执行失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="持仓体检服务暂时不可用，请稍后重试")
 
     health_report = result_state.get("health_report")
     if not health_report:
@@ -993,7 +1033,7 @@ async def chat_with_advisor(
             append_chat_message,
             count_chat_messages,
         )
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         # ── 构建上下文 ─────────────────────────────────────────
         session_key   = request.session_key
@@ -1039,7 +1079,7 @@ async def chat_with_advisor(
 
     except Exception as e:
         logger.error(f"[chat] LLM 调用失败: {e}")
-        raise HTTPException(status_code=502, detail=f"AI 对话服务暂时不可用: {str(e)}")
+        raise HTTPException(status_code=502, detail="AI 对话服务暂时不可用，请稍后重试")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -1047,27 +1087,27 @@ async def chat_with_advisor(
 # ════════════════════════════════════════════════════════════════
 
 class RegisterRequest(BaseModel):
-    username: str = Field(..., min_length=2, max_length=50, description="???")
-    email: str = Field(..., description="??")
-    password: str = Field(..., min_length=6, description="??")
+    username: str = Field(..., min_length=2, max_length=50, description="用户名")
+    email: str = Field(..., description="邮箱地址")
+    password: str = Field(..., min_length=6, description="密码（至少6位）")
 
 
 class LoginRequest(BaseModel):
-    email: str = Field(..., description="??")
-    password: Optional[str] = Field(default=None, description="??")
+    email: str = Field(..., description="邮箱地址")
+    password: Optional[str] = Field(default=None, description="密码")
 
 
 class AuthRegisterRequest(BaseModel):
-    username: str = Field(..., min_length=2, max_length=50, description="???")
-    email: str = Field(..., description="??")
-    password: str = Field(..., min_length=6, description="??")
-    verification_code: str = Field(..., min_length=6, max_length=6, description="?????")
+    username: str = Field(..., min_length=2, max_length=50, description="用户名")
+    email: str = Field(..., description="邮箱地址")
+    password: str = Field(..., min_length=6, description="密码（至少6位）")
+    verification_code: str = Field(..., min_length=6, max_length=6, description="邮箱验证码")
 
 
 class AuthLoginRequest(BaseModel):
-    email: str = Field(..., description="??")
-    password: Optional[str] = Field(default=None, description="??")
-    verification_code: Optional[str] = Field(default=None, min_length=6, max_length=6, description="?????")
+    email: str = Field(..., description="邮箱地址")
+    password: Optional[str] = Field(default=None, description="密码")
+    verification_code: Optional[str] = Field(default=None, min_length=6, max_length=6, description="邮箱验证码")
 
 
 class SendCodeRequest(BaseModel):
@@ -1080,7 +1120,7 @@ _CODE_COOLDOWN_SECONDS = 60
 
 
 def _make_verification_code() -> str:
-    return f"{random.randint(0, 999999):06d}"
+    return f"{secrets.randbelow(1000000):06d}"
 
 
 @app.post("/api/v1/auth/send-code", summary="发送邮箱验证码")
@@ -1252,7 +1292,7 @@ async def _load_hk_lot_cache() -> None:
         return lot_map
 
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         lot_map = await loop.run_in_executor(None, _fetch)
         _hk_lot_cache = lot_map
         _hk_lot_loaded_at = _time.time()
@@ -1319,7 +1359,7 @@ async def _db_trade_order(db, user_id: int, symbol: str, action: str,
                 "symbol": symbol, "action": action, "timestamp": ts}
 
     # 获取报价
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     try:
         spot = await loop.run_in_executor(None, get_spot_price_raw, symbol)
     except Exception:
@@ -1403,17 +1443,16 @@ async def _db_trade_order(db, user_id: int, symbol: str, action: str,
     }
 
 
-@app.post("/api/v1/trade/order", summary="模拟撮合下单（登录后持久化）")
+@app.post("/api/v1/trade/order", summary="模拟撮合下单（需登录）")
 async def place_trade_order(
     request: TradeOrderRequest,
-    current_user=Depends(_get_optional_user),
+    current_user=Depends(_get_current_user),
     db=Depends(_get_db_dep),
 ):
     """
     POST /api/v1/trade/order
 
-    - 未登录：使用内存全局账户（游客模式，重启清零）
-    - 已登录：使用 DB 持久账户，订单写入数据库，重启不丢失
+    需要登录。使用 DB 持久账户，订单写入数据库。
     """
     from utils.market_classifier import MarketClassifier
 
@@ -1454,7 +1493,7 @@ async def place_trade_order(
     # ── 游客：使用内存全局账户（不持久化） ───────────────────
     from api.mock_exchange import get_account
     account = get_account()
-    loop    = asyncio.get_event_loop()
+    loop    = asyncio.get_running_loop()
 
     try:
         result = await loop.run_in_executor(
@@ -1468,7 +1507,7 @@ async def place_trade_order(
         )
     except Exception as e:
         logger.error(f"[trade/order] 撮合异常: {e}")
-        raise HTTPException(status_code=502, detail=f"撮合引擎异常: {str(e)}")
+        raise HTTPException(status_code=502, detail="撮合引擎异常，请稍后重试")
 
     if not result.success:
         return {"success": False, "error": result.error, "symbol": symbol,
@@ -1503,7 +1542,7 @@ async def search_stocks(q: str = ""):
         return {"suggestions": [], "query": q}
 
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         suggestions = await loop.run_in_executor(
             None,
             lambda: MarketClassifier.search_stock_suggestions(q.strip(), limit=8),
@@ -1534,7 +1573,7 @@ async def get_market_quotes(market: str = "a"):
         quotes = await run_in_threadpool(get_batch_quotes_raw, symbols, market)
     except Exception as e:
         logger.error(f"[market/quotes] 批量行情获取失败: {e}")
-        raise HTTPException(status_code=502, detail=f"行情获取失败: {str(e)}")
+        raise HTTPException(status_code=502, detail="行情获取失败，请稍后重试")
 
     return {
         "market":    market,
@@ -1556,7 +1595,7 @@ async def get_single_spot(symbol: str):
         raise HTTPException(status_code=400, detail="symbol 参数不能为空")
     try:
         from tools.market_data import get_spot_price_raw
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(None, get_spot_price_raw, symbol.upper())
         if not result or not result.get("price"):
             raise HTTPException(status_code=404, detail=f"未能获取 {symbol} 的行情数据")
@@ -1565,7 +1604,7 @@ async def get_single_spot(symbol: str):
         raise
     except Exception as e:
         logger.error(f"[market/spot] 单只行情获取失败 {symbol}: {e}")
-        raise HTTPException(status_code=502, detail=f"行情获取失败: {str(e)}")
+        raise HTTPException(status_code=502, detail="行情获取失败，请稍后重试")
 
 
 @app.get("/api/v1/market/lot/{symbol}", summary="获取标的最小交易手数（动态查询）")
@@ -1626,7 +1665,7 @@ async def get_portfolio_summary(
         order_count = int(snap.get("order_count") or 0)
 
     async def enrich_position(pos: dict) -> dict:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             spot = await loop.run_in_executor(None, get_spot_price_raw, pos["symbol"])
         except Exception:
@@ -1652,7 +1691,7 @@ async def get_portfolio_summary(
         enriched = await asyncio.gather(*[enrich_position(p) for p in raw_positions])
     except Exception as e:
         logger.error(f"[portfolio/summary] 持仓摘要计算失败: {e}")
-        raise HTTPException(status_code=502, detail=f"持仓摘要获取失败: {str(e)}")
+        raise HTTPException(status_code=502, detail="持仓摘要获取失败，请稍后重试")
 
     total_cost   = float(sum(p["cost_value"]     for p in enriched) or 0.0)
     total_market = float(sum(p["market_value"]   for p in enriched) or 0.0)
@@ -1695,14 +1734,14 @@ async def get_market_indices():
         logger.info("[market/indices] 缓存未就绪，触发紧急抓取")
         try:
             from tools.market_data import get_market_indices_raw
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             indices = await asyncio.wait_for(
                 loop.run_in_executor(None, get_market_indices_raw), timeout=25.0
             )
             _MARKET_CACHE["indices"] = indices
         except Exception as e:
             logger.error(f"[market/indices] 紧急抓取失败: {e}")
-            raise HTTPException(status_code=502, detail=f"大盘指数获取失败: {str(e)}")
+            raise HTTPException(status_code=502, detail="大盘指数获取失败，请稍后重试")
 
     return {
         "indices":   _MARKET_CACHE["indices"],
@@ -1724,14 +1763,14 @@ async def get_market_news(limit: int = 20):
         logger.info("[market/news] 缓存未就绪，触发紧急抓取")
         try:
             from tools.market_data import get_market_news_raw
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             news = await asyncio.wait_for(
                 loop.run_in_executor(None, get_market_news_raw, 20), timeout=15.0
             )
             _MARKET_CACHE["news"] = news
         except Exception as e:
             logger.error(f"[market/news] 紧急抓取失败: {e}")
-            raise HTTPException(status_code=502, detail=f"快讯获取失败: {str(e)}")
+            raise HTTPException(status_code=502, detail="快讯获取失败，请稍后重试")
 
     news = [n for n in _MARKET_CACHE["news"] if n.get("title", "").strip()][:limit]
     return {
@@ -1755,14 +1794,14 @@ async def get_market_sectors():
         logger.info("[market/sectors] 缓存未就绪，触发紧急抓取")
         try:
             from tools.market_data import get_sector_data_raw
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             sectors = await asyncio.wait_for(
                 loop.run_in_executor(None, get_sector_data_raw), timeout=12.0
             )
             _MARKET_CACHE["sectors"] = sectors
         except Exception as e:
             logger.error(f"[market/sectors] 紧急抓取失败: {e}")
-            raise HTTPException(status_code=502, detail=f"板块数据获取失败: {str(e)}")
+            raise HTTPException(status_code=502, detail="板块数据获取失败，请稍后重试")
 
     return {
         "sectors":   _MARKET_CACHE["sectors"],
@@ -1783,14 +1822,14 @@ async def get_market_sentiment():
         logger.info("[market/sentiment] 缓存未就绪，触发紧急抓取")
         try:
             from tools.market_data import get_market_sentiment_raw
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             sentiment = await asyncio.wait_for(
                 loop.run_in_executor(None, get_market_sentiment_raw), timeout=20.0
             )
             _MARKET_CACHE["sentiment"] = sentiment
         except Exception as e:
             logger.error(f"[market/sentiment] 紧急抓取失败: {e}")
-            raise HTTPException(status_code=502, detail=f"市场情绪数据获取失败: {str(e)}")
+            raise HTTPException(status_code=502, detail="市场情绪数据获取失败，请稍后重试")
 
     return {
         **_MARKET_CACHE["sentiment"],
@@ -2050,7 +2089,7 @@ async def get_trade_account(
 
     # ── 异步富化（添加实时行情） ─────────────────────────────
     async def _enrich(pos: dict) -> dict:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             spot = await loop.run_in_executor(None, get_spot_price_raw, pos["symbol"])
         except Exception:
@@ -2151,7 +2190,7 @@ async def get_positions(
         raw_positions = snap["positions"]
 
     async def _enrich(pos: dict) -> dict:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             spot = await loop.run_in_executor(None, get_spot_price_raw, pos["symbol"])
         except Exception:
@@ -2202,14 +2241,14 @@ async def get_kline(
 
     try:
         from tools.market_data import get_kline_data_raw
-        loop  = asyncio.get_event_loop()
+        loop  = asyncio.get_running_loop()
         kline = await loop.run_in_executor(
             None,
             lambda: get_kline_data_raw(symbol, period=period, count=min(count, 1000))
         )
     except Exception as e:
         logger.error(f"[market/kline] {symbol} 获取失败: {e}")
-        raise HTTPException(status_code=502, detail=f"K 线数据获取失败: {str(e)}")
+        raise HTTPException(status_code=502, detail="K 线数据获取失败，请稍后重试")
 
     if not kline:
         raise HTTPException(status_code=404, detail=f"未找到 {symbol} 的 K 线数据")
@@ -2343,7 +2382,7 @@ async def get_hot_news(force: bool = False):
     """
     try:
         from tools.hot_news import get_hot_news as _get_hot_news
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         data = await loop.run_in_executor(None, lambda: _get_hot_news(force_refresh=force))
     except Exception as e:
         logger.error(f"[market/hotnews] 获取失败，降级到 Mock: {e}")
@@ -2389,8 +2428,10 @@ async def get_dashboard_summary(
 
     flash_news = []
     try:
-        loop       = asyncio.get_event_loop()
-        flash_news = await loop.run_in_executor(None, get_market_news_raw, 5)
+        loop       = asyncio.get_running_loop()
+        raw_news   = await loop.run_in_executor(None, get_market_news_raw, 8)
+        # 过滤空标题
+        flash_news = [n for n in (raw_news or []) if n.get("title", "").strip()][:5]
     except Exception as e:
         logger.warning(f"[dashboard/summary] 快讯获取失败: {e}")
 
@@ -2449,7 +2490,7 @@ async def chat_mentor(req: MentorChatRequest):
 
         from graph.nodes import _build_llm
         llm = _build_llm(temperature=0.7)
-        resp = await asyncio.get_event_loop().run_in_executor(None, llm.invoke, messages)
+        resp = await asyncio.get_running_loop().run_in_executor(None, llm.invoke, messages)
         reply = resp.content if hasattr(resp, "content") else str(resp)
         return {"reply": reply}
 
@@ -2469,7 +2510,12 @@ TRUE_PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
 if not os.path.exists(os.path.join(TRUE_PROJECT_ROOT, "auth.html")):
     logger.warning(f"Static root may be invalid: {TRUE_PROJECT_ROOT}")
 
-app.mount("/", StaticFiles(directory=TRUE_PROJECT_ROOT, html=True), name="static")
+# 静态文件挂载在最后，不会覆盖 /docs /redoc /api 等已注册路由
+# 注意：FastAPI 路由优先于 mount，但 html=True 的 "/" mount 会拦截 /docs
+# 解决方案：Nginx 负责静态文件，此处仅用于本地开发
+import os as _os
+if _os.getenv("SERVE_STATIC", "true").lower() in ("true", "1", "yes"):
+    app.mount("/", StaticFiles(directory=TRUE_PROJECT_ROOT, html=True), name="static")
 
 
 if __name__ == "__main__":
