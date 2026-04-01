@@ -883,7 +883,7 @@ def get_market_indices_raw() -> list[dict[str, Any]]:
     else:
         try:
             cn_df = _akshare_with_retry(lambda: ak.stock_zh_index_spot_em(symbol="沪深重要指数"))
-            for code, name in [("000001", "上证指数"), ("399001", "深证成指"), ("399006", "创业板指")]:
+            for code, name in [("000001", "上证指数"), ("399001", "深证成指"), ("399006", "创业板指"), ("000300", "沪深300"), ("899050", "北证50"), ("000688", "科创50")]:
                 item = _index_from_cn_table(cn_df, code, name)
                 if item:
                     results.append(item)
@@ -891,7 +891,7 @@ def get_market_indices_raw() -> list[dict[str, Any]]:
             logger.warning(f"[market_data] A 股指数获取失败: {exc}")
             try:
                 cn_df = _akshare_with_retry(ak.stock_zh_index_spot_sina)
-                for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sz399006", "创业板指")]:
+                for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sz399006", "创业板指"), ("sh000300", "沪深300"), ("bj899050", "北证50"), ("sh000688", "科创50")]:
                     row = cn_df[cn_df["代码"].astype(str) == code]
                     if row.empty:
                         continue
@@ -910,10 +910,28 @@ def get_market_indices_raw() -> list[dict[str, Any]]:
             except Exception as sina_exc:
                 logger.warning(f"[market_data] A 股指数新浪回退失败: {sina_exc}")
 
-    # 全球指数：优先 relay，回退 yfinance（香港服务器可直连）
+    # 全球指数 + 商品 + 汇率 + 债券（yfinance，香港服务器直连）
     global_indices = [
+        # 港股
         ("^HSI", "恒生指数"), ("HSTECH.HK", "恒生科技"),
+        # 美股
         ("^GSPC", "标普500"), ("^IXIC", "纳斯达克"), ("^DJI", "道琼斯"),
+        # 亚太
+        ("^N225", "日经225"), ("^KS11", "韩国KOSPI"), ("^TWII", "台湾加权"),
+        # 欧洲
+        ("^GDAXI", "德国DAX"), ("^FTSE", "富时100"),
+        # 第二屏
+        ("^FCHI", "法国CAC40"), ("^BSESN", "印度SENSEX"),
+        # 商品
+        ("GC=F", "黄金"), ("SI=F", "白银"),
+        ("CL=F", "WTI原油"), ("BZ=F", "布伦特原油"),
+        ("NG=F", "天然气"), ("HG=F", "铜"),
+        # 汇率
+        ("CNY=X", "美元/人民币"), ("EURUSD=X", "欧元/美元"),
+        ("JPY=X", "美元/日元"), ("GBPUSD=X", "英镑/美元"),
+        ("DX-Y.NYB", "美元指数"),
+        # 债券 & 波动率
+        ("^TNX", "美10年国债"), ("^IRX", "美2年国债"), ("^VIX", "VIX恐慌"),
     ]
     for symbol, name in global_indices:
         try:
