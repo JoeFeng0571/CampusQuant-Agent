@@ -398,10 +398,33 @@ def _fetch_thepaper() -> list[dict]:
         return []
 
 
+def _fetch_eastmoney_relay() -> list[dict]:
+    """东方财富财经要闻 Top 3"""
+    try:
+        resp = requests.get(
+            "https://np-listapi.eastmoney.com/comm/web/getNewsByColumns?client=web&biz=web_news_col&column=316&order=1&needInteractData=0&page_index=1&page_size=5",
+            headers=_HEADERS, timeout=8,
+        )
+        data = resp.json()
+        items = data.get("data", {}).get("list", [])[:3]
+        results = []
+        for i, item in enumerate(items, start=1):
+            title = (item.get("title") or "")[:200]
+            url = item.get("url") or "https://finance.eastmoney.com/"
+            pub_time = item.get("showtime") or ""
+            if title:
+                results.append({"title": title, "url": url, "rank": i, "time": pub_time})
+        return results
+    except Exception as e:
+        logger.warning(f"东方财富抓取失败: {e}")
+        return []
+
+
 _NEWS_FETCHERS = {
     "cailian": (_fetch_cailian, {"label": "财联社", "color": "#e74c3c", "icon": "news"}),
     "sina_live": (_fetch_sina_live, {"label": "新浪财经", "color": "#e8312f", "icon": "bolt"}),
     "thepaper": (_fetch_thepaper, {"label": "澎湃新闻", "color": "#2ecc71", "icon": "pin"}),
+    "eastmoney": (_fetch_eastmoney_relay, {"label": "东方财富", "color": "#1e90ff", "icon": "money"}),
 }
 
 

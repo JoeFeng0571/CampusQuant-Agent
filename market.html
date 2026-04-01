@@ -88,7 +88,7 @@
         .sidebar-link:hover { background:rgba(79,172,254,0.1); border-color:rgba(79,172,254,0.3); color:var(--primary); }
         .sidebar-link.featured { background:linear-gradient(135deg,rgba(79,172,254,0.15),rgba(0,242,254,0.05)); border-color:rgba(79,172,254,0.4); color:var(--secondary); }
 
-        /* ══ 指数滚动屏 ══ */
+        /* ══ 指数滚动屏（逐行向上循环）══ */
         .ticker-wrap {
             margin-top:var(--header-h);
             height:var(--ticker-h);
@@ -99,13 +99,12 @@
             position:relative;
         }
         .ticker-slider {
-            transition:transform 0.6s ease;
+            transition:transform 0.5s ease;
         }
-        .ticker-page {
+        .ticker-row {
             display:grid;
             grid-template-columns:repeat(8, 1fr);
-            grid-template-rows:1fr 1fr;
-            height:var(--ticker-h);
+            height:calc(var(--ticker-h) / 2);
         }
         .ticker-item {
             display:flex; align-items:center; justify-content:center; gap:6px;
@@ -431,52 +430,66 @@
     let currentTab = 'a';
     const _quoteCache = {};
 
-    // ── 指数滚动屏（2 页 x 16 = 32 个，每 5 秒切换）────────
-    let _tickerPage = 0;
+    // ── 指数滚动屏（逐行向上循环，每 5 秒滚 1 行）────────
+    let _tickerRow = 0;
+    let _tickerTotalRows = 0;
     let _tickerInterval = null;
+    const _ROW_H = 38; // ticker-h/2 = 76/2 = 38px
+
+    function _renderTickerItem(idx) {
+        const pct = idx.change_pct || 0;
+        const dir = pct > 0 ? 'up' : (pct < 0 ? 'down' : 'flat');
+        const sign = pct > 0 ? '+' : '';
+        const price = idx.price > 0 ? Number(idx.price).toLocaleString('zh-CN',{maximumFractionDigits:2}) : '--';
+        const pctStr = idx.name === '--' ? '' : `${sign}${Number(pct).toFixed(2)}%`;
+        return `<div class="ticker-item">
+            <span class="ticker-name">${idx.name}</span>
+            <span class="ticker-price">${price}</span>
+            <span class="ticker-pct ${dir}">${pctStr}</span>
+        </div>`;
+    }
 
     function renderTicker(indices) {
         const slider = document.getElementById('ticker-slider');
         if (!indices || !indices.length) {
-            slider.innerHTML = '<div class="ticker-page"><div class="ticker-item"><span class="ticker-name">加载中...</span></div></div>';
+            slider.innerHTML = '<div class="ticker-row"><div class="ticker-item"><span class="ticker-name">加载中...</span></div></div>';
             return;
         }
 
-        // 分页：每页 16 个（8列 x 2行）
-        const pageSize = 16;
-        const pages = [];
-        for (let i = 0; i < indices.length; i += pageSize) {
-            pages.push(indices.slice(i, i + pageSize));
+        // 补齐到 32 的倍数（每行 8 个）
+        while (indices.length < 32) indices.push({name:'--', price:0, change_pct:0});
+
+        // 分行：每行 8 个
+        const rows = [];
+        for (let i = 0; i < indices.length; i += 8) {
+            rows.push(indices.slice(i, i + 8));
         }
+        _tickerTotalRows = rows.length;
 
-        slider.innerHTML = pages.map((page, pi) => {
-            // 补齐到 16 个
-            while (page.length < pageSize) page.push({name:'--', price:0, change_pct:0});
-            return `<div class="ticker-page" id="ticker-page-${pi}">${
-                page.map(idx => {
-                    const pct = idx.change_pct || 0;
-                    const dir = pct > 0 ? 'up' : (pct < 0 ? 'down' : 'flat');
-                    const sign = pct > 0 ? '+' : '';
-                    const price = idx.price > 0 ? Number(idx.price).toLocaleString('zh-CN',{maximumFractionDigits:2}) : '--';
-                    const pctStr = idx.name === '--' ? '' : `${sign}${Number(pct).toFixed(2)}%`;
-                    return `<div class="ticker-item">
-                        <span class="ticker-name">${idx.name}</span>
-                        <span class="ticker-price">${price}</span>
-                        <span class="ticker-pct ${dir}">${pctStr}</span>
-                    </div>`;
-                }).join('')
-            }</div>`;
-        }).join('');
+        // 渲染所有行 + 复制前 2 行到末尾（循环衔接）
+        const allRows = [...rows, ...rows.slice(0, 2)];
+        slider.innerHTML = allRows.map(row =>
+            `<div class="ticker-row">${row.map(_renderTickerItem).join('')}</div>`
+        ).join('');
 
-        // 自动滚动
+        // 自动滚动：每 5 秒向上 1 行
         if (_tickerInterval) clearInterval(_tickerInterval);
-        if (pages.length > 1) {
-            _tickerPage = 0;
-            _tickerInterval = setInterval(() => {
-                _tickerPage = (_tickerPage + 1) % pages.length;
-                slider.style.transform = `translateY(-${_tickerPage * 76}px)`;
-            }, 5000);
-        }
+        _tickerRow = 0;
+        slider.style.transform = 'translateY(0)';
+        _tickerInterval = setInterval(() => {
+            _tickerRow++;
+            slider.style.transition = 'transform 0.5s ease';
+            slider.style.transform = `translateY(-${_tickerRow * _ROW_H}px)`;
+
+            // 滚到复制区后瞬移回起点
+            if (_tickerRow >= _tickerTotalRows) {
+                setTimeout(() => {
+                    slider.style.transition = 'none';
+                    _tickerRow = 0;
+                    slider.style.transform = 'translateY(0)';
+                }, 550);
+            }
+        }, 5000);
     }
 
     async function fetchIndices() {
