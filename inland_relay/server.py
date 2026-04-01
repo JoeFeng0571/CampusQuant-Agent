@@ -398,33 +398,35 @@ def _fetch_thepaper() -> list[dict]:
         return []
 
 
-def _fetch_eastmoney_relay() -> list[dict]:
-    """东方财富财经要闻 Top 3"""
+def _fetch_jin10_relay() -> list[dict]:
+    """金十数据快讯 Top 3"""
     try:
         resp = requests.get(
-            "https://np-listapi.eastmoney.com/comm/web/getNewsByColumns?client=web&biz=web_news_col&column=316&order=1&needInteractData=0&page_index=1&page_size=5",
-            headers=_HEADERS, timeout=8,
+            "https://www.jin10.com/flash_newest.js",
+            headers={**_HEADERS, "Referer": "https://www.jin10.com/"},
+            timeout=8,
         )
-        data = resp.json()
-        items = data.get("data", {}).get("list", [])[:3]
+        text = resp.text.strip()
+        if text.startswith("var newest = "):
+            text = text[len("var newest = "):]
+        items = json.loads(text)
         results = []
-        for i, item in enumerate(items, start=1):
-            title = (item.get("title") or "")[:200]
-            url = item.get("url") or "https://finance.eastmoney.com/"
-            pub_time = item.get("showtime") or ""
-            if title:
-                results.append({"title": title, "url": url, "rank": i, "time": pub_time})
+        for item in items:
+            content = re.sub(r"<[^>]+>", "", (item.get("data", {}).get("content") or "")).strip()[:200]
+            pub_time = item.get("time", "")
+            if content and len(results) < 3:
+                results.append({"title": content, "url": "https://www.jin10.com/", "rank": len(results) + 1, "time": pub_time})
         return results
     except Exception as e:
-        logger.warning(f"东方财富抓取失败: {e}")
+        logger.warning(f"金十数据抓取失败: {e}")
         return []
 
 
 _NEWS_FETCHERS = {
+    "jin10": (_fetch_jin10_relay, {"label": "金十数据", "color": "#ff6600", "icon": "bell"}),
     "cailian": (_fetch_cailian, {"label": "财联社", "color": "#e74c3c", "icon": "news"}),
     "sina_live": (_fetch_sina_live, {"label": "新浪财经", "color": "#e8312f", "icon": "bolt"}),
     "thepaper": (_fetch_thepaper, {"label": "澎湃新闻", "color": "#2ecc71", "icon": "pin"}),
-    "eastmoney": (_fetch_eastmoney_relay, {"label": "东方财富", "color": "#1e90ff", "icon": "money"}),
 }
 
 
@@ -513,7 +515,7 @@ def _prewarm_cache() -> None:
         try:
             df = _akshare_with_retry(ak.stock_board_industry_summary_ths)
             result = []
-            for _, row in df.sort_values("涨跌幅", ascending=False).head(80).iterrows():
+            for _, row in df.sort_values("涨跌幅", ascending=False).head(44).iterrows():
                 result.append({
                     "name": _safe_str(row.get("板块")),
                     "sector": _safe_str(row.get("板块")),
@@ -755,7 +757,7 @@ def market_indices():
     results = []
 
     # 先试东财，再试新浪，取有效数据多的那个
-    _index_targets = [("000001", "上证指数"), ("399001", "深证成指"), ("399006", "创业板指"), ("000300", "沪深300"), ("899050", "北证50"), ("000688", "科创50")]
+    _index_targets = [("000001", "上证指数"), ("399001", "深证成指"), ("399006", "创业板指"), ("000300", "沪深300"), ("000905", "中证500"), ("000688", "科创50")]
 
     # 东财接口
     try:
@@ -782,7 +784,7 @@ def market_indices():
         existing_codes = {r["symbol"] for r in results}
         try:
             cn_df = _akshare_with_retry(ak.stock_zh_index_spot_sina)
-            for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sz399006", "创业板指"), ("sh000300", "沪深300"), ("bj899050", "北证50"), ("sh000688", "科创50")]:
+            for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sz399006", "创业板指"), ("sh000300", "沪深300"), ("sh000905", "中证500"), ("sh000688", "科创50")]:
                 pure_code = code[-6:]
                 if pure_code in existing_codes:
                     continue
@@ -980,7 +982,7 @@ def sector_data():
 
     result = []
     if source == "ths":
-        for _, row in df.sort_values("涨跌幅", ascending=False).head(80).iterrows():
+        for _, row in df.sort_values("涨跌幅", ascending=False).head(44).iterrows():
             result.append({
                 "name": _safe_str(row.get("板块")),
                 "sector": _safe_str(row.get("板块")),
@@ -990,7 +992,7 @@ def sector_data():
                 "down_count": int(_safe_float(row.get("下跌家数")) or 0),
             })
     else:
-        for _, row in df.sort_values("涨跌幅", ascending=False).head(80).iterrows():
+        for _, row in df.sort_values("涨跌幅", ascending=False).head(44).iterrows():
             result.append({
                 "name": _safe_str(row.get("板块名称")),
                 "sector": _safe_str(row.get("板块名称")),

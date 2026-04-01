@@ -141,42 +141,53 @@ def _fetch_thepaper() -> list[dict]:
 # 刷新与获取
 # ════════════════════════════════════════════════════════════════
 
-def _fetch_eastmoney() -> list[dict]:
-    """东方财富财经要闻 Top 3"""
+def _fetch_jin10() -> list[dict]:
+    """金十数据快讯 Top 3"""
+    import re as _re
     try:
         resp = requests.get(
-            "https://np-listapi.eastmoney.com/comm/web/getNewsByColumns?client=web&biz=web_news_col&column=316&order=1&needInteractData=0&page_index=1&page_size=5",
-            headers=_HEADERS, timeout=8,
+            "https://www.jin10.com/flash_newest.js",
+            headers={**_HEADERS, "Referer": "https://www.jin10.com/"},
+            timeout=8,
         )
-        data = resp.json()
-        items = data.get("data", {}).get("list", [])[:3]
+        # 格式: var newest = [{...}, ...]
+        text = resp.text.strip()
+        if text.startswith("var newest = "):
+            text = text[len("var newest = "):]
+        import json
+        items = json.loads(text)
         results = []
-        for i, item in enumerate(items, start=1):
-            title = (item.get("title") or "")[:200]
-            url = item.get("url") or "https://finance.eastmoney.com/"
-            pub_time = item.get("showtime") or ""
-            if title:
-                results.append({"title": title, "url": url, "rank": i, "time": pub_time})
+        for item in items:
+            content = (item.get("data", {}).get("content") or "").strip()
+            content = _re.sub(r"<[^>]+>", "", content).strip()[:200]
+            pub_time = item.get("time", "")
+            if content and len(results) < 3:
+                results.append({
+                    "title": content,
+                    "url": "https://www.jin10.com/",
+                    "rank": len(results) + 1,
+                    "time": pub_time,
+                })
         return results
     except Exception as e:
-        logger.warning(f"[hot_news] 东方财富抓取失败: {e}")
+        logger.warning(f"[hot_news] 金十数据抓取失败: {e}")
         return []
 
 
 _FETCHERS = {
+    "jin10":        _fetch_jin10,
     "cailian":      _fetch_cailian,
     "wallstreetcn": _fetch_wallstreetcn,
     "sina_live":    _fetch_sina_live,
     "thepaper":     _fetch_thepaper,
-    "eastmoney":    _fetch_eastmoney,
 }
 
 _SOURCE_META = {
+    "jin10":        {"label": "金十数据",   "color": "#ff6600", "icon": "🔔"},
     "cailian":      {"label": "财联社",    "color": "#e74c3c", "icon": "📰"},
     "wallstreetcn": {"label": "华尔街见闻", "color": "#f5a623", "icon": "📊"},
     "sina_live":    {"label": "新浪财经",   "color": "#e8312f", "icon": "⚡"},
     "thepaper":     {"label": "澎湃新闻",   "color": "#2ecc71", "icon": "📌"},
-    "eastmoney":    {"label": "东方财富",   "color": "#1e90ff", "icon": "💰"},
 }
 
 

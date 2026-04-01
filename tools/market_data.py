@@ -883,7 +883,7 @@ def get_market_indices_raw() -> list[dict[str, Any]]:
     else:
         try:
             cn_df = _akshare_with_retry(lambda: ak.stock_zh_index_spot_em(symbol="沪深重要指数"))
-            for code, name in [("000001", "上证指数"), ("399001", "深证成指"), ("399006", "创业板指"), ("000300", "沪深300"), ("899050", "北证50"), ("000688", "科创50")]:
+            for code, name in [("000001", "上证指数"), ("399001", "深证成指"), ("399006", "创业板指"), ("000300", "沪深300"), ("000905", "中证500"), ("000688", "科创50")]:
                 item = _index_from_cn_table(cn_df, code, name)
                 if item:
                     results.append(item)
@@ -891,7 +891,7 @@ def get_market_indices_raw() -> list[dict[str, Any]]:
             logger.warning(f"[market_data] A 股指数获取失败: {exc}")
             try:
                 cn_df = _akshare_with_retry(ak.stock_zh_index_spot_sina)
-                for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sz399006", "创业板指"), ("sh000300", "沪深300"), ("bj899050", "北证50"), ("sh000688", "科创50")]:
+                for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sz399006", "创业板指"), ("sh000300", "沪深300"), ("sh000905", "中证500"), ("sh000688", "科创50")]:
                     row = cn_df[cn_df["代码"].astype(str) == code]
                     if row.empty:
                         continue
