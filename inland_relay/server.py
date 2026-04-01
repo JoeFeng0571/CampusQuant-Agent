@@ -490,7 +490,7 @@ def _prewarm_cache() -> None:
         try:
             df = _akshare_with_retry(ak.stock_board_industry_summary_ths)
             result = []
-            for _, row in df.sort_values("涨跌幅", ascending=False).head(12).iterrows():
+            for _, row in df.sort_values("涨跌幅", ascending=False).head(50).iterrows():
                 result.append({
                     "name": _safe_str(row.get("板块")),
                     "sector": _safe_str(row.get("板块")),
@@ -732,7 +732,7 @@ def market_indices():
     results = []
 
     # 先试东财，再试新浪，取有效数据多的那个
-    _index_targets = [("000001", "上证指数"), ("399001", "深证成指"), ("399006", "创业板指"), ("000300", "沪深300")]
+    _index_targets = [("000001", "上证指数"), ("399001", "深证成指"), ("000300", "沪深300")]
 
     # 东财接口
     try:
@@ -759,7 +759,7 @@ def market_indices():
         existing_codes = {r["symbol"] for r in results}
         try:
             cn_df = _akshare_with_retry(ak.stock_zh_index_spot_sina)
-            for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sz399006", "创业板指"), ("sh000300", "沪深300")]:
+            for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sh000300", "沪深300")]:
                 pure_code = code[-6:]
                 if pure_code in existing_codes:
                     continue
@@ -781,7 +781,7 @@ def market_indices():
 
     # 只缓存有效结果（price > 0 的指数 >= 3 个才算有效）
     valid_count = sum(1 for r in results if r.get("price") and r["price"] > 0)
-    if results and valid_count >= 3:
+    if results and valid_count >= 2:
         _cache_set("overview", "cn_indices", results)
     elif results:
         # 部分有效，短 TTL 缓存（60s），等下次刷新拿到更完整数据
@@ -957,7 +957,7 @@ def sector_data():
 
     result = []
     if source == "ths":
-        for _, row in df.sort_values("涨跌幅", ascending=False).head(12).iterrows():
+        for _, row in df.sort_values("涨跌幅", ascending=False).head(50).iterrows():
             result.append({
                 "name": _safe_str(row.get("板块")),
                 "sector": _safe_str(row.get("板块")),
@@ -967,7 +967,7 @@ def sector_data():
                 "down_count": int(_safe_float(row.get("下跌家数")) or 0),
             })
     else:
-        for _, row in df.sort_values("涨跌幅", ascending=False).head(12).iterrows():
+        for _, row in df.sort_values("涨跌幅", ascending=False).head(50).iterrows():
             result.append({
                 "name": _safe_str(row.get("板块名称")),
                 "sector": _safe_str(row.get("板块名称")),

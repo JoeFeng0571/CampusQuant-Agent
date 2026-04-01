@@ -883,7 +883,7 @@ def get_market_indices_raw() -> list[dict[str, Any]]:
     else:
         try:
             cn_df = _akshare_with_retry(lambda: ak.stock_zh_index_spot_em(symbol="沪深重要指数"))
-            for code, name in [("000001", "上证指数"), ("399001", "深证成指"), ("399006", "创业板指"), ("000300", "沪深300")]:
+            for code, name in [("000001", "上证指数"), ("399001", "深证成指"), ("000300", "沪深300")]:
                 item = _index_from_cn_table(cn_df, code, name)
                 if item:
                     results.append(item)
@@ -891,7 +891,7 @@ def get_market_indices_raw() -> list[dict[str, Any]]:
             logger.warning(f"[market_data] A 股指数获取失败: {exc}")
             try:
                 cn_df = _akshare_with_retry(ak.stock_zh_index_spot_sina)
-                for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sz399006", "创业板指"), ("sh000300", "沪深300")]:
+                for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sh000300", "沪深300")]:
                     row = cn_df[cn_df["代码"].astype(str) == code]
                     if row.empty:
                         continue
@@ -910,17 +910,40 @@ def get_market_indices_raw() -> list[dict[str, Any]]:
             except Exception as sina_exc:
                 logger.warning(f"[market_data] A 股指数新浪回退失败: {sina_exc}")
 
-    for symbol, name in [("^HSI", "恒生指数"), ("^GSPC", "标普500"), ("^IXIC", "纳斯达克")]:
+    # 全球指数：优先 relay，回退 yfinance（香港服务器可直连）
+    global_indices = [
+        ("^HSI", "恒生指数"), ("^HSTECH", "恒生科技"),
+        ("^GSPC", "标普500"), ("^IXIC", "纳斯达克"), ("^DJI", "道琼斯"),
+    ]
+    for symbol, name in global_indices:
         try:
             results.append(_index_from_relay(symbol, name))
-        except Exception as exc:
-            logger.warning(f"[market_data] 全球指数获取失败 {symbol}: {exc}")
+        except Exception:
+            # relay 不可用时用 yfinance
+            try:
+                import yfinance as yf
+                ticker = yf.Ticker(symbol)
+                hist = ticker.history(period="2d")
+                if not hist.empty:
+                    latest_close = float(hist["Close"].iloc[-1])
+                    prev_close = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else latest_close
+                    change = round(latest_close - prev_close, 2)
+                    change_pct = round(change / prev_close * 100, 2) if prev_close else 0
+                    results.append({
+                        "symbol": symbol, "name": name,
+                        "price": round(latest_close, 2),
+                        "change": change, "change_pct": change_pct,
+                        "is_fallback": False, "source": "yfinance",
+                    })
+                else:
+                    raise ValueError("yfinance 无数据")
+            except Exception as yf_exc:
+                logger.warning(f"[market_data] 全球指数获取失败 {symbol}: {yf_exc}")
 
     if not results:
         results = [
             {"symbol": "000001", "name": "上证指数", "price": 0.0, "change": 0.0, "change_pct": 0.0, "is_fallback": True, "source": "fallback"},
             {"symbol": "399001", "name": "深证成指", "price": 0.0, "change": 0.0, "change_pct": 0.0, "is_fallback": True, "source": "fallback"},
-            {"symbol": "^IXIC", "name": "纳斯达克", "price": 0.0, "change": 0.0, "change_pct": 0.0, "is_fallback": True, "source": "fallback"},
         ]
 
     return _cache_set("overview", cache_key, results)
