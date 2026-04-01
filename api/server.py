@@ -870,11 +870,20 @@ async def health_check():
     """GET /api/v1/health — 健康检查"""
     from tools.knowledge_base import _ensemble_retriever
 
+    # KB 可用判定：本地 retriever 就绪 OR 内地 relay 可达
+    kb_ok = _ensemble_retriever is not None
+    if not kb_ok:
+        try:
+            from config import config
+            kb_ok = bool((config.INLAND_RELAY_BASE_URL or "").strip())
+        except Exception:
+            pass
+
     return HealthResponse(
         status      = "ok",
         version     = "2.0.0",
         graph_ready = _compiled_graph is not None,
-        kb_ready    = _ensemble_retriever is not None,
+        kb_ready    = kb_ok,
         timestamp   = datetime.now(timezone.utc).isoformat(),
     )
 
