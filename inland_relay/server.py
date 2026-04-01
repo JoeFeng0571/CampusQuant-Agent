@@ -732,7 +732,7 @@ def market_indices():
     results = []
 
     # 先试东财，再试新浪，取有效数据多的那个
-    _index_targets = [("000001", "上证指数"), ("399001", "深证成指"), ("000300", "沪深300")]
+    _index_targets = [("000001", "上证指数"), ("399001", "深证成指"), ("399006", "创业板指")]
 
     # 东财接口
     try:
@@ -759,7 +759,7 @@ def market_indices():
         existing_codes = {r["symbol"] for r in results}
         try:
             cn_df = _akshare_with_retry(ak.stock_zh_index_spot_sina)
-            for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sh000300", "沪深300")]:
+            for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sz399006", "创业板指")]:
                 pure_code = code[-6:]
                 if pure_code in existing_codes:
                     continue
