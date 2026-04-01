@@ -1147,9 +1147,11 @@ async def send_auth_code(request: SendCodeRequest, db=Depends(_get_db_dep)):
         raise HTTPException(status_code=500, detail="邮件服务未配置，请先完成 SMTP 配置")
 
     record = await get_email_verification_code(db, email, request.purpose)
-    now = datetime.utcnow()
-    if record and record.last_sent_at and (now - record.last_sent_at).total_seconds() < _CODE_COOLDOWN_SECONDS:
-        raise HTTPException(status_code=429, detail="验证码发送过于频繁，请稍后再试")
+    now = datetime.now(timezone.utc)
+    if record and record.last_sent_at:
+        last_sent = record.last_sent_at.replace(tzinfo=timezone.utc) if record.last_sent_at.tzinfo is None else record.last_sent_at
+        if (now - last_sent).total_seconds() < _CODE_COOLDOWN_SECONDS:
+            raise HTTPException(status_code=429, detail="验证码发送过于频繁，请稍后再试")
 
     code = _make_verification_code()
     await run_in_threadpool(send_verification_email, email, code, request.purpose)

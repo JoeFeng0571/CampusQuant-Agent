@@ -126,7 +126,9 @@ async def consume_email_verification_code(
         return False
     if record.consumed_at is not None:
         return False
-    if record.expires_at < now:
+    # expires_at 可能是 naive datetime（MySQL 存储无时区），统一比较
+    expires = record.expires_at.replace(tzinfo=timezone.utc) if record.expires_at.tzinfo is None else record.expires_at
+    if expires < now:
         return False
     if record.code != str(code).strip():
         return False
