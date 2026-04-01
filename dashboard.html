@@ -861,7 +861,7 @@ async function sendChat() {
 
     try {
         const tok = localStorage.getItem('cq_token');
-        const headers = { 'Content-Type':'application/json' };
+        const headers = { 'Content-Type':'application/json; charset=utf-8' };
         if (tok) headers['Authorization'] = 'Bearer ' + tok;
 
         const body = {

@@ -1247,7 +1247,7 @@
         try {
             const resp = await fetch(`${API_BASE}/api/v1/analyze`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+                headers: { 'Content-Type': 'application/json; charset=utf-8', 'Accept': 'text/event-stream' },
                 body: JSON.stringify({ symbol, days: 180 }),
             });
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
