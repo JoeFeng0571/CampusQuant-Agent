@@ -516,7 +516,7 @@ def _prewarm_cache() -> None:
         try:
             df = _akshare_with_retry(ak.stock_board_industry_summary_ths)
             result = []
-            for _, row in df.sort_values("涨跌幅", ascending=False).head(44).iterrows():
+            for _, row in df.sort_values("涨跌幅", ascending=False).head(48).iterrows():
                 result.append({
                     "name": _safe_str(row.get("板块")),
                     "sector": _safe_str(row.get("板块")),
@@ -983,7 +983,7 @@ def sector_data():
 
     result = []
     if source == "ths":
-        for _, row in df.sort_values("涨跌幅", ascending=False).head(44).iterrows():
+        for _, row in df.sort_values("涨跌幅", ascending=False).head(48).iterrows():
             result.append({
                 "name": _safe_str(row.get("板块")),
                 "sector": _safe_str(row.get("板块")),
@@ -993,7 +993,7 @@ def sector_data():
                 "down_count": int(_safe_float(row.get("下跌家数")) or 0),
             })
     else:
-        for _, row in df.sort_values("涨跌幅", ascending=False).head(44).iterrows():
+        for _, row in df.sort_values("涨跌幅", ascending=False).head(48).iterrows():
             result.append({
                 "name": _safe_str(row.get("板块名称")),
                 "sector": _safe_str(row.get("板块名称")),

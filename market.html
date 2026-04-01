@@ -272,10 +272,8 @@
         .news-rank.r1 { background:rgba(253,121,168,.2); color:var(--danger); }
         .news-rank.r2 { background:rgba(253,203,110,.15); color:var(--warn); }
         .news-rank.r3 { background:rgba(85,239,196,.12); color:var(--success); }
-        .news-text { flex:1; min-width:0; }
         .news-title { font-size:11px; color:#e2e8f0; line-height:1.4;
             overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
-        .news-time { font-size:9px; color:var(--text-dim); margin-top:2px; }
         .news-empty { padding:12px; text-align:center; color:var(--text-dim); font-size:11px; }
 
         .update-bar {
@@ -616,13 +614,9 @@
             const items = (src.items || []).slice(0, 3);
             const itemsHTML = items.length ? items.map((item, i) => {
                 const rk = i < 3 ? `r${i+1}` : '';
-                const timeStr = item.time ? `<div class="news-time">${item.time}</div>` : '';
                 return `<a href="${item.url||'#'}" target="_blank" rel="noopener" class="news-item">
                     <div class="news-rank ${rk}">${i+1}</div>
-                    <div class="news-text">
-                        <div class="news-title">${item.title}</div>
-                        ${timeStr}
-                    </div>
+                    <div class="news-title">${item.title}</div>
                 </a>`;
             }).join('') : '<div class="news-empty">暂无数据</div>';
             return `<div class="news-source-block">
