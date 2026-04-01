@@ -963,6 +963,14 @@ def get_market_indices_raw() -> list[dict[str, Any]]:
         except Exception as yf_exc:
             logger.warning(f"[market_data] 全球指数获取失败 {symbol}: {yf_exc}")
 
+    # 清洗 NaN（yfinance 偶尔返回 NaN，JSON 序列化会炸）
+    import math
+    for item in results:
+        for k in ("price", "change", "change_pct"):
+            v = item.get(k)
+            if v is not None and (isinstance(v, float) and (math.isnan(v) or math.isinf(v))):
+                item[k] = None
+
     if not results:
         results = [
             {"symbol": "000001", "name": "上证指数", "price": 0.0, "change": 0.0, "change_pct": 0.0, "is_fallback": True, "source": "fallback"},
