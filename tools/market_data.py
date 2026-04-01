@@ -933,30 +933,35 @@ def get_market_indices_raw() -> list[dict[str, Any]]:
         # 债券 & 波动率
         ("^TNX", "美10年国债"), ("^IRX", "美2年国债"), ("^VIX", "VIX恐慌"),
     ]
+    # MARKET_RELAY 已配置时走 relay，否则直接 yfinance
+    _has_market_relay = bool((config.MARKET_RELAY_BASE_URL or "").strip() and (config.MARKET_RELAY_TOKEN or "").strip())
     for symbol, name in global_indices:
-        try:
-            results.append(_index_from_relay(symbol, name))
-        except Exception:
-            # relay 不可用时用 yfinance
+        if _has_market_relay:
             try:
-                import yfinance as yf
-                ticker = yf.Ticker(symbol)
-                hist = ticker.history(period="2d")
-                if not hist.empty:
-                    latest_close = float(hist["Close"].iloc[-1])
-                    prev_close = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else latest_close
-                    change = round(latest_close - prev_close, 2)
-                    change_pct = round(change / prev_close * 100, 2) if prev_close else 0
-                    results.append({
-                        "symbol": symbol, "name": name,
-                        "price": round(latest_close, 2),
-                        "change": change, "change_pct": change_pct,
-                        "is_fallback": False, "source": "yfinance",
-                    })
-                else:
-                    raise ValueError("yfinance 无数据")
-            except Exception as yf_exc:
-                logger.warning(f"[market_data] 全球指数获取失败 {symbol}: {yf_exc}")
+                results.append(_index_from_relay(symbol, name))
+                continue
+            except Exception:
+                pass
+        # yfinance 兜底
+        try:
+            import yfinance as yf
+            ticker = yf.Ticker(symbol)
+            hist = ticker.history(period="2d")
+            if not hist.empty:
+                latest_close = float(hist["Close"].iloc[-1])
+                prev_close = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else latest_close
+                change = round(latest_close - prev_close, 2)
+                change_pct = round(change / prev_close * 100, 2) if prev_close else 0
+                results.append({
+                    "symbol": symbol, "name": name,
+                    "price": round(latest_close, 2),
+                    "change": change, "change_pct": change_pct,
+                    "is_fallback": False, "source": "yfinance",
+                })
+            else:
+                raise ValueError("yfinance 无数据")
+        except Exception as yf_exc:
+            logger.warning(f"[market_data] 全球指数获取失败 {symbol}: {yf_exc}")
 
     if not results:
         results = [
