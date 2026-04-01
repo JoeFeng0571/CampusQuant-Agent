@@ -249,31 +249,41 @@
         .news-panel { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:6px; }
         .news-source-block {
             background:var(--card); border:1px solid var(--border);
-            border-radius:8px; overflow:hidden; padding-bottom:4px;
+            border-radius:8px;
+            display:flex; flex-direction:column;
         }
         .news-source-header {
             padding:6px 10px; display:flex; align-items:center; gap:6px;
             border-bottom:1px solid rgba(255,255,255,0.04);
             font-size:12px; font-weight:700;
+            flex-shrink:0;
+        }
+        .news-items-list {
+            display:flex; flex-direction:column;
+            padding:2px 0 4px;
         }
         .news-item {
             display:flex; gap:6px; padding:6px 10px; align-items:flex-start;
             border-bottom:1px solid rgba(255,255,255,0.03);
             text-decoration:none; transition:background .15s;
+            margin-bottom:2px;
         }
-        .news-item:last-child { border-bottom:none; }
+        .news-item:last-child { border-bottom:none; margin-bottom:0; }
         .news-item:hover { background:rgba(255,255,255,.03); }
         .news-rank {
             width:16px; height:16px; border-radius:4px; flex-shrink:0;
             display:flex; align-items:center; justify-content:center;
             font-size:9px; font-weight:800; background:rgba(79,172,254,.12); color:var(--primary);
-            margin-top:2px;
+            margin-top:1px;
         }
         .news-rank.r1 { background:rgba(253,121,168,.2); color:var(--danger); }
         .news-rank.r2 { background:rgba(253,203,110,.15); color:var(--warn); }
         .news-rank.r3 { background:rgba(85,239,196,.12); color:var(--success); }
-        .news-title { font-size:11px; color:#e2e8f0; line-height:1.4;
-            overflow:hidden; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; }
+        .news-title {
+            font-size:0.85rem; color:#e2e8f0; line-height:1.5;
+            display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+            overflow:hidden; text-overflow:ellipsis;
+        }
         .news-empty { padding:12px; text-align:center; color:var(--text-dim); font-size:11px; }
 
         .update-bar {
@@ -623,7 +633,7 @@
                 <div class="news-source-header" style="border-left:3px solid ${src.color||'var(--primary)'}">
                     <span style="color:${src.color||'#fff'}">${src.label||src.source}</span>
                 </div>
-                ${itemsHTML}
+                <div class="news-items-list">${itemsHTML}</div>
             </div>`;
         }).join('');
     }
