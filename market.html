@@ -824,7 +824,10 @@
 
     async function fetchSectors() {
         try {
-            const resp = await fetch(`${API_BASE}/market/sectors`);
+            const ctrl = new AbortController();
+            const tid = setTimeout(() => ctrl.abort(), 10000);
+            const resp = await fetch(`${API_BASE}/market/sectors`, {signal: ctrl.signal});
+            clearTimeout(tid);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
             renderSectors(data.sectors || []);
