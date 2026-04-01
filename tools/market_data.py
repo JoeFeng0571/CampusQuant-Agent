@@ -912,7 +912,7 @@ def get_market_indices_raw() -> list[dict[str, Any]]:
 
     # 全球指数：优先 relay，回退 yfinance（香港服务器可直连）
     global_indices = [
-        ("^HSI", "恒生指数"), ("^HSTECH", "恒生科技"),
+        ("^HSI", "恒生指数"), ("HSTECH.HK", "恒生科技"),
         ("^GSPC", "标普500"), ("^IXIC", "纳斯达克"), ("^DJI", "道琼斯"),
     ]
     for symbol, name in global_indices:
