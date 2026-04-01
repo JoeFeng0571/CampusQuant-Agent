@@ -53,6 +53,9 @@ DASHSCOPE_EMBEDDING_MODEL = os.getenv("DASHSCOPE_EMBEDDING_MODEL", "text-embeddi
 _CACHE: dict[str, tuple[float, Any]] = {}
 _TTL = {"spot": 3600, "kline": 3600, "fundamental": 3600, "news": 900, "overview": 3600}
 
+# 持久化缓存文件（重启后恢复上一交易日数据）
+_PERSIST_FILE = Path(__file__).parent / "data" / "cache_persist.json"
+
 
 def _cache_get(ns: str, key: str) -> Any:
     item = _CACHE.get(f"{ns}:{key}")
@@ -66,7 +69,42 @@ def _cache_get(ns: str, key: str) -> Any:
 
 def _cache_set(ns: str, key: str, value: Any, ttl: int | None = None) -> Any:
     _CACHE[f"{ns}:{key}"] = (time.time() + (ttl or _TTL.get(ns, 300)), value)
+    # 关键数据持久化到磁盘（指数/情绪/板块/观察股行情）
+    if ns in ("overview", "spot") and value:
+        _persist_save()
     return value
+
+
+def _persist_save():
+    """将关键缓存写入磁盘 JSON（非交易时段重启后可恢复）"""
+    try:
+        persist = {}
+        for k, (expire_at, v) in _CACHE.items():
+            # 只持久化 overview 和 spot 数据
+            if k.startswith("overview:") or k.startswith("spot:"):
+                persist[k] = {"data": v, "saved_at": time.time()}
+        _PERSIST_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _PERSIST_FILE.write_text(json.dumps(persist, ensure_ascii=False, default=str), encoding="utf-8")
+    except Exception as e:
+        logger.debug(f"持久化缓存写入失败（非致命）: {e}")
+
+
+def _persist_load():
+    """启动时从磁盘恢复缓存（TTL 设为 24 小时，确保盘前有数据）"""
+    if not _PERSIST_FILE.exists():
+        return
+    try:
+        raw = json.loads(_PERSIST_FILE.read_text(encoding="utf-8"))
+        restored = 0
+        for k, v in raw.items():
+            data = v.get("data")
+            if data is not None:
+                # 恢复数据，TTL 设为 24 小时（足够撑到下一交易日）
+                _CACHE[k] = (time.time() + 86400, data)
+                restored += 1
+        logger.info(f"从磁盘恢复缓存: {restored} 条数据")
+    except Exception as e:
+        logger.warning(f"持久化缓存恢复失败: {e}")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -477,6 +515,7 @@ def _prewarm_cache() -> None:
 async def lifespan(app: FastAPI):
     logger.info("内地 Relay 服务启动，初始化 RAG 索引...")
     _init_rag()
+    _persist_load()
     _prewarm_cache()
     yield
     logger.info("内地 Relay 服务关闭")
