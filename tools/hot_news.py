@@ -176,7 +176,7 @@ def _fetch_jin10() -> list[dict]:
 
 
 _FETCHERS = {
-    "jin10":        _fetch_jin10,
+    # jin10 只走内地 relay（香港服务器访问 jin10.com 不通），不在本地抓
     "cailian":      _fetch_cailian,
     "wallstreetcn": _fetch_wallstreetcn,
     "sina_live":    _fetch_sina_live,
@@ -291,6 +291,19 @@ def get_hot_news(force_refresh: bool = False) -> list[dict]:
                 _cache_ts = time.time()
         else:
             _do_refresh()
+
+    # 如果 jin10 为空（香港本地抓不了），尝试从 relay 补充
+    if not _cache_data.get("jin10"):
+        try:
+            inland = _try_inland_relay_hot_news()
+            if inland:
+                for item in inland:
+                    if item.get("source") == "jin10" and item.get("items"):
+                        with _cache_lock:
+                            _cache_data["jin10"] = item["items"]
+                        break
+        except Exception:
+            pass
 
     with _cache_lock:
         result = []
