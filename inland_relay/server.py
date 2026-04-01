@@ -483,29 +483,26 @@ def _prewarm_cache() -> None:
         logger.info("预热缓存完成")
 
     def _try_prewarm_sectors():
-        """板块数据后台重试，成功后缓存"""
-        for attempt in range(10):
-            cached = _cache_get("overview", "sectors")
-            if cached:
-                return
-            try:
-                df = _akshare_with_retry(ak.stock_board_industry_name_em, retries=2, delay=3.0)
-                result = []
-                for _, row in df.sort_values("涨跌幅", ascending=False).head(12).iterrows():
-                    result.append({
-                        "name": _safe_str(row.get("板块名称")),
-                        "sector": _safe_str(row.get("板块名称")),
-                        "change_pct": float(_safe_float(row.get("涨跌幅")) or 0.0),
-                        "leader": _safe_str(row.get("领涨股票")),
-                        "up_count": int(_safe_float(row.get("上涨家数")) or 0),
-                        "down_count": int(_safe_float(row.get("下跌家数")) or 0),
-                    })
-                _cache_set("overview", "sectors", result)
-                logger.info(f"预热: 板块数据 OK (第 {attempt+1} 次)")
-                return
-            except Exception as e:
-                logger.warning(f"预热: 板块数据第 {attempt+1} 次失败: {e}")
-                time.sleep(120)  # 每 2 分钟重试一次
+        """板块数据预热：优先同花顺，回退东财"""
+        cached = _cache_get("overview", "sectors")
+        if cached:
+            return
+        try:
+            df = _akshare_with_retry(ak.stock_board_industry_summary_ths)
+            result = []
+            for _, row in df.sort_values("涨跌幅", ascending=False).head(12).iterrows():
+                result.append({
+                    "name": _safe_str(row.get("板块")),
+                    "sector": _safe_str(row.get("板块")),
+                    "change_pct": float(_safe_float(row.get("涨跌幅")) or 0.0),
+                    "leader": _safe_str(row.get("领涨股")),
+                    "up_count": int(_safe_float(row.get("上涨家数")) or 0),
+                    "down_count": int(_safe_float(row.get("下跌家数")) or 0),
+                })
+            _cache_set("overview", "sectors", result)
+            logger.info(f"预热: 板块数据(同花顺) OK, {len(result)} 条")
+        except Exception as e:
+            logger.warning(f"预热: 板块数据失败: {e}")
 
     t = threading.Thread(target=_do_prewarm, daemon=True, name="prewarm")
     t.start()
@@ -940,24 +937,45 @@ def sector_data():
     cached = _cache_get("overview", "sectors")
     if cached is not None:
         return {"status": "success", "data": cached}
+
+    # 优先同花顺（不被东财限流），回退东财
+    df = None
+    source = "ths"
     try:
-        df = _akshare_with_retry(ak.stock_board_industry_name_em)
-    except Exception:
+        df = _akshare_with_retry(ak.stock_board_industry_summary_ths)
+    except Exception as e1:
+        logger.warning(f"板块(同花顺)失败: {e1}")
         try:
-            df = _akshare_with_retry(ak.stock_board_concept_name_em)
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=str(e))
+            df = _akshare_with_retry(ak.stock_board_industry_name_em)
+            source = "em"
+        except Exception as e2:
+            logger.warning(f"板块(东财)失败: {e2}")
+            raise HTTPException(status_code=502, detail=str(e2))
+
+    if df is None or df.empty:
+        raise HTTPException(status_code=502, detail="板块数据为空")
 
     result = []
-    for _, row in df.sort_values("涨跌幅", ascending=False).head(12).iterrows():
-        result.append({
-            "name": _safe_str(row.get("板块名称")),
-            "sector": _safe_str(row.get("板块名称")),
-            "change_pct": float(_safe_float(row.get("涨跌幅")) or 0.0),
-            "leader": _safe_str(row.get("领涨股票")),
-            "up_count": int(_safe_float(row.get("上涨家数")) or 0),
-            "down_count": int(_safe_float(row.get("下跌家数")) or 0),
-        })
+    if source == "ths":
+        for _, row in df.sort_values("涨跌幅", ascending=False).head(12).iterrows():
+            result.append({
+                "name": _safe_str(row.get("板块")),
+                "sector": _safe_str(row.get("板块")),
+                "change_pct": float(_safe_float(row.get("涨跌幅")) or 0.0),
+                "leader": _safe_str(row.get("领涨股")),
+                "up_count": int(_safe_float(row.get("上涨家数")) or 0),
+                "down_count": int(_safe_float(row.get("下跌家数")) or 0),
+            })
+    else:
+        for _, row in df.sort_values("涨跌幅", ascending=False).head(12).iterrows():
+            result.append({
+                "name": _safe_str(row.get("板块名称")),
+                "sector": _safe_str(row.get("板块名称")),
+                "change_pct": float(_safe_float(row.get("涨跌幅")) or 0.0),
+                "leader": _safe_str(row.get("领涨股票")),
+                "up_count": int(_safe_float(row.get("上涨家数")) or 0),
+                "down_count": int(_safe_float(row.get("下跌家数")) or 0),
+            })
     _cache_set("overview", "sectors", result)
     return {"status": "success", "data": result}
 
