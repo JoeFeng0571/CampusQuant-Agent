@@ -733,42 +733,62 @@ def market_indices():
         return {"status": "success", "data": cached}
 
     results = []
+
+    # 先试东财，再试新浪，取有效数据多的那个
+    _index_targets = [("000001", "上证指数"), ("399001", "深证成指"), ("399006", "创业板指"), ("000300", "沪深300")]
+
+    # 东财接口
     try:
         cn_df = _akshare_with_retry(lambda: ak.stock_zh_index_spot_em(symbol="沪深重要指数"))
-        for code, name in [("000001", "上证指数"), ("399001", "深证成指"), ("399006", "创业板指"), ("000300", "沪深300")]:
+        for code, name in _index_targets:
             row = cn_df[cn_df["代码"].astype(str) == code]
             if row.empty:
                 continue
             item = row.iloc[0]
-            results.append({
-                "symbol": code, "name": name,
-                "price": _safe_float(item.get("最新价")),
-                "change": _safe_float(item.get("涨跌额")),
-                "change_pct": _safe_float(item.get("涨跌幅")),
-                "source": "akshare",
-            })
-    except Exception as exc:
-        logger.warning(f"A 股指数获取失败: {exc}")
-        try:
-            cn_df = _akshare_with_retry(ak.stock_zh_index_spot_sina)
-            for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sz399006", "创业板指"), ("sh000300", "沪深300")]:
-                row = cn_df[cn_df["代码"].astype(str) == code]
-                if row.empty:
-                    continue
-                item = row.iloc[0]
+            price = _safe_float(item.get("最新价"))
+            if price and price > 0:
                 results.append({
-                    "symbol": code[-6:], "name": name,
-                    "price": _safe_float(item.get("最新价")),
+                    "symbol": code, "name": name,
+                    "price": price,
                     "change": _safe_float(item.get("涨跌额")),
                     "change_pct": _safe_float(item.get("涨跌幅")),
                     "source": "akshare",
                 })
-        except Exception as sina_exc:
-            logger.warning(f"A 股指数新浪回退失败: {sina_exc}")
+    except Exception as exc:
+        logger.warning(f"A 股指数(东财)获取失败: {exc}")
 
-    # 只缓存非空结果，避免空结果被缓存导致后续请求也拿不到数据
-    if results:
+    # 如果东财数据不全（<4 个有效指数），用新浪补充
+    if len(results) < 4:
+        existing_codes = {r["symbol"] for r in results}
+        try:
+            cn_df = _akshare_with_retry(ak.stock_zh_index_spot_sina)
+            for code, name in [("sh000001", "上证指数"), ("sz399001", "深证成指"), ("sz399006", "创业板指"), ("sh000300", "沪深300")]:
+                pure_code = code[-6:]
+                if pure_code in existing_codes:
+                    continue
+                row = cn_df[cn_df["代码"].astype(str) == code]
+                if row.empty:
+                    continue
+                item = row.iloc[0]
+                price = _safe_float(item.get("最新价"))
+                if price and price > 0:
+                    results.append({
+                        "symbol": pure_code, "name": name,
+                        "price": price,
+                        "change": _safe_float(item.get("涨跌额")),
+                        "change_pct": _safe_float(item.get("涨跌幅")),
+                        "source": "akshare_sina",
+                    })
+        except Exception as sina_exc:
+            logger.warning(f"A 股指数(新浪)补充失败: {sina_exc}")
+
+    # 只缓存有效结果（price > 0 的指数 >= 3 个才算有效）
+    valid_count = sum(1 for r in results if r.get("price") and r["price"] > 0)
+    if results and valid_count >= 3:
         _cache_set("overview", "cn_indices", results)
+    elif results:
+        # 部分有效，短 TTL 缓存（60s），等下次刷新拿到更完整数据
+        _cache_set("overview", "cn_indices", results, ttl=60)
     return {"status": "success", "data": results}
 
 
@@ -992,7 +1012,9 @@ def market_sentiment():
         "limit_up": limit_up, "limit_down": limit_down,
         "volume": volume, "north_flow": north_flow, "north_flow_raw": north_flow_raw,
     }
-    _cache_set("overview", "sentiment", result)
+    # 如果涨停/跌停/成交额全是 0 或 "--"，可能是盘前空数据，用短 TTL 避免长期缓存
+    is_empty = (limit_up in ("0", "--")) and (limit_down in ("0", "--")) and (volume in ("0.00亿", "--"))
+    _cache_set("overview", "sentiment", result, ttl=60 if is_empty else None)
     return {"status": "success", "data": result}
 
 
