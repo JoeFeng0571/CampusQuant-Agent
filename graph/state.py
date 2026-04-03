@@ -63,7 +63,7 @@ class AnalystReport(BaseModel):
         description="置信度，范围 [0.0, 1.0]"
     )
     reasoning: str = Field(
-        description="详细的分析推理，不少于200字，需包含具体数据和逻辑推导"
+        description="详细的分析推理，不少于400字，需包含具体数据（PE/PB/ROE等）和完整逻辑推导链"
     )
     key_factors: List[str] = Field(
         default_factory=list,
@@ -86,31 +86,31 @@ class AnalystReport(BaseModel):
     # 主要由 fundamental_node 填充；technical/sentiment 节点保持默认空值
     investment_thesis: str = Field(
         default="",
-        description="2-3 句投资论点摘要"
+        description="2-3 句投资论点摘要，需概括核心买入/持有/卖出理由"
     )
     business_model: str = Field(
         default="",
-        description="商业模式 & 收入驱动分析"
+        description="商业模式 & 收入驱动分析，不少于100字，需覆盖主营业务、收入结构、毛利率和增长引擎"
     )
     moat_assessment: str = Field(
         default="",
-        description="护城河 / 竞争优势评估"
+        description="护城河 / 竞争优势评估，不少于100字，需分析品牌、技术、规模效应、行业地位"
     )
     catalysts: List[str] = Field(
         default_factory=list,
-        description="未来 1-2 季度的潜在催化剂"
+        description="未来 1-2 季度的 3 个以上潜在催化剂，每个需说明预期影响"
     )
     peer_comparison: str = Field(
         default="",
-        description="同行估值对比"
+        description="同行估值对比，不少于100字，需列出2-3家同行公司及PE/PB/增速对比，明确估值水平判断"
     )
     bull_case: str = Field(
         default="",
-        description="乐观情景描述"
+        description="乐观情景描述，需包含目标估值倍数和对应股价估算"
     )
     bear_case: str = Field(
         default="",
-        description="悲观情景描述"
+        description="悲观情景描述，需量化下跌空间和具体触发条件"
     )
 
 

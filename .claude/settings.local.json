@@ -137,7 +137,12 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(grep -r \"import akshare\\\\|from akshare\\\\|ak\\\\.\" /d/000intern/0agent/trading_agents_system/*.py /d/000intern/0agent/trading_agents_system/**/*.py)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Skill(research-review)",
+      "Bash(sshpass:*)",
+      "Bash(wc:*)",
+      "mcp__codex__codex",
+      "WebFetch(domain:47.76.197.100)"
     ]
   }
 }

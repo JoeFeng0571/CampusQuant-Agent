@@ -625,6 +625,8 @@ async def _stream_graph_events(
         _pe = _fund_key_metrics.get('pe', 'N/A')
         _pb = _fund_key_metrics.get('pb', 'N/A')
         _roe = _fund_key_metrics.get('roe', 'N/A')
+        _eps = _fund_key_metrics.get('eps', 'N/A')
+        _total_cap = _fund_key_metrics.get('total_market_cap', 'N/A')
 
         # 学生行动建议
         _action_rec = final_order.get('action', 'HOLD')
@@ -665,7 +667,7 @@ async def _stream_graph_events(
 
 ## 投资论点
 
-{_thesis if _thesis else fundamental.get('reasoning', '暂无详细推理')[:200]}
+{_thesis if _thesis else fundamental.get('reasoning', '暂无详细推理')[:500]}
 
 ---
 
@@ -685,9 +687,9 @@ async def _stream_graph_events(
 
 {_peer if _peer else '（暂无同行对比数据）'}
 
-| PE | PB | ROE |
-|----|----|-----|
-| {_pe if _pe and _pe != 'N/A' else '--'} | {_pb if _pb and _pb != 'N/A' else '--'} | {_roe if _roe and _roe != 'N/A' else '--'} |
+| PE | PB | ROE | EPS | 总市值 |
+|----|----|----|-----|--------|
+| {_pe if _pe and _pe != 'N/A' else '--'} | {_pb if _pb and _pb != 'N/A' else '--'} | {_roe if _roe and _roe != 'N/A' else '--'} | {_eps if _eps and _eps != 'N/A' else '--'} | {_total_cap if _total_cap and _total_cap != 'N/A' else '--'} |
 
 ---
 

@@ -18,3 +18,4 @@ try:
     print('OK3 指数OK, 上证:', df3[df3['代码']=='000001'].iloc[0]['最新价'])
 except Exception as e:
     print('FAIL3 指数失败:', e)
+

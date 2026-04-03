@@ -692,6 +692,24 @@ def get_fundamental_data(symbol: str) -> str:
                 "roe": _safe_float(row.get("净资产收益率")) or _safe_float(row.get("ROE")),
                 "eps": _safe_float(row.get("每股收益")) or _safe_float(row.get("基本每股收益")) or _safe_float(row.get("EPS")),
             }
+            # PE/PB 回退：stock_financial_abstract_ths 是报表数据，可能缺少估值指标
+            # 用 stock_individual_info_em 补充实时 PE/PB/总市值
+            if not data["pe"] or not data["pb"]:
+                try:
+                    info_df = _akshare_with_retry(lambda: ak.stock_individual_info_em(symbol=pure))
+                    if info_df is not None and not info_df.empty:
+                        info_map = dict(zip(info_df.iloc[:, 0], info_df.iloc[:, 1]))
+                        if not data["pe"]:
+                            data["pe"] = _safe_float(info_map.get("市盈率(动)")) or _safe_float(info_map.get("市盈率(静)"))
+                        if not data["pb"]:
+                            data["pb"] = _safe_float(info_map.get("市净率"))
+                        if not data.get("total_market_cap"):
+                            cap = _safe_float(info_map.get("总市值"))
+                            if cap:
+                                data["total_market_cap"] = f"{cap / 1e8:.1f}亿"
+                        logger.info(f"[market_data] PE/PB 回退补充成功: PE={data['pe']}, PB={data['pb']}")
+                except Exception as _pe_err:
+                    logger.warning(f"[market_data] stock_individual_info_em 回退失败: {_pe_err}")
             return _json_dumps({"status": "success", "symbol": normalized, "market_type": market_type.name, "source": "akshare", "data": data})
 
         data = _get_relay_fundamental(normalized)
