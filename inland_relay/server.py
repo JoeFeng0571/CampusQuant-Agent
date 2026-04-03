@@ -837,7 +837,52 @@ def a_stock_fundamental(symbol: str):
             "roe": _safe_float(row.get("净资产收益率")) or _safe_float(row.get("ROE")),
             "eps": _safe_float(row.get("每股收益")) or _safe_float(row.get("基本每股收益")) or _safe_float(row.get("EPS")),
         }
+        # PE/PB 回退：财务摘要可能缺少估值指标，用 stock_individual_info_em 补充
+        if not data["pe"] or not data["pb"]:
+            try:
+                info_df = _akshare_with_retry(lambda: ak.stock_individual_info_em(symbol=pure))
+                if info_df is not None and not info_df.empty:
+                    info_map = dict(zip(info_df.iloc[:, 0], info_df.iloc[:, 1]))
+                    if not data["pe"]:
+                        data["pe"] = _safe_float(info_map.get("市盈率(动)")) or _safe_float(info_map.get("市盈率(静)"))
+                    if not data["pb"]:
+                        data["pb"] = _safe_float(info_map.get("市净率"))
+                    cap = _safe_float(info_map.get("总市值"))
+                    if cap:
+                        data["total_market_cap"] = f"{cap / 1e8:.1f}亿"
+            except Exception:
+                pass
         _cache_set("fundamental", symbol, data)
+        return {"status": "success", "symbol": symbol, "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+# ════════════════════════════════════════════════════════════════
+# 港股基本面数据（百度股市通 — PE/PB）
+# ════════════════════════════════════════════════════════════════
+
+@app.get("/relay/hk-stock/fundamental", dependencies=[Depends(verify_token)])
+def hk_stock_fundamental(symbol: str):
+    """获取港股 PE/PB 等估值指标（akshare 百度股市通）"""
+    cache_key = f"hk_fund:{symbol}"
+    cached = _cache_get("fundamental", cache_key)
+    if cached is not None:
+        return {"status": "success", "symbol": symbol, "data": cached}
+    try:
+        # 港股代码: 09988.HK -> 09988
+        pure = symbol.split(".")[0]
+        data: dict = {}
+        for indicator, key in [("市盈率(TTM)", "pe"), ("市净率", "pb")]:
+            try:
+                df = _akshare_with_retry(lambda ind=indicator: ak.stock_hk_valuation_baidu(symbol=pure, indicator=ind, period="近一年"))
+                if df is not None and not df.empty:
+                    data[key] = _safe_float(df.iloc[-1]["value"])
+            except Exception:
+                pass
+        if not any(data.values()):
+            return {"status": "partial", "symbol": symbol, "data": data}
+        _cache_set("fundamental", cache_key, data)
         return {"status": "success", "symbol": symbol, "data": data}
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))

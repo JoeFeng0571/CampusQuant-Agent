@@ -713,6 +713,23 @@ def get_fundamental_data(symbol: str) -> str:
             return _json_dumps({"status": "success", "symbol": normalized, "market_type": market_type.name, "source": "akshare", "data": data})
 
         data = _get_relay_fundamental(normalized)
+        # 港美股 Yahoo Finance relay 回退：如 PE/PB 缺失，尝试走内地 relay（akshare 也支持港美股）
+        if not data.get("pe") or not data.get("pb"):
+            inland_endpoint = "hk-stock/fundamental" if market_type == MarketType.HK_STOCK else "us-stock/fundamental"
+            inland = _inland_relay_request(inland_endpoint, {"symbol": normalized})
+            if inland and inland.get("status") == "success" and inland.get("data"):
+                inland_data = inland["data"]
+                if not data.get("pe") and inland_data.get("pe"):
+                    data["pe"] = _safe_float(inland_data["pe"])
+                if not data.get("pb") and inland_data.get("pb"):
+                    data["pb"] = _safe_float(inland_data["pb"])
+                if not data.get("roe") and inland_data.get("roe"):
+                    data["roe"] = _safe_float(inland_data["roe"])
+                if not data.get("eps") and inland_data.get("eps"):
+                    data["eps"] = _safe_float(inland_data["eps"])
+                if inland_data.get("total_market_cap"):
+                    data["total_market_cap"] = inland_data["total_market_cap"]
+                logger.info(f"[market_data] 港美股 PE/PB 内地relay回退补充: PE={data.get('pe')}, PB={data.get('pb')}")
         status = "success" if any(v is not None and v != "" for v in data.values()) else "partial"
         return _json_dumps({"status": status, "symbol": normalized, "market_type": market_type.name, "source": "relay", "data": data})
     except Exception as exc:
