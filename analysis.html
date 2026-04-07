@@ -1255,6 +1255,8 @@
             const reader = resp.body.getReader();
             const decoder = new TextDecoder();
             let buf = '';
+            let eventType = '';
+            let dataStr = '';
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -1262,10 +1264,9 @@
                 buf += decoder.decode(value, { stream: true });
                 const lines = buf.split('\n');
                 buf = lines.pop();
-                let eventType = '', dataStr = '';
                 for (const line of lines) {
                     if (line.startsWith('event:')) eventType = line.slice(6).trim();
-                    else if (line.startsWith('data:')) dataStr = line.slice(5).trim();
+                    else if (line.startsWith('data:')) dataStr += (dataStr ? '\n' : '') + line.slice(5).trim();
                     else if (line === '' && eventType) {
                         handleSSEEvent(eventType, dataStr);
                         eventType = ''; dataStr = '';

@@ -142,7 +142,9 @@
       "Bash(sshpass:*)",
       "Bash(wc:*)",
       "mcp__codex__codex",
-      "WebFetch(domain:47.76.197.100)"
+      "WebFetch(domain:47.76.197.100)",
+      "Bash(.venv/Scripts/python -c \"import akshare as ak; help\\(ak.stock_hk_valuation_baidu\\)\")",
+      "Bash(.venv/Scripts/python -c ':*)"
     ]
   }
 }
