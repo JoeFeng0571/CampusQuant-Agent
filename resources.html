@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -6,61 +6,835 @@
 <title>学习资源库 · CampusQuant 校园财商</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
-:root{--bg:#08111f;--card:rgba(255,255,255,.05);--border:rgba(255,255,255,.12);--text:#f6fbff;--sub:#adc2d9;--dim:#7390aa;--pri:#6fd7ff;--mint:#59f0c2;--gold:#ffd37c;--danger:#ff8e8e;--shadow:0 18px 48px rgba(0,0,0,.28)}
+:root{--bg:#08111f;--card:rgba(255,255,255,.05);--border:rgba(255,255,255,.12);--text:#f6fbff;--sub:#adc2d9;--dim:#7390aa;--pri:#6fd7ff;--primary:#6fd7ff;--mint:#59f0c2;--gold:#ffd37c;--danger:#ff8e8e;--lav:#c9b3ff;--shadow:0 18px 48px rgba(0,0,0,.28)}
 body{min-height:100vh;color:var(--text);background:radial-gradient(circle at top left,rgba(58,185,255,.16),transparent 28%),radial-gradient(circle at top right,rgba(89,240,194,.12),transparent 24%),linear-gradient(180deg,#07101d 0%,#0a1423 48%,#08111f 100%);overflow-x:hidden}
-a{text-decoration:none;color:inherit}header{position:sticky;top:0;z-index:1000;display:flex;justify-content:space-between;align-items:center;padding:16px 40px;background:rgba(8,17,31,.84);backdrop-filter:blur(18px);border-bottom:1px solid var(--border)}
-.logo{display:flex;align-items:baseline;gap:8px}.logo-text{font-size:23px;font-weight:800;background:linear-gradient(90deg,#86ddff 0%,#59f0c2 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}.logo-sub{font-size:12px;color:var(--dim)}
-nav{display:flex;gap:24px;align-items:center}nav a{font-size:14px;color:var(--sub)}nav a:hover,nav a.active,.sidebar-btn:hover{color:var(--pri)}.nav-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--danger);margin-left:5px;vertical-align:top;margin-top:3px}.sidebar-btn,.close-btn{background:transparent;border:none;color:var(--sub);cursor:pointer}
-.sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);opacity:0;visibility:hidden;transition:.25s;z-index:1999}.sidebar-overlay.open{opacity:1;visibility:visible}.sidebar{position:fixed;top:0;right:-340px;width:340px;max-width:88vw;height:100vh;padding:28px 24px;background:rgba(9,16,29,.96);border-left:1px solid var(--border);box-shadow:-16px 0 40px rgba(0,0,0,.32);transition:right .25s;z-index:2000}.sidebar.open{right:0}.sidebar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:14px;border-bottom:1px solid var(--border)}.sidebar-content{display:grid;gap:14px}.sidebar-link{padding:14px 16px;border-radius:14px;background:var(--card);border:1px solid var(--border);color:var(--sub);display:flex;justify-content:space-between;align-items:center}.sidebar-link.featured{background:linear-gradient(135deg,rgba(58,185,255,.16),rgba(89,240,194,.10));color:var(--text)}
-main{width:min(1240px,calc(100% - 40px));margin:0 auto;padding:32px 0 60px}.hero,.double-grid{display:grid;gap:24px}.hero{grid-template-columns:1.35fr .9fr;margin-bottom:26px}.hero-card,.hero-side,.section-panel,.book-card,.module-card,.check-card,.stat-card,.article-item{background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow)}.hero-card,.hero-side,.section-panel{border-radius:24px;padding:24px}.hero-card{background:linear-gradient(145deg,rgba(58,185,255,.16),rgba(255,255,255,.03)),rgba(255,255,255,.04)}.eyebrow,.mini-badge,.pill,.tiny-tag,.module-tag{border-radius:999px;font-size:12px}.eyebrow{display:inline-flex;gap:8px;padding:8px 12px;background:rgba(255,255,255,.06);color:var(--pri);font-weight:700;margin-bottom:18px}.hero h1{font-size:clamp(32px,5vw,52px);line-height:1.04;margin-bottom:14px;max-width:12ch}.hero p,.section-head p,.module-copy,.book-desc,.article-summary,.step-copy,.side-desc,.bullet-list li,.book-author,.stat-note{color:var(--sub);line-height:1.75}.hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}.cta,.ghost{display:inline-flex;gap:8px;padding:12px 18px;border-radius:14px;font-size:14px;font-weight:700}.cta{background:linear-gradient(135deg,#65d7ff,#4bf0c0);color:#062032}.ghost{border:1px solid var(--border);background:rgba(255,255,255,.03)}
-.path-steps,.check-grid,.article-list{display:grid;gap:12px}.path-step{display:grid;grid-template-columns:36px 1fr;gap:12px;padding:12px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}.step-no,.module-icon{display:flex;align-items:center;justify-content:center}.step-no{width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#86ddff,#4bf0c0);color:#062032;font-size:14px;font-weight:800}.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px}.stat-card,.module-card,.check-card,.book-body{padding:18px}.stat-value{font-size:28px;font-weight:800;margin-bottom:6px}.stat-label,.book-author{font-size:13px}.section-head{display:flex;justify-content:space-between;align-items:end;gap:18px;margin-bottom:18px}.section-head h2{font-size:24px;margin-bottom:6px}.badge-row,.filter-row,.book-tags{display:flex;flex-wrap:wrap;gap:8px}.mini-badge,.tiny-tag{padding:6px 10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:var(--sub)}.module-grid,.book-grid{display:grid;gap:14px}.module-grid{grid-template-columns:repeat(3,1fr)}.module-top{display:flex;justify-content:space-between;align-items:start;gap:10px}.module-icon{width:42px;height:42px;border-radius:14px;background:rgba(111,215,255,.12);color:var(--pri);font-size:20px}.module-tag{padding:5px 8px;color:var(--gold);background:rgba(255,211,124,.12);border:1px solid rgba(255,211,124,.18)}.module-card h3,.check-card h3,.book-body h3,.article-item h3{font-size:17px}.bullet-list{list-style:none;display:grid;gap:8px}.bullet-list li{position:relative;padding-left:16px;font-size:13px}.bullet-list li::before{content:"";position:absolute;left:0;top:8px;width:6px;height:6px;border-radius:50%;background:var(--mint)}
-.article-toolbar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;margin-bottom:16px}.filter-btn{border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--sub);border-radius:999px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer}.filter-btn.active,.filter-btn:hover{color:#07202f;background:linear-gradient(135deg,#86ddff,#4bf0c0);border-color:transparent}.article-item{border-radius:20px;padding:18px;display:grid;grid-template-columns:1fr auto;gap:14px}.article-meta{display:flex;flex-wrap:wrap;gap:12px;color:var(--dim);font-size:12px}.article-side{display:grid;justify-items:end;align-content:space-between;gap:10px;min-width:120px}.pill{padding:6px 10px;font-weight:700}.pill-basic{background:rgba(111,215,255,.14);color:var(--pri)}.pill-analysis{background:rgba(89,240,194,.13);color:var(--mint)}.pill-risk{background:rgba(255,211,124,.14);color:var(--gold)}.pill-advanced{background:rgba(204,166,255,.14);color:#d3bbff}.article-level{color:var(--dim);font-size:12px}.double-grid{grid-template-columns:1.05fr .95fr}.book-grid{grid-template-columns:repeat(4,1fr)}.book-card{border-radius:20px;overflow:hidden}.book-cover{aspect-ratio:3/4;width:100%;display:block;background:#112038}.book-body{display:grid;gap:8px}.book-kicker{display:flex;justify-content:space-between;gap:10px;color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
-footer{padding:24px 16px 36px;text-align:center;color:var(--dim);font-size:13px}footer a{color:var(--pri)}
-@media (max-width:1080px){.hero,.double-grid{grid-template-columns:1fr}.module-grid{grid-template-columns:repeat(2,1fr)}.book-grid{grid-template-columns:repeat(2,1fr)}.stats-row{grid-template-columns:repeat(2,1fr)}}
-@media (max-width:768px){header{padding:12px 16px;gap:14px}nav{gap:16px;overflow-x:auto;flex-wrap:nowrap}nav::-webkit-scrollbar{display:none}nav a{flex-shrink:0}main{width:min(100% - 24px,1240px);padding-top:18px}.hero-card,.hero-side,.section-panel{padding:20px;border-radius:22px}.stats-row,.module-grid,.book-grid{grid-template-columns:1fr}.article-item{grid-template-columns:1fr}.article-side{justify-items:start;min-width:0}.hero h1{max-width:none}}
+a{text-decoration:none;color:inherit}
+header{position:sticky;top:0;z-index:1000;display:flex;justify-content:space-between;align-items:center;padding:16px 40px;background:rgba(8,17,31,.84);backdrop-filter:blur(18px);border-bottom:1px solid var(--border)}
+.logo{display:flex;align-items:baseline;gap:8px}
+.logo-text{font-size:23px;font-weight:800;background:linear-gradient(90deg,#86ddff 0%,#59f0c2 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo-sub{font-size:12px;color:var(--dim)}
+nav{display:flex;gap:24px;align-items:center}
+nav a{font-size:14px;color:var(--sub)}
+nav a:hover,nav a.active,.sidebar-btn:hover{color:var(--pri)}
+.nav-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--danger);margin-left:5px;vertical-align:top;margin-top:3px}
+.sidebar-btn,.close-btn{background:transparent;border:none;color:var(--sub);cursor:pointer}
+
+.sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);opacity:0;visibility:hidden;transition:.25s;z-index:1999}
+.sidebar-overlay.open{opacity:1;visibility:visible}
+.sidebar{position:fixed;top:0;right:-340px;width:340px;max-width:88vw;height:100vh;padding:28px 24px;background:rgba(9,16,29,.96);border-left:1px solid var(--border);box-shadow:-16px 0 40px rgba(0,0,0,.32);transition:right .25s;z-index:2000}
+.sidebar.open{right:0}
+.sidebar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.sidebar-content{display:grid;gap:14px}
+.sidebar-link{padding:14px 16px;border-radius:14px;background:var(--card);border:1px solid var(--border);color:var(--sub);display:flex;justify-content:space-between;align-items:center;transition:.2s}
+.sidebar-link:hover{color:var(--pri);border-color:rgba(111,215,255,.35)}
+.sidebar-link.featured{background:linear-gradient(135deg,rgba(58,185,255,.16),rgba(89,240,194,.10));color:var(--text)}
+
+main{width:min(1240px,calc(100% - 40px));margin:0 auto;padding:32px 0 60px}
+
+.hero{display:grid;grid-template-columns:1.35fr .9fr;gap:24px;margin-bottom:26px}
+.hero-card,.hero-side,.section-panel{background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow);border-radius:24px;padding:24px}
+.hero-card{background:linear-gradient(145deg,rgba(58,185,255,.16),rgba(255,255,255,.03)),rgba(255,255,255,.04)}
+.eyebrow{display:inline-flex;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.06);color:var(--pri);font-size:12px;font-weight:700;margin-bottom:18px}
+.hero h1{font-size:clamp(30px,4.5vw,48px);line-height:1.08;margin-bottom:14px}
+.hero p,.side-desc{color:var(--sub);line-height:1.75}
+.hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}
+.cta,.ghost{display:inline-flex;gap:8px;padding:12px 18px;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer}
+.cta{background:linear-gradient(135deg,#65d7ff,#4bf0c0);color:#062032}
+.ghost{border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text)}
+.side-title{font-size:18px;font-weight:700;margin-bottom:6px}
+.path-steps{display:grid;gap:12px;margin-top:14px}
+.path-step{display:grid;grid-template-columns:36px 1fr;gap:12px;padding:12px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}
+.step-no{width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#86ddff,#4bf0c0);color:#062032;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.step-copy{color:var(--sub);line-height:1.6;font-size:13px}
+.step-copy strong{color:var(--text);display:block;margin-bottom:2px}
+
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:18px;box-shadow:var(--shadow)}
+.stat-value{font-size:30px;font-weight:800;margin-bottom:4px;background:linear-gradient(120deg,#86ddff,#4bf0c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat-label{font-size:13px;color:var(--text);margin-bottom:6px;font-weight:700}
+.stat-note{font-size:12px;color:var(--sub);line-height:1.55}
+
+.section-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;margin-bottom:18px;flex-wrap:wrap}
+.section-head h2{font-size:24px;margin-bottom:6px}
+.section-head p{color:var(--sub);line-height:1.7;font-size:14px;max-width:640px}
+.badge-row{display:flex;flex-wrap:wrap;gap:8px}
+.mini-badge{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:var(--sub);font-size:12px}
+
+.module-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.module-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:20px;box-shadow:var(--shadow);cursor:pointer;transition:transform .2s,border-color .2s,box-shadow .2s;display:flex;flex-direction:column;gap:12px;text-align:left;color:inherit;font-family:inherit;min-height:220px}
+.module-card:hover{transform:translateY(-4px);border-color:rgba(111,215,255,.45);box-shadow:0 24px 60px rgba(4,18,36,.55)}
+.module-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.module-icon{width:46px;height:46px;border-radius:14px;background:rgba(111,215,255,.14);color:var(--pri);font-size:22px;display:flex;align-items:center;justify-content:center}
+.module-tag{padding:5px 10px;border-radius:999px;color:var(--gold);background:rgba(255,211,124,.12);border:1px solid rgba(255,211,124,.18);font-size:12px;flex-shrink:0}
+.module-card h3{font-size:18px}
+.module-copy{color:var(--sub);line-height:1.7;font-size:13px;flex:1}
+.module-meta{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)}
+.module-sections{color:var(--dim);font-size:12px}
+.module-link{color:var(--pri);font-size:13px;font-weight:700}
+
+.article-toolbar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;margin-bottom:16px}
+.filter-row{display:flex;flex-wrap:wrap;gap:8px}
+.filter-btn{border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--sub);border-radius:999px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;transition:.2s;font-family:inherit}
+.filter-btn:hover,.filter-btn.active{color:#07202f;background:linear-gradient(135deg,#86ddff,#4bf0c0);border-color:transparent}
+.article-list{display:grid;gap:12px}
+.article-item{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:18px;display:grid;grid-template-columns:1fr auto;gap:14px;transition:.2s;box-shadow:var(--shadow)}
+.article-item:hover{transform:translateY(-2px);border-color:rgba(111,215,255,.45)}
+.article-item h3{font-size:17px;color:var(--text);margin-bottom:6px}
+.article-summary{color:var(--sub);font-size:13px;line-height:1.7;margin-bottom:8px}
+.article-meta{display:flex;flex-wrap:wrap;gap:12px;color:var(--dim);font-size:12px}
+.article-side{display:grid;justify-items:end;align-content:space-between;gap:10px;min-width:120px}
+.pill{padding:6px 12px;border-radius:999px;font-weight:700;font-size:12px}
+.pill-basic{background:rgba(111,215,255,.14);color:var(--pri)}
+.pill-analysis{background:rgba(89,240,194,.13);color:var(--mint)}
+.pill-risk{background:rgba(255,211,124,.14);color:var(--gold)}
+.pill-advanced{background:rgba(201,179,255,.14);color:var(--lav)}
+.article-level{color:var(--dim);font-size:12px}
+.article-empty{padding:36px;text-align:center;color:var(--dim);background:var(--card);border:1px dashed var(--border);border-radius:20px}
+
+.book-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.book-card{background:var(--card);border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:var(--shadow);transition:.2s}
+.book-card:hover{transform:translateY(-4px);border-color:rgba(255,211,124,.35)}
+.book-cover{aspect-ratio:3/4;width:100%;display:block;background:#112038}
+.book-body{padding:16px;display:grid;gap:8px}
+.book-kicker{display:flex;justify-content:space-between;gap:10px;color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+.book-body h3{font-size:17px}
+.book-author{font-size:13px;color:var(--sub)}
+.book-desc{color:var(--sub);line-height:1.65;font-size:12.5px}
+.book-tags{display:flex;flex-wrap:wrap;gap:6px}
+.tiny-tag{padding:5px 9px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:var(--sub);font-size:11px}
+
+/* ============ Module Drawer（模块详细内容弹层）============ */
+.drawer-backdrop{position:fixed;inset:0;background:rgba(4,10,20,.78);backdrop-filter:blur(10px);opacity:0;visibility:hidden;transition:.3s;z-index:3000}
+.drawer-backdrop.open{opacity:1;visibility:visible}
+.drawer{position:fixed;top:50%;left:50%;width:min(980px,92vw);max-height:90vh;transform:translate(-50%,-45%) scale(.96);opacity:0;visibility:hidden;background:linear-gradient(155deg,#0c1a30 0%,#0a1423 100%);border:1px solid rgba(111,215,255,.25);border-radius:24px;box-shadow:0 40px 120px rgba(0,0,0,.55);transition:.35s cubic-bezier(.2,.8,.3,1);z-index:3001;display:flex;flex-direction:column;overflow:hidden}
+.drawer.open{opacity:1;visibility:visible;transform:translate(-50%,-50%) scale(1)}
+.drawer-head{flex-shrink:0;padding:22px 28px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:16px;background:rgba(255,255,255,.02)}
+.drawer-head-left{display:flex;gap:14px;align-items:flex-start;flex:1;min-width:0}
+.drawer-icon{width:50px;height:50px;border-radius:14px;background:linear-gradient(135deg,#86ddff,#4bf0c0);color:#062032;font-size:24px;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0}
+.drawer-title-wrap{flex:1;min-width:0}
+.drawer-title{font-size:22px;font-weight:800;color:var(--text);margin-bottom:4px}
+.drawer-subtitle{color:var(--sub);font-size:13px;line-height:1.5}
+.drawer-close{background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--sub);width:36px;height:36px;border-radius:10px;font-size:20px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:.2s;font-family:inherit}
+.drawer-close:hover{background:rgba(255,142,142,.12);border-color:rgba(255,142,142,.35);color:var(--danger)}
+.drawer-body{flex:1;overflow-y:auto;padding:24px 28px 20px}
+.drawer-body::-webkit-scrollbar{width:8px}
+.drawer-body::-webkit-scrollbar-track{background:transparent}
+.drawer-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px}
+.drawer-section{margin-bottom:26px;padding-bottom:20px;border-bottom:1px dashed rgba(255,255,255,.08)}
+.drawer-section:last-child{border-bottom:none;padding-bottom:6px}
+.drawer-section h4{font-size:16px;color:var(--pri);margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.drawer-section h4::before{content:attr(data-n);display:inline-flex;width:28px;height:28px;border-radius:8px;background:rgba(111,215,255,.14);color:var(--pri);font-size:13px;font-weight:800;align-items:center;justify-content:center;border:1px solid rgba(111,215,255,.3);flex-shrink:0}
+.drawer-section p{color:var(--sub);line-height:1.78;font-size:14px;margin-bottom:10px}
+.drawer-section ul,.drawer-section ol{color:var(--sub);line-height:1.78;font-size:14px;padding-left:22px;margin-bottom:10px}
+.drawer-section li{margin-bottom:6px}
+.drawer-section strong{color:var(--text)}
+.drawer-section table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+.drawer-section th,.drawer-section td{padding:10px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,.08);color:var(--sub);vertical-align:top}
+.drawer-section th{background:rgba(111,215,255,.08);color:var(--pri);font-weight:700}
+.drawer-section .callout{background:linear-gradient(135deg,rgba(255,211,124,.10),rgba(255,255,255,.02));border:1px solid rgba(255,211,124,.25);border-radius:14px;padding:14px 16px;margin:12px 0;color:var(--sub);line-height:1.7;font-size:13.5px}
+.drawer-section .callout::before{content:"⚠️ ";margin-right:6px}
+.drawer-section .callout.tip{border-color:rgba(89,240,194,.25);background:linear-gradient(135deg,rgba(89,240,194,.10),rgba(255,255,255,.02))}
+.drawer-section .callout.tip::before{content:"💡 "}
+.drawer-section .steplist{display:grid;gap:10px;margin:12px 0}
+.drawer-section .stepitem{display:grid;grid-template-columns:32px 1fr;gap:12px;padding:12px 14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:12px}
+.drawer-section .stepno{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#86ddff,#4bf0c0);color:#062032;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.drawer-section .stepbody{color:var(--sub);line-height:1.65;font-size:13.5px}
+.drawer-section .stepbody b{color:var(--text);display:block;margin-bottom:3px;font-size:14px}
+
+.drawer-foot{flex-shrink:0;padding:14px 28px;border-top:1px solid var(--border);background:rgba(255,255,255,.02);display:flex;justify-content:space-between;align-items:center;gap:12px}
+.drawer-nav{background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--sub);padding:9px 16px;border-radius:10px;cursor:pointer;font-size:13px;transition:.2s;font-family:inherit}
+.drawer-nav:hover:not(:disabled){background:rgba(111,215,255,.12);color:var(--pri);border-color:rgba(111,215,255,.4)}
+.drawer-nav:disabled{opacity:.3;cursor:not-allowed}
+.drawer-progress{color:var(--dim);font-size:12px;font-weight:700}
+
+footer{padding:24px 16px 36px;text-align:center;color:var(--dim);font-size:13px}
+footer a{color:var(--pri)}
+
+@media (max-width:1080px){
+  .hero{grid-template-columns:1fr}
+  .module-grid{grid-template-columns:repeat(2,1fr)}
+  .book-grid{grid-template-columns:repeat(2,1fr)}
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:768px){
+  header{padding:12px 16px;gap:14px}
+  nav{gap:16px;overflow-x:auto;flex-wrap:nowrap}
+  nav::-webkit-scrollbar{display:none}
+  nav a{flex-shrink:0}
+  main{width:min(100% - 24px,1240px);padding-top:18px}
+  .hero-card,.hero-side,.section-panel{padding:20px;border-radius:22px}
+  .stats-row,.module-grid,.book-grid{grid-template-columns:1fr}
+  .article-item{grid-template-columns:1fr}
+  .article-side{justify-items:flex-start;min-width:0}
+  .drawer{width:100vw;max-width:100vw;height:100vh;max-height:100vh;top:0;left:0;transform:none;border-radius:0;border:none}
+  .drawer.open{transform:none}
+  .drawer-head,.drawer-foot,.drawer-body{padding-left:18px;padding-right:18px}
+}
 </style>
 </head>
 <body>
+
 <header>
 <a href="dashboard.html" class="logo"><span class="logo-text">CampusQuant</span><span class="logo-sub">校园财商</span></a>
 <nav>
-<a href="dashboard.html">控制台</a><a href="market.html">市场快讯</a><a href="analysis.html">个股分析</a><a href="trade.html">模拟演练<span class="nav-dot"></span></a><a href="community.html" class="active">投教社区</a><a href="team.html">关于我们</a>
+<a href="dashboard.html">控制台</a>
+<a href="market.html">市场快讯</a>
+<a href="analysis.html">个股分析</a>
+<a href="trade.html">模拟演练<span class="nav-dot"></span></a>
+<a href="community.html" class="active">投教社区</a>
+<a href="team.html">关于我们</a>
 <div id="auth-widget" style="display:flex;align-items:center;gap:8px;margin-left:8px;flex-shrink:0;"></div>
 <button id="sidebar-toggle" class="sidebar-btn" title="打开学习中心"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
 </nav>
 </header>
+
 <div class="sidebar-overlay" id="sidebar-overlay"></div>
-<aside class="sidebar" id="sidebar"><div class="sidebar-header"><h2>校园财商学习中心</h2><button id="sidebar-close" class="close-btn">&times;</button></div><div class="sidebar-content"><a href="home.html" class="sidebar-link featured"><span>进入学习中心</span><span>→</span></a><a href="#modules" class="sidebar-link"><span>基础财商课程</span><span>→</span></a><a href="#articles" class="sidebar-link"><span>专题文章库</span><span>→</span></a><a href="#playbook" class="sidebar-link"><span>大学生防坑清单</span><span>→</span></a><a href="#books" class="sidebar-link"><span>推荐书单与封面</span><span>→</span></a></div></aside>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <h2>校园财商学习中心</h2>
+    <button id="sidebar-close" class="close-btn">&times;</button>
+  </div>
+  <div class="sidebar-content">
+    <a href="home.html" class="sidebar-link featured"><span>进入学习中心</span><span>→</span></a>
+    <a href="#modules" class="sidebar-link"><span>六大核心模块</span><span>→</span></a>
+    <a href="#articles" class="sidebar-link"><span>专题文章库</span><span>→</span></a>
+    <a href="#books" class="sidebar-link"><span>推荐书单</span><span>→</span></a>
+    <a href="community.html" class="sidebar-link"><span>回到投教社区</span><span>→</span></a>
+  </div>
+</aside>
+
 <main>
-<section class="hero"><div class="hero-card"><div class="eyebrow">学习资源库 · 从零基础到可执行策略</div><h1>把学习中心做成真正能用的投教资料库</h1><p>这里不是空标签页，而是一套完整的校园投资学习路径。你可以从基础财商、财报分析、估值方法、风险控制和案例拆解一路学到模拟交易，把“知道概念”推进到“能做判断、会避坑、敢复盘”。</p><div class="hero-actions"><a href="#modules" class="cta">开始学习路线</a><a href="#books" class="ghost">查看推荐书单</a></div></div><div class="hero-side"><div><div class="side-title">7 天学习路线</div><div class="side-desc">适合大学生快速起步的顺序，不追求“学完所有”，先建立稳定认知框架。</div></div><div class="path-steps"><div class="path-step"><div class="step-no">01</div><div class="step-copy"><strong>先理解风险收益</strong>先学复利、回撤、分散，再谈收益率，否则所有判断都会失真。</div></div><div class="path-step"><div class="step-no">02</div><div class="step-copy"><strong>再学看企业</strong>用三表、ROE、现金流、竞争优势建立基本面判断框架。</div></div><div class="path-step"><div class="step-no">03</div><div class="step-copy"><strong>最后做模拟交易</strong>用纪律、仓位和复盘替代冲动下单，先把亏损控制住。</div></div></div></div></section>
-<section class="stats-row"><div class="stat-card"><div class="stat-value">24</div><div class="stat-label">精选专题内容</div><div class="stat-note">覆盖财商、股票、基金、财报、估值、风控和案例拆解。</div></div><div class="stat-card"><div class="stat-value">8</div><div class="stat-label">推荐书目</div><div class="stat-note">每本都有封面、适读人群、主题标签和推荐理由。</div></div><div class="stat-card"><div class="stat-value">5</div><div class="stat-label">核心能力模块</div><div class="stat-note">按“懂概念 → 会分析 → 能风控 → 会执行”重组内容。</div></div><div class="stat-card"><div class="stat-value">1</div><div class="stat-label">防坑底线</div><div class="stat-note">不加杠杆、不碰内幕、不信群荐股，这一条先记住。</div></div></section>
-<section class="section-panel" id="modules"><div class="section-head"><div><h2>核心学习模块</h2><p>每个模块都写明了适合人群、学习目标和实际应用点，避免只有栏目名、没有真正内容。</p></div><div class="badge-row"><span class="mini-badge">基础财商</span><span class="mini-badge">财报阅读</span><span class="mini-badge">估值判断</span><span class="mini-badge">风险控制</span></div></div><div class="module-grid"><article class="module-card"><div class="module-top"><div class="module-icon">¥</div><div class="module-tag">适合新手</div></div><h3>财商入门</h3><div class="module-copy">先把“钱为什么会贬值、为什么收益一定伴随波动、为什么不要满仓”讲清楚，这是所有投资学习的地基。</div><ul class="bullet-list"><li>复利、通胀、无风险收益、机会成本的直觉理解</li><li>风险收益匹配，不用短期暴涨来定义好投资</li><li>大学生资金规划：生活费、应急金、长期账户分开</li></ul></article><article class="module-card"><div class="module-top"><div class="module-icon">📊</div><div class="module-tag">股票基础</div></div><h3>股票与 ETF</h3><div class="module-copy">帮助学生理解 A 股、港股、美股在交易时间、涨跌限制、税费和流动性上的差异，建立市场框架。</div><ul class="bullet-list"><li>股票、基金、ETF 的本质区别与适合场景</li><li>A 股、港股、美股的交易规则与常见误区</li><li>为什么多数新手更适合先从指数基金开始</li></ul></article><article class="module-card"><div class="module-top"><div class="module-icon">🧾</div><div class="module-tag">财报必修</div></div><h3>财报阅读</h3><div class="module-copy">把利润表、资产负债表、现金流量表拆开讲，再讲它们如何相互印证，避免只盯着净利润一个指标。</div><ul class="bullet-list"><li>收入、毛利率、净利率、经营现金流的顺序阅读法</li><li>高增长和高质量不是同一件事，学会识别“增收不增利”</li><li>用 ROE、周转率、负债率判断企业经营质量</li></ul></article><article class="module-card"><div class="module-top"><div class="module-icon">📐</div><div class="module-tag">估值训练</div></div><h3>估值方法</h3><div class="module-copy">估值不是背公式，而是判断“这个价格对应了什么预期”。学习 PE、PB、PEG 和现金流估值的适用边界。</div><ul class="bullet-list"><li>低 PE 不一定便宜，高 PE 也不一定泡沫</li><li>不同赛道不能机械套同一套估值标准</li><li>估值最终要回到行业空间、盈利质量和竞争格局</li></ul></article><article class="module-card"><div class="module-top"><div class="module-icon">🛡</div><div class="module-tag">风控底线</div></div><h3>风险控制</h3><div class="module-copy">让学习中心不只教你“怎么买”，更教你“怎么不死”。仓位、止损、回撤和纪律是最值钱的基础设施。</div><ul class="bullet-list"><li>仓位分层：试错仓、确认仓、核心仓</li><li>止损不是认输，而是让你有资格继续留在市场</li><li>把“最大回撤”当成必须提前设定的参数</li></ul></article><article class="module-card"><div class="module-top"><div class="module-icon">🧠</div><div class="module-tag">案例拆解</div></div><h3>实战案例</h3><div class="module-copy">用茅台、腾讯、苹果、沪深 300 ETF、恒生科技 ETF 做案例，讲清楚不同资产该怎么分析、怎么比较、怎么复盘。</div><ul class="bullet-list"><li>消费龙头：护城河、提价能力、现金流</li><li>平台公司：监管、估值折价、增长修复</li><li>指数产品：跟踪误差、流动性和持有逻辑</li></ul></article></div></section>
-<section class="section-panel" id="articles"><div class="section-head"><div><h2>专题文章库</h2><p>按类别和热度筛选，每篇都补齐主题摘要、预计阅读时长和适读难度，避免只有标题没有内容。</p></div></div><div class="article-toolbar"><div class="filter-row" id="category-filters"><button class="filter-btn active" data-filter="all">全部</button><button class="filter-btn" data-filter="basic">财商基础</button><button class="filter-btn" data-filter="analysis">分析方法</button><button class="filter-btn" data-filter="risk">风险控制</button><button class="filter-btn" data-filter="advanced">案例进阶</button></div><div class="badge-row"><span class="mini-badge">阅读建议：每天 2 篇</span><span class="mini-badge">先读基础再读估值</span></div></div><div class="article-list" id="article-list"></div></section>
-<section class="double-grid"><div class="section-panel" id="playbook"><div class="section-head"><div><h2>大学生防坑清单</h2><p>这部分是学习中心最应该放在前面的内容。先建立底线，避免被“高收益、内幕消息、社群带单”拖进坑里。</p></div></div><div class="check-grid"><article class="check-card"><h3>绝不碰的三类承诺</h3><ul class="bullet-list"><li>保本保收益，尤其是短期月收益 10% 以上的承诺</li><li>“老师带单”“内部票”“消息刺激次日涨停”一类话术</li><li>要求你先交服务费、进群费、软件费再给策略</li></ul></article><article class="check-card"><h3>模拟盘进入实盘前的门槛</h3><ul class="bullet-list"><li>连续 20 笔交易有明确的入场、止损、退出记录</li><li>能说清楚自己靠什么赚钱，而不是靠感觉和运气</li><li>单笔亏损控制在总资金的可承受范围内</li></ul></article><article class="check-card"><h3>遇到情绪上头时先做什么</h3><ul class="bullet-list"><li>先停下，不在亏损后立刻翻倍加仓</li><li>把买入理由写出来，看看是不是只剩“怕踏空”</li><li>如果不能写出止损位，这笔交易就不该做</li></ul></article></div></div><div class="section-panel"><div class="section-head"><div><h2>每周练习</h2><p>学习中心不只看内容，还要留动作。每个练习都能直接接到社区讨论和模拟交易。</p></div></div><div class="check-grid"><article class="check-card"><h3>练习 1：用 5 分钟讲清一家公司</h3><ul class="bullet-list"><li>它做什么业务，赚钱靠什么</li><li>行业空间和竞争优势是什么</li><li>最大的风险和最重要的观察指标是什么</li></ul></article><article class="check-card"><h3>练习 2：做一页估值备忘录</h3><ul class="bullet-list"><li>写下当前 PE/PB、历史分位和同行对比</li><li>明确“便宜”的依据，不要只说价格跌了很多</li><li>如果估值不低，找出市场仍愿意给高估值的原因</li></ul></article><article class="check-card"><h3>练习 3：模拟交易复盘</h3><ul class="bullet-list"><li>记录买入逻辑、仓位、止损、预期收益</li><li>事后回看：是逻辑错了，还是执行错了</li><li>把“运气好”从“方法有效”里剥离出来</li></ul></article></div></div></section>
-<section class="section-panel" id="books"><div class="section-head"><div><h2>推荐书单与封面</h2><p>补全为真实可展示的书封资源，每本书都给出定位、难度和阅读价值。这里的封面为站内统一风格版，避免外链失效。</p></div><div class="badge-row"><span class="mini-badge">入门 3 本</span><span class="mini-badge">进阶 3 本</span><span class="mini-badge">长期复读 2 本</span></div></div><div class="book-grid"><article class="book-card"><img class="book-cover" src="assets/books/intelligent-investor.svg" alt="聪明的投资者 封面"><div class="book-body"><div class="book-kicker"><span>入门 / 价值投资</span><span>难度 3/5</span></div><h3>聪明的投资者</h3><div class="book-author">本杰明·格雷厄姆</div><div class="book-desc">学会安全边际、市场先生和投资者心理边界。这本书最适合建立“价格不等于价值”的第一性原理。</div><div class="book-tags"><span class="tiny-tag">安全边际</span><span class="tiny-tag">长期主义</span><span class="tiny-tag">入门必读</span></div></div></article><article class="book-card"><img class="book-cover" src="assets/books/one-up-on-wall-street.svg" alt="彼得林奇的成功投资 封面"><div class="book-body"><div class="book-kicker"><span>入门 / 成长股</span><span>难度 2/5</span></div><h3>彼得·林奇的成功投资</h3><div class="book-author">彼得·林奇</div><div class="book-desc">把“从生活中发现公司”讲得非常具体，适合大学生建立观察企业的兴趣和直觉，再往更严谨的研究方法过渡。</div><div class="book-tags"><span class="tiny-tag">成长股</span><span class="tiny-tag">观察力</span><span class="tiny-tag">案例丰富</span></div></div></article><article class="book-card"><img class="book-cover" src="assets/books/reminiscences-stock-operator.svg" alt="股票大作手回忆录 封面"><div class="book-body"><div class="book-kicker"><span>进阶 / 交易心理</span><span>难度 3/5</span></div><h3>股票大作手回忆录</h3><div class="book-author">埃德温·勒菲弗</div><div class="book-desc">这本书最值钱的不是“传奇故事”，而是你会开始真正理解人性、趋势、耐心和仓位纪律到底有多重要。</div><div class="book-tags"><span class="tiny-tag">交易心理</span><span class="tiny-tag">趋势</span><span class="tiny-tag">纪律</span></div></div></article><article class="book-card"><img class="book-cover" src="assets/books/financial-statements-guide.svg" alt="手把手教你读财报 封面"><div class="book-body"><div class="book-kicker"><span>入门 / 财报</span><span>难度 2/5</span></div><h3>手把手教你读财报</h3><div class="book-author">唐朝</div><div class="book-desc">很适合作为 A 股财报阅读的第一本中文书。重点不是记术语，而是知道三张报表各自回答什么问题。</div><div class="book-tags"><span class="tiny-tag">三大报表</span><span class="tiny-tag">中文语境</span><span class="tiny-tag">财报入门</span></div></div></article><article class="book-card"><img class="book-cover" src="assets/books/poor-charlies-almanack.svg" alt="穷查理宝典 封面"><div class="book-body"><div class="book-kicker"><span>进阶 / 思维模型</span><span>难度 4/5</span></div><h3>穷查理宝典</h3><div class="book-author">查理·芒格</div><div class="book-desc">如果你不想把投资学成只会看 K 线，这本书非常关键。它帮助你建立跨学科思考能力，而不是单点技巧。</div><div class="book-tags"><span class="tiny-tag">思维模型</span><span class="tiny-tag">长期主义</span><span class="tiny-tag">高阶认知</span></div></div></article><article class="book-card"><img class="book-cover" src="assets/books/index-fund-guide.svg" alt="指数基金投资指南 封面"><div class="book-body"><div class="book-kicker"><span>入门 / ETF</span><span>难度 1/5</span></div><h3>指数基金投资指南</h3><div class="book-author">银行螺丝钉</div><div class="book-desc">对大学生尤其友好。它把“为什么普通人更适合指数投资”说得很清楚，也更容易落到长期定投实践上。</div><div class="book-tags"><span class="tiny-tag">指数基金</span><span class="tiny-tag">长期定投</span><span class="tiny-tag">低门槛</span></div></div></article><article class="book-card"><img class="book-cover" src="assets/books/buffett-letters.svg" alt="巴菲特致股东的信 封面"><div class="book-body"><div class="book-kicker"><span>进阶 / 企业经营</span><span>难度 4/5</span></div><h3>巴菲特致股东的信</h3><div class="book-author">沃伦·巴菲特</div><div class="book-desc">适合在有了基础之后反复读。它会让你开始从企业经营与资本配置的角度看投资，而不是只看股价波动。</div><div class="book-tags"><span class="tiny-tag">资本配置</span><span class="tiny-tag">企业经营</span><span class="tiny-tag">复读价值高</span></div></div></article><article class="book-card"><img class="book-cover" src="assets/books/simple-investing.svg" alt="投资中最简单的事 封面"><div class="book-body"><div class="book-kicker"><span>进阶 / A 股框架</span><span>难度 3/5</span></div><h3>投资中最简单的事</h3><div class="book-author">邱国鹭</div><div class="book-desc">如果你想把宏观、行业、公司和估值串起来，这是很好的中文投资框架书，适合做体系化复盘。</div><div class="book-tags"><span class="tiny-tag">A股框架</span><span class="tiny-tag">择股逻辑</span><span class="tiny-tag">体系化</span></div></div></article></div></section>
+
+<section class="hero">
+  <div class="hero-card">
+    <div class="eyebrow">学习资源库 · 从零基础到可执行策略</div>
+    <h1>点卡片就能打开完整教程</h1>
+    <p>六大模块每个都是一份完整的小教程，涵盖开户流程、市场规则、财报阅读、估值判断、风控底线和实战案例。点击任意模块卡片即可展开完整内容，支持键盘 ← → 快速切换。</p>
+    <div class="hero-actions">
+      <a href="#modules" class="cta">开始学习路线 →</a>
+      <a href="#books" class="ghost">查看推荐书单</a>
+    </div>
+  </div>
+  <div class="hero-side">
+    <div class="side-title">7 天新手起步路线</div>
+    <div class="side-desc">不追求学完所有，先把判断框架搭起来。</div>
+    <div class="path-steps">
+      <div class="path-step"><div class="step-no">01</div><div class="step-copy"><strong>Day 1-2 · 先理解风险收益</strong>复利、回撤、分散、资金分盆，比收益率重要得多。</div></div>
+      <div class="path-step"><div class="step-no">02</div><div class="step-copy"><strong>Day 3-5 · 学看企业</strong>三张表、ROE、现金流、竞争优势的顺序阅读法。</div></div>
+      <div class="path-step"><div class="step-no">03</div><div class="step-copy"><strong>Day 6-7 · 开户并做模拟</strong>走完 A 股开户，买第一支 ETF，记录交易日志。</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="stats-row">
+  <div class="stat-card"><div class="stat-value">6</div><div class="stat-label">核心学习模块</div><div class="stat-note">每个模块都是可执行教程，点击展开完整内容。</div></div>
+  <div class="stat-card"><div class="stat-value">12</div><div class="stat-label">专题长文</div><div class="stat-note">按财商基础、分析方法、风险控制、案例进阶分类。</div></div>
+  <div class="stat-card"><div class="stat-value">8</div><div class="stat-label">精选书目</div><div class="stat-note">入门到进阶均覆盖，每本都给出阅读建议。</div></div>
+  <div class="stat-card"><div class="stat-value">0</div><div class="stat-label">收费内容</div><div class="stat-note">完全免费。不加杠杆、不荐股、不带单、不收智商税。</div></div>
+</section>
+
+<section class="section-panel" id="modules">
+  <div class="section-head">
+    <div>
+      <h2>六大核心学习模块</h2>
+      <p>每个模块点开后都有 5 个子章节，涵盖概念、案例、操作步骤和常见误区，写给完全零基础的大学生。</p>
+    </div>
+    <div class="badge-row">
+      <span class="mini-badge">点击卡片展开</span>
+      <span class="mini-badge">← → 切换</span>
+      <span class="mini-badge">Esc 关闭</span>
+    </div>
+  </div>
+  <div class="module-grid" id="module-grid"></div>
+</section>
+
+<section class="section-panel" id="articles" style="margin-top:28px">
+  <div class="section-head">
+    <div>
+      <h2>专题文章库</h2>
+      <p>按类别筛选，每篇都配完整正文、预计阅读时长和适读难度。可直接点击跳到详情页继续阅读。</p>
+    </div>
+  </div>
+  <div class="article-toolbar">
+    <div class="filter-row" id="category-filters">
+      <button class="filter-btn active" data-filter="all">全部</button>
+      <button class="filter-btn" data-filter="basic">财商基础</button>
+      <button class="filter-btn" data-filter="analysis">分析方法</button>
+      <button class="filter-btn" data-filter="risk">风险控制</button>
+      <button class="filter-btn" data-filter="advanced">案例进阶</button>
+    </div>
+    <div class="badge-row">
+      <span class="mini-badge">建议：每天 2 篇</span>
+    </div>
+  </div>
+  <div class="article-list" id="article-list"></div>
+</section>
+
+<section class="section-panel" id="books" style="margin-top:28px">
+  <div class="section-head">
+    <div>
+      <h2>推荐书单</h2>
+      <p>8 本覆盖入门到进阶的投资经典，每本书都给出主题标签、难度和适读建议。</p>
+    </div>
+    <div class="badge-row">
+      <span class="mini-badge">入门 3 本</span>
+      <span class="mini-badge">进阶 3 本</span>
+      <span class="mini-badge">复读 2 本</span>
+    </div>
+  </div>
+  <div class="book-grid">
+    <article class="book-card"><img class="book-cover" src="assets/books/intelligent-investor.svg" alt="聪明的投资者 封面"><div class="book-body"><div class="book-kicker"><span>入门 / 价值投资</span><span>难度 3/5</span></div><h3>聪明的投资者</h3><div class="book-author">本杰明·格雷厄姆</div><div class="book-desc">学会安全边际、市场先生和投资者心理边界。这本书最适合建立"价格不等于价值"的第一性原理。</div><div class="book-tags"><span class="tiny-tag">安全边际</span><span class="tiny-tag">长期主义</span><span class="tiny-tag">入门必读</span></div></div></article>
+    <article class="book-card"><img class="book-cover" src="assets/books/one-up-on-wall-street.svg" alt="彼得林奇的成功投资 封面"><div class="book-body"><div class="book-kicker"><span>入门 / 成长股</span><span>难度 2/5</span></div><h3>彼得·林奇的成功投资</h3><div class="book-author">彼得·林奇</div><div class="book-desc">把"从生活中发现公司"讲得非常具体，适合大学生建立观察企业的兴趣和直觉，再往更严谨的研究方法过渡。</div><div class="book-tags"><span class="tiny-tag">成长股</span><span class="tiny-tag">观察力</span><span class="tiny-tag">案例丰富</span></div></div></article>
+    <article class="book-card"><img class="book-cover" src="assets/books/reminiscences-stock-operator.svg" alt="股票大作手回忆录 封面"><div class="book-body"><div class="book-kicker"><span>进阶 / 交易心理</span><span>难度 3/5</span></div><h3>股票大作手回忆录</h3><div class="book-author">埃德温·勒菲弗</div><div class="book-desc">这本书最值钱的不是"传奇故事"，而是你会开始真正理解人性、趋势、耐心和仓位纪律到底有多重要。</div><div class="book-tags"><span class="tiny-tag">交易心理</span><span class="tiny-tag">趋势</span><span class="tiny-tag">纪律</span></div></div></article>
+    <article class="book-card"><img class="book-cover" src="assets/books/financial-statements-guide.svg" alt="手把手教你读财报 封面"><div class="book-body"><div class="book-kicker"><span>入门 / 财报</span><span>难度 2/5</span></div><h3>手把手教你读财报</h3><div class="book-author">唐朝</div><div class="book-desc">很适合作为 A 股财报阅读的第一本中文书。重点不是记术语，而是知道三张报表各自回答什么问题。</div><div class="book-tags"><span class="tiny-tag">三大报表</span><span class="tiny-tag">中文语境</span><span class="tiny-tag">财报入门</span></div></div></article>
+    <article class="book-card"><img class="book-cover" src="assets/books/poor-charlies-almanack.svg" alt="穷查理宝典 封面"><div class="book-body"><div class="book-kicker"><span>进阶 / 思维模型</span><span>难度 4/5</span></div><h3>穷查理宝典</h3><div class="book-author">查理·芒格</div><div class="book-desc">如果你不想把投资学成只会看 K 线，这本书非常关键。它帮助你建立跨学科思考能力，而不是单点技巧。</div><div class="book-tags"><span class="tiny-tag">思维模型</span><span class="tiny-tag">长期主义</span><span class="tiny-tag">高阶认知</span></div></div></article>
+    <article class="book-card"><img class="book-cover" src="assets/books/index-fund-guide.svg" alt="指数基金投资指南 封面"><div class="book-body"><div class="book-kicker"><span>入门 / ETF</span><span>难度 1/5</span></div><h3>指数基金投资指南</h3><div class="book-author">银行螺丝钉</div><div class="book-desc">对大学生尤其友好。它把"为什么普通人更适合指数投资"说得很清楚，也更容易落到长期定投实践上。</div><div class="book-tags"><span class="tiny-tag">指数基金</span><span class="tiny-tag">长期定投</span><span class="tiny-tag">低门槛</span></div></div></article>
+    <article class="book-card"><img class="book-cover" src="assets/books/buffett-letters.svg" alt="巴菲特致股东的信 封面"><div class="book-body"><div class="book-kicker"><span>进阶 / 企业经营</span><span>难度 4/5</span></div><h3>巴菲特致股东的信</h3><div class="book-author">沃伦·巴菲特</div><div class="book-desc">适合在有了基础之后反复读。它会让你开始从企业经营与资本配置的角度看投资，而不是只看股价波动。</div><div class="book-tags"><span class="tiny-tag">资本配置</span><span class="tiny-tag">企业经营</span><span class="tiny-tag">复读价值高</span></div></div></article>
+    <article class="book-card"><img class="book-cover" src="assets/books/simple-investing.svg" alt="投资中最简单的事 封面"><div class="book-body"><div class="book-kicker"><span>进阶 / A 股框架</span><span>难度 3/5</span></div><h3>投资中最简单的事</h3><div class="book-author">邱国鹭</div><div class="book-desc">如果你想把宏观、行业、公司和估值串起来，这是很好的中文投资框架书，适合做体系化复盘。</div><div class="book-tags"><span class="tiny-tag">A股框架</span><span class="tiny-tag">择股逻辑</span><span class="tiny-tag">体系化</span></div></div></article>
+  </div>
+</section>
+
 </main>
-<footer>&copy; 2026 CampusQuant 校园财商 · 学习资源库已补全为可直接使用的投教内容页 · <a href="community.html">回到投教社区</a></footer>
+
+<footer>&copy; 2026 CampusQuant 校园财商 · 学习资源库 · <a href="community.html">回到投教社区</a></footer>
+
+<!-- ============ Module Detail Drawer ============ -->
+<div class="drawer-backdrop" id="drawer-backdrop"></div>
+<div class="drawer" id="module-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+  <div class="drawer-head">
+    <div class="drawer-head-left">
+      <div class="drawer-icon" id="drawer-icon">¥</div>
+      <div class="drawer-title-wrap">
+        <div class="drawer-title" id="drawer-title">—</div>
+        <div class="drawer-subtitle" id="drawer-subtitle">—</div>
+      </div>
+    </div>
+    <button class="drawer-close" id="drawer-close" aria-label="关闭">×</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+  <div class="drawer-foot">
+    <button class="drawer-nav" id="drawer-prev">← 上一模块</button>
+    <div class="drawer-progress" id="drawer-progress">1 / 6</div>
+    <button class="drawer-nav" id="drawer-next">下一模块 →</button>
+  </div>
+</div>
+
 <script src="assets/js/articles.js"></script>
 <script>
+/* ============ 六大核心模块数据 ============ */
+const MODULES = [
+{
+  id:'basics', icon:'¥', title:'财商入门', subtitle:'复利、账户规划与 A 股开户全流程',
+  tag:'适合零基础',
+  summary:'先把"钱为什么会贬值、为什么收益一定伴随波动、为什么不要满仓"讲清楚。然后走完 A 股开户流程，真正开始拥有账户。',
+  sections:[
+    {title:'为什么大学生要从现在开始学投资', body:`
+      <p>不是"有钱再说"，而是<strong>越早开始，你的时间就越值钱</strong>。</p>
+      <p>举一个直观的例子：两个人都按年化 10% 复利做长期投资。A 从 20 岁起每月投 1000 元，B 从 30 岁起每月投 2000 元，同样到 60 岁。A 总投入 48 万，B 总投入 72 万。但 A 的最终账户反而比 B 多 30% 以上。</p>
+      <p>这不是因为 A 更聪明，而是因为他多了 10 年。<strong>复利里最值钱的是时间，不是本金</strong>。</p>
+      <div class="callout tip">大学生最大的资产就是时间。哪怕每月只投 300 元，坚持 10 年以上，也比 30 岁一次性投几万更稳。</div>
+    `},
+    {title:'三盆水账户法：物理隔离你的钱', body:`
+      <p>还没学会投资之前，最该先学会的是<strong>账户分层</strong>。建议把钱分成三盆：</p>
+      <ul>
+        <li><strong>生活费盆</strong> — 当月开销，放活期或余额宝，随时能动。</li>
+        <li><strong>应急金盆</strong> — 3-6 个月生活费，放货币基金或大额存单，只在意外时才动。</li>
+        <li><strong>投资盆</strong> — 至少 3 年用不到的闲钱，放进券商账户做定投。</li>
+      </ul>
+      <p>关键不是钱多少，而是<strong>三盆必须物理隔离</strong>。生活费和投资钱混在一起，下次考试失利或谈恋爱受挫，你会手滑割肉。</p>
+      <div class="callout">千万不要用生活费、花呗、借呗、助学贷款进场。本金来路决定心态，心态决定操作。</div>
+    `},
+    {title:'A 股开户完整流程（新手必看）', body:`
+      <p>全流程大约 15-20 分钟，线上即可完成。工作日 9:00-16:00 开户当天即可成功，非交易时段会顺延到下一交易日。</p>
+      <div class="steplist">
+        <div class="stepitem"><div class="stepno">1</div><div class="stepbody"><b>准备材料</b>二代身份证（有效期内）、本人名下银行卡（四大行或主流股份行皆可）、一部智能手机。</div></div>
+        <div class="stepitem"><div class="stepno">2</div><div class="stepbody"><b>选择券商</b>新手推荐三类：① 老牌稳定（华泰/中信/国泰君安）；② 佣金便宜（东方财富/华宝）；③ 研报资源多（中信/招商）。三者并无绝对优劣，优先挑你能搜到清晰操作教程的那家。</div></div>
+        <div class="stepitem"><div class="stepno">3</div><div class="stepbody"><b>下载券商 APP 实名开户</b>主要步骤：上传身份证正反面 → 活体人脸识别 → 填写基本信息（职业填"学生"没问题）→ 绑定银行卡 → 阅读并签署风险提示书 → 完成 C1-C5 风险承受能力测评（新手通常 C2/C3 很正常）。</div></div>
+        <div class="stepitem"><div class="stepno">4</div><div class="stepbody"><b>等待开户审核</b>正常当天 1-2 小时通过。系统会短信告知你资金账号和股东代码。</div></div>
+        <div class="stepitem"><div class="stepno">5</div><div class="stepbody"><b>银证转账入金</b>登录 APP → "银证转账" → 从绑定银行卡转入少量资金（建议 500-1000 元作为首次测试），实时到账。</div></div>
+        <div class="stepitem"><div class="stepno">6</div><div class="stepbody"><b>买第一支 ETF（不要买个股）</b>在交易页面输入代码 510300（沪深 300 ETF）或 510500（中证 500 ETF），按"买入"下单，起步 100 股（约 400-500 元）。这是最安全的第一笔交易。</div></div>
+      </div>
+      <div class="callout tip">不要一开户就满仓、不要 All-in 一支股票、不要借钱进场。你现在不是在赚钱，是在交学费学市场节奏。</div>
+    `},
+    {title:'港股 & 美股怎么买', body:`
+      <p><strong>港股通</strong>：已开 A 股账户且日均资产 ≥ 50 万的投资者可申请开通港股通。新手不必着急，先用 A 股积累经验。</p>
+      <p><strong>美股开户</strong>：三家常见券商对比：</p>
+      <table>
+        <tr><th>券商</th><th>门槛</th><th>适合</th></tr>
+        <tr><td>富途牛牛</td><td>实名即可，无最低入金</td><td>中文界面，港美股打通，适合大陆大学生起步</td></tr>
+        <tr><td>老虎证券</td><td>实名即可，无最低入金</td><td>社区氛围活跃，美股港股佣金较低</td></tr>
+        <tr><td>嘉信理财</td><td>需境外银行卡或汇款</td><td>美本留学生首选，长期持有费率极低</td></tr>
+      </table>
+      <p>注意：内地居民换汇每年 5 万美元额度，依规不能直接用于购买境外股票。合规路径一般是通过港美股券商开香港账户或使用合规通道。</p>
+      <div class="callout">不要相信任何"免费教开户还送红包"的推广链接。这类通道后续往往诱导你加杠杆或做合约，风险极高。</div>
+    `},
+    {title:'新手三条铁律', body:`
+      <ol>
+        <li><strong>先开户再学习，不急着买</strong> — 开户本身不花钱，拿到账户后你学每个概念都会更具体。</li>
+        <li><strong>第一笔交易不超过 1000 元</strong> — 用最小的代价熟悉下单、撤单、持仓查看、收益曲线。</li>
+        <li><strong>前 3 个月只买宽基 ETF</strong> — 不买个股、不追热点、不加仓。唯一的目标是熬过第一次浮亏，看清自己真实的心跳。</li>
+      </ol>
+    `}
+  ]
+},
+{
+  id:'market', icon:'📊', title:'股票与 ETF', subtitle:'理解三大市场和适合新手的产品',
+  tag:'市场入门',
+  summary:'股票、基金、ETF 到底有什么区别？A股/港股/美股玩法有哪些不同？为什么大多数新手更适合从指数基金起步？',
+  sections:[
+    {title:'股票 / 基金 / ETF 的本质区别', body:`
+      <p>三者都是"权益类投资"，但参与方式完全不同：</p>
+      <ul>
+        <li><strong>股票</strong> — 你直接买了公司的一小块股权，涨跌完全取决于这家公司。需要你自己做研究、做决策、承担情绪波动。</li>
+        <li><strong>主动型基金</strong> — 把钱交给基金经理，由他帮你选股。好处是省心，代价是要付管理费（年 1.5% 左右），还要承担经理风格漂移的风险。</li>
+        <li><strong>ETF（交易型开放式指数基金）</strong> — 一篮子股票的打包方案，像股票一样买卖。跟踪某个指数（如沪深 300），费率极低（0.15%-0.5%/年）。</li>
+      </ul>
+      <div class="callout tip">新手先从 ETF 开始：天然分散、费率低、交易像股票一样简单，没有"明星经理"迷信。</div>
+    `},
+    {title:'A股 / 港股 / 美股规则对比', body:`
+      <table>
+        <tr><th>项目</th><th>A 股</th><th>港股</th><th>美股</th></tr>
+        <tr><td>交易时间（北京时间）</td><td>9:30-11:30, 13:00-15:00</td><td>9:30-12:00, 13:00-16:00</td><td>22:30 - 次日 5:00（夏令时提前 1 小时）</td></tr>
+        <tr><td>T+N</td><td>T+1（当日买次日卖）</td><td>T+0</td><td>T+0</td></tr>
+        <tr><td>涨跌幅</td><td>10%（ST 5%，创业板/科创板 20%）</td><td>无限制</td><td>无限制（有熔断）</td></tr>
+        <tr><td>最小单位</td><td>100 股/手</td><td>1 手 = 各股不同</td><td>1 股</td></tr>
+        <tr><td>费率参考</td><td>万 2.5-万 5 + 印花税 0.1%（仅卖出）</td><td>万 2.5 + 印花税 0.13%</td><td>佣金 0-1 美元 + SEC 费</td></tr>
+      </table>
+      <p>实操最容易踩坑的点：</p>
+      <ul>
+        <li>A 股 T+1 意味着当天买错也走不掉，必须扛一晚上。</li>
+        <li>港股没涨跌幅限制，某些仙股一天能跌 90%，绝不随便买低价票。</li>
+        <li>美股交易时段对应中国深夜，不要盘中盯屏，只看收盘。</li>
+      </ul>
+    `},
+    {title:'为什么指数基金更适合新手', body:`
+      <p>指数基金的核心优势：</p>
+      <ol>
+        <li><strong>天然分散</strong> — 买沪深 300 就等于同时持有茅台、招行、宁德时代等 300 家优质公司，不会因为一家暴雷全军覆没。</li>
+        <li><strong>超低费率</strong> — 年费率只有 0.15%-0.5%。长期持有时，省下的费率就是净赚。</li>
+        <li><strong>长期跑赢多数散户</strong> — 数据证明，长周期下 80% 以上的主动基金跑不赢对标指数，更别提散户。</li>
+      </ol>
+      <p>巴菲特 2007 年下过一场 10 年赌局：他押注标普 500 指数基金会跑赢任一组对冲基金组合。10 年后，指数基金年化 8.5%，对冲基金组合年化仅 2.4%。</p>
+      <div class="callout tip">新手最好的选股策略是"不选股"。定投一只宽基 ETF，已经超过了市场上 80% 的散户。</div>
+    `},
+    {title:'宽基 / 行业 / 主题 ETF 速查', body:`
+      <p><strong>宽基 ETF（新手必选，风险最低）：</strong></p>
+      <ul>
+        <li>510300 — 沪深 300 ETF（大盘蓝筹）</li>
+        <li>510500 — 中证 500 ETF（中盘成长）</li>
+        <li>159915 — 创业板 ETF（高成长高波动）</li>
+        <li>513100 — 纳指 ETF（美股科技龙头）</li>
+        <li>513500 — 标普 500 ETF（美股全市场）</li>
+        <li>513130 — 恒生科技 ETF（港股互联网）</li>
+      </ul>
+      <p><strong>行业 ETF（已有宽基基础后可加配）：</strong>消费、医药、科技、券商、新能源等。</p>
+      <p><strong>主题 ETF（高风险，新手不要碰）：</strong>AI、芯片、元宇宙等，往往在热度最高时发行，追高风险极大。</p>
+    `},
+    {title:'定投 vs 一次性买入', body:`
+      <p><strong>定投适合新手</strong>的本质原因是：它用"机械执行"代替了"情绪决策"。你不需要判断牛熊，不需要择时，坚持每月固定金额买入即可。</p>
+      <ul>
+        <li><strong>周期选择</strong>：月度定投更省心，周度定投更分散但操作频繁。新手先用月度。</li>
+        <li><strong>金额</strong>：从 500-1000 元/月起步即可，关键是坚持而不是数量。</li>
+        <li><strong>品种</strong>：沪深 300 + 中证 500 双宽基组合，或沪深 300 + 纳指 100 的 A 美双配置。</li>
+        <li><strong>什么时候停</strong>：当估值进入历史高位（分位 > 80%）时暂停新增，但不要急着止盈。</li>
+      </ul>
+      <div class="callout">定投 3 个月内亏了就怀疑策略 → 你不适合定投。定投的生效期至少是一个完整的牛熊周期（3-5 年）。</div>
+    `}
+  ]
+},
+{
+  id:'financials', icon:'🧾', title:'财报阅读', subtitle:'三张报表的顺序阅读法',
+  tag:'财报必修',
+  summary:'不需要记任何会计术语，直接从"这家公司赚钱靠什么、赚得真不真、扛不扛风险"三个角度切入三张报表。',
+  sections:[
+    {title:'三张表各自回答什么问题', body:`
+      <p>财报里最重要的三张表，本质上回答的是三个不同的问题：</p>
+      <ul>
+        <li><strong>利润表</strong> — 这段时间<strong>赚了多少钱</strong>？（收入、成本、净利润）</li>
+        <li><strong>资产负债表</strong> — 截止某一天<strong>家底有多厚</strong>？（资产、负债、股东权益）</li>
+        <li><strong>现金流量表</strong> — 这些利润<strong>真进口袋了吗</strong>？（经营/投资/筹资现金流）</li>
+      </ul>
+      <div class="callout">三张表必须对照看。只看利润表容易被"纸面利润"骗，配合现金流表才知道企业是真赚钱还是在画大饼。</div>
+    `},
+    {title:'顺序阅读法：从收入看到现金流', body:`
+      <div class="steplist">
+        <div class="stepitem"><div class="stepno">1</div><div class="stepbody"><b>先看营业收入</b>增长了吗？增速合理吗？和同行业比如何？连续三年下滑的公司直接放弃。</div></div>
+        <div class="stepitem"><div class="stepno">2</div><div class="stepbody"><b>再看毛利率</b>毛利率 = (收入 - 成本) / 收入。反映产品定价权。消费龙头往往 >40%，制造业 15-25%。毛利率突然下滑通常是价格战或成本失控。</div></div>
+        <div class="stepitem"><div class="stepno">3</div><div class="stepbody"><b>然后看净利率</b>净利率 = 净利润 / 收入。反映最终盈利能力。茅台净利率 50%+，大部分制造业 5-10%。</div></div>
+        <div class="stepitem"><div class="stepno">4</div><div class="stepbody"><b>ROE 是核心</b>ROE = 净利润 / 净资产。巴菲特偏爱 ROE 连续 10 年 > 15% 的公司。可拆解为：净利率 × 周转率 × 权益乘数（杜邦分析）。</div></div>
+        <div class="stepitem"><div class="stepno">5</div><div class="stepbody"><b>最后看经营现金流</b>经营现金流 / 净利润 应该 > 1 才健康。如果净利润高但经营现金流差，说明赚的是"应收账款"，不是真金白银。</div></div>
+      </div>
+    `},
+    {title:'关键比率速查表', body:`
+      <table>
+        <tr><th>指标</th><th>计算方式</th><th>健康区间</th></tr>
+        <tr><td>毛利率</td><td>(收入-成本)/收入</td><td>消费 &gt;40%，科技 &gt;50%，制造 &gt;15%</td></tr>
+        <tr><td>净利率</td><td>净利润/收入</td><td>&gt;10% 为优秀</td></tr>
+        <tr><td>ROE</td><td>净利润/净资产</td><td>&gt;15% 为优秀，连续 10 年稳定更好</td></tr>
+        <tr><td>资产负债率</td><td>总负债/总资产</td><td>&lt;60% 较安全（银行地产除外）</td></tr>
+        <tr><td>经营现金流/净利润</td><td>—</td><td>&gt;1 健康，&lt;0.8 警惕</td></tr>
+      </table>
+    `},
+    {title:'识别"增收不增利"和其他陷阱', body:`
+      <p>常见的财报陷阱：</p>
+      <ul>
+        <li><strong>增收不增利</strong>：收入 ↑ 但毛利率 ↓。多半是打价格战或原材料涨价。</li>
+        <li><strong>增利不增现金</strong>：净利润 ↑ 但经营现金流 ↓。往往是应收账款暴增，下游欠款多。</li>
+        <li><strong>商誉过大</strong>：商誉占总资产 &gt; 20% 时警惕，一旦减值会大幅侵蚀利润。</li>
+        <li><strong>存货异常</strong>：存货增速远超收入增速，可能卖不动。</li>
+        <li><strong>股权质押</strong>：大股东高比例质押 → 风险信号。</li>
+      </ul>
+      <div class="callout">看财报的第一要务不是找"买点"，而是<strong>排除</strong>。能排除 90% 的公司，你的选股池就清晰多了。</div>
+    `},
+    {title:'财报哪里看 / 怎么看', body:`
+      <p><strong>A 股财报去哪里查：</strong></p>
+      <ul>
+        <li>官方披露：巨潮资讯网（www.cninfo.com.cn）— 最权威。</li>
+        <li>第三方汇总：东方财富 / 同花顺 / 雪球 — 已加工好关键指标，适合快速查看。</li>
+        <li>深度研报：慧博投研 / 发现报告 — 研报质量高，但要自己判断独立性。</li>
+      </ul>
+      <p><strong>财报披露时间：</strong></p>
+      <ul>
+        <li>一季报：4 月 1-30 日</li>
+        <li>中报：8 月 1-31 日</li>
+        <li>三季报：10 月 1-31 日</li>
+        <li>年报：次年 1 月 1 日 - 4 月 30 日</li>
+      </ul>
+    `}
+  ]
+},
+{
+  id:'valuation', icon:'📐', title:'估值方法', subtitle:'PE/PB/PEG 与安全边际',
+  tag:'估值训练',
+  summary:'估值不是背公式，而是判断"这个价格对应了什么预期"。学会用 PE/PB/PEG 和历史分位做判断。',
+  sections:[
+    {title:'估值的本质：对未来的定价', body:`
+      <p>"这家公司值多少钱"本身不是一个客观问题。股价 = 预期 × 业绩，市场愿意为高成长的公司付更高溢价。所以估值要回答的是：</p>
+      <p><strong>当前价格对应的预期是什么？这个预期有多大概率能兑现？</strong></p>
+      <div class="callout tip">低估值的本质不是"便宜"，而是"市场对未来不看好"。如果基本面真的恶化，低估值会变成"价值陷阱"；如果市场误判，低估值就是你的机会。</div>
+    `},
+    {title:'四大估值指标对比', body:`
+      <table>
+        <tr><th>指标</th><th>含义</th><th>适用场景</th><th>陷阱</th></tr>
+        <tr><td>PE（市盈率）</td><td>股价/每股收益</td><td>盈利稳定的公司</td><td>亏损或利润大起大落时失真</td></tr>
+        <tr><td>PB（市净率）</td><td>股价/每股净资产</td><td>重资产、金融、周期股</td><td>轻资产公司 PB 很高也正常</td></tr>
+        <tr><td>PS（市销率）</td><td>股价/每股收入</td><td>亏损的成长型公司</td><td>不考虑盈利质量</td></tr>
+        <tr><td>PEG</td><td>PE / 年化增速</td><td>成长股</td><td>对增速假设非常敏感</td></tr>
+      </table>
+      <div class="callout">PE 不能跨行业比。银行 PE 5 倍不等于便宜，科技股 PE 40 倍不等于贵。必须用同行业或自身历史做锚。</div>
+    `},
+    {title:'历史分位估值法（新手最友好）', body:`
+      <p>历史分位估值法的步骤：</p>
+      <ol>
+        <li>查询这只股票或指数<strong>近 5 年的 PE 分布</strong>。</li>
+        <li>看当前 PE 处于什么分位。</li>
+        <li><strong>分位 &lt; 30%</strong> → 相对低估，可以关注；<strong>分位 &gt; 70%</strong> → 相对高估，要警惕。</li>
+      </ol>
+      <p>常用工具：</p>
+      <ul>
+        <li><strong>理杏仁</strong>（lixinger.com）— A/港/美股历史分位数据最全，有免费版。</li>
+        <li><strong>乌龟量化</strong> — 指数估值分位查询免费。</li>
+        <li><strong>雪球</strong> — 每只股票详情页都有 PE 历史图。</li>
+      </ul>
+      <div class="callout tip">分位法的前提是<strong>基本面稳定</strong>。如果公司在持续衰退，再低的 PE 也可能继续跌。</div>
+    `},
+    {title:'不同行业的合理估值区间', body:`
+      <table>
+        <tr><th>行业</th><th>合理 PE 区间</th><th>说明</th></tr>
+        <tr><td>银行</td><td>5-10</td><td>低 PE 是常态，看 PB 和坏账率更重要</td></tr>
+        <tr><td>消费龙头</td><td>20-35</td><td>品牌溢价高，长期相对稳定</td></tr>
+        <tr><td>医药</td><td>25-40</td><td>研发投入决定未来</td></tr>
+        <tr><td>科技成长</td><td>30-80+</td><td>PE 意义减弱，看 PS 和增速</td></tr>
+        <tr><td>周期股（钢铁/煤炭）</td><td>反向指标</td><td>PE 高时反而便宜，PE 低时往往见顶</td></tr>
+      </table>
+    `},
+    {title:'安全边际：留出错误空间', body:`
+      <p>格雷厄姆提出的核心概念：<strong>安全边际 = 内在价值 - 买入价格</strong>。</p>
+      <p>它承认一件事：你对未来的判断<strong>一定会错</strong>，所以必须留出折扣。</p>
+      <ul>
+        <li>如果你估算公司值 100 元，70 元买入才有安全边际。</li>
+        <li>如果你估算公司值 100 元，99 元买入 → 任何微小的判断偏差都会让你亏钱。</li>
+      </ul>
+      <div class="callout">新手最大的毛病是算出"合理价"就立刻买入。合理价不是买点，合理价 × 70% 才是买点。</div>
+    `}
+  ]
+},
+{
+  id:'risk', icon:'🛡', title:'风险控制', subtitle:'仓位、止损与大学生防坑清单',
+  tag:'风控底线',
+  summary:'仓位、止损、回撤是最值钱的基础设施。内含大学生最需要的防诈骗清单。',
+  sections:[
+    {title:'风控比选股更重要', body:`
+      <p>这是老投资者用血泪换来的共识：<strong>生存下来，比赚取短期高收益更重要。</strong></p>
+      <p>简单的数学：亏 10% 需要涨 11% 回本，亏 30% 需要涨 43% 回本，亏 50% 需要涨 100% 回本，亏 70% 需要涨 233% 回本。</p>
+      <div class="callout">控制回撤不是胆小，是让你有资格留在市场等待下一轮。亏光了，再好的机会都和你没关系。</div>
+    `},
+    {title:'仓位分层管理', body:`
+      <p>不要把所有钱放在同一个"风险桶"里。建议分三层：</p>
+      <ul>
+        <li><strong>核心仓（60-70%）</strong> — 宽基指数 ETF + 已验证的龙头，长期持有，不做波段。</li>
+        <li><strong>确认仓（20-30%）</strong> — 已研究透、跌到合理位置的成长股，可适度加仓。</li>
+        <li><strong>试错仓（5-10%）</strong> — 用来测试新想法、新策略。亏完不心疼，赚了不飘。</li>
+      </ul>
+      <div class="callout tip">仓位分层的意义在于：即使试错仓全亏，你的核心仓依然完好。不会一次错误把你推出市场。</div>
+    `},
+    {title:'止损原则：给下一次留子弹', body:`
+      <ul>
+        <li><strong>单笔最大亏损不超过总仓位 2%</strong> — 这是华尔街久经考验的铁律。</li>
+        <li><strong>买入前就要写好止损位</strong> — 不是亏到心疼才想起来止损。</li>
+        <li><strong>止损触发就无条件执行</strong> — 情绪不是决策依据，规则才是。</li>
+        <li><strong>止损不是失败</strong> — 是给下一次正确决策留出子弹。</li>
+      </ul>
+      <p>常见的止损位设法：</p>
+      <ul>
+        <li><strong>固定比例法</strong>：买入价下跌 8% / 10% 止损。</li>
+        <li><strong>技术位法</strong>：跌破关键支撑位（MA60、前低）止损。</li>
+        <li><strong>基本面法</strong>：原买入逻辑被证伪（业绩暴雷等）立即止损。</li>
+      </ul>
+    `},
+    {title:'⚠️ 大学生防坑清单（必读）', body:`
+      <p><strong>绝对不能碰的三类承诺：</strong></p>
+      <ul>
+        <li>"保本保收益，月收益 10% 以上" → 100% 是骗局，天王老子来了也一样。</li>
+        <li>"老师带单、内部票、消息刺激次日涨停" → 典型的荐股诈骗套路，常见于微信群 + 陌生电话。</li>
+        <li>"先交服务费、进群费、软件费再给策略" → 99% 是收智商税，剩下 1% 是非法荐股。</li>
+      </ul>
+      <p><strong>遇到这些情况立刻退出：</strong></p>
+      <ul>
+        <li>有人拉你进"牛股交流群"，群里不断晒盈利截图；</li>
+        <li>自称"私募/机构"的陌生人加你好友，推荐"未开盘前的优质标的"；</li>
+        <li>让你下载一个你没听过的交易 APP（大概率是虚假盘）；</li>
+        <li>声称"稳赚 3 天翻倍""亏损包赔"；</li>
+        <li>要求你充值到对方指定的"个人账户"或"虚拟货币钱包"。</li>
+      </ul>
+      <div class="callout">合规券商账户只会绑定你本人的银行卡，资金流向<strong>永远是</strong>你的银行卡 ↔ 你的券商账户，中间不经过任何第三方。</div>
+    `},
+    {title:'情绪管理：交易是反人性的', body:`
+      <p>行为金融学三大常见偏差：</p>
+      <ul>
+        <li><strong>损失厌恶</strong> — 亏 100 元的痛苦远大于赚 100 元的快乐，导致你该止损时舍不得、该持有时拿不住。</li>
+        <li><strong>锚定效应</strong> — 死死记住自己的买入价，基本面已经变化了还不愿意卖。</li>
+        <li><strong>羊群效应</strong> — 看到别人都在买就跟，看到别人都在抛也一起跑。</li>
+      </ul>
+      <p><strong>情绪上头时的 3 个动作：</strong></p>
+      <ol>
+        <li>先停 24 小时再下单，越想立刻操作，越要慢下来。</li>
+        <li>把买入理由写在纸上，看看是不是只剩"怕踏空"。</li>
+        <li>写不出明确止损位的交易，不做。</li>
+      </ol>
+    `}
+  ]
+},
+{
+  id:'cases', icon:'🧠', title:'实战案例', subtitle:'消费龙头、平台公司与指数长投',
+  tag:'案例进阶',
+  summary:'用真实案例（茅台/腾讯/沪深 300）拆解不同资产类型的分析框架，学会给自己建立 watchlist。',
+  sections:[
+    {title:'案例一：消费龙头茅台', body:`
+      <p><strong>为什么用茅台做消费案例？</strong>因为它集齐了消费龙头的所有典型特征：</p>
+      <ul>
+        <li><strong>品牌护城河</strong> — 高端白酒的文化 + 社交属性极难替代。</li>
+        <li><strong>定价权</strong> — 可以持续提价，而且基本不影响销量。</li>
+        <li><strong>现金流</strong> — 预收账款常年为正，经销商先打钱再发货。</li>
+        <li><strong>低资本开支</strong> — 不需要不断盖新厂扩产能，ROE 常年 &gt; 25%。</li>
+      </ul>
+      <p><strong>关键指标监控：</strong>营业收入增速、批价（一批价/终端价）、经销商数量变动、预收账款。</p>
+      <div class="callout">消费龙头的分析重点不是"未来 1 年怎么样"，而是"10 年后它还在不在、还值不值这个估值"。</div>
+    `},
+    {title:'案例二：平台公司腾讯', body:`
+      <p><strong>平台公司的分析框架</strong>和消费完全不同：</p>
+      <ul>
+        <li><strong>网络效应</strong> — 用户越多越值钱（微信、QQ、游戏社交）。</li>
+        <li><strong>监管周期</strong> — 互联网公司必须考虑政策风险，中美两端同时监管。</li>
+        <li><strong>再投资回报</strong> — 腾讯持有大量投资资产，要看投资组合公允价值。</li>
+        <li><strong>估值常受情绪压制</strong> — 宏观风险释放时往往给出打折机会。</li>
+      </ul>
+      <p><strong>什么时候该关注买点：</strong>监管出清、估值回到历史 30% 分位以下、用户增长重启 → 是典型的买点信号组合。</p>
+    `},
+    {title:'案例三：沪深 300 ETF 长期持有', body:`
+      <p><strong>最适合大学生的"懒人策略"：</strong>定投沪深 300 ETF，持有 10 年以上。</p>
+      <p>成分构成（大致）：</p>
+      <ul>
+        <li>金融地产 ~20%（招行、平安等）</li>
+        <li>消费医药 ~25%（茅台、五粮液、恒瑞等）</li>
+        <li>科技制造 ~30%（宁德时代、立讯精密等）</li>
+        <li>其他行业 ~25%</li>
+      </ul>
+      <p>历史数据：过去 10 年沪深 300 年化收益约 7%-9%（含分红）。不算惊艳，但比绝大多数散户的真实收益都高。</p>
+      <div class="callout tip">如果你还没有自己的分析体系，沪深 300 定投就是最稳的起点。等真正学会选股，再慢慢把一部分迁移到个股。</div>
+    `},
+    {title:'复盘五问：每笔交易结束后必做', body:`
+      <ol>
+        <li><strong>买入逻辑成立吗？</strong>当初写下的理由现在回看依然有效吗？</li>
+        <li><strong>仓位匹配信念强度吗？</strong>很有把握的票为什么只下 2% 仓位？</li>
+        <li><strong>止损位执行了吗？</strong>如果没执行，是规则错了还是人性错了？</li>
+        <li><strong>是运气还是方法？</strong>相同条件再来一次你还会做同样的决策吗？</li>
+        <li><strong>下次遇到类似机会怎么做？</strong>能总结出可复用的规律吗？</li>
+      </ol>
+      <div class="callout">真正的进步不在"买了什么、赚了多少"，而在"从每一笔交易中学到了什么"。</div>
+    `},
+    {title:'建立你自己的 Watchlist', body:`
+      <p><strong>原则：</strong></p>
+      <ul>
+        <li>只跟踪<strong>自己看得懂</strong>的公司 — 你日常用它的产品，了解它的业务。</li>
+        <li>数量<strong>不超过 10 支</strong> — 盯得过来才叫跟踪。</li>
+        <li>每月更新一次 — 剔除基本面恶化的，加入新发现的。</li>
+      </ul>
+      <p><strong>初始 watchlist 参考（大学生友好）：</strong></p>
+      <ul>
+        <li>消费：贵州茅台、伊利股份、海天味业</li>
+        <li>互联网：腾讯控股、美团、拼多多</li>
+        <li>金融：招商银行、中国平安</li>
+        <li>制造：比亚迪、宁德时代</li>
+        <li>ETF：沪深 300、中证 500、恒生科技、纳指 100</li>
+      </ul>
+    `}
+  ]
+}
+];
+
+/* ============ Module Drawer 交互 ============ */
+const moduleGrid = document.getElementById('module-grid');
+const drawer = document.getElementById('module-drawer');
+const drawerBackdrop = document.getElementById('drawer-backdrop');
+const drawerTitle = document.getElementById('drawer-title');
+const drawerSubtitle = document.getElementById('drawer-subtitle');
+const drawerIcon = document.getElementById('drawer-icon');
+const drawerBody = document.getElementById('drawer-body');
+const drawerCloseBtn = document.getElementById('drawer-close');
+const drawerPrev = document.getElementById('drawer-prev');
+const drawerNext = document.getElementById('drawer-next');
+const drawerProgress = document.getElementById('drawer-progress');
+let currentModuleIdx = 0;
+
+function renderModules(){
+  moduleGrid.innerHTML = MODULES.map((m,i)=>`
+    <button class="module-card" data-idx="${i}" type="button">
+      <div class="module-top">
+        <div class="module-icon">${m.icon}</div>
+        <span class="module-tag">${m.tag}</span>
+      </div>
+      <h3>${m.title}</h3>
+      <div class="module-copy">${m.summary}</div>
+      <div class="module-meta">
+        <span class="module-sections">${m.sections.length} 个子章节</span>
+        <span class="module-link">点击展开 →</span>
+      </div>
+    </button>
+  `).join('');
+  moduleGrid.querySelectorAll('.module-card').forEach(btn=>{
+    btn.addEventListener('click',()=>openDrawer(parseInt(btn.dataset.idx,10)));
+  });
+}
+
+function openDrawer(idx){
+  currentModuleIdx = idx;
+  const m = MODULES[idx];
+  drawerTitle.textContent = m.title;
+  drawerSubtitle.textContent = m.subtitle;
+  drawerIcon.textContent = m.icon;
+  drawerBody.innerHTML = m.sections.map((s,i)=>`
+    <div class="drawer-section">
+      <h4 data-n="${i+1}">${s.title}</h4>
+      ${s.body}
+    </div>
+  `).join('');
+  drawerPrev.disabled = idx === 0;
+  drawerNext.disabled = idx === MODULES.length - 1;
+  drawerProgress.textContent = `${idx+1} / ${MODULES.length}`;
+  drawer.classList.add('open');
+  drawerBackdrop.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  drawerBody.scrollTop = 0;
+}
+
+function closeDrawer(){
+  drawer.classList.remove('open');
+  drawerBackdrop.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+drawerCloseBtn.addEventListener('click', closeDrawer);
+drawerBackdrop.addEventListener('click', closeDrawer);
+drawerPrev.addEventListener('click', ()=>{ if(currentModuleIdx>0) openDrawer(currentModuleIdx-1); });
+drawerNext.addEventListener('click', ()=>{ if(currentModuleIdx<MODULES.length-1) openDrawer(currentModuleIdx+1); });
+document.addEventListener('keydown',(e)=>{
+  if(!drawer.classList.contains('open')) return;
+  if(e.key === 'Escape') closeDrawer();
+  else if(e.key === 'ArrowLeft' && currentModuleIdx > 0) openDrawer(currentModuleIdx-1);
+  else if(e.key === 'ArrowRight' && currentModuleIdx < MODULES.length-1) openDrawer(currentModuleIdx+1);
+});
+
+renderModules();
+
+/* ============ 文章库渲染（依赖 articles.js） ============ */
 const ARTICLES = window.CAMPUSQUANT_ARTICLES || [];
-const categoryMap = window.CAMPUSQUANT_CATEGORIES || {basic:{label:'财商基础',className:'pill-basic'},analysis:{label:'分析方法',className:'pill-analysis'},risk:{label:'风险控制',className:'pill-risk'},advanced:{label:'案例进阶',className:'pill-advanced'}};
-const articleList=document.getElementById('article-list');const filterButtons=Array.from(document.querySelectorAll('#category-filters .filter-btn'));
+const categoryMap = window.CAMPUSQUANT_CATEGORIES || {
+  basic:{label:'财商基础',className:'pill-basic'},
+  analysis:{label:'分析方法',className:'pill-analysis'},
+  risk:{label:'风险控制',className:'pill-risk'},
+  advanced:{label:'案例进阶',className:'pill-advanced'}
+};
+const articleList = document.getElementById('article-list');
+const filterButtons = Array.from(document.querySelectorAll('#category-filters .filter-btn'));
+
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
 function renderArticles(filter){
-  const list=filter==='all'?ARTICLES:ARTICLES.filter(item=>item.category===filter);
-  articleList.innerHTML=list.map(item=>{
-    const cfg=categoryMap[item.category]||{label:'文章',className:'pill-basic'};
-    const href='article_detail.html?id='+encodeURIComponent(item.id);
-    return `<a class="article-item" href="${href}" style="text-decoration:none;color:inherit;cursor:pointer;"><div><h3 style="color:var(--text);">${escapeHtml(item.title)}</h3><div class="article-summary">${escapeHtml(item.summary)}</div><div class="article-meta"><span>发布时间 ${escapeHtml(item.date)}</span><span>${escapeHtml(item.views)} 阅读</span><span>${escapeHtml(item.readTime)}</span></div></div><div class="article-side"><span class="pill ${cfg.className}">${escapeHtml(cfg.label)}</span><div class="article-level">${escapeHtml(item.level)}</div></div></a>`;
+  if(!ARTICLES.length){
+    articleList.innerHTML = '<div class="article-empty">文章加载中...如果长时间未加载，请检查 assets/js/articles.js 是否已部署。</div>';
+    return;
+  }
+  const list = filter === 'all' ? ARTICLES : ARTICLES.filter(item => item.category === filter);
+  if(!list.length){
+    articleList.innerHTML = '<div class="article-empty">该分类下暂无文章。</div>';
+    return;
+  }
+  articleList.innerHTML = list.map(item => {
+    const cfg = categoryMap[item.category] || {label:'文章',className:'pill-basic'};
+    const href = 'article_detail.html?id=' + encodeURIComponent(item.id);
+    return `<a class="article-item" href="${href}">
+      <div>
+        <h3>${escapeHtml(item.title)}</h3>
+        <div class="article-summary">${escapeHtml(item.summary)}</div>
+        <div class="article-meta">
+          <span>📅 ${escapeHtml(item.date||'')}</span>
+          <span>👁 ${escapeHtml(item.views||'')}</span>
+          <span>⏱ ${escapeHtml(item.readTime||'')}</span>
+        </div>
+      </div>
+      <div class="article-side">
+        <span class="pill ${cfg.className}">${escapeHtml(cfg.label)}</span>
+        <div class="article-level">${escapeHtml(item.level||'')}</div>
+      </div>
+    </a>`;
   }).join('');
 }
-filterButtons.forEach(button=>button.addEventListener('click',()=>{filterButtons.forEach(node=>node.classList.remove('active'));button.classList.add('active');renderArticles(button.dataset.filter);}));renderArticles('all');
+
+filterButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    filterButtons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderArticles(btn.dataset.filter);
+  });
+});
+renderArticles('all');
 </script>
 <script>
-'use strict';const sidebar=document.getElementById('sidebar');const sidebarOverlay=document.getElementById('sidebar-overlay');const sidebarToggle=document.getElementById('sidebar-toggle');const sidebarClose=document.getElementById('sidebar-close');function openSidebar(){sidebar.classList.add('open');sidebarOverlay.classList.add('open');document.body.style.overflow='hidden';}function closeSidebar(){sidebar.classList.remove('open');sidebarOverlay.classList.remove('open');document.body.style.overflow='';}sidebarToggle.addEventListener('click',openSidebar);sidebarClose.addEventListener('click',closeSidebar);sidebarOverlay.addEventListener('click',closeSidebar);
+'use strict';
+const sidebar=document.getElementById('sidebar');
+const sidebarOverlay=document.getElementById('sidebar-overlay');
+const sidebarToggle=document.getElementById('sidebar-toggle');
+const sidebarClose=document.getElementById('sidebar-close');
+function openSidebar(){sidebar.classList.add('open');sidebarOverlay.classList.add('open');document.body.style.overflow='hidden';}
+function closeSidebar(){sidebar.classList.remove('open');sidebarOverlay.classList.remove('open');document.body.style.overflow='';}
+sidebarToggle.addEventListener('click',openSidebar);
+sidebarClose.addEventListener('click',closeSidebar);
+sidebarOverlay.addEventListener('click',closeSidebar);
 </script>
 <script>
-function _renderAuthWidget(){const w=document.getElementById('auth-widget');if(!w)return;const u=localStorage.getItem('cq_username')||'';const pg=window.location.pathname.split('/').pop()||'resources.html';if(u){w.innerHTML=`<span style="font-size:12px;color:var(--sub)">👤 ${u}</span><button onclick="['cq_token','cq_username','cq_user_id'].forEach(k=>localStorage.removeItem(k));_renderAuthWidget();" style="background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#8da2b8;font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;}else{w.innerHTML=`<a href="auth.html?redirect=${pg}" style="font-size:12px;color:#4facfe;text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;}}document.addEventListener('DOMContentLoaded',_renderAuthWidget);
+function _renderAuthWidget(){const w=document.getElementById('auth-widget');if(!w)return;const u=localStorage.getItem('cq_username')||'';const pg=window.location.pathname.split('/').pop()||'resources.html';if(u){w.innerHTML=`<span style="font-size:12px;color:var(--sub)">👤 ${u}</span><button onclick="['cq_token','cq_username','cq_user_id'].forEach(k=>localStorage.removeItem(k));_renderAuthWidget();" style="background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#8da2b8;font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;}else{w.innerHTML=`<a href="auth.html?redirect=${pg}" style="font-size:12px;color:#4facfe;text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;}}
+document.addEventListener('DOMContentLoaded',_renderAuthWidget);
 </script>
 <script src="shell-bridge.js"></script>
 </body>
