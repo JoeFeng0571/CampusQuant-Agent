@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a2540"/>
+      <stop offset="100%" stop-color="#1f6a9c"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="800" rx="24" fill="url(#g)"/>
+  <rect x="42" y="42" width="516" height="716" rx="18" fill="none" stroke="#ffffff" stroke-opacity=".18" stroke-width="2"/>
+
+  <!-- 棋盘 -->
+  <g transform="translate(300,200)">
+    <!-- 棋盘背景 -->
+    <rect x="-140" y="-110" width="280" height="220" rx="12" fill="#1a3555" stroke="#ffd37c" stroke-width="3" opacity=".95"/>
+    <!-- 横线 9 条 -->
+    <g stroke="#d9c488" stroke-width="1.5" opacity=".85">
+      <line x1="-125" y1="-95" x2="125" y2="-95"/>
+      <line x1="-125" y1="-70" x2="125" y2="-70"/>
+      <line x1="-125" y1="-45" x2="125" y2="-45"/>
+      <line x1="-125" y1="-20" x2="125" y2="-20"/>
+      <line x1="-125" y1="5" x2="125" y2="5"/>
+      <line x1="-125" y1="30" x2="125" y2="30"/>
+      <line x1="-125" y1="55" x2="125" y2="55"/>
+      <line x1="-125" y1="80" x2="125" y2="80"/>
+      <line x1="-125" y1="95" x2="125" y2="95"/>
+    </g>
+    <!-- 纵线 10 条 -->
+    <g stroke="#d9c488" stroke-width="1.5" opacity=".85">
+      <line x1="-125" y1="-95" x2="-125" y2="95"/>
+      <line x1="-100" y1="-95" x2="-100" y2="95"/>
+      <line x1="-75" y1="-95" x2="-75" y2="95"/>
+      <line x1="-50" y1="-95" x2="-50" y2="95"/>
+      <line x1="-25" y1="-95" x2="-25" y2="95"/>
+      <line x1="0" y1="-95" x2="0" y2="95"/>
+      <line x1="25" y1="-95" x2="25" y2="95"/>
+      <line x1="50" y1="-95" x2="50" y2="95"/>
+      <line x1="75" y1="-95" x2="75" y2="95"/>
+      <line x1="100" y1="-95" x2="100" y2="95"/>
+      <line x1="125" y1="-95" x2="125" y2="95"/>
+    </g>
+    <!-- 中线：楚河汉界 -->
+    <line x1="-125" y1="0" x2="125" y2="0" stroke="#ffd37c" stroke-width="2.5"/>
+    <!-- 几个棋子 -->
+    <circle cx="-75" cy="55" r="15" fill="#f5e6c8" stroke="#6b5433" stroke-width="2"/>
+    <text x="-75" y="61" text-anchor="middle" fill="#8b3a1a" font-size="16" font-weight="700" font-family="PingFang SC, serif">车</text>
+    <circle cx="0" cy="30" r="15" fill="#f5e6c8" stroke="#6b5433" stroke-width="2"/>
+    <text x="0" y="36" text-anchor="middle" fill="#8b3a1a" font-size="16" font-weight="700" font-family="PingFang SC, serif">炮</text>
+    <circle cx="75" cy="-20" r="15" fill="#f5e6c8" stroke="#6b5433" stroke-width="2"/>
+    <text x="75" y="-14" text-anchor="middle" fill="#123" font-size="16" font-weight="700" font-family="PingFang SC, serif">马</text>
+    <circle cx="-25" cy="-45" r="15" fill="#f5e6c8" stroke="#6b5433" stroke-width="2"/>
+    <text x="-25" y="-39" text-anchor="middle" fill="#123" font-size="16" font-weight="700" font-family="PingFang SC, serif">相</text>
+  </g>
+
+  <text x="64" y="118" fill="#ffffff" fill-opacity=".78" font-size="22" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif" letter-spacing="2">CAMPUSQUANT BOOKLIST</text>
+  <text x="64" y="440" fill="#ffffff" font-size="52" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">投资中</text>
+  <text x="64" y="502" fill="#ffffff" font-size="48" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">最简单的事</text>
+  <line x1="64" y1="555" x2="240" y2="555" stroke="#ffd37c" stroke-width="5" stroke-linecap="round"/>
+  <text x="64" y="600" fill="#ffffff" fill-opacity=".92" font-size="28" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">邱国鹭</text>
+  <text x="64" y="702" fill="#ffd37c" fill-opacity=".9" font-size="16" letter-spacing="2" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">A 股框架 · 择股逻辑 · 体系化</text>
+  <text x="64" y="730" fill="#ffffff" fill-opacity=".55" font-size="16" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">投资学习中心精选书单</text>
+</svg>

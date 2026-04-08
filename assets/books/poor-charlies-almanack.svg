@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3a1b5c"/>
+      <stop offset="100%" stop-color="#9b6cd6"/>
+    </linearGradient>
+    <radialGradient id="gear" cx=".5" cy=".5" r=".5">
+      <stop offset="0%" stop-color="#ffe8a8"/>
+      <stop offset="100%" stop-color="#d4a537"/>
+    </radialGradient>
+  </defs>
+  <rect width="600" height="800" rx="24" fill="url(#g)"/>
+  <rect x="42" y="42" width="516" height="716" rx="18" fill="none" stroke="#ffffff" stroke-opacity=".18" stroke-width="2"/>
+
+  <!-- 三个相扣的齿轮：跨学科思维 -->
+  <g transform="translate(300,180)">
+    <!-- 齿轮绘制函数无法直接调用，手写一个齿轮路径 -->
+    <g transform="translate(-60,-30)">
+      <circle cx="0" cy="0" r="50" fill="url(#gear)"/>
+      <g fill="#d4a537">
+        <rect x="-6" y="-62" width="12" height="14"/>
+        <rect x="-6" y="48" width="12" height="14"/>
+        <rect x="-62" y="-6" width="14" height="12"/>
+        <rect x="48" y="-6" width="14" height="12"/>
+        <rect x="-45" y="-45" width="12" height="14" transform="rotate(-45 -39 -38)"/>
+        <rect x="33" y="-45" width="12" height="14" transform="rotate(45 39 -38)"/>
+        <rect x="-45" y="31" width="12" height="14" transform="rotate(45 -39 38)"/>
+        <rect x="33" y="31" width="12" height="14" transform="rotate(-45 39 38)"/>
+      </g>
+      <circle cx="0" cy="0" r="16" fill="#3a1b5c"/>
+    </g>
+    <g transform="translate(60,-30)">
+      <circle cx="0" cy="0" r="50" fill="url(#gear)" opacity=".92"/>
+      <g fill="#d4a537" opacity=".92">
+        <rect x="-6" y="-62" width="12" height="14"/>
+        <rect x="-6" y="48" width="12" height="14"/>
+        <rect x="-62" y="-6" width="14" height="12"/>
+        <rect x="48" y="-6" width="14" height="12"/>
+        <rect x="-45" y="-45" width="12" height="14" transform="rotate(-45 -39 -38)"/>
+        <rect x="33" y="-45" width="12" height="14" transform="rotate(45 39 -38)"/>
+        <rect x="-45" y="31" width="12" height="14" transform="rotate(45 -39 38)"/>
+        <rect x="33" y="31" width="12" height="14" transform="rotate(-45 39 38)"/>
+      </g>
+      <circle cx="0" cy="0" r="16" fill="#3a1b5c"/>
+    </g>
+    <g transform="translate(0,60)">
+      <circle cx="0" cy="0" r="40" fill="url(#gear)" opacity=".88"/>
+      <g fill="#d4a537" opacity=".88">
+        <rect x="-5" y="-50" width="10" height="12"/>
+        <rect x="-5" y="38" width="10" height="12"/>
+        <rect x="-50" y="-5" width="12" height="10"/>
+        <rect x="38" y="-5" width="12" height="10"/>
+      </g>
+      <circle cx="0" cy="0" r="13" fill="#3a1b5c"/>
+    </g>
+  </g>
+
+  <text x="64" y="118" fill="#ffffff" fill-opacity=".78" font-size="22" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif" letter-spacing="2">CAMPUSQUANT BOOKLIST</text>
+  <text x="64" y="410" fill="#ffffff" font-size="60" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">穷查理</text>
+  <text x="64" y="480" fill="#ffffff" font-size="68" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">宝典</text>
+  <line x1="64" y1="535" x2="240" y2="535" stroke="#ffd37c" stroke-width="5" stroke-linecap="round"/>
+  <text x="64" y="585" fill="#ffffff" fill-opacity=".92" font-size="28" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">查理·芒格</text>
+  <text x="64" y="700" fill="#ffd37c" fill-opacity=".9" font-size="16" letter-spacing="2" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">思维模型 · 长期主义 · 高阶认知</text>
+  <text x="64" y="730" fill="#ffffff" fill-opacity=".55" font-size="16" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">投资学习中心精选书单</text>
+</svg>
