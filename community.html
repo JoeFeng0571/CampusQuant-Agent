@@ -157,8 +157,8 @@
         .tag-exp      { background:rgba(162,155,254,0.15); color:var(--accent); }
         .post-stats { font-size:12px; color:var(--text-dim); display:flex; gap:12px; margin-left:auto; }
 
-        /* 侧边栏 */
-        .sidebar { display:flex; flex-direction:column; gap:16px; }
+        /* 右栏（社区侧栏，注意避开顶部抽屉式 .sidebar 的命名冲突） */
+        .community-sidebar { display:flex; flex-direction:column; gap:16px; }
         .side-card {
             background:var(--card); border:1px solid var(--border);
             border-radius:14px; overflow:hidden;
@@ -167,9 +167,8 @@
         .side-body { padding:14px 18px; }
 
         /* 学习路径 */
-        .path-list { list-style:none; display:flex; flex-direction:column; gap:10px; }
-        .path-item { display:flex; align-items:center; gap:10px; font-size:13px; cursor:pointer; transition:color 0.2s; }
-        .path-item:hover { color:var(--secondary); }
+        .path-list { list-style:none; display:flex; flex-direction:column; gap:4px; }
+        .path-item { font-size:13px; }
         .path-num {
             width:22px; height:22px; border-radius:50%; flex-shrink:0;
             background:linear-gradient(135deg,var(--primary),var(--secondary));
@@ -177,7 +176,6 @@
             font-size:11px; font-weight:700; color:#0b0f19;
         }
         .path-text { color:var(--text-sub); }
-        .path-item:hover .path-text { color:var(--secondary); }
 
         /* 热门话题 */
         .topic-tags { display:flex; flex-wrap:wrap; gap:8px; }
@@ -187,16 +185,89 @@
         }
         .topic-tag:hover { border-color:var(--secondary); color:var(--secondary); }
 
+        /* 学习路径：a 链接化 */
+        .path-list a.path-link {
+            display:flex; align-items:center; gap:10px;
+            padding:8px 10px; margin:0 -10px;
+            border-radius:10px; text-decoration:none; color:inherit;
+            transition:background 0.2s, color 0.2s;
+        }
+        .path-list a.path-link:hover { background:rgba(79,172,254,0.08); }
+        .path-list a.path-link:hover .path-text { color:var(--secondary); }
+
+        /* 学习中心主入口 Hero CTA */
+        .learn-hero {
+            position:relative; overflow:hidden;
+            background:linear-gradient(135deg,rgba(79,172,254,0.16),rgba(0,242,254,0.06));
+            border:1px solid rgba(79,172,254,0.32); border-radius:18px;
+            padding:24px 28px; margin-bottom:20px;
+            display:flex; align-items:center; justify-content:space-between; gap:24px;
+            box-shadow:0 12px 36px rgba(0,242,254,0.08);
+        }
+        .learn-hero::before {
+            content:''; position:absolute; right:-40px; top:-40px;
+            width:200px; height:200px; border-radius:50%;
+            background:radial-gradient(circle,rgba(0,242,254,0.18),transparent 70%);
+            pointer-events:none;
+        }
+        .learn-hero-content { flex:1; min-width:0; position:relative; z-index:1; }
+        .learn-hero-eyebrow {
+            display:inline-block; padding:5px 12px; border-radius:999px;
+            background:rgba(0,242,254,0.14); color:var(--secondary);
+            font-size:11px; font-weight:700; letter-spacing:0.6px; margin-bottom:10px;
+        }
+        .learn-hero-title { font-size:22px; font-weight:800; color:#fff; margin-bottom:6px; line-height:1.3; }
+        .learn-hero-desc { font-size:13px; color:var(--text-sub); line-height:1.6; max-width:540px; }
+        .learn-hero-cta {
+            position:relative; z-index:1; flex-shrink:0;
+            padding:12px 22px; border-radius:12px; text-decoration:none;
+            background:linear-gradient(135deg,var(--primary),var(--secondary));
+            color:#0b0f19; font-weight:800; font-size:14px;
+            box-shadow:0 6px 20px rgba(0,242,254,0.32);
+            transition:transform 0.2s, box-shadow 0.2s;
+            white-space:nowrap;
+        }
+        .learn-hero-cta:hover { transform:translateY(-2px); box-shadow:0 12px 28px rgba(0,242,254,0.42); }
+
+        /* 帖子空状态 */
+        .post-empty {
+            padding:48px 24px; text-align:center; color:var(--text-sub);
+            display:flex; flex-direction:column; align-items:center; gap:14px;
+        }
+        .post-empty-icon { font-size:42px; opacity:0.55; }
+        .post-empty-title { font-size:15px; color:#fff; font-weight:600; }
+        .post-empty-desc { font-size:13px; color:var(--text-dim); max-width:320px; line-height:1.6; }
+        .post-empty-cta {
+            margin-top:6px; padding:9px 18px; border-radius:10px;
+            background:linear-gradient(135deg,var(--primary),var(--secondary));
+            color:#0b0f19; font-weight:700; font-size:13px;
+            border:none; cursor:pointer; transition:transform 0.2s;
+        }
+        .post-empty-cta:hover { transform:translateY(-2px); }
+
         /* 大学生守则卡 */
         .rules-card {
             background:linear-gradient(135deg,rgba(79,172,254,0.08),rgba(0,242,254,0.05));
             border:1px solid rgba(79,172,254,0.2); border-radius:16px; padding:24px; margin-top:24px;
         }
-        .rules-title { font-size:16px; font-weight:700; margin-bottom:16px; }
-        .rules-list { list-style:none; display:flex; flex-direction:column; gap:8px; }
-        .rules-list li { font-size:13px; color:var(--text-sub); line-height:1.5;
+        .rules-title { font-size:16px; font-weight:700; margin-bottom:16px;
+            display:flex; align-items:center; gap:10px; }
+        .rules-title::before {
+            content:''; display:inline-block; width:4px; height:18px;
+            background:linear-gradient(180deg,var(--primary),var(--secondary));
+            border-radius:2px;
+        }
+        .rules-list { list-style:none; display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px 20px; }
+        .rules-list li { font-size:13px; color:var(--text-sub); line-height:1.55;
             display:flex; gap:8px; align-items:flex-start; }
         .rules-list li::before { content:'✓'; color:var(--success); font-weight:700; flex-shrink:0; }
+
+        /* 学习中心主 Hero 移动端 */
+        @media (max-width:768px) {
+            .learn-hero { flex-direction:column; align-items:flex-start; padding:20px; gap:14px; }
+            .learn-hero-cta { width:100%; text-align:center; padding:14px; }
+            .rules-list { grid-template-columns:1fr; }
+        }
 
         /* ══ 页脚 ══ */
         footer {
@@ -337,17 +408,22 @@
         <p>学习 A股、港股、美股基础知识，与同学交流投资心得，共同养成理性财商思维。</p>
     </div>
 
-    <!-- 四大学习资源入口 -->
+    <!-- 学习中心主入口 Hero -->
+    <a href="resources.html" class="learn-hero" style="text-decoration:none;color:inherit;">
+        <div class="learn-hero-content">
+            <div class="learn-hero-eyebrow">CAMPUSQUANT 学习中心</div>
+            <div class="learn-hero-title">完整学习资源库 · 6 大核心模块 + 12 篇长文 + 8 本书单</div>
+            <div class="learn-hero-desc">从开户、看财报、估值方法、风控底线到实战案例，一条龙学习路线，全部免费、无任何课程销售。</div>
+        </div>
+        <span class="learn-hero-cta">进入学习中心 →</span>
+    </a>
+
+    <!-- 四大专题入口 -->
     <div class="resource-grid">
         <a href="learn_basics.html" class="res-card">
             <div class="res-icon">📚</div>
             <div class="res-title">基础财商知识</div>
             <div class="res-desc">复利、通胀、三盆水账户、A股港股美股规则全解</div>
-        </a>
-        <a href="resources.html#articles" class="res-card">
-            <div class="res-icon">📊</div>
-            <div class="res-title">专题文章库</div>
-            <div class="res-desc">12 篇精选长文：财报阅读、估值方法、公司研究框架</div>
         </a>
         <a href="learn_antifraud.html" class="res-card">
             <div class="res-icon">🛡</div>
@@ -358,6 +434,11 @@
             <div class="res-icon">✦</div>
             <div class="res-title">投资策略锦囊</div>
             <div class="res-desc">指数定投、价值投资、趋势跟随、资产配置六大策略</div>
+        </a>
+        <a href="resources.html#articles" class="res-card">
+            <div class="res-icon">📊</div>
+            <div class="res-title">专题文章库</div>
+            <div class="res-desc">12 篇精选长文：财报阅读、估值方法、公司研究框架</div>
         </a>
     </div>
 
@@ -379,41 +460,59 @@
             <div class="post-list" id="post-list">
                 <div style="text-align:center;padding:32px;color:var(--text-dim);font-size:13px;">加载中…</div>
             </div>
+            <div id="post-empty" class="post-empty" style="display:none;">
+                <div class="post-empty-icon">💬</div>
+                <div class="post-empty-title">这里还没有讨论</div>
+                <div class="post-empty-desc">成为第一个开口的人。分享一次你的交易复盘、一个你看不懂的指标、或者你正在研究的公司——其他同学会一起来聊。</div>
+                <button class="post-empty-cta" onclick="openPostModal()">＋ 发第一帖</button>
+            </div>
             <div id="post-load-more" style="text-align:center;padding:16px;display:none;">
                 <button onclick="loadMorePosts()" style="background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text-sub);font-size:13px;padding:8px 24px;cursor:pointer;">加载更多</button>
             </div>
         </div>
 
-        <!-- 侧边栏 -->
-        <div class="sidebar">
+        <!-- 右栏：社区侧栏 -->
+        <div class="community-sidebar">
             <!-- 学习路径 -->
             <div class="side-card">
                 <div class="side-header">📖 推荐学习路径</div>
                 <div class="side-body">
                     <ul class="path-list">
-                        <li class="path-item" onclick="location.href='learn_basics.html#t7'">
-                            <div class="path-num">1</div>
-                            <div class="path-text">A 股市场规则与开户</div>
+                        <li class="path-item">
+                            <a href="learn_basics.html#t7" class="path-link">
+                                <div class="path-num">1</div>
+                                <div class="path-text">A 股市场规则与开户</div>
+                            </a>
                         </li>
-                        <li class="path-item" onclick="location.href='article_detail.html?id=analysis-5-metrics'">
-                            <div class="path-num">2</div>
-                            <div class="path-text">财务报表基础解读</div>
+                        <li class="path-item">
+                            <a href="article_detail.html?id=analysis-5-metrics" class="path-link">
+                                <div class="path-num">2</div>
+                                <div class="path-text">财务报表基础解读</div>
+                            </a>
                         </li>
-                        <li class="path-item" onclick="location.href='article_detail.html?id=analysis-low-pe-trap'">
-                            <div class="path-num">3</div>
-                            <div class="path-text">PE/PB 估值入门</div>
+                        <li class="path-item">
+                            <a href="article_detail.html?id=analysis-low-pe-trap" class="path-link">
+                                <div class="path-num">3</div>
+                                <div class="path-text">PE / PB 估值入门</div>
+                            </a>
                         </li>
-                        <li class="path-item" onclick="location.href='article_detail.html?id=basic-kline-5q'">
-                            <div class="path-num">4</div>
-                            <div class="path-text">技术分析：均线与量价</div>
+                        <li class="path-item">
+                            <a href="article_detail.html?id=basic-kline-5q" class="path-link">
+                                <div class="path-num">4</div>
+                                <div class="path-text">技术分析：均线与量价</div>
+                            </a>
                         </li>
-                        <li class="path-item" onclick="location.href='article_detail.html?id=risk-position-size'">
-                            <div class="path-num">5</div>
-                            <div class="path-text">仓位管理与止损策略</div>
+                        <li class="path-item">
+                            <a href="article_detail.html?id=risk-position-size" class="path-link">
+                                <div class="path-num">5</div>
+                                <div class="path-text">仓位管理与止损策略</div>
+                            </a>
                         </li>
-                        <li class="path-item" onclick="location.href='learn_basics.html#t8'">
-                            <div class="path-num">6</div>
-                            <div class="path-text">港股 / 美股入门指南</div>
+                        <li class="path-item">
+                            <a href="learn_basics.html#t8" class="path-link">
+                                <div class="path-num">6</div>
+                                <div class="path-text">港股 / 美股入门指南</div>
+                            </a>
                         </li>
                     </ul>
                 </div>
@@ -432,20 +531,17 @@
                         <span class="topic-tag">#美股入门</span>
                         <span class="topic-tag">#量化学习</span>
                         <span class="topic-tag">#财报解读</span>
-                        <span class="topic-tag">#白酒板块</span>
-                        <span class="topic-tag">#新能源</span>
                     </div>
                 </div>
             </div>
 
-            <!-- 快速导航 -->
+            <!-- 实用工具入口（去重：不再放学习类链接，避免和上面 hero / res-card 重复） -->
             <div class="side-card">
-                <div class="side-header">⚡ 快速入口</div>
-                <div class="side-body" style="display:flex;flex-direction:column;gap:10px">
-                    <a href="trade.html" style="text-decoration:none;color:var(--primary);font-size:13px">→ 开始 AI 模拟演练</a>
-
-                    <a href="market.html" style="text-decoration:none;color:var(--primary);font-size:13px">→ 查看市场快讯</a>
-                    <a href="resources.html" style="text-decoration:none;color:var(--primary);font-size:13px">→ 学习资源库</a>
+                <div class="side-header">⚡ 实用工具</div>
+                <div class="side-body" style="display:flex;flex-direction:column;gap:12px">
+                    <a href="trade.html" style="text-decoration:none;color:var(--primary);font-size:13px">→ AI 模拟演练（含多空辩论）</a>
+                    <a href="market.html" style="text-decoration:none;color:var(--primary);font-size:13px">→ 实时市场快讯</a>
+                    <a href="analysis.html" style="text-decoration:none;color:var(--primary);font-size:13px">→ 个股 AI 分析</a>
                 </div>
             </div>
         </div>
@@ -604,7 +700,12 @@
     async function loadPosts(reset = true) {
         if (reset) _currentOffset = 0;
         const wrap = document.getElementById('post-list');
-        if (reset) wrap.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-dim);font-size:13px;">加载中…</div>';
+        const empty = document.getElementById('post-empty');
+        if (reset) {
+            wrap.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-dim);font-size:13px;">加载中…</div>';
+            wrap.style.display = '';
+            empty.style.display = 'none';
+        }
 
         try {
             const url = `${API_BASE}/api/v1/community/posts?sort=${_currentSort}&limit=${PAGE_SIZE}&offset=${_currentOffset}`;
@@ -614,14 +715,22 @@
 
             if (reset) wrap.innerHTML = '';
             if (!data.posts.length && reset) {
-                wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px;">暂无帖子，成为第一个发帖的同学吧！</div>';
+                // 友好空态
+                wrap.style.display = 'none';
+                empty.style.display = 'flex';
             } else {
+                wrap.style.display = '';
+                empty.style.display = 'none';
                 wrap.insertAdjacentHTML('beforeend', data.posts.map(renderPost).join(''));
                 _currentOffset += data.posts.length;
             }
             document.getElementById('post-load-more').style.display = data.posts.length === PAGE_SIZE ? 'block' : 'none';
         } catch(e) {
-            if (reset) wrap.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-dim);font-size:13px;">加载失败（请确认后端已启动）：${e.message}</div>`;
+            if (reset) {
+                wrap.style.display = '';
+                empty.style.display = 'none';
+                wrap.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-dim);font-size:13px;">加载失败（请确认后端已启动）：${e.message}</div>`;
+            }
         }
     }
 
