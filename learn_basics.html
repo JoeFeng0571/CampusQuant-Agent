@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>基础财商知识 · CampusQuant 校园财商</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif}
+:root{--bg:#08111f;--card:rgba(255,255,255,.05);--border:rgba(255,255,255,.12);--text:#f6fbff;--sub:#adc2d9;--dim:#7390aa;--pri:#6fd7ff;--mint:#59f0c2;--gold:#ffd37c;--danger:#ff8e8e;--shadow:0 18px 48px rgba(0,0,0,.28)}
+body{background:var(--bg);color:var(--text);min-height:100vh;background-image:radial-gradient(circle at 15% 50%,rgba(0,242,254,.07),transparent 32%),radial-gradient(circle at 85% 28%,rgba(79,172,254,.07),transparent 32%)}
+header{position:fixed;top:0;left:0;width:100%;display:flex;justify-content:space-between;align-items:center;padding:16px 48px;background:rgba(8,17,31,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);z-index:1000}
+.logo{display:flex;align-items:baseline;gap:8px;text-decoration:none}
+.logo-text{font-size:22px;font-weight:800;background:linear-gradient(90deg,#4facfe,#00f2fe);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:.5px}
+.logo-sub{font-size:12px;color:var(--dim)}
+nav{display:flex;gap:28px;align-items:center}
+nav a{text-decoration:none;color:var(--sub);font-size:14px;font-weight:500;transition:.25s;position:relative}
+nav a:hover,nav a.active{color:var(--pri)}
+nav a::after{content:'';position:absolute;width:0;height:2px;bottom:-4px;left:0;background:linear-gradient(90deg,#4facfe,#00f2fe);transition:width .3s}
+nav a:hover::after,nav a.active::after{width:100%}
+main{width:min(1160px,calc(100% - 40px));margin:0 auto;padding:112px 0 80px}
+.crumb{color:var(--dim);font-size:13px;margin-bottom:14px}
+.crumb a{color:var(--pri);text-decoration:none}
+.hero{background:linear-gradient(145deg,rgba(58,185,255,.16),rgba(255,255,255,.03)),rgba(255,255,255,.04);border:1px solid var(--border);border-radius:24px;padding:34px 32px;box-shadow:var(--shadow);margin-bottom:28px}
+.eyebrow{display:inline-flex;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.06);color:var(--pri);font-weight:700;font-size:12px;margin-bottom:18px}
+.hero h1{font-size:clamp(30px,4.4vw,46px);line-height:1.1;margin-bottom:12px;max-width:16ch}
+.hero p{color:var(--sub);line-height:1.75;max-width:72ch}
+.toc{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:22px}
+.toc a{text-decoration:none;display:flex;align-items:center;gap:8px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--sub);font-size:13px;transition:.2s}
+.toc a:hover{border-color:rgba(111,215,255,.4);color:var(--pri);background:rgba(111,215,255,.08)}
+.toc-num{display:inline-flex;width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#86ddff,#4bf0c0);color:#062032;font-size:11px;font-weight:800;align-items:center;justify-content:center;flex-shrink:0}
+.topic{background:var(--card);border:1px solid var(--border);border-radius:22px;padding:30px 32px;margin-bottom:22px;box-shadow:var(--shadow);scroll-margin-top:96px}
+.topic-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--border)}
+.topic-icon{width:54px;height:54px;border-radius:16px;background:rgba(111,215,255,.12);color:var(--pri);font-size:26px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.topic-head-info{flex:1}
+.topic-tag{display:inline-block;padding:5px 10px;border-radius:999px;background:rgba(255,211,124,.12);color:var(--gold);font-size:11px;font-weight:700;margin-bottom:8px;border:1px solid rgba(255,211,124,.18)}
+.topic h2{font-size:22px;font-weight:800;margin-bottom:6px}
+.topic-sub{color:var(--dim);font-size:14px}
+.topic-body{color:var(--sub);line-height:1.82;font-size:15px}
+.topic-body p{margin-bottom:14px}
+.topic-body strong{color:var(--text)}
+.topic-body h3{color:var(--text);font-size:16px;font-weight:700;margin:18px 0 10px;display:flex;align-items:center;gap:8px}
+.topic-body h3::before{content:'';display:inline-block;width:4px;height:16px;background:linear-gradient(180deg,#86ddff,#4bf0c0);border-radius:2px}
+.callout{margin:16px 0;padding:16px 18px;border-radius:14px;background:rgba(111,215,255,.06);border-left:3px solid var(--pri)}
+.callout.warn{background:rgba(255,142,142,.06);border-left-color:var(--danger)}
+.callout.tip{background:rgba(89,240,194,.06);border-left-color:var(--mint)}
+.callout-title{font-weight:700;color:var(--text);margin-bottom:6px;font-size:14px}
+.callout p{margin-bottom:0;font-size:14px}
+.key-list{list-style:none;display:grid;gap:10px;margin:12px 0}
+.key-list li{position:relative;padding-left:22px;font-size:14px;line-height:1.7}
+.key-list li::before{content:'';position:absolute;left:0;top:9px;width:8px;height:8px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 3px rgba(89,240,194,.15)}
+.compare-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;border-radius:10px;overflow:hidden}
+.compare-table th,.compare-table td{padding:10px 14px;text-align:left;border-bottom:1px solid rgba(255,255,255,.08)}
+.compare-table th{background:rgba(111,215,255,.08);color:var(--pri);font-weight:700}
+.compare-table tr:last-child td{border-bottom:none}
+.nav-footer{display:flex;justify-content:space-between;gap:16px;margin-top:32px;padding-top:24px;border-top:1px solid var(--border);flex-wrap:wrap}
+.nav-footer a{text-decoration:none;padding:14px 22px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--sub);transition:.2s;font-size:14px;font-weight:600}
+.nav-footer a:hover{border-color:rgba(111,215,255,.4);color:var(--pri)}
+footer{text-align:center;color:var(--dim);font-size:12px;padding:24px;border-top:1px solid var(--border);margin-top:40px}
+footer a{color:var(--pri);text-decoration:none}
+@media (max-width:900px){
+header{padding:14px 18px}
+nav{gap:14px;overflow-x:auto}
+main{padding-top:96px}
+.toc{grid-template-columns:repeat(2,1fr)}
+.topic{padding:22px 20px}
+.topic-head{gap:12px}
+.topic-icon{width:44px;height:44px;font-size:22px}
+.topic h2{font-size:19px}
+.hero{padding:26px 22px}
+}
+</style>
+</head>
+<body>
+
+<header>
+<a href="dashboard.html" class="logo"><span class="logo-text">CampusQuant</span><span class="logo-sub">校园财商</span></a>
+<nav>
+<a href="dashboard.html">控制台</a>
+<a href="market.html">市场快讯</a>
+<a href="analysis.html">个股分析</a>
+<a href="trade.html">模拟演练</a>
+<a href="community.html" class="active">投教社区</a>
+<a href="team.html">关于我们</a>
+</nav>
+</header>
+
+<main>
+<div class="crumb"><a href="community.html">投教社区</a> / 基础财商知识</div>
+
+<section class="hero">
+<div class="eyebrow">知识分享 · 非课程 · 随时查阅</div>
+<h1>从"会花钱"到"会理财"的第一步</h1>
+<p>这里把最基础、最常被混淆的财商概念整理到一页。它不是课程，没有进度条、没有作业、没有考核。你想了解哪一块，直接跳到对应章节即可。每个主题都配有通俗讲解和至少一个大学生能直接用的场景。</p>
+<div class="toc">
+<a href="#t1"><span class="toc-num">1</span>复利：时间的力量</a>
+<a href="#t2"><span class="toc-num">2</span>通胀：钱会变毛</a>
+<a href="#t3"><span class="toc-num">3</span>风险与收益</a>
+<a href="#t4"><span class="toc-num">4</span>账户规划</a>
+<a href="#t5"><span class="toc-num">5</span>股票到底是什么</a>
+<a href="#t6"><span class="toc-num">6</span>ETF 与指数基金</a>
+<a href="#t7"><span class="toc-num">7</span>A 股交易规则</a>
+<a href="#t8"><span class="toc-num">8</span>港股交易规则</a>
+<a href="#t9"><span class="toc-num">9</span>美股交易规则</a>
+<a href="#t10"><span class="toc-num">10</span>债券与国债逆回购</a>
+<a href="#t11"><span class="toc-num">11</span>主动 vs 被动基金</a>
+<a href="#t12"><span class="toc-num">12</span>保险的位置</a>
+</div>
+</section>
+
+<article class="topic" id="t1">
+<div class="topic-head">
+<div class="topic-icon">∞</div>
+<div class="topic-head-info">
+<span class="topic-tag">核心概念</span>
+<h2>复利：时间的力量</h2>
+<div class="topic-sub">为什么爱因斯坦说复利是世界第八大奇迹</div>
+</div>
+</div>
+<div class="topic-body">
+<p>复利的本质是"利息再生利息"。如果你每年获得 10% 的收益，第二年这 10% 不再只作用于本金，而是作用于"本金+去年的收益"。看起来微不足道的变化，在 30 年后会放大几十倍。</p>
+<h3>举个直观的例子</h3>
+<p>假设两个同学都从 20 岁开始存钱，年化收益 8%：</p>
+<ul class="key-list">
+<li><strong>A 同学</strong>：20~30 岁每年存 1 万，30 岁以后一分都不再投入，60 岁时账户大约 <strong>15.7 万</strong>。</li>
+<li><strong>B 同学</strong>：30~60 岁每年都存 1 万，一共投入 30 年，60 岁时账户大约 <strong>12.2 万</strong>。</li>
+</ul>
+<p>A 只投了 10 年却超过了投了 30 年的 B。时间起步越早，后期的复利越暴力。这就是为什么大学生就算每月只能投一两百，也应该尽早开始。</p>
+<div class="callout tip">
+<div class="callout-title">可以直接拿来用</div>
+<p>72 法则：用 72 除以年化收益率，得到的就是本金翻倍所需年数。年化 8% → 9 年翻倍；年化 12% → 6 年翻倍。</p>
+</div>
+<h3>复利的阴暗面</h3>
+<p>复利不只作用在收益上，也作用在负债上。信用卡、校园贷、分期付款的利息同样在复利增长。当它为你工作时是奇迹，为它工作时就是陷阱。</p>
+</div>
+</article>
+
+<article class="topic" id="t2">
+<div class="topic-head">
+<div class="topic-icon">📉</div>
+<div class="topic-head-info">
+<span class="topic-tag">核心概念</span>
+<h2>通胀：钱会变毛</h2>
+<div class="topic-sub">为什么"存银行最安全"是一个温柔的谎言</div>
+</div>
+</div>
+<div class="topic-body">
+<p>通货膨胀是指同样一笔钱随时间推移能买到的东西在变少。2005 年一碗兰州拉面 5 元，2025 年大概 15~18 元。如果你 2005 年把 1000 元存进银行，哪怕利息拿到手，现在能买到的东西也比当年少得多。</p>
+<h3>无风险不等于无损失</h3>
+<p>很多同学觉得"把钱放银行活期最安全"。但如果通胀每年 3%，银行活期 0.25%，你每年实际上在亏 2.75%。这种损失虽然看不见，但三十年下来足以让你的购买力打对折。</p>
+<div class="callout">
+<div class="callout-title">实际收益率的正确算法</div>
+<p>实际收益率 ≈ 名义收益率 − 通胀率。银行定期 2.5% 听起来不错，扣掉通胀 3% 后实际上是 −0.5%，你的购买力其实在缩水。</p>
+</div>
+<h3>哪些资产理论上能跑赢通胀</h3>
+<ul class="key-list">
+<li><strong>宽基股票指数</strong>：长期看，股票反映企业利润，企业利润长期随通胀同步增长。</li>
+<li><strong>优质不动产</strong>：在经济健康增长的阶段里曾经是有效对冲，但这件事和你所处的国家与城市周期强相关，不是万能药。</li>
+<li><strong>部分商品</strong>：黄金在极端通胀期表现突出，但日常作为核心资产效率很低。</li>
+</ul>
+</div>
+</article>
+
+<article class="topic" id="t3">
+<div class="topic-head">
+<div class="topic-icon">⚖</div>
+<div class="topic-head-info">
+<span class="topic-tag">核心概念</span>
+<h2>风险与收益：它们永远是一对</h2>
+<div class="topic-sub">任何宣称高收益低风险的东西，大概率是骗局</div>
+</div>
+</div>
+<div class="topic-body">
+<p>金融世界有一条铁律：没有免费的午餐。一份资产提供越高的预期收益，通常意味着它承担了越高的波动或更低的流动性。这是由市场定价决定的，不是由"老师厉害不厉害"决定的。</p>
+<h3>常见资产的风险收益光谱</h3>
+<table class="compare-table">
+<thead><tr><th>资产</th><th>预期年化</th><th>波动性</th><th>适合谁</th></tr></thead>
+<tbody>
+<tr><td>银行活期</td><td>0.2%~0.3%</td><td>几乎为零</td><td>短期备用金</td></tr>
+<tr><td>货币基金</td><td>1.5%~2%</td><td>极低</td><td>活期替代</td></tr>
+<tr><td>国债</td><td>2%~3%</td><td>低</td><td>稳健资金</td></tr>
+<tr><td>宽基指数</td><td>6%~10%</td><td>中等</td><td>长期资金</td></tr>
+<tr><td>个股</td><td>不确定</td><td>高</td><td>有研究能力</td></tr>
+</tbody>
+</table>
+<div class="callout warn">
+<div class="callout-title">警惕这种话术</div>
+<p>"保本保 15% 收益"、"稳赚不赔"、"独家消息内幕票"——这些话术违反金融基本定律，背后 99% 是资金盘或非法集资。</p>
+</div>
+<h3>你真正应该问自己的问题</h3>
+<p>不是"这东西能涨多少"，而是"这东西如果在接下来一年里跌 30%，我还扛得住吗"。如果答案是否定的，那这份收益就不属于你。</p>
+</div>
+</article>
+
+<article class="topic" id="t4">
+<div class="topic-head">
+<div class="topic-icon">💰</div>
+<div class="topic-head-info">
+<span class="topic-tag">大学生专属</span>
+<h2>账户规划：三盆水哲学</h2>
+<div class="topic-sub">在有限生活费里分出真正属于"投资"的那一小部分</div>
+</div>
+</div>
+<div class="topic-body">
+<p>大学生最容易犯的错，是把"想投资的钱"和"下个月要交的房租/学费"混在一起。一波回撤之后，不得不割肉套现交房租——本来只是账面亏损，就变成了真金白银的损失。</p>
+<h3>三盆水的划分方式</h3>
+<ul class="key-list">
+<li><strong>日常生活账户</strong>：至少 3 个月生活费放在活期或货币基金里，一分都不要碰。这是你情绪稳定的基础。</li>
+<li><strong>应急备用账户</strong>：额外留一份能让你应对"手机摔碎、生病、临时回家"这种意外的钱。不要幻想"不会发生"。</li>
+<li><strong>长期投资账户</strong>：只有扣掉上面两份之后剩下的钱，才是你真正可以承受波动的投资本金。</li>
+</ul>
+<div class="callout tip">
+<div class="callout-title">一个简单起步模型</div>
+<p>假设你每月生活费 2000 元，建议至少保留 6000 元在生活账户 + 2000 元应急账户。剩余可投入的部分，哪怕只有每月 200 元，都足以开始养成投资习惯。</p>
+</div>
+<h3>绝对不要动的一笔钱</h3>
+<p>学费、住宿费、下学期的固定支出——这些钱永远不要放进投资账户。无论行情看起来多么诱人。很多大学生账户爆仓的导火索，都是用了这笔"本不该动的钱"。</p>
+</div>
+</article>
+
+<article class="topic" id="t5">
+<div class="topic-head">
+<div class="topic-icon">📊</div>
+<div class="topic-head-info">
+<span class="topic-tag">市场基础</span>
+<h2>股票到底是什么</h2>
+<div class="topic-sub">它不是一串会变色的数字，而是企业所有权的一小块</div>
+</div>
+</div>
+<div class="topic-body">
+<p>买一股股票，你就成了这家公司极小比例的股东。作为股东，理论上你可以分享公司的盈利（通过分红）、参与公司的成长（股价上涨），也承担公司的亏损（股价下跌）。</p>
+<h3>股价涨跌的两个底层逻辑</h3>
+<ul class="key-list">
+<li><strong>企业真实价值的变化</strong>：公司赚更多钱、市场空间扩大、护城河加深——这是长期主义者关注的。</li>
+<li><strong>市场情绪与资金流向</strong>：短期内价格更多由预期、情绪、流动性驱动，和企业当下的真实表现关系不大。</li>
+</ul>
+<p>这两股力量长期来看是第一个占优，短期来看是第二个占优。这就是为什么巴菲特说："短期看市场是一台投票机，长期看市场是一台称重机。"</p>
+<div class="callout">
+<div class="callout-title">新手最容易误解的一点</div>
+<p>"跌了就是便宜"是错的。股价下跌可能是因为公司基本面在变差，不一定是"市场错杀"。判断便宜要回到企业利润、资产质量、行业空间这些本质指标，不是只看下跌幅度。</p>
+</div>
+</div>
+</article>
+
+<article class="topic" id="t6">
+<div class="topic-head">
+<div class="topic-icon">📦</div>
+<div class="topic-head-info">
+<span class="topic-tag">市场基础</span>
+<h2>ETF 与指数基金：新手最该认识的东西</h2>
+<div class="topic-sub">它解决了"不知道买哪只股票才好"这个最大的问题</div>
+</div>
+</div>
+<div class="topic-body">
+<p>指数基金是一种"一篮子股票"的集合。比如沪深 300 指数基金，里面装着 A 股市值最大的 300 家公司。你买一份，相当于同时持有这 300 家公司的极小比例，风险被天然分散。</p>
+<p>ETF（交易型开放式指数基金）是指数基金的一种，但它可以像股票一样在交易时间内随时买卖，流动性更好、费率更低。</p>
+<h3>为什么适合大学生</h3>
+<ul class="key-list">
+<li><strong>不用研究个股</strong>：你不需要判断哪家公司会成为下一个腾讯，指数会自动纳入最优秀的公司。</li>
+<li><strong>费率极低</strong>：宽基 ETF 的管理费普遍在 0.15%~0.5% 之间，比主动基金的 1.5% 便宜一大截。</li>
+<li><strong>长期胜率高</strong>：过去 20 年全球数据显示，大部分主动基金经理长期跑不赢宽基指数。</li>
+</ul>
+<div class="callout tip">
+<div class="callout-title">几个值得记住的宽基指数</div>
+<p>A 股：沪深 300、中证 500、中证 1000、中证红利。港股：恒生指数、恒生科技。美股：标普 500、纳斯达克 100。不用一开始就全都买，先从一个你最熟悉的市场开始。</p>
+</div>
+</div>
+</article>
+
+<article class="topic" id="t7">
+<div class="topic-head">
+<div class="topic-icon">🇨🇳</div>
+<div class="topic-head-info">
+<span class="topic-tag">市场规则</span>
+<h2>A 股交易规则入门</h2>
+<div class="topic-sub">这些规则不了解就开户，第一个月会踩满坑</div>
+</div>
+</div>
+<div class="topic-body">
+<h3>交易时间</h3>
+<p>周一到周五，上午 9:30~11:30，下午 13:00~15:00。9:15~9:25 是集合竞价阶段，9:25 形成开盘价。法定节假日休市。</p>
+<h3>T+1 制度</h3>
+<p>A 股当天买入的股票，当天不能卖出，要等到下一个交易日。这意味着你做不了"日内波段"，冲动交易的成本也会更高。</p>
+<h3>涨跌幅限制</h3>
+<ul class="key-list">
+<li><strong>主板股票</strong>：±10%（ST 股 ±5%）</li>
+<li><strong>创业板、科创板</strong>：±20%</li>
+<li><strong>北交所</strong>：±30%</li>
+</ul>
+<h3>最小交易单位</h3>
+<p>买入最少 100 股为 1 手，卖出可以不足 100 股（但只能一次性卖完）。这决定了单只股票的最小持仓成本 = 股价 × 100。</p>
+<div class="callout warn">
+<div class="callout-title">常见费用</div>
+<p>佣金（券商收，万 2.5~万 3 常见，有最低 5 元起）+ 过户费（万分之 0.1）+ 印花税（卖出时 千分之 0.5）。长期频繁交易，光手续费就能吃掉可观的收益。</p>
+</div>
+</div>
+</article>
+
+<article class="topic" id="t8">
+<div class="topic-head">
+<div class="topic-icon">🇭🇰</div>
+<div class="topic-head-info">
+<span class="topic-tag">市场规则</span>
+<h2>港股交易规则入门</h2>
+<div class="topic-sub">港股通是大陆同学接触港股最简单的方式</div>
+</div>
+</div>
+<div class="topic-body">
+<h3>交易时间</h3>
+<p>周一到周五，上午 9:30~12:00，下午 13:00~16:00。午休一小时。</p>
+<h3>T+0 但结算 T+2</h3>
+<p>港股可以当天买入当天卖出（T+0），但资金结算要 T+2。这意味着你可以做日内，但现金流要提前算好。</p>
+<h3>无涨跌幅限制</h3>
+<p>港股没有涨跌停板制度，极端行情下单日 ±30% 甚至更多都有可能发生。风险管理比 A 股更重要，不能指望"涨停板保护"。</p>
+<h3>港股通的门槛与限制</h3>
+<ul class="key-list">
+<li><strong>资金门槛</strong>：开通港股通需要证券账户 + 资金账户合计 50 万元。</li>
+<li><strong>标的限制</strong>：只能交易港股通名单内的股票（大部分蓝筹股都在），小盘港股无法通过港股通买。</li>
+<li><strong>税费</strong>：分红有 20% 红利税，卖出有 0.1% 印花税。</li>
+</ul>
+<div class="callout">
+<div class="callout-title">"仙股"是什么</div>
+<p>股价低于 1 港元的股票统称"仙股"。有些是公司经营恶化后跌成这样，也有相当一部分长期处于无成交状态，流动性差且容易被操纵，新手应该回避。</p>
+</div>
+</div>
+</article>
+
+<article class="topic" id="t9">
+<div class="topic-head">
+<div class="topic-icon">🇺🇸</div>
+<div class="topic-head-info">
+<span class="topic-tag">市场规则</span>
+<h2>美股交易规则入门</h2>
+<div class="topic-sub">全世界流动性最好、规则最宽松的市场，也因此最容易被情绪放大</div>
+</div>
+</div>
+<div class="topic-body">
+<h3>交易时间（北京时间）</h3>
+<ul class="key-list">
+<li><strong>夏令时（3 月~11 月）</strong>：21:30~次日 04:00</li>
+<li><strong>冬令时（11 月~3 月）</strong>：22:30~次日 05:00</li>
+<li><strong>盘前 / 盘后</strong>：各有约 4 小时的延长交易时段，流动性较差但可交易</li>
+</ul>
+<h3>核心规则</h3>
+<ul class="key-list">
+<li><strong>T+0 交易</strong>，当天买卖不限次数（但有 PDT 规则，见下）。</li>
+<li><strong>无涨跌幅限制</strong>，但有熔断机制防止极端下跌。</li>
+<li><strong>最小交易单位 1 股</strong>，部分券商甚至支持零股（1 美元起）。</li>
+</ul>
+<div class="callout warn">
+<div class="callout-title">PDT 规则</div>
+<p>Pattern Day Trader：如果你用保证金账户 5 个交易日内进行了 4 次及以上的日内往返交易，账户权益必须保持在 2.5 万美元以上，否则交易会被冻结 90 天。大学生账户几乎不可能达到这个门槛，所以应该完全避免频繁日内交易。</p>
+</div>
+<h3>税务问题</h3>
+<p>中国投资者在美股的分红所得会被预扣 10% 股息税（中美税收协定）。资本利得（卖股票赚的钱）在美国不征税，但回到中国境内的纳税义务是你自己的责任。</p>
+</div>
+</article>
+
+<article class="topic" id="t10">
+<div class="topic-head">
+<div class="topic-icon">📜</div>
+<div class="topic-head-info">
+<span class="topic-tag">稳健工具</span>
+<h2>债券与国债逆回购</h2>
+<div class="topic-sub">收益不高，但是投资组合不可缺的"减震器"</div>
+</div>
+</div>
+<div class="topic-body">
+<h3>债券是什么</h3>
+<p>你借钱给发行方（政府或企业），对方承诺在未来的某个时间还本付息。国债的违约风险几乎为零，企业债的风险取决于发行企业的信用评级。</p>
+<h3>国债逆回购：闲钱一日游</h3>
+<p>严格说这不是债券，但它是大学生最容易接触到的"类债券"工具。你在交易所把钱借给需要短期融资的机构，用国债作抵押。收益率通常 1.5%~3%，假期前夕（资金紧张时）可能冲高到 5% 以上。</p>
+<ul class="key-list">
+<li><strong>操作方式</strong>：证券账户里直接交易，最小 1000 元起（部分品种 10 万起）。</li>
+<li><strong>期限选择</strong>：1 天、2 天、7 天、14 天、28 天等，到期自动返还本息。</li>
+<li><strong>适合场景</strong>：周末前把活期资金挪进来，吃一下比活期高几倍的利息。</li>
+</ul>
+<div class="callout tip">
+<div class="callout-title">节假日套利小技巧</div>
+<p>长假前一天（特别是春节、国庆前夕），资金面紧张，1 天期国债逆回购的年化收益常常冲到 8% 甚至 15%。实际到账的利息虽然只有几天，但相比活期是几十倍差距。</p>
+</div>
+</div>
+</article>
+
+<article class="topic" id="t11">
+<div class="topic-head">
+<div class="topic-icon">🎛</div>
+<div class="topic-head-info">
+<span class="topic-tag">基金选择</span>
+<h2>主动型基金 vs 被动型基金</h2>
+<div class="topic-sub">不是哪个更好，而是哪个更适合你</div>
+</div>
+</div>
+<div class="topic-body">
+<table class="compare-table">
+<thead><tr><th>维度</th><th>主动型基金</th><th>被动型基金（指数）</th></tr></thead>
+<tbody>
+<tr><td>目标</td><td>跑赢大盘</td><td>跟上大盘</td></tr>
+<tr><td>管理费</td><td>1.2%~2%</td><td>0.15%~0.5%</td></tr>
+<tr><td>持仓透明度</td><td>每季度披露一次</td><td>持仓 = 指数成分，实时透明</td></tr>
+<tr><td>依赖程度</td><td>重度依赖基金经理</td><td>与基金经理无关</td></tr>
+<tr><td>长期胜率</td><td>约 20%~30% 能跑赢指数</td><td>稳定跟上指数</td></tr>
+</tbody>
+</table>
+<h3>新手选哪种？</h3>
+<p>如果你还不具备挑选基金经理的能力，先从宽基指数基金开始几乎是最稳妥的路径。等你建立起对不同行业和策略的判断能力后，再考虑把一部分资金配置到你真正认可的主动基金。</p>
+<div class="callout warn">
+<div class="callout-title">不要被"冠军基金"迷惑</div>
+<p>去年涨幅第一的基金，今年大概率回到中游甚至垫底。这是基金行业的"冠军魔咒"：短期极端收益往往来自集中下注单一赛道，一旦风格切换就会反向。看 5 年滚动业绩和最大回撤，比看年度排名更有意义。</p>
+</div>
+</div>
+</article>
+
+<article class="topic" id="t12">
+<div class="topic-head">
+<div class="topic-icon">🛡</div>
+<div class="topic-head-info">
+<span class="topic-tag">财务规划</span>
+<h2>保险在财务规划中的位置</h2>
+<div class="topic-sub">保险不是投资，但没有它你的投资随时会被一次意外归零</div>
+</div>
+</div>
+<div class="topic-body">
+<p>很多同学一谈保险就觉得是"被推销"。但保险的核心逻辑和投资完全不同：投资是追求增值，保险是对抗"低概率但极端严重"的风险。它不让你赚钱，但它让你不至于因为一次意外把几年投资成果全部清零。</p>
+<h3>大学生真正应该考虑的保险</h3>
+<ul class="key-list">
+<li><strong>医保</strong>：学校一般统一缴纳城乡居民医保，这是最基础的一层，务必不要欠缴。</li>
+<li><strong>百万医疗险</strong>：每年两三百元，能报销住院大额医疗费。对重大疾病非常关键。</li>
+<li><strong>意外险</strong>：学生价格几十到一两百元一年，覆盖骑车、运动、出行意外。</li>
+</ul>
+<h3>大学生大概率不需要的保险</h3>
+<ul class="key-list">
+<li><strong>重疾险</strong>：保费贵，大学生收入低的阶段性价比不高，可以工作后再配置。</li>
+<li><strong>理财型保险</strong>：本质是极低收益率的储蓄产品，套了一层"保险"的外壳。大学生的钱不该锁在里面。</li>
+<li><strong>寿险</strong>：寿险的意义是保障"你是家庭经济支柱"的场景。学生阶段不适用。</li>
+</ul>
+<div class="callout">
+<div class="callout-title">一个健康的优先级</div>
+<p>医保 → 百万医疗 → 意外险 → 投资账户。前三项加起来每年几百元，把极端风险兜底之后，你才能心安理得地把剩下的钱放到长期投资里。</p>
+</div>
+</div>
+</article>
+
+<div class="nav-footer">
+<a href="community.html">← 返回投教社区</a>
+<a href="learn_antifraud.html">下一站：大学生防骗指南 →</a>
+</div>
+
+</main>
+
+<footer>
+&copy; 2026 CampusQuant 校园财商 · 学习内容仅供教育参考，不构成任何投资建议 · <a href="community.html">回到投教社区</a>
+</footer>
+
+</body>
+</html>

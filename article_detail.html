@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文章详情 · CampusQuant 校园财商</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif}
+:root{--bg:#08111f;--card:rgba(255,255,255,.05);--border:rgba(255,255,255,.12);--text:#f6fbff;--sub:#adc2d9;--dim:#7390aa;--pri:#6fd7ff;--mint:#59f0c2;--gold:#ffd37c;--danger:#ff8e8e;--shadow:0 18px 48px rgba(0,0,0,.28)}
+body{background:var(--bg);color:var(--text);min-height:100vh;background-image:radial-gradient(circle at 15% 50%,rgba(0,242,254,.05),transparent 32%),radial-gradient(circle at 85% 28%,rgba(79,172,254,.05),transparent 32%)}
+header{position:fixed;top:0;left:0;width:100%;display:flex;justify-content:space-between;align-items:center;padding:16px 48px;background:rgba(8,17,31,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);z-index:1000}
+.logo{display:flex;align-items:baseline;gap:8px;text-decoration:none}
+.logo-text{font-size:22px;font-weight:800;background:linear-gradient(90deg,#4facfe,#00f2fe);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:.5px}
+.logo-sub{font-size:12px;color:var(--dim)}
+nav{display:flex;gap:28px;align-items:center}
+nav a{text-decoration:none;color:var(--sub);font-size:14px;font-weight:500;transition:.25s;position:relative}
+nav a:hover,nav a.active{color:var(--pri)}
+nav a::after{content:'';position:absolute;width:0;height:2px;bottom:-4px;left:0;background:linear-gradient(90deg,#4facfe,#00f2fe);transition:width .3s}
+nav a:hover::after,nav a.active::after{width:100%}
+main{width:min(820px,calc(100% - 40px));margin:0 auto;padding:112px 0 80px}
+.crumb{color:var(--dim);font-size:13px;margin-bottom:14px}
+.crumb a{color:var(--pri);text-decoration:none}
+.article-head{background:var(--card);border:1px solid var(--border);border-radius:22px;padding:38px 38px 28px;box-shadow:var(--shadow);margin-bottom:22px}
+.pill{display:inline-block;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;margin-bottom:16px}
+.pill-basic{background:rgba(111,215,255,.14);color:var(--pri)}
+.pill-analysis{background:rgba(89,240,194,.13);color:var(--mint)}
+.pill-risk{background:rgba(255,211,124,.14);color:var(--gold)}
+.pill-advanced{background:rgba(204,166,255,.14);color:#d3bbff}
+.article-head h1{font-size:clamp(24px,3.6vw,36px);line-height:1.2;margin-bottom:14px;font-weight:800}
+.meta{display:flex;flex-wrap:wrap;gap:14px 24px;color:var(--dim);font-size:13px;padding-top:16px;border-top:1px solid var(--border);margin-top:18px}
+.meta span{display:flex;align-items:center;gap:6px}
+.summary{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--pri);border-radius:16px;padding:18px 22px;margin-bottom:22px;color:var(--sub);line-height:1.75;font-size:14px;font-style:italic}
+.summary::before{content:'导读 · ';font-weight:700;color:var(--pri);font-style:normal}
+.article-body{background:var(--card);border:1px solid var(--border);border-radius:22px;padding:36px 40px;box-shadow:var(--shadow);color:var(--sub);line-height:1.85;font-size:15.5px}
+.article-body p{margin-bottom:16px}
+.article-body strong{color:var(--text);font-weight:700}
+.article-body em{color:var(--pri);font-style:normal;font-weight:600}
+.article-body h3{color:var(--text);font-size:20px;font-weight:800;margin:28px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.article-body h3::before{content:'';display:inline-block;width:4px;height:20px;background:linear-gradient(180deg,#86ddff,#4bf0c0);border-radius:2px}
+.article-body ul{list-style:none;display:grid;gap:10px;margin:12px 0 16px}
+.article-body ol{padding-left:22px;display:grid;gap:10px;margin:12px 0 16px}
+.article-body li{line-height:1.75}
+.article-body table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px;border-radius:12px;overflow:hidden}
+.article-body table th{padding:12px 14px;text-align:left;font-weight:700;background:rgba(111,215,255,.08);color:var(--pri)}
+.article-body table td{padding:12px 14px;text-align:left;border-bottom:1px solid rgba(255,255,255,.08)}
+.article-body table tr:last-child td{border-bottom:none}
+.related{margin-top:28px;padding:26px 30px;background:var(--card);border:1px solid var(--border);border-radius:22px}
+.related h2{font-size:18px;font-weight:800;color:var(--text);margin-bottom:16px}
+.related-grid{display:grid;gap:10px}
+.related-item{display:block;text-decoration:none;padding:14px 18px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;transition:.2s}
+.related-item:hover{border-color:rgba(111,215,255,.4);background:rgba(111,215,255,.06)}
+.related-item-title{color:var(--text);font-weight:600;font-size:14px;margin-bottom:4px}
+.related-item-meta{color:var(--dim);font-size:12px}
+.nav-footer{display:flex;justify-content:space-between;gap:16px;margin-top:28px;flex-wrap:wrap}
+.nav-footer a{text-decoration:none;padding:14px 22px;border-radius:14px;background:var(--card);border:1px solid var(--border);color:var(--sub);transition:.2s;font-size:14px;font-weight:600}
+.nav-footer a:hover{border-color:rgba(111,215,255,.4);color:var(--pri)}
+.error-state{background:var(--card);border:1px solid var(--border);border-radius:22px;padding:60px 40px;text-align:center;box-shadow:var(--shadow)}
+.error-state h2{font-size:24px;margin-bottom:12px;color:var(--text)}
+.error-state p{color:var(--sub);margin-bottom:24px;line-height:1.7}
+.error-state a{display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#65d7ff,#4bf0c0);color:#062032;border-radius:14px;text-decoration:none;font-weight:700}
+footer{text-align:center;color:var(--dim);font-size:12px;padding:24px;border-top:1px solid var(--border);margin-top:40px}
+footer a{color:var(--pri);text-decoration:none}
+@media (max-width:900px){
+header{padding:14px 18px}
+nav{gap:14px;overflow-x:auto}
+main{padding-top:96px}
+.article-head{padding:26px 22px 22px}
+.article-head h1{font-size:22px}
+.article-body{padding:26px 22px;font-size:15px}
+.article-body h3{font-size:17px}
+.related{padding:22px}
+}
+</style>
+</head>
+<body>
+
+<header>
+<a href="dashboard.html" class="logo"><span class="logo-text">CampusQuant</span><span class="logo-sub">校园财商</span></a>
+<nav>
+<a href="dashboard.html">控制台</a>
+<a href="market.html">市场快讯</a>
+<a href="analysis.html">个股分析</a>
+<a href="trade.html">模拟演练</a>
+<a href="community.html" class="active">投教社区</a>
+<a href="team.html">关于我们</a>
+</nav>
+</header>
+
+<main id="main-container">
+<div class="crumb"><a href="community.html">投教社区</a> / <a href="resources.html">学习资源库</a> / <span id="crumb-title">加载中…</span></div>
+<div id="content-area">
+<div class="error-state" style="display:none" id="loading">
+<h2>加载中…</h2>
+<p>正在读取文章内容</p>
+</div>
+</div>
+</main>
+
+<footer>
+&copy; 2026 CampusQuant 校园财商 · 学习内容仅供教育参考，不构成任何投资建议 · <a href="community.html">回到投教社区</a>
+</footer>
+
+<script src="assets/js/articles.js"></script>
+<script>
+(function(){
+'use strict';
+
+function qs(name){
+const url = new URL(window.location.href);
+return url.searchParams.get(name);
+}
+
+function escapeHtml(s){
+return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderError(msg){
+document.getElementById('crumb-title').textContent = '未找到';
+document.getElementById('content-area').innerHTML = `
+<div class="error-state">
+<h2>😕 没有找到这篇文章</h2>
+<p>${escapeHtml(msg)}</p>
+<a href="resources.html">返回学习资源库</a>
+</div>`;
+}
+
+function renderArticle(article){
+const cats = window.CAMPUSQUANT_CATEGORIES || {};
+const cat = cats[article.category] || {label:'文章', className:'pill-basic'};
+document.getElementById('crumb-title').textContent = article.title;
+document.title = article.title + ' · CampusQuant 校园财商';
+
+// 相关推荐：同分类的其他文章，最多 4 篇
+const all = window.CAMPUSQUANT_ARTICLES || [];
+const related = all.filter(a => a.category === article.category && a.id !== article.id).slice(0, 4);
+
+const relatedHtml = related.length ? `
+<section class="related">
+<h2>相关推荐</h2>
+<div class="related-grid">
+${related.map(r => `
+<a class="related-item" href="article_detail.html?id=${encodeURIComponent(r.id)}">
+<div class="related-item-title">${escapeHtml(r.title)}</div>
+<div class="related-item-meta">${escapeHtml(r.readTime)} · ${escapeHtml(r.level)}</div>
+</a>`).join('')}
+</div>
+</section>` : '';
+
+document.getElementById('content-area').innerHTML = `
+<article>
+<header class="article-head">
+<span class="pill ${cat.className}">${escapeHtml(cat.label)}</span>
+<h1>${escapeHtml(article.title)}</h1>
+<div class="meta">
+<span>📅 ${escapeHtml(article.date)}</span>
+<span>⏱ ${escapeHtml(article.readTime)}</span>
+<span>📈 ${escapeHtml(article.level)}</span>
+<span>👁 ${escapeHtml(article.views)} 阅读</span>
+</div>
+</header>
+<div class="summary">${escapeHtml(article.summary)}</div>
+<div class="article-body">${article.content}</div>
+</article>
+${relatedHtml}
+<div class="nav-footer">
+<a href="resources.html">← 返回学习资源库</a>
+<a href="community.html">回到投教社区 →</a>
+</div>`;
+window.scrollTo(0, 0);
+}
+
+function init(){
+const id = qs('id');
+if (!id){
+renderError('缺少文章 ID 参数。');
+return;
+}
+if (!window.CAMPUSQUANT_ARTICLES || !window.CAMPUSQUANT_ARTICLES.length){
+renderError('文章数据加载失败，请刷新页面重试。');
+return;
+}
+const article = window.getCampusQuantArticle(id);
+if (!article){
+renderError('这篇文章还不存在，或者 ID 有误。');
+return;
+}
+renderArticle(article);
+}
+
+if (document.readyState === 'loading'){
+document.addEventListener('DOMContentLoaded', init);
+} else {
+init();
+}
+})();
+</script>
+
+</body>
+</html>

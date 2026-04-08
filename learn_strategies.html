@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>投资策略锦囊 · CampusQuant 校园财商</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif}
+:root{--bg:#08111f;--card:rgba(255,255,255,.05);--border:rgba(255,255,255,.12);--text:#f6fbff;--sub:#adc2d9;--dim:#7390aa;--pri:#6fd7ff;--mint:#59f0c2;--gold:#ffd37c;--danger:#ff8e8e;--shadow:0 18px 48px rgba(0,0,0,.28)}
+body{background:var(--bg);color:var(--text);min-height:100vh;background-image:radial-gradient(circle at 15% 50%,rgba(89,240,194,.08),transparent 32%),radial-gradient(circle at 85% 28%,rgba(111,215,255,.07),transparent 32%)}
+header{position:fixed;top:0;left:0;width:100%;display:flex;justify-content:space-between;align-items:center;padding:16px 48px;background:rgba(8,17,31,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);z-index:1000}
+.logo{display:flex;align-items:baseline;gap:8px;text-decoration:none}
+.logo-text{font-size:22px;font-weight:800;background:linear-gradient(90deg,#4facfe,#00f2fe);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:.5px}
+.logo-sub{font-size:12px;color:var(--dim)}
+nav{display:flex;gap:28px;align-items:center}
+nav a{text-decoration:none;color:var(--sub);font-size:14px;font-weight:500;transition:.25s;position:relative}
+nav a:hover,nav a.active{color:var(--pri)}
+nav a::after{content:'';position:absolute;width:0;height:2px;bottom:-4px;left:0;background:linear-gradient(90deg,#4facfe,#00f2fe);transition:width .3s}
+nav a:hover::after,nav a.active::after{width:100%}
+main{width:min(1160px,calc(100% - 40px));margin:0 auto;padding:112px 0 80px}
+.crumb{color:var(--dim);font-size:13px;margin-bottom:14px}
+.crumb a{color:var(--pri);text-decoration:none}
+.hero{background:linear-gradient(145deg,rgba(89,240,194,.14),rgba(255,255,255,.03)),rgba(255,255,255,.04);border:1px solid rgba(89,240,194,.2);border-radius:24px;padding:34px 32px;box-shadow:var(--shadow);margin-bottom:28px}
+.eyebrow{display:inline-flex;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(89,240,194,.12);color:var(--mint);font-weight:700;font-size:12px;margin-bottom:18px}
+.hero h1{font-size:clamp(30px,4.4vw,46px);line-height:1.1;margin-bottom:12px;max-width:18ch}
+.hero p{color:var(--sub);line-height:1.75;max-width:72ch}
+.matrix{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:22px}
+.matrix-card{padding:14px 16px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:14px}
+.matrix-label{color:var(--mint);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.matrix-val{color:var(--text);font-size:14px;font-weight:600;line-height:1.5}
+.strategy{background:var(--card);border:1px solid var(--border);border-radius:22px;padding:30px 32px;margin-bottom:22px;box-shadow:var(--shadow);scroll-margin-top:96px}
+.strategy-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--border)}
+.strategy-icon{width:54px;height:54px;border-radius:16px;background:rgba(89,240,194,.12);color:var(--mint);font-size:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.strategy-head-info{flex:1}
+.stars{display:inline-flex;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+.star-item{font-size:11px;color:var(--dim);display:flex;align-items:center;gap:6px}
+.star-dots{color:var(--mint);letter-spacing:2px}
+.star-dim{color:rgba(255,255,255,.18)}
+.strategy h2{font-size:22px;font-weight:800;margin-bottom:6px}
+.strategy-sub{color:var(--dim);font-size:14px}
+.strategy-body{color:var(--sub);line-height:1.82;font-size:15px}
+.strategy-body p{margin-bottom:14px}
+.strategy-body strong{color:var(--text)}
+.strategy-body h3{color:var(--text);font-size:16px;font-weight:700;margin:20px 0 10px;display:flex;align-items:center;gap:8px}
+.strategy-body h3::before{content:'';display:inline-block;width:4px;height:16px;background:linear-gradient(180deg,#59f0c2,#6fd7ff);border-radius:2px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+.col-box{padding:16px 18px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)}
+.col-box.pro{background:rgba(89,240,194,.06);border-color:rgba(89,240,194,.18)}
+.col-box.con{background:rgba(255,142,142,.06);border-color:rgba(255,142,142,.18)}
+.col-title{font-weight:700;font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.col-box.pro .col-title{color:var(--mint)}
+.col-box.pro .col-title::before{content:'+';font-size:18px}
+.col-box.con .col-title{color:var(--danger)}
+.col-box.con .col-title::before{content:'−';font-size:18px}
+.col-box ul{list-style:none;display:grid;gap:6px}
+.col-box li{font-size:13px;line-height:1.6;padding-left:12px;position:relative}
+.col-box li::before{content:'·';position:absolute;left:2px;color:var(--dim);font-size:18px;top:-2px}
+.action-box{margin:16px 0;padding:18px 20px;border-radius:14px;background:rgba(111,215,255,.06);border-left:3px solid var(--pri)}
+.action-box .title{font-weight:700;color:var(--pri);margin-bottom:8px;font-size:14px}
+.action-box ol{padding-left:18px;display:grid;gap:6px}
+.action-box li{font-size:14px;line-height:1.7}
+.toc{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px}
+.toc a{text-decoration:none;display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--sub);font-size:13px;transition:.2s}
+.toc a:hover{border-color:rgba(89,240,194,.4);color:var(--mint);background:rgba(89,240,194,.08)}
+.toc-num{display:inline-flex;width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#59f0c2,#6fd7ff);color:#062032;font-size:11px;font-weight:800;align-items:center;justify-content:center;flex-shrink:0}
+.nav-footer{display:flex;justify-content:space-between;gap:16px;margin-top:32px;padding-top:24px;border-top:1px solid var(--border);flex-wrap:wrap}
+.nav-footer a{text-decoration:none;padding:14px 22px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--sub);transition:.2s;font-size:14px;font-weight:600}
+.nav-footer a:hover{border-color:rgba(111,215,255,.4);color:var(--pri)}
+footer{text-align:center;color:var(--dim);font-size:12px;padding:24px;border-top:1px solid var(--border);margin-top:40px}
+footer a{color:var(--pri);text-decoration:none}
+@media (max-width:900px){
+header{padding:14px 18px}
+nav{gap:14px;overflow-x:auto}
+main{padding-top:96px}
+.toc,.matrix{grid-template-columns:1fr}
+.two-col{grid-template-columns:1fr}
+.strategy{padding:22px 20px}
+.strategy-head{gap:12px}
+.strategy-icon{width:44px;height:44px;font-size:20px}
+.strategy h2{font-size:19px}
+.hero{padding:26px 22px}
+}
+</style>
+</head>
+<body>
+
+<header>
+<a href="dashboard.html" class="logo"><span class="logo-text">CampusQuant</span><span class="logo-sub">校园财商</span></a>
+<nav>
+<a href="dashboard.html">控制台</a>
+<a href="market.html">市场快讯</a>
+<a href="analysis.html">个股分析</a>
+<a href="trade.html">模拟演练</a>
+<a href="community.html" class="active">投教社区</a>
+<a href="team.html">关于我们</a>
+</nav>
+</header>
+
+<main>
+<div class="crumb"><a href="community.html">投教社区</a> / 投资策略锦囊</div>
+
+<section class="hero">
+<div class="eyebrow">✦ 策略不是技巧，是一套自洽的做事方式</div>
+<h1>六种经得起时间检验的策略，总有一种适合你</h1>
+<p>这里不会告诉你"明天该买什么股票"。我们整理了六种真正被市场验证过的投资策略：它们各有擅长的场景，也各有失效的时候。理解它们的原理之后，你才能判断自己属于哪一种，而不是在不同策略之间反复横跳。</p>
+<div class="matrix">
+<div class="matrix-card"><div class="matrix-label">最重要的一件事</div><div class="matrix-val">先选策略，再做交易</div></div>
+<div class="matrix-card"><div class="matrix-label">大学生的优势</div><div class="matrix-val">时间够长，可以吃满复利</div></div>
+<div class="matrix-card"><div class="matrix-label">真正的能力</div><div class="matrix-val">在自己选定的风格里坚持</div></div>
+</div>
+<div class="toc">
+<a href="#s1"><span class="toc-num">1</span>指数定投</a>
+<a href="#s2"><span class="toc-num">2</span>价值投资</a>
+<a href="#s3"><span class="toc-num">3</span>趋势跟随</a>
+<a href="#s4"><span class="toc-num">4</span>均值回归</a>
+<a href="#s5"><span class="toc-num">5</span>资产配置</a>
+<a href="#s6"><span class="toc-num">6</span>对冲基础</a>
+</div>
+</section>
+
+<article class="strategy" id="s1">
+<div class="strategy-head">
+<div class="strategy-icon">∿</div>
+<div class="strategy-head-info">
+<div class="stars">
+<span class="star-item">门槛 <span class="star-dots">●<span class="star-dim">●●●●</span></span></span>
+<span class="star-item">耗时 <span class="star-dots">●<span class="star-dim">●●●●</span></span></span>
+<span class="star-item">心累度 <span class="star-dots">●<span class="star-dim">●●●●</span></span></span>
+</div>
+<h2>指数定投</h2>
+<div class="strategy-sub">最适合大学生起步的策略，没有之一</div>
+</div>
+</div>
+<div class="strategy-body">
+<h3>策略原理</h3>
+<p>每隔固定时间（例如每月一次）用固定金额买入同一只宽基指数基金，不管当时价格高低。低价时你买到的份额多，高价时你买到的份额少——长期平均下来，你的持仓成本会平滑到一个接近市场平均的位置。</p>
+<p>这种做法的核心不是"择时"，而是"放弃择时"。它直接承认：我无法预测市场短期波动，所以我干脆用时间换确定性。</p>
+<h3>为什么对新手友好</h3>
+<div class="two-col">
+<div class="col-box pro">
+<div class="col-title">优点</div>
+<ul>
+<li>不需要研究个股、不需要看盘</li>
+<li>用纪律代替情绪，不会追涨杀跌</li>
+<li>低费率（宽基 ETF 0.15%~0.5%）</li>
+<li>长期胜率极高（10 年以上几乎必赢）</li>
+</ul>
+</div>
+<div class="col-box con">
+<div class="col-title">局限</div>
+<ul>
+<li>短期收益平淡，考验耐心</li>
+<li>熊市中账户会长期浮亏</li>
+<li>单边上涨行情中跑不赢一次性买入</li>
+<li>不能用在单一个股（风险会集中）</li>
+</ul>
+</div>
+</div>
+<h3>适合谁</h3>
+<p>刚开始学习、每月有稳定小额资金（哪怕 200 元）、没有大量时间研究市场的大学生。这个策略几乎不会让你"亏掉本金"，因为时间会帮你抹平大部分波动。</p>
+<div class="action-box">
+<div class="title">大学生具体怎么做</div>
+<ol>
+<li>选一个你熟悉的宽基指数：沪深 300、中证 500、标普 500、纳斯达克 100 任选一个</li>
+<li>设置每月固定金额（比如 200~500 元），最好绑定工资日 / 生活费到账日后第二天</li>
+<li>坚持至少 2 年以上。短于 1 年的定投几乎看不出差距</li>
+<li>熊市里不要停，反而应该开心——你现在买的每一份都会在牛市里翻倍</li>
+<li>不要每天看账户涨跌，设置成每月看一次就够了</li>
+</ol>
+</div>
+</div>
+</article>
+
+<article class="strategy" id="s2">
+<div class="strategy-head">
+<div class="strategy-icon">⚖</div>
+<div class="strategy-head-info">
+<div class="stars">
+<span class="star-item">门槛 <span class="star-dots">●●●<span class="star-dim">●●</span></span></span>
+<span class="star-item">耗时 <span class="star-dots">●●●●<span class="star-dim">●</span></span></span>
+<span class="star-item">心累度 <span class="star-dots">●●●<span class="star-dim">●●</span></span></span>
+</div>
+<h2>价值投资</h2>
+<div class="strategy-sub">像买一家公司一样买股票，而不是像赌场下注一样</div>
+</div>
+</div>
+<div class="strategy-body">
+<h3>策略原理</h3>
+<p>价值投资的核心信念是：股票价格长期会回归到企业的内在价值。你要做的是尽可能准确地估算一家公司的价值，然后等待市场价格明显低于它的时候买入——这个"明显低于"的幅度就叫<strong>安全边际</strong>。</p>
+<p>这种策略需要你把自己当作"企业的长期股东"而不是"股票的短期持有者"。当你买入一家公司时，问自己："如果这家公司未来 5 年不能交易、股价完全看不到，我还愿意持有吗？"</p>
+<h3>两个必须掌握的工具</h3>
+<p><strong>1. 看三张报表的顺序阅读法</strong>：先看现金流量表（钱是真的进来了吗），再看利润表（公司赚了多少），最后看资产负债表（家底厚不厚）。顺序反过来容易被虚假利润骗到。</p>
+<p><strong>2. 合理估值的判断框架</strong>：PE（市盈率）、PB（市净率）、PEG、股息率——每个指标都有适用场景。重资产行业看 PB，成长行业看 PEG，稳定盈利公司看 PE，现金奶牛看股息率。</p>
+<div class="two-col">
+<div class="col-box pro">
+<div class="col-title">优点</div>
+<ul>
+<li>长期复利效应巨大</li>
+<li>让你研究企业本身，而不是价格</li>
+<li>情绪干扰最小</li>
+</ul>
+</div>
+<div class="col-box con">
+<div class="col-title">局限</div>
+<ul>
+<li>需要阅读大量财报和行业资料</li>
+<li>可能一两年都看不到收益（市场钟摆慢）</li>
+<li>容易陷入"价值陷阱"（便宜是因为真的烂）</li>
+</ul>
+</div>
+</div>
+<div class="action-box">
+<div class="title">大学生具体怎么做</div>
+<ol>
+<li>从你日常接触的公司开始：茅台、腾讯、比亚迪、美团、苹果——先研究你能理解的，不碰你不懂的</li>
+<li>每只股票做一页"研究备忘录"：商业模式、竞争优势、当前估值、风险点</li>
+<li>设定自己的买入条件：比如"PE 低于近 5 年 30% 分位时才考虑"</li>
+<li>买入后至少持有 1 年再决定是否调整，不要因短期波动反复操作</li>
+<li>读巴菲特致股东的信（免费，每年一封），这是最好的免费投资教材</li>
+</ol>
+</div>
+</div>
+</article>
+
+<article class="strategy" id="s3">
+<div class="strategy-head">
+<div class="strategy-icon">↗</div>
+<div class="strategy-head-info">
+<div class="stars">
+<span class="star-item">门槛 <span class="star-dots">●●●<span class="star-dim">●●</span></span></span>
+<span class="star-item">耗时 <span class="star-dots">●●●●<span class="star-dim">●</span></span></span>
+<span class="star-item">心累度 <span class="star-dots">●●●●●</span></span>
+</div>
+<h2>趋势跟随</h2>
+<div class="strategy-sub">不猜顶不猜底，只做正在上涨的东西</div>
+</div>
+</div>
+<div class="strategy-body">
+<h3>策略原理</h3>
+<p>趋势跟随相信一件事：市场中一旦形成方向，它会持续相当长一段时间。所以你只在"趋势确认"时买入，在"趋势反转"时卖出，放弃对"最低点"和"最高点"的幻想。这个策略不需要你判断对错，只需要你对信号做出一致的反应。</p>
+<h3>最经典的两个工具</h3>
+<p><strong>均线系统</strong>：20 日均线、60 日均线、200 日均线是最常用的三条。当价格稳定站上 200 日均线、且 20 日均线上穿 60 日均线时，是典型的上升趋势确认信号。</p>
+<p><strong>突破与止损</strong>：价格突破前期高点时买入，跌破关键支撑位时无条件止损。趋势跟随者没有"等反弹再卖"这种幻想。</p>
+<div class="two-col">
+<div class="col-box pro">
+<div class="col-title">优点</div>
+<ul>
+<li>不需要预测市场，只需反应</li>
+<li>牛市中能吃到最肥的一段</li>
+<li>规则明确，机械执行不犹豫</li>
+</ul>
+</div>
+<div class="col-box con">
+<div class="col-title">局限</div>
+<ul>
+<li>震荡市会被反复止损（"打磨"）</li>
+<li>对纪律要求极高，心理压力大</li>
+<li>频繁交易意味着大量手续费</li>
+<li>A 股 T+1 和涨跌停限制降低该策略效果</li>
+</ul>
+</div>
+</div>
+<div class="action-box">
+<div class="title">大学生具体怎么做</div>
+<ol>
+<li>先在模拟账户上练习至少 3 个月，建立规则纪律</li>
+<li>选流动性好的品种：大市值股票、宽基 ETF，不做小盘股</li>
+<li>单笔仓位控制在总资金 10% 以内，严格止损</li>
+<li>提前写好规则：什么信号买、什么信号卖、止损在哪里。写在纸上，交易前看一遍</li>
+<li>如果连续 5 次被止损，停手一周冷静——这往往是震荡市，不适合趋势策略</li>
+</ol>
+</div>
+</div>
+</article>
+
+<article class="strategy" id="s4">
+<div class="strategy-head">
+<div class="strategy-icon">↔</div>
+<div class="strategy-head-info">
+<div class="stars">
+<span class="star-item">门槛 <span class="star-dots">●●●●<span class="star-dim">●</span></span></span>
+<span class="star-item">耗时 <span class="star-dots">●●●<span class="star-dim">●●</span></span></span>
+<span class="star-item">心累度 <span class="star-dots">●●●<span class="star-dim">●●</span></span></span>
+</div>
+<h2>均值回归</h2>
+<div class="strategy-sub">极端偏离最终都会回归"正常"，你要做的是识别极端</div>
+</div>
+</div>
+<div class="strategy-body">
+<h3>策略原理</h3>
+<p>均值回归的核心假设是：价格围绕某个"合理中枢"波动，短期的剧烈偏离终将回归。所以当一个品种被恐慌抛售到极端低估时，你反向买入；当它被狂热追捧到极端高估时，你反向卖出。这是趋势跟随的反面。</p>
+<h3>它和"抄底"的区别</h3>
+<p>抄底是"跌了就买"，均值回归是"跌到极端才买"。后者需要明确的估值锚（历史分位、行业均值等），不是凭感觉觉得"够低了"。</p>
+<h3>常见衡量工具</h3>
+<ul style="list-style:none;display:grid;gap:8px;margin:10px 0">
+<li style="padding-left:16px;position:relative;font-size:14px"><span style="position:absolute;left:0;color:var(--mint)">·</span><strong>历史 PE/PB 分位</strong>：当前 PE 处于近 10 年 20% 以下分位时视为低估</li>
+<li style="padding-left:16px;position:relative;font-size:14px"><span style="position:absolute;left:0;color:var(--mint)">·</span><strong>股债收益率差</strong>：股票隐含收益率 vs 国债收益率的差距</li>
+<li style="padding-left:16px;position:relative;font-size:14px"><span style="position:absolute;left:0;color:var(--mint)">·</span><strong>布林带</strong>：价格触及下轨作为超卖信号</li>
+<li style="padding-left:16px;position:relative;font-size:14px"><span style="position:absolute;left:0;color:var(--mint)">·</span><strong>恐慌指数 VIX</strong>：美股专用的情绪温度计</li>
+</ul>
+<div class="two-col">
+<div class="col-box pro">
+<div class="col-title">优点</div>
+<ul>
+<li>在熊市底部和极端恐慌时最有效</li>
+<li>买入位置相对安全</li>
+<li>与价值投资天然契合</li>
+</ul>
+</div>
+<div class="col-box con">
+<div class="col-title">局限</div>
+<ul>
+<li>"极端"可能持续很久再变得更极端</li>
+<li>在趋势性牛市或熊市中持续反向会被打爆</li>
+<li>对基本面判断要求较高</li>
+</ul>
+</div>
+</div>
+<div class="action-box">
+<div class="title">大学生具体怎么做</div>
+<ol>
+<li>选择波动大但长期有意义的宽基指数（如中证 500、恒生科技）</li>
+<li>在指数 PE 处于 10 年分位 20% 以下时分批买入</li>
+<li>在 PE 回到历史中位数（50% 分位）以上时分批卖出</li>
+<li>单次操作不超过总资金 20%，留出继续下跌加仓的空间</li>
+<li>不要对单只个股做均值回归——公司可能真的就是烂了不会回来</li>
+</ol>
+</div>
+</div>
+</article>
+
+<article class="strategy" id="s5">
+<div class="strategy-head">
+<div class="strategy-icon">◎</div>
+<div class="strategy-head-info">
+<div class="stars">
+<span class="star-item">门槛 <span class="star-dots">●●<span class="star-dim">●●●</span></span></span>
+<span class="star-item">耗时 <span class="star-dots">●●<span class="star-dim">●●●</span></span></span>
+<span class="star-item">心累度 <span class="star-dots">●<span class="star-dim">●●●●</span></span></span>
+</div>
+<h2>资产配置</h2>
+<div class="strategy-sub">不是选赢家，而是让自己永远不会彻底输</div>
+</div>
+</div>
+<div class="strategy-body">
+<h3>策略原理</h3>
+<p>资产配置的基本思想是：把钱分散到多种相关性较低的资产上（股票、债券、黄金、现金等），因为不同资产在同一时间段的表现通常并不同步。某类资产大跌时，另一类可能在涨——整体组合的波动就会被平滑。</p>
+<p>诺贝尔经济学奖得主马科维茨的研究表明：合理配置可以在相同收益下降低风险，或者在相同风险下提升收益。这几乎是现代金融学里唯一的"免费午餐"。</p>
+<h3>最经典的三种组合</h3>
+<table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:13px;border-radius:10px;overflow:hidden">
+<thead><tr style="background:rgba(89,240,194,.08);color:var(--mint)"><th style="padding:10px 14px;text-align:left;font-weight:700">组合名称</th><th style="padding:10px 14px;text-align:left;font-weight:700">构成</th><th style="padding:10px 14px;text-align:left;font-weight:700">特点</th></tr></thead>
+<tbody>
+<tr><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.08);color:var(--text)">60/40 组合</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.08)">60% 股票 + 40% 债券</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.08)">最经典的稳健搭配</td></tr>
+<tr><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.08);color:var(--text)">全天候组合</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.08)">股 30% / 长债 40% / 中债 15% / 商品 7.5% / 黄金 7.5%</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.08)">达利欧桥水版，应对各种经济环境</td></tr>
+<tr><td style="padding:10px 14px;color:var(--text)">永久组合</td><td style="padding:10px 14px">股 / 长债 / 现金 / 黄金各 25%</td><td style="padding:10px 14px">Harry Browne 设计，极致均衡</td></tr>
+</tbody>
+</table>
+<div class="two-col">
+<div class="col-box pro">
+<div class="col-title">优点</div>
+<ul>
+<li>回撤小，心理压力最低</li>
+<li>不需要频繁操作</li>
+<li>穿越周期，长期稳定增值</li>
+</ul>
+</div>
+<div class="col-box con">
+<div class="col-title">局限</div>
+<ul>
+<li>牛市里看起来"不够刺激"</li>
+<li>需要定期再平衡</li>
+<li>资金太少时难以凑齐多类资产</li>
+</ul>
+</div>
+</div>
+<div class="action-box">
+<div class="title">大学生具体怎么做</div>
+<ol>
+<li>资金少（&lt; 5000 元）时用简化版：70% 宽基股票 ETF + 30% 债券基金</li>
+<li>资金充足后扩展到 60/40：股票 ETF、中长期纯债基金，各按比例</li>
+<li>每半年检查一次，如果股票仓位因上涨变成 68%，就卖掉 8% 回到 60%——这叫"再平衡"</li>
+<li>再平衡的时候不要犹豫，它本质上是在"高位卖一点、低位买一点"，自动帮你锁利润</li>
+<li>这个策略最大的回报不是"多赚"，而是"不会慌"——它让你能坚持下来</li>
+</ol>
+</div>
+</div>
+</article>
+
+<article class="strategy" id="s6">
+<div class="strategy-head">
+<div class="strategy-icon">⇌</div>
+<div class="strategy-head-info">
+<div class="stars">
+<span class="star-item">门槛 <span class="star-dots">●●●●●</span></span>
+<span class="star-item">耗时 <span class="star-dots">●●●●●</span></span>
+<span class="star-item">心累度 <span class="star-dots">●●●●●</span></span>
+</div>
+<h2>对冲基础：了解即可，不建议实操</h2>
+<div class="strategy-sub">知道它长什么样，这样你就不会被人用这个词忽悠</div>
+</div>
+</div>
+<div class="strategy-body">
+<h3>对冲到底是什么</h3>
+<p>对冲的核心思想很简单：<strong>同时持有两种相反方向的头寸，让它们的盈亏互相抵消一部分</strong>。代价是你放弃了极端收益的可能性，换来的是剧烈波动时账户的稳定。</p>
+<h3>几种典型的对冲方式</h3>
+<ul style="list-style:none;display:grid;gap:10px;margin:10px 0">
+<li style="padding:12px 14px;background:rgba(255,255,255,.03);border-radius:10px;font-size:14px"><strong style="color:var(--text)">多空对冲</strong>：买入看好的股票 A，同时融券卖出看空的股票 B。如果整体市场下跌，A 跌了但 B 也跌了（你反向赚到），净损失被压缩。</li>
+<li style="padding:12px 14px;background:rgba(255,255,255,.03);border-radius:10px;font-size:14px"><strong style="color:var(--text)">期权保护</strong>：买入股票的同时买入认沽期权（类似"保险"）。股价大跌时期权升值补偿你的损失。代价是期权本身的"保险费"。</li>
+<li style="padding:12px 14px;background:rgba(255,255,255,.03);border-radius:10px;font-size:14px"><strong style="color:var(--text)">跨市场对冲</strong>：A 股多头 + 港股空头，或者股票多头 + 国债多头（股债对冲）。</li>
+</ul>
+<div class="two-col">
+<div class="col-box pro">
+<div class="col-title">理论优势</div>
+<ul>
+<li>降低整体波动</li>
+<li>在极端市场中保护本金</li>
+<li>专业机构的核心武器</li>
+</ul>
+</div>
+<div class="col-box con">
+<div class="col-title">为什么大学生不适合</div>
+<ul>
+<li>需要期权、融券等高级账户权限</li>
+<li>资金门槛高（期权 50 万、融资融券 50 万）</li>
+<li>对冲成本（保险费、借券费）会显著吃掉收益</li>
+<li>新手往往"对冲了反而亏得更多"</li>
+</ul>
+</div>
+</div>
+<div class="action-box">
+<div class="title">大学生应该怎么"用"这一章</div>
+<ol>
+<li>知道"对冲"不是魔法，它有明确的代价（保险费、借券费、机会成本）</li>
+<li>任何"保本对冲基金年化 20%"的宣传都是骗局——真正的对冲基金年化能做到 10% 以上就是顶级</li>
+<li>如果你真的感兴趣，先学习期权 Greeks（Delta、Gamma、Theta、Vega），不要直接开账户交易</li>
+<li>对于现阶段的你，最好的"对冲"其实就是资产配置——见策略 5</li>
+</ol>
+</div>
+</div>
+</article>
+
+<div class="nav-footer">
+<a href="learn_antifraud.html">← 大学生防骗指南</a>
+<a href="resources.html">查看学习资源库 →</a>
+</div>
+
+</main>
+
+<footer>
+&copy; 2026 CampusQuant 校园财商 · 策略介绍仅用于投教参考，不构成任何投资建议 · <a href="community.html">回到投教社区</a>
+</footer>
+
+</body>
+</html>

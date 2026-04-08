@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>大学生防骗指南 · CampusQuant 校园财商</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif}
+:root{--bg:#08111f;--card:rgba(255,255,255,.05);--border:rgba(255,255,255,.12);--text:#f6fbff;--sub:#adc2d9;--dim:#7390aa;--pri:#6fd7ff;--mint:#59f0c2;--gold:#ffd37c;--danger:#ff8e8e;--shadow:0 18px 48px rgba(0,0,0,.28)}
+body{background:var(--bg);color:var(--text);min-height:100vh;background-image:radial-gradient(circle at 15% 50%,rgba(255,142,142,.07),transparent 32%),radial-gradient(circle at 85% 28%,rgba(255,211,124,.07),transparent 32%)}
+header{position:fixed;top:0;left:0;width:100%;display:flex;justify-content:space-between;align-items:center;padding:16px 48px;background:rgba(8,17,31,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);z-index:1000}
+.logo{display:flex;align-items:baseline;gap:8px;text-decoration:none}
+.logo-text{font-size:22px;font-weight:800;background:linear-gradient(90deg,#4facfe,#00f2fe);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:.5px}
+.logo-sub{font-size:12px;color:var(--dim)}
+nav{display:flex;gap:28px;align-items:center}
+nav a{text-decoration:none;color:var(--sub);font-size:14px;font-weight:500;transition:.25s;position:relative}
+nav a:hover,nav a.active{color:var(--pri)}
+nav a::after{content:'';position:absolute;width:0;height:2px;bottom:-4px;left:0;background:linear-gradient(90deg,#4facfe,#00f2fe);transition:width .3s}
+nav a:hover::after,nav a.active::after{width:100%}
+main{width:min(1160px,calc(100% - 40px));margin:0 auto;padding:112px 0 80px}
+.crumb{color:var(--dim);font-size:13px;margin-bottom:14px}
+.crumb a{color:var(--pri);text-decoration:none}
+.hero{background:linear-gradient(145deg,rgba(255,142,142,.14),rgba(255,255,255,.03)),rgba(255,255,255,.04);border:1px solid rgba(255,142,142,.2);border-radius:24px;padding:34px 32px;box-shadow:var(--shadow);margin-bottom:28px}
+.eyebrow{display:inline-flex;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(255,142,142,.12);color:var(--danger);font-weight:700;font-size:12px;margin-bottom:18px}
+.hero h1{font-size:clamp(30px,4.4vw,46px);line-height:1.1;margin-bottom:12px;max-width:16ch}
+.hero p{color:var(--sub);line-height:1.75;max-width:72ch}
+.redline{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:24px}
+.redline-card{padding:14px 16px;background:rgba(255,142,142,.07);border:1px solid rgba(255,142,142,.22);border-radius:14px;font-size:13px;color:var(--text);font-weight:600;display:flex;gap:10px;align-items:flex-start}
+.redline-card span{color:var(--danger);font-size:18px;line-height:1}
+.toc{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:22px}
+.toc a{text-decoration:none;display:flex;align-items:center;gap:8px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--sub);font-size:13px;transition:.2s}
+.toc a:hover{border-color:rgba(255,142,142,.4);color:var(--danger);background:rgba(255,142,142,.08)}
+.toc-num{display:inline-flex;width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#ff8e8e,#ffb07c);color:#3a0e0e;font-size:11px;font-weight:800;align-items:center;justify-content:center;flex-shrink:0}
+.scam{background:var(--card);border:1px solid var(--border);border-radius:22px;padding:30px 32px;margin-bottom:22px;box-shadow:var(--shadow);scroll-margin-top:96px}
+.scam-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--border)}
+.scam-icon{width:54px;height:54px;border-radius:16px;background:rgba(255,142,142,.12);color:var(--danger);font-size:26px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.scam-head-info{flex:1}
+.level-tag{display:inline-block;padding:5px 10px;border-radius:999px;background:rgba(255,142,142,.14);color:var(--danger);font-size:11px;font-weight:700;margin-bottom:8px;border:1px solid rgba(255,142,142,.2)}
+.level-tag.mid{background:rgba(255,211,124,.14);color:var(--gold);border-color:rgba(255,211,124,.2)}
+.scam h2{font-size:22px;font-weight:800;margin-bottom:6px}
+.scam-sub{color:var(--dim);font-size:14px}
+.scam-body{color:var(--sub);line-height:1.82;font-size:15px}
+.scam-body p{margin-bottom:14px}
+.scam-body strong{color:var(--text)}
+.block{margin:18px 0;border-radius:14px;overflow:hidden;border:1px solid var(--border)}
+.block-head{padding:12px 16px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+.block.quote .block-head{background:rgba(255,142,142,.09);color:var(--danger)}
+.block.quote .block-head::before{content:'“';font-size:22px;line-height:1}
+.block.signal .block-head{background:rgba(255,211,124,.09);color:var(--gold)}
+.block.signal .block-head::before{content:'⚑';font-size:14px}
+.block.action .block-head{background:rgba(89,240,194,.09);color:var(--mint)}
+.block.action .block-head::before{content:'✓';font-size:14px}
+.block-body{padding:14px 18px;font-size:14px;color:var(--sub);line-height:1.75;background:rgba(255,255,255,.02)}
+.block-body ul{list-style:none;display:grid;gap:8px}
+.block-body li{position:relative;padding-left:16px}
+.block-body li::before{content:'·';position:absolute;left:4px;top:-2px;font-size:20px;color:var(--dim)}
+.block.quote .block-body{font-style:italic;color:#d0c0c0}
+.final{background:linear-gradient(145deg,rgba(89,240,194,.12),rgba(255,255,255,.03));border:1px solid rgba(89,240,194,.2);border-radius:22px;padding:30px 32px;margin-top:28px}
+.final h2{font-size:22px;font-weight:800;margin-bottom:14px;color:var(--text)}
+.final p{color:var(--sub);line-height:1.8;margin-bottom:12px}
+.final-list{list-style:none;display:grid;gap:12px;margin-top:14px}
+.final-list li{display:flex;gap:12px;padding:14px 16px;background:rgba(89,240,194,.06);border-radius:12px;font-size:14px;color:var(--text);line-height:1.6}
+.final-list li::before{content:'✓';color:var(--mint);font-size:18px;font-weight:700;flex-shrink:0}
+.nav-footer{display:flex;justify-content:space-between;gap:16px;margin-top:32px;padding-top:24px;border-top:1px solid var(--border);flex-wrap:wrap}
+.nav-footer a{text-decoration:none;padding:14px 22px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--sub);transition:.2s;font-size:14px;font-weight:600}
+.nav-footer a:hover{border-color:rgba(111,215,255,.4);color:var(--pri)}
+footer{text-align:center;color:var(--dim);font-size:12px;padding:24px;border-top:1px solid var(--border);margin-top:40px}
+footer a{color:var(--pri);text-decoration:none}
+@media (max-width:900px){
+header{padding:14px 18px}
+nav{gap:14px;overflow-x:auto}
+main{padding-top:96px}
+.toc,.redline{grid-template-columns:repeat(2,1fr)}
+.scam{padding:22px 20px}
+.scam-head{gap:12px}
+.scam-icon{width:44px;height:44px;font-size:22px}
+.scam h2{font-size:19px}
+.hero{padding:26px 22px}
+}
+</style>
+</head>
+<body>
+
+<header>
+<a href="dashboard.html" class="logo"><span class="logo-text">CampusQuant</span><span class="logo-sub">校园财商</span></a>
+<nav>
+<a href="dashboard.html">控制台</a>
+<a href="market.html">市场快讯</a>
+<a href="analysis.html">个股分析</a>
+<a href="trade.html">模拟演练</a>
+<a href="community.html" class="active">投教社区</a>
+<a href="team.html">关于我们</a>
+</nav>
+</header>
+
+<main>
+<div class="crumb"><a href="community.html">投教社区</a> / 大学生防骗指南</div>
+
+<section class="hero">
+<div class="eyebrow">⚠ 血泪经验整理 · 每一条都有人真的栽过</div>
+<h1>先学会不输钱，再谈怎么赚钱</h1>
+<p>针对大学生的金融骗局比你想象的多。它们常常换着皮出现：昨天是"股神老师"，今天是"AI 量化"，明天是"港美股配资"。套路大同小异，只要你先认清几个最典型的陷阱，就能避开绝大部分坑。</p>
+<div class="redline">
+<div class="redline-card"><span>✕</span>不给陌生人转账，无论对方头衔多么高大上</div>
+<div class="redline-card"><span>✕</span>不下载任何"老师推荐"的 App 或安装包</div>
+<div class="redline-card"><span>✕</span>不相信任何"保本高收益"承诺</div>
+</div>
+</section>
+
+<div class="toc">
+<a href="#s1"><span class="toc-num">1</span>荐股群 / 带单老师</a>
+<a href="#s2"><span class="toc-num">2</span>内幕消息诈骗</a>
+<a href="#s3"><span class="toc-num">3</span>假冒券商 App</a>
+<a href="#s4"><span class="toc-num">4</span>场外杠杆配资</a>
+<a href="#s5"><span class="toc-num">5</span>虚假交易平台</a>
+<a href="#s6"><span class="toc-num">6</span>校园贷 / 套路贷</a>
+<a href="#s7"><span class="toc-num">7</span>刷单兼职骗局</a>
+<a href="#s8"><span class="toc-num">8</span>"AI 量化"骗局</a>
+</div>
+
+<article class="scam" id="s1">
+<div class="scam-head">
+<div class="scam-icon">👥</div>
+<div class="scam-head-info">
+<span class="level-tag">高发 · 最易上当</span>
+<h2>荐股群与"带单老师"</h2>
+<div class="scam-sub">这是大学生最常接触、收割规模最大的一类骗局</div>
+</div>
+</div>
+<div class="scam-body">
+<p>套路永远是：先把你拉进一个免费群，群里有几十上百个"学员"每天晒收益截图。老师推送几次免费票，有几次还真涨了。你开始相信，老师抛出"内部 VIP 群"需要交几千到几万服务费。进去之后推的票要么接盘烂票，要么被"老师"反向割韭菜。</p>
+<div class="block quote">
+<div class="block-head">你会听到的话术</div>
+<div class="block-body">"今天这只我跟庄家有消息，明天涨停板"<br>"普通群只推两只，VIP 群我们做的都是机构单"<br>"进 VIP 要 6800 元，赚回来分分钟"<br>"我带过的学员这个月平均收益 34%"</div>
+</div>
+<div class="block signal">
+<div class="block-head">识别信号</div>
+<div class="block-body"><ul>
+<li>群里的"学员晒单"都是用同样模板截图，时间点整齐得不自然</li>
+<li>老师只推结果（涨停截图），从不公开完整的历史买卖记录</li>
+<li>强调"限时名额""今晚截止""错过等一年"</li>
+<li>要求通过个人微信、支付宝转账，而不是走任何有监管的平台</li>
+</ul></div>
+</div>
+<div class="block action">
+<div class="block-head">正确应对</div>
+<div class="block-body"><ul>
+<li>任何需要交钱才能看到的"股票推荐"都是骗局。合法券商的投顾服务也绝不会以微信转账的形式收费</li>
+<li>证监会备案的投顾人员可在"中国证券业协会从业人员查询"核验，不在其中的都是黑嘴</li>
+<li>立即退群，并举报微信号。如已转账，尽快向反诈中心 96110 报案</li>
+</ul></div>
+</div>
+</div>
+</article>
+
+<article class="scam" id="s2">
+<div class="scam-head">
+<div class="scam-icon">🔐</div>
+<div class="scam-head-info">
+<span class="level-tag">违法 · 双重打击</span>
+<h2>内幕消息诈骗</h2>
+<div class="scam-sub">即便消息是真的，交易本身也是犯罪</div>
+</div>
+</div>
+<div class="scam-body">
+<p>骗子会告诉你他是某上市公司 CFO 的朋友、某券商并购部员工、某投行合伙人的亲戚，"明天公司会发重大公告"。结果一种是根本没有这回事，你买入后被割韭菜；另一种更糟糕，是真的内幕信息——这种情况你就从受害者变成了共犯。</p>
+<div class="block quote">
+<div class="block-head">典型开场白</div>
+<div class="block-body">"我表哥在 XX 证券，下周有个并购案会公告"<br>"明天会有一批机构扫货 XXX，消息来源 100% 可靠"<br>"这个票是我们内部锁定的，只告诉关系最好的几个朋友"</div>
+</div>
+<div class="block signal">
+<div class="block-head">识别信号</div>
+<div class="block-body"><ul>
+<li>真正的内幕消息不可能通过社交媒体扩散——一旦扩散就没有价值了</li>
+<li>强调神秘背景、暗示人脉，但从不落实具体职位或公司细节</li>
+<li>推送的股票通常是冷门小票，容易被拉抬</li>
+</ul></div>
+</div>
+<div class="block action">
+<div class="block-head">正确应对</div>
+<div class="block-body"><ul>
+<li><strong>法律上</strong>：内幕交易在中国是刑事犯罪，最高可判 10 年。不要因为一句"保证赚钱"毁掉自己</li>
+<li><strong>心理上</strong>：如果一个陌生人真的有能让你躺赚的内幕消息，他为什么要告诉你？</li>
+<li>直接无视、拉黑，必要时举报</li>
+</ul></div>
+</div>
+</div>
+</article>
+
+<article class="scam" id="s3">
+<div class="scam-head">
+<div class="scam-icon">📱</div>
+<div class="scam-head-info">
+<span class="level-tag">高危 · 直接归零</span>
+<h2>假冒券商 App</h2>
+<div class="scam-sub">这是近两年增长最快、跑路最彻底的一种骗局</div>
+</div>
+</div>
+<div class="scam-body">
+<p>骗子会冒充知名券商或"香港持牌券商"，让你下载一个看起来像模像样的 App，有 K 线、有实时行情、有账户余额。你充值后前几天甚至能看到账户盈利，当你想提现，客服会以"需要缴纳保证金""系统维护""反洗钱验证"为由不断要求你追加入金。直到有一天你发现 App 打不开了。</p>
+<div class="block quote">
+<div class="block-head">这类 App 的典型特征</div>
+<div class="block-body">"XX 国际证券——新用户注册送 500 美金体验"<br>"持牌正规，香港监管，支持美股港股"<br>"行情走势和大券商完全一样"</div>
+</div>
+<div class="block signal">
+<div class="block-head">识别信号</div>
+<div class="block-body"><ul>
+<li>不在任何官方应用商店上架，只能通过"客服"发的链接或二维码下载</li>
+<li>账户里的"美股持仓"无法对接任何真实交易所撮合系统——所谓盈亏都是后台改的数字</li>
+<li>入金走的是个人账户或虚拟货币，不走银行对公账户</li>
+<li>网站域名奇怪，比如 xxx-fintech.top / xxx-global.xyz 等冷门后缀</li>
+</ul></div>
+</div>
+<div class="block action">
+<div class="block-head">正确应对</div>
+<div class="block-body"><ul>
+<li>在中国大陆合法的证券账户只能通过正规持牌券商（国泰君安、中信、华泰、广发、东方财富等）开立</li>
+<li>港美股可通过富途、老虎等受监管券商开户，但任何未在应用商店上架的"券商 App"都应该视为骗局</li>
+<li>切勿点击任何陌生链接；如已下载，立刻卸载并查杀手机病毒</li>
+</ul></div>
+</div>
+</div>
+</article>
+
+<article class="scam" id="s4">
+<div class="scam-head">
+<div class="scam-icon">⛓</div>
+<div class="scam-head-info">
+<span class="level-tag">违法 · 会被强平</span>
+<h2>场外杠杆配资</h2>
+<div class="scam-sub">它不是让你赚得更多，而是让你爆仓得更快</div>
+</div>
+</div>
+<div class="scam-body">
+<p>配资公司会告诉你："你出 1 万，我配 5 万，总共 6 万资金给你炒股，赚的都归你，亏的先亏你自己那 1 万。"听起来好像你只承担了自己那部分风险。但实际运作是：账户由对方控制，一旦亏损接近你的本金，立即强制平仓，你的 1 万会被瞬间清零。</p>
+<div class="block quote">
+<div class="block-head">它们的常见广告</div>
+<div class="block-body">"1:10 杠杆，不吃亏损全赚利润"<br>"免息配资 30 天，月息仅 1%"<br>"支持 A 股、港股、美股，当天开户当天交易"</div>
+</div>
+<div class="block signal">
+<div class="block-head">识别信号</div>
+<div class="block-body"><ul>
+<li>任何在证券账户之外的"借钱炒股"都属于非法场外配资</li>
+<li>配资平台会强行设定"止损线"，你无法自主控制持仓</li>
+<li>行情剧烈波动时，平台可能以"系统故障"为由无法操作，导致强平</li>
+</ul></div>
+</div>
+<div class="block action">
+<div class="block-head">正确应对</div>
+<div class="block-body"><ul>
+<li><strong>法律上</strong>：2019 年最高法明确场外配资合同无效，配资平台跑路时你也很难追回</li>
+<li><strong>收益上</strong>：杠杆不会让水平差的交易者赚钱，只会放大亏损和爆仓速度</li>
+<li><strong>正确做法</strong>：如果你的资金不足以产生可观收益，那说明你还没到该在这个市场下注的阶段——先积累本金和经验</li>
+</ul></div>
+</div>
+</div>
+</article>
+
+<article class="scam" id="s5">
+<div class="scam-head">
+<div class="scam-icon">🎰</div>
+<div class="scam-head-info">
+<span class="level-tag">高危 · 纯资金盘</span>
+<h2>虚假交易平台 / 外汇二元期权</h2>
+<div class="scam-sub">本质是赌场，你永远不可能持续赢</div>
+</div>
+</div>
+<div class="scam-body">
+<p>这类平台通常以"外汇""黄金""原油""二元期权""区块链合约"为名。你看到的 K 线并非来自真实市场，而是后台渲染。平台既是庄家又是裁判，涨跌由系统决定，"赢"的时候让你提点小钱建立信心，加大入金后开始连杀。</p>
+<div class="block quote">
+<div class="block-head">你会听到的话术</div>
+<div class="block-body">"2 分钟一局，猜涨猜跌，正确率 50% 就能赚"<br>"黄金价格每分钟波动，你只需要选择方向"<br>"新手福利：注册送 200 美金，1 小时翻倍"</div>
+</div>
+<div class="block signal">
+<div class="block-head">识别信号</div>
+<div class="block-body"><ul>
+<li>没有任何金融牌照，或拿出来的"牌照"是境外小国（瓦努阿图、塞舌尔等）</li>
+<li>提现要求繁多：充值流水、盈利流水、保证金验证</li>
+<li>"交易"本质就是二元赌博：买涨或买跌，几分钟一次结算</li>
+</ul></div>
+</div>
+<div class="block action">
+<div class="block-head">正确应对</div>
+<div class="block-body"><ul>
+<li>在中国大陆，个人非法参与外汇保证金交易、二元期权均属于违法</li>
+<li>任何"秒结算 / 秒提现 / 猜方向"的产品一律视为赌博而非投资</li>
+<li>已入金的，立刻停止加仓，保存好聊天和转账记录报警</li>
+</ul></div>
+</div>
+</div>
+</article>
+
+<article class="scam" id="s6">
+<div class="scam-head">
+<div class="scam-icon">💸</div>
+<div class="scam-head-info">
+<span class="level-tag">高危 · 校园专属</span>
+<h2>校园贷 / 套路贷</h2>
+<div class="scam-sub">它和投资看起来无关，但往往是大学生财务崩塌的第一张骨牌</div>
+</div>
+</div>
+<div class="scam-body">
+<p>你为了买台电脑、谈恋爱、或者被"带单亏损"后急用钱，搜到一个声称"无息""学生专享""秒放款"的借款 App。实际年化利率可能高达 200% 以上，加上各种"服务费""逾期费""展期费"，最终你要还的钱可能是借款本金的三到五倍。</p>
+<div class="block quote">
+<div class="block-head">它们会怎么宣传</div>
+<div class="block-body">"大学生凭学生证秒借 3000"<br>"无需抵押、无需征信、无息借款"<br>"7 天免息，到期续借自动续期"</div>
+</div>
+<div class="block signal">
+<div class="block-head">识别信号</div>
+<div class="block-body"><ul>
+<li>要求你提供通讯录、身份证照片、甚至裸照作为"担保"</li>
+<li>合同里的"服务费"和"砍头息"远大于真正的利息</li>
+<li>逾期后立即爆通讯录、PS 照片威胁、电话轰炸家人</li>
+</ul></div>
+</div>
+<div class="block action">
+<div class="block-head">正确应对</div>
+<div class="block-body"><ul>
+<li>中国已明确禁止任何面向大学生的贷款产品。任何向大学生放贷的机构都游走在违法边缘</li>
+<li>学费、生活费问题应先找学校资助中心、家庭沟通或申请助学贷款</li>
+<li>已经借了钱的，不要以贷养贷——越陷越深。立即向辅导员或家人坦白求助</li>
+</ul></div>
+</div>
+</div>
+</article>
+
+<article class="scam" id="s7">
+<div class="scam-head">
+<div class="scam-icon">🎣</div>
+<div class="scam-head-info">
+<span class="level-tag mid">高发 · 易伪装成兼职</span>
+<h2>刷单 / 点赞兼职诈骗</h2>
+<div class="scam-sub">它不是投资骗局，但是大学生最容易踩的那个"第一个坑"</div>
+</div>
+</div>
+<div class="scam-body">
+<p>这类骗局会在招聘网站、QQ 群、抖音私信里以"日结 300""动动手指就能赚"的名义诱骗学生。先给几单小任务，真的返利几十元让你相信"真的能赚"。接着让你做"大单""组合任务"要求先垫付几百到几千元，最后一单永远"卡单失败"，要求你继续刷才能解冻。</p>
+<div class="block quote">
+<div class="block-head">常见话术</div>
+<div class="block-body">"某宝刷好评，日结 200~500 元"<br>"帮直播间点赞，50 元/次"<br>"任务卡单，再做一单就能一起提现"</div>
+</div>
+<div class="block signal">
+<div class="block-head">识别信号</div>
+<div class="block-body"><ul>
+<li>任何要求你先垫付资金的"兼职"，100% 是诈骗</li>
+<li>要求下载不明 App 或进入陌生平台完成任务</li>
+<li>"卡单""系统异常"后客服反复要求你继续入金"解冻"</li>
+</ul></div>
+</div>
+<div class="block action">
+<div class="block-head">正确应对</div>
+<div class="block-body"><ul>
+<li>合法兼职不会让你自己掏钱，更不会要求你开通贷款</li>
+<li>一旦发现被骗立即停止，保留证据，拨打 96110 或 110 报警</li>
+<li>大学生找兼职优先通过学校勤工助学、正规平台（Boss 直聘、实习僧等）</li>
+</ul></div>
+</div>
+</div>
+</article>
+
+<article class="scam" id="s8">
+<div class="scam-head">
+<div class="scam-icon">🤖</div>
+<div class="scam-head-info">
+<span class="level-tag">新型 · 包装最唬人</span>
+<h2>"AI 量化"与智能跟单骗局</h2>
+<div class="scam-sub">它蹭 AI 概念，但内核还是老骗局</div>
+</div>
+</div>
+<div class="scam-body">
+<p>这种骗局利用这两年 AI 热度重新包装："我们有 GPT 训练的量化模型，自动识别买卖点""斯坦福博士团队开发""年化 150% 回测"。你付钱买策略，或者把钱放进他们的"跟单钱包"。一段时间后平台跑路或策略集体爆仓。</p>
+<div class="block quote">
+<div class="block-head">话术特征</div>
+<div class="block-body">"深度学习 + 神经网络，全 A 股 5000 只股票毫秒级扫描"<br>"硅谷团队 / 清华博士 / 华尔街量化背景"<br>"回测收益年化 200%，实盘稳定 80%"<br>"AI 全自动交易，你只负责提款"</div>
+</div>
+<div class="block signal">
+<div class="block-head">识别信号</div>
+<div class="block-body"><ul>
+<li>真正的量化基金门槛极高（100 万起步），且从不向散户"招学员"</li>
+<li>所有"年化 100% 以上"的宣传都是回测过拟合或纯假数据</li>
+<li>让你把钱打到"公司量化账户"（实为个人账户或境外钱包）</li>
+<li>策略代码或模型细节"商业机密"无法查验</li>
+</ul></div>
+</div>
+<div class="block action">
+<div class="block-head">正确应对</div>
+<div class="block-body"><ul>
+<li>AI 在投资中确实有应用，但不等于"无风险永赚"。任何承诺固定高收益的 AI 策略都是营销话术</li>
+<li>如果对量化感兴趣，正确路径是学习 Python、统计、金融工程，自己写回测代码，而不是"花钱买别人的策略"</li>
+<li>这个平台（CampusQuant）就是为大学生提供的免费、模拟环境——你可以学习 AI 多 Agent 分析的真实逻辑，没有任何收费门槛</li>
+</ul></div>
+</div>
+</div>
+</article>
+
+<section class="final">
+<h2>最后，记住这几条底线</h2>
+<p>绝大多数金融骗局都靠两件事成立：一是你相信"轻松赚钱"是可能的，二是你相信"自己的判断比骗子高明"。只要把下面这几条钉在脑子里，大部分陷阱都会自动失效。</p>
+<ul class="final-list">
+<li>任何"保本""稳赚""内部消息"的承诺都是骗局，没有例外</li>
+<li>在证券账户以外发生的任何资金转移，都要打十二分警惕</li>
+<li>合法的投顾、基金、券商，从不通过微信转账收费，从不拉群荐股</li>
+<li>不懂的产品就是不要碰，不要因为不想显得"不专业"就假装懂</li>
+<li>真正的高手不会拉你下水，因为他们的收益来自市场，不是来自你的本金</li>
+<li>遇事不决，拨打反诈中心 96110，它是免费的</li>
+</ul>
+</section>
+
+<div class="nav-footer">
+<a href="learn_basics.html">← 基础财商知识</a>
+<a href="learn_strategies.html">下一站：投资策略锦囊 →</a>
+</div>
+
+</main>
+
+<footer>
+&copy; 2026 CampusQuant 校园财商 · 防骗案例来源于公开报道整理 · <a href="community.html">回到投教社区</a>
+</footer>
+
+</body>
+</html>
