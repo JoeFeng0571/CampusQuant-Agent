@@ -88,11 +88,15 @@
             transition:all var(--d-base) var(--ease-out); cursor:pointer;
             position:relative; overflow:hidden;
         }
-        /* 默认就轻微浮动（不需要 hover） */
-        .qnav-item:nth-child(1) { animation:float-y 5.5s ease-in-out infinite; }
-        .qnav-item:nth-child(2) { animation:float-y 5.5s ease-in-out infinite; animation-delay:.3s; }
-        .qnav-item:nth-child(3) { animation:float-y 5.5s ease-in-out infinite; animation-delay:.6s; }
-        .qnav-item:nth-child(4) { animation:float-y 5.5s ease-in-out infinite; animation-delay:.9s; }
+        /* 入场 fade-in-up + 默认轻微浮动（错峰）—— 双 animation 组合避免被 stagger-children 的 opacity:0 覆盖 */
+        .qnav-item {
+            opacity:0;
+            animation:fade-in-up .55s var(--ease-out) forwards, float-y 5.5s ease-in-out infinite;
+        }
+        .qnav-item:nth-child(1) { animation-delay:.08s, 1s; }
+        .qnav-item:nth-child(2) { animation-delay:.16s, 1.3s; }
+        .qnav-item:nth-child(3) { animation-delay:.24s, 1.6s; }
+        .qnav-item:nth-child(4) { animation-delay:.32s, 1.9s; }
         .qnav-item::before {
             content:''; position:absolute; inset:0;
             background:linear-gradient(135deg,rgba(79,172,254,.0),rgba(240,147,251,.0));
@@ -116,7 +120,32 @@
             font-size:10px; padding:1px 6px; border-radius:8px; }
 
         /* ══ MAIN GRID ══ */
-        .main-grid { display:grid; grid-template-columns:1fr 380px; gap:20px; align-items:start; }
+        .main-grid {
+            display:grid;
+            grid-template-columns:1fr 380px;
+            grid-template-rows:560px;     /* 与 chat-panel 高度一致，让左右两列底部对齐 */
+            gap:20px;
+        }
+        .dash-left-col {
+            display:flex; flex-direction:column; gap:20px;
+            min-height:0;                 /* 关键：允许子元素 shrink 不超出 */
+        }
+        .dash-left-col > .panel:first-child { flex-shrink:0; }   /* 持仓卡按内容自然高度 */
+        .dash-left-col > .panel:last-child {
+            flex:1; min-height:0;          /* news 卡占满剩余空间 */
+            overflow:hidden;
+            display:flex; flex-direction:column;
+        }
+        .dash-left-col > .panel:last-child .news-list {
+            flex:1;
+            overflow-y:auto;
+            min-height:0;
+            padding-right:4px;
+        }
+        .dash-left-col > .panel:last-child .news-list::-webkit-scrollbar { width:4px; }
+        .dash-left-col > .panel:last-child .news-list::-webkit-scrollbar-thumb {
+            background:rgba(255,255,255,.1); border-radius:2px;
+        }
 
         /* ══ PANEL ══ */
         .panel { background:var(--glass); border:1px solid var(--glass-border); border-radius:16px;
@@ -230,7 +259,17 @@
         /* ══ RESPONSIVE ══ */
         @media(max-width:1100px) {
             .quick-nav-grid { grid-template-columns:repeat(3,1fr); }
-            .main-grid { grid-template-columns:1fr; }
+            .main-grid {
+                grid-template-columns:1fr;
+                grid-template-rows:auto;       /* 单列下取消固定行高 */
+            }
+            .dash-left-col > .panel:last-child {
+                flex:initial;
+                overflow:visible;
+            }
+            .dash-left-col > .panel:last-child .news-list {
+                overflow-y:visible;
+            }
         }
         @media(max-width:768px) {
             .dash-container { padding:72px 12px 36px; gap:16px; }
@@ -404,7 +443,7 @@
     <div class="main-grid fade-in-up" style="animation-delay:.35s">
 
         <!-- LEFT COLUMN -->
-        <div style="display:flex;flex-direction:column;gap:20px;">
+        <div class="dash-left-col">
 
             <!-- Portfolio mini card -->
             <div class="panel">
