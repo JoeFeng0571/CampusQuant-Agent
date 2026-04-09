@@ -45,29 +45,84 @@
         }
         .logo-wrap {
             text-align: center;
-            margin-bottom: 32px;
+            margin-bottom: 36px;
+            display:flex; flex-direction:column; align-items:center; gap:8px;
+        }
+        .logo-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(255,255,255,.55);
+            font-family: var(--font-mono, monospace);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 4px;
+        }
+        .logo-pulse {
+            display: inline-block;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: #5eead4;
+            box-shadow: 0 0 12px #5eead4;
+            animation: auth-pulse 2.4s ease-in-out infinite;
+        }
+        @keyframes auth-pulse {
+            0%,100% { opacity:1; transform:scale(1); }
+            50%     { opacity:.4; transform:scale(.85); }
         }
         .logo-text {
-            font-size: 28px;
+            font-family: var(--font-display, inherit);
+            font-size: 44px;
             font-weight: 800;
-            background: linear-gradient(90deg, #4facfe, #00f2fe);
+            line-height: 1;
+            letter-spacing: -0.025em;
+            background: linear-gradient(180deg, #fff 0%, rgba(255,255,255,.7) 100%);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         .logo-sub {
-            font-size: 13px;
-            color: var(--text-dim);
-            margin-top: 4px;
+            font-size: 14px;
+            color: rgba(255,255,255,.55);
+            margin-top: 6px;
         }
         .card {
             width: 100%;
             max-width: 440px;
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 20px;
+            background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 24px;
             padding: 36px 40px;
-            backdrop-filter: blur(12px);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            backdrop-filter: blur(28px) saturate(140%);
+            -webkit-backdrop-filter: blur(28px) saturate(140%);
+            box-shadow:
+                0 1px 0 rgba(255,255,255,.06) inset,
+                0 1px 2px rgba(0,0,0,.18),
+                0 16px 36px rgba(0,0,0,.25),
+                0 32px 64px rgba(79,172,254,.08);
+            position: relative;
+            overflow: hidden;
+        }
+        /* 卡片边缘渐变描边 */
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            background: linear-gradient(135deg,
+                rgba(79,172,254,.4) 0%,
+                rgba(162,155,254,.2) 50%,
+                rgba(255,107,157,.3) 100%);
+            -webkit-mask:
+                linear-gradient(#fff 0 0) content-box,
+                linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+                    mask-composite: exclude;
+            pointer-events: none;
+            opacity: .55;
         }
         .tabs {
             display: flex;
@@ -224,8 +279,12 @@
 <body>
 
 <div class="logo-wrap">
+    <div class="logo-eyebrow">
+        <span class="logo-pulse"></span>
+        <span>校园财商 · AI 投研平台</span>
+    </div>
     <div class="logo-text">CampusQuant</div>
-    <div class="logo-sub">校园财商智能分析平台</div>
+    <div class="logo-sub">用 AI 帮每位大学生 · 0 风险学投资</div>
 </div>
 
 <div class="card">
