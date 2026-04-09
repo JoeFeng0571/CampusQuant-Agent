@@ -3,11 +3,13 @@
    保留旧变量名以兼容未重构页面，新增暖色/动效/字体/间距 token
    ════════════════════════════════════════════════════════ */
 :root {
-    /* —— 字体栈 —— */
+    /* —— 字体栈（多层次字体系统，参考 Railway） —— */
     --font-sans: 'Inter','Manrope',-apple-system,BlinkMacSystemFont,
                  'Segoe UI','PingFang SC','Microsoft YaHei',
                  'Helvetica Neue',Arial,sans-serif;
     --font-display: 'Manrope','Inter',-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    /* 编辑字体：长文阅读用，serif 增加质感（learn 页、文章页） */
+    --font-serif: 'Source Serif 4','Source Serif Pro','Noto Serif SC','Songti SC','SimSun',Georgia,serif;
     --font-mono: 'JetBrains Mono','SF Mono','Cascadia Code','Inter',ui-monospace,monospace;
 
     /* —— 间距节奏（8/12/16/20/24/32/40/48/64） —— */
@@ -40,11 +42,28 @@
     --success:   #55efc4;
     --warn:      #fdcb6e;
 
-    --bg:        #0a0d17;
+    /* 深空背景（带轻微紫调，参考 Railway hsl(250,24%,9%)） */
+    --bg:        hsl(228, 24%, 7%);
+    --bg-1:      hsl(228, 22%, 9%);
+    --bg-2:      hsl(228, 20%, 11%);
+
+    /* 文字 4 级颜色（取代单一 #fff） */
+    --text:      rgba(255,255,255,0.97);   /* 标题强调 */
+    --text-1:    rgba(255,255,255,0.87);   /* 正文 */
+    --text-2:    rgba(255,255,255,0.65);   /* 次要 */
+    --text-3:    rgba(255,255,255,0.45);   /* 弱提示 */
+    --text-4:    rgba(255,255,255,0.30);   /* 装饰 */
+
+    /* 旧名兼容 */
     --card:      rgba(255,255,255,0.04);
     --border:    rgba(255,255,255,0.10);
-    --text-dim:  #718096;
-    --text-sub:  #a0aec0;
+    --text-dim:  rgba(255,255,255,0.45);
+    --text-sub:  rgba(255,255,255,0.65);
+
+    /* 内容宽度（Linear 风：长文 65ch / 中等 720px / 宽 1320px） */
+    --content-narrow: 660px;
+    --content-md:     820px;
+    --content-wide:   1320px;
 
     /* trade.html 专属 */
     --buy:       #00b894;

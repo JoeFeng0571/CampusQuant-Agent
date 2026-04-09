@@ -1,8 +1,9 @@
 /* ════════════════════════════════════════════════════════
    Base reset + body background
-   字体来自 fonts.bunny.net（Google Fonts 的隐私友好镜像，国内可达）
+   字体来自 fonts.bunny.net（Google Fonts 隐私友好镜像，国内可达）
+   多字体系统：Inter (UI) + Manrope (display) + Source Serif (editorial) + JetBrains Mono (code)
    ════════════════════════════════════════════════════════ */
-@import url('https://fonts.bunny.net/css?family=inter:400,500,600,700,800|manrope:500,600,700,800&display=swap');
+@import url('https://fonts.bunny.net/css?family=inter:400,500,600,700,800|manrope:500,600,700,800|source-serif-4:400,500,600,700|jetbrains-mono:400,500,700&display=swap');
 
 * {
     margin: 0;
@@ -22,7 +23,7 @@ html {
 
 body {
     background-color: var(--bg);
-    color: #fff;
+    color: var(--text-1);   /* 默认正文用 87% 白，不再纯白 */
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -30,26 +31,72 @@ body {
     font-size: 14px;
     line-height: 1.55;
     letter-spacing: -0.005em;
-    /* 升级版背景：4 色光斑 + 微噪点（极光会盖在上面再加一层） */
+    /* 升级版背景：4 色光斑（极光会盖在上面再加一层） */
     background-image:
-        radial-gradient(circle at 12% 48%, rgba(0,242,254,.06),  transparent 35%),
-        radial-gradient(circle at 88% 26%, rgba(79,172,254,.06), transparent 35%),
-        radial-gradient(circle at 75% 85%, rgba(255,107,157,.045),transparent 40%),
-        radial-gradient(circle at 18% 90%, rgba(183,148,244,.04),transparent 40%);
+        radial-gradient(circle at 12% 48%, rgba(0,242,254,.05),  transparent 38%),
+        radial-gradient(circle at 88% 26%, rgba(79,172,254,.05), transparent 38%),
+        radial-gradient(circle at 75% 85%, rgba(255,107,157,.04),transparent 42%),
+        radial-gradient(circle at 18% 90%, rgba(183,148,244,.035),transparent 42%);
     background-attachment: fixed;
 }
 
-/* 标题用 Manrope，更有 display 感 */
+/* 标题用 Manrope display 字体 */
 h1, h2, h3, h4, h5, h6,
 .display, .heading {
     font-family: var(--font-display);
     font-weight: 700;
     letter-spacing: -0.022em;
     line-height: 1.15;
+    color: var(--text);
 }
 h1 { font-size: 38px; font-weight: 800; }
 h2 { font-size: 28px; }
 h3 { font-size: 22px; }
+
+/* 段落默认正文用 87% 白 */
+p, li {
+    color: var(--text-1);
+}
+
+/* 长文阅读字体（serif）：text-heavy 容器内自动应用 */
+[data-bg-mode="quiet"] .topic-body p,
+[data-bg-mode="quiet"] .post-content-body,
+[data-bg-mode="quiet"] .topic-body li,
+.serif-body p, .serif-body li {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.78;
+    letter-spacing: 0.005em;
+    color: var(--text-1);
+}
+[data-bg-mode="quiet"] .topic h1,
+[data-bg-mode="quiet"] .topic h2,
+[data-bg-mode="quiet"] .topic-head-info h2,
+.serif-body h1, .serif-body h2 {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    letter-spacing: -0.012em;
+}
+
+/* 内容窗宽：长文容器自动收紧 */
+[data-bg-mode="quiet"] .topic-body,
+[data-bg-mode="quiet"] .post-content-body {
+    max-width: var(--content-narrow);
+}
+
+/* 代码字体 */
+code, pre, kbd, samp, .mono {
+    font-family: var(--font-mono);
+    font-feature-settings: 'tnum' 1;
+}
+code:not(pre code) {
+    font-size: 0.92em;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.08);
+    color: var(--text);
+}
 
 /* 数字 tabular（金融场景至关重要） */
 .num,

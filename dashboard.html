@@ -634,6 +634,8 @@
 
 <script src="assets/js/common.js"></script>
 <script src="assets/js/motion.js"></script>
+<script src="assets/js/ui-kit.js"></script>
+<script src="assets/js/command-palette.js"></script>
 <script src="assets/js/aurora.js"></script>
 <script src="assets/js/grid-dots.js"></script>
 <script src="assets/js/pixel-sand.js"></script>
@@ -668,15 +670,47 @@ function logout() {
     location.reload();
 }
 
-// ══════════════ WELCOME DATE ══════════════
+// ══════════════ WELCOME / 时间感知问候 ══════════════
 function renderWelcome() {
     const now = new Date();
     const days = ['周日','周一','周二','周三','周四','周五','周六'];
-    const dateStr = `${now.getMonth()+1}月${now.getDate()}日 ${days[now.getDay()]}`;
-    document.getElementById('badge-date').textContent = `📅 ${dateStr}`;
+    const dateStr = `${now.getMonth()+1}月${now.getDate()}日 · ${days[now.getDay()]}`;
+    document.getElementById('badge-date').textContent = dateStr;
+
     const h = now.getHours();
-    let sub = h < 10 ? '早安！开市前先看看热榜' : h < 13 ? '上午好！趁午休复盘一下' : h < 18 ? '下午好！看看今日涨跌' : '晚上好！整理今日操作';
+    const name = localStorage.getItem('cq_username') || '同学';
+
+    // 多行 hero 文案（时段 + 个性化 + 行动指引）
+    let greet, sub, hint;
+    if (h < 6) {
+        greet = `深夜还在学习，${name}`;
+        sub  = '夜深了，研究行情记得控制节奏';
+        hint = '今晚的美股值得一看';
+    } else if (h < 10) {
+        greet = `早安，${name}`;
+        sub  = '开市前的安静时刻，最适合复盘';
+        hint = '看看夜盘热点新闻';
+    } else if (h < 13) {
+        greet = `上午好，${name}`;
+        sub  = '盘中节奏不错，午休前看看持仓';
+        hint = '别忘了关注成交量异动';
+    } else if (h < 18) {
+        greet = `下午好，${name}`;
+        sub  = '收盘冲刺，重要消息往往出现在尾盘';
+        hint = '下午茶时间，喝口水再交易';
+    } else if (h < 22) {
+        greet = `晚上好，${name}`;
+        sub  = '复盘时间，看看今天学到了什么';
+        hint = '美股开盘时段已到，看看 AAPL/NVDA';
+    } else {
+        greet = `夜深了，${name}`;
+        sub  = '美股盘中，但请注意休息';
+        hint = '明天再战';
+    }
+    document.getElementById('welcome-text').textContent = greet;
     document.getElementById('welcome-sub').textContent = sub;
+    const tipEl = document.getElementById('badge-tip');
+    if (tipEl) tipEl.textContent = hint;
 }
 
 // ══════════════ ACCOUNT DATA ══════════════
