@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="assets/css/nav.css">
     <link rel="stylesheet" href="assets/css/components.css">
     <link rel="stylesheet" href="assets/css/animations.css">
+    <!-- Lucide icons -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js" defer></script>
     <style>
         /* ══════════ TRADE-specific styles only ══════════ */
         /* ══ PAGE ══ */
@@ -497,7 +499,7 @@
 
         <!-- 左: 行情面板 -->
         <div class="quote-panel">
-            <div class="panel-label">📡 行情查询</div>
+            <div class="panel-label"><i data-lucide="radar" class="icon-lg" style="color:var(--primary)"></i> 行情查询</div>
             <div class="mkt-hint" id="mkt-hint"></div>
             <div class="quote-search">
                 <div class="search-wrap">
@@ -538,7 +540,7 @@
 
         <!-- 右: 下单面板 -->
         <div class="order-panel">
-            <h3>💹 下单委托 · <span id="order-mkt-label" style="font-size:13px;color:var(--text-sub)">A股 (CNH)</span></h3>
+            <h3 style="display:flex;align-items:center;gap:8px"><i data-lucide="arrow-up-down" class="icon-lg" style="color:var(--warm-2)"></i> 下单委托 · <span id="order-mkt-label" style="font-size:13px;color:var(--text-sub);font-weight:500">A股 (CNH)</span></h3>
             <div class="order-tabs">
                 <button class="order-tab buy active" id="tab-buy"  onclick="switchSide('BUY')">买 入</button>
                 <button class="order-tab sell"        id="tab-sell" onclick="switchSide('SELL')">卖 出</button>
@@ -1309,6 +1311,7 @@ document.getElementById('sym-input').addEventListener('keydown', e => {
 </script>
 <script src="assets/js/common.js"></script>
 <script src="assets/js/motion.js"></script>
+<script src="assets/js/aurora.js"></script>
 <script src="assets/js/pixel-sand.js"></script>
 <script src="shell-bridge.js"></script>
 </body>

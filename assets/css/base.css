@@ -1,12 +1,23 @@
 /* ════════════════════════════════════════════════════════
    Base reset + body background
+   字体来自 fonts.bunny.net（Google Fonts 的隐私友好镜像，国内可达）
    ════════════════════════════════════════════════════════ */
+@import url('https://fonts.bunny.net/css?family=inter:400,500,600,700,800|manrope:500,600,700,800&display=swap');
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-                 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-sans);
+}
+
+html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* Inter 的工程级数字 + cv11 字符变体 */
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    font-variant-ligatures: common-ligatures;
 }
 
 body {
@@ -16,13 +27,44 @@ body {
     display: flex;
     flex-direction: column;
     overflow-x: hidden;
-    /* 升级版背景：原冷色光斑 + 暖色辅助光斑（更有层次） */
+    font-size: 14px;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    /* 升级版背景：4 色光斑 + 微噪点（极光会盖在上面再加一层） */
     background-image:
-        radial-gradient(circle at 12% 48%, rgba(0,242,254,.07),  transparent 32%),
-        radial-gradient(circle at 88% 26%, rgba(79,172,254,.07), transparent 32%),
-        radial-gradient(circle at 75% 85%, rgba(255,107,157,.05),transparent 38%),
-        radial-gradient(circle at 18% 90%, rgba(183,148,244,.04),transparent 38%);
+        radial-gradient(circle at 12% 48%, rgba(0,242,254,.06),  transparent 35%),
+        radial-gradient(circle at 88% 26%, rgba(79,172,254,.06), transparent 35%),
+        radial-gradient(circle at 75% 85%, rgba(255,107,157,.045),transparent 40%),
+        radial-gradient(circle at 18% 90%, rgba(183,148,244,.04),transparent 40%);
     background-attachment: fixed;
+}
+
+/* 标题用 Manrope，更有 display 感 */
+h1, h2, h3, h4, h5, h6,
+.display, .heading {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.022em;
+    line-height: 1.15;
+}
+h1 { font-size: 38px; font-weight: 800; }
+h2 { font-size: 28px; }
+h3 { font-size: 22px; }
+
+/* 数字 tabular（金融场景至关重要） */
+.num,
+.num-roll,
+[data-numeric],
+.acct-stat-value,
+.mat-cash, .mat-pnl,
+.stat-value, .est-value,
+.price-big, .price-chg,
+.score-num, .score-text,
+.kline-price,
+.ticker-price, .ticker-pct,
+tbody td {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1, 'cv11' 1;
 }
 
 /* 滚动条美化（webkit） */

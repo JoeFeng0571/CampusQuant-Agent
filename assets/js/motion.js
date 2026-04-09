@@ -44,6 +44,22 @@
             if (p < 1) requestAnimationFrame(step);
         }
         requestAnimationFrame(step);
+        // 记录当前值，方便 cqUpdateNumber 下次从这里滚
+        el.dataset.currentValue = String(to);
+    };
+
+    // 智能更新：从上次值滚到新值，并按方向 flash
+    window.cqUpdateNumber = function (el, to, dur) {
+        if (!el) return;
+        const from = parseFloat(el.dataset.currentValue || '0') || 0;
+        if (Math.abs(from - to) < 0.001) return;  // 没变化不动
+        cqAnimateNumber(el, from, to, dur || 700);
+        // flash by direction
+        el.classList.remove('num-flash-up', 'num-flash-down');
+        // 强制重新触发 animation
+        void el.offsetWidth;
+        if (to > from) el.classList.add('num-flash-up');
+        else if (to < from) el.classList.add('num-flash-down');
     };
 
     function initCountUp() {

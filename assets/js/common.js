@@ -82,11 +82,29 @@
         cqRenderAuthWidget();
     };
 
+    // ══════════ LUCIDE 图标渲染 ══════════
+    // 等 Lucide CDN 加载完后调用 lucide.createIcons()
+    function initLucideIcons() {
+        if (typeof lucide !== 'undefined' && lucide.createIcons) {
+            try { lucide.createIcons(); } catch (e) { /* ignore */ }
+            return true;
+        }
+        return false;
+    }
+    window.cqRefreshIcons = initLucideIcons;
+
     // ══════════ INIT ══════════
     function init() {
         setNavActive();
         initSidebar();
         cqRenderAuthWidget();
+        // Lucide 可能还没加载，延迟试 + 重试
+        if (!initLucideIcons()) {
+            let tries = 0;
+            const t = setInterval(() => {
+                if (initLucideIcons() || ++tries > 20) clearInterval(t);
+            }, 50);
+        }
     }
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);

@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="assets/css/nav.css">
     <link rel="stylesheet" href="assets/css/components.css">
     <link rel="stylesheet" href="assets/css/animations.css">
+    <!-- Lucide icons -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js" defer></script>
     <style>
         /* ══════════ PLATFORMS-specific styles only ══════════ */
         /* ══ 主体 ══ */
@@ -515,7 +517,7 @@
 
 <main>
     <div class="page-header fade-in-down">
-        <h1>🩺 持仓体检</h1>
+        <h1 style="display:inline-flex;align-items:center;gap:12px;justify-content:center"><i data-lucide="stethoscope" style="width:28px;height:28px;color:var(--mint)"></i> 持仓体检</h1>
         <p>输入你的持仓信息，AI 将从集中度、回撤风险、流动性三个维度综合评估你的投资组合健康状况。</p>
     </div>
 
@@ -749,6 +751,7 @@
 <!-- sidebar 切换 + auth widget 由 common.js 处理 -->
 <script src="assets/js/common.js"></script>
 <script src="assets/js/motion.js"></script>
+<script src="assets/js/aurora.js"></script>
 <script src="assets/js/pixel-sand.js"></script>
 <script src="shell-bridge.js"></script>
 </body>

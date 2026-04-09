@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="assets/css/nav.css">
     <link rel="stylesheet" href="assets/css/components.css">
     <link rel="stylesheet" href="assets/css/animations.css">
+    <!-- Lucide icons -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js" defer></script>
     <style>
         /* ══════════ DASHBOARD-specific styles only ══════════ */
         .dash-container { width:100%; max-width:1280px; margin:0 auto;
@@ -111,9 +113,33 @@
             transform:translateY(-4px);
             box-shadow:0 12px 30px rgba(79,172,254,.15);
         }
-        .qnav-icon { font-size:30px; line-height:1; position:relative; z-index:1;
-            transition:transform var(--d-base) var(--ease-out); }
-        .qnav-item:hover .qnav-icon { transform:scale(1.15) rotate(-6deg); }
+        .qnav-icon {
+            width:48px; height:48px; border-radius:14px;
+            display:flex; align-items:center; justify-content:center;
+            position:relative; z-index:1;
+            background:linear-gradient(135deg,rgba(79,172,254,.18),rgba(0,242,254,.06));
+            border:1px solid rgba(79,172,254,.25);
+            color:var(--secondary);
+            transition:all var(--d-base) var(--ease-out);
+            box-shadow:inset 0 1px 0 rgba(255,255,255,.1);
+        }
+        .qnav-icon i, .qnav-icon svg { width:24px; height:24px; stroke-width:2.2; }
+        .qnav-item:nth-child(2) .qnav-icon {
+            background:linear-gradient(135deg,rgba(183,148,244,.2),rgba(240,147,251,.06));
+            border-color:rgba(183,148,244,.3); color:var(--violet);
+        }
+        .qnav-item:nth-child(3) .qnav-icon {
+            background:linear-gradient(135deg,rgba(255,154,86,.2),rgba(255,107,157,.06));
+            border-color:rgba(255,154,86,.3); color:var(--warm);
+        }
+        .qnav-item:nth-child(4) .qnav-icon {
+            background:linear-gradient(135deg,rgba(94,234,212,.2),rgba(79,172,254,.06));
+            border-color:rgba(94,234,212,.3); color:var(--mint);
+        }
+        .qnav-item:hover .qnav-icon {
+            transform:scale(1.08) rotate(-4deg);
+            box-shadow:inset 0 1px 0 rgba(255,255,255,.15), 0 8px 20px rgba(79,172,254,.18);
+        }
         .qnav-label { font-size:13px; font-weight:600; color:#e2e8f0; position:relative; z-index:1; }
         .qnav-desc { font-size:11px; color:var(--text-dim); position:relative; z-index:1; }
         .qnav-badge { background:rgba(255,107,157,.2); color:var(--warm-2);
@@ -418,22 +444,22 @@
     <!-- ② QUICK NAV GRID -->
     <div class="quick-nav-grid stagger-children">
         <a href="market.html" class="qnav-item tilt" data-tilt-max="6">
-            <div class="qnav-icon">📰</div>
+            <div class="qnav-icon"><i data-lucide="newspaper"></i></div>
             <div class="qnav-label">市场快讯</div>
-            <div class="qnav-desc">实时行情 & K线图</div>
+            <div class="qnav-desc">实时行情 &amp; K线图</div>
         </a>
         <a href="analysis.html" class="qnav-item tilt" data-tilt-max="6">
-            <div class="qnav-icon">🔍</div>
+            <div class="qnav-icon"><i data-lucide="search-code"></i></div>
             <div class="qnav-label">个股分析</div>
             <div class="qnav-desc">AI 多智能体深析</div>
         </a>
         <a href="trade.html" class="qnav-item tilt" data-tilt-max="6">
-            <div class="qnav-icon">📊</div>
+            <div class="qnav-icon"><i data-lucide="line-chart"></i></div>
             <div class="qnav-label">模拟交易</div>
             <div class="qnav-desc">三市场交易大厅</div>
         </a>
         <a href="community.html" class="qnav-item tilt" data-tilt-max="6">
-            <div class="qnav-icon">💬</div>
+            <div class="qnav-icon"><i data-lucide="messages-square"></i></div>
             <div class="qnav-label">投教社区</div>
             <div class="qnav-desc">学员交流广场</div>
         </a>
@@ -448,7 +474,7 @@
             <!-- Portfolio mini card -->
             <div class="panel">
                 <div class="panel-header">
-                    <div class="panel-title">💼 我的模拟资产</div>
+                    <div class="panel-title"><i data-lucide="briefcase" class="icon-lg" style="color:var(--primary)"></i> 我的模拟资产</div>
                     <a href="trade.html" class="panel-action">查看全部 →</a>
                 </div>
                 <div class="mkt-tabs">
@@ -465,7 +491,11 @@
                 <div style="overflow-x:auto">
                     <table class="mini-table" id="mini-pos-table">
                         <thead><tr><th>标的</th><th>持仓</th><th>成本</th><th>浮盈亏</th><th>市值</th></tr></thead>
-                        <tbody id="mini-pos-body"><tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px">加载中...</td></tr></tbody>
+                        <tbody id="mini-pos-body">
+                            <tr><td colspan="5" style="padding:8px"><div class="skel-bar w-full h-lg"></div></td></tr>
+                            <tr><td colspan="5" style="padding:8px"><div class="skel-bar w-3/4 h-lg"></div></td></tr>
+                            <tr><td colspan="5" style="padding:8px"><div class="skel-bar w-2/3 h-lg"></div></td></tr>
+                        </tbody>
                     </table>
                 </div>
             </div>
@@ -473,11 +503,14 @@
             <!-- Flash news -->
             <div class="panel">
                 <div class="panel-header">
-                    <div class="panel-title">⚡ 快讯热搜</div>
+                    <div class="panel-title"><i data-lucide="zap" class="icon-lg" style="color:var(--warm)"></i> 快讯热搜</div>
                     <a href="market.html" class="panel-action">更多资讯 →</a>
                 </div>
                 <div class="news-list" id="news-list">
-                    <div style="text-align:center;color:var(--text-dim);padding:20px;font-size:13px">加载中...</div>
+                    <div class="skel-row"><div class="skel-bar w-3/4 h-lg"></div><div class="skel-bar w-1/2"></div></div>
+                    <div class="skel-row"><div class="skel-bar w-full h-lg"></div><div class="skel-bar w-2/3"></div></div>
+                    <div class="skel-row"><div class="skel-bar w-3/4 h-lg"></div><div class="skel-bar w-1/2"></div></div>
+                    <div class="skel-row"><div class="skel-bar w-full h-lg"></div><div class="skel-bar w-2/3"></div></div>
                 </div>
             </div>
 
@@ -523,6 +556,7 @@
 
 <script src="assets/js/common.js"></script>
 <script src="assets/js/motion.js"></script>
+<script src="assets/js/aurora.js"></script>
 <script src="assets/js/pixel-sand.js"></script>
 <script>
 'use strict';
@@ -636,7 +670,15 @@ function renderAcct(data, mkt) {
     const filtered = mkt === 'ALL' ? allPos : allPos.filter(p => (p.market_type||'').toUpperCase() === mkt);
     const tbody = document.getElementById('mini-pos-body');
     if (!filtered.length) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px">暂无持仓 · <a href="trade.html" style="color:var(--primary)">去交易</a></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="padding:0">
+            <div class="empty-state" style="padding:24px 8px">
+                <div class="empty-state-icon"><i data-lucide="inbox"></i></div>
+                <div class="empty-state-title">还没有持仓</div>
+                <div class="empty-state-desc">用模拟资金体验三市场交易，零风险练手</div>
+                <a href="trade.html" class="empty-state-cta">开始交易 →</a>
+            </div>
+        </td></tr>`;
+        if (window.cqRefreshIcons) cqRefreshIcons();
         return;
     }
     tbody.innerHTML = filtered.slice(0,6).map(p => {
@@ -693,8 +735,13 @@ async function loadNews() {
         }).join('');
     } catch(e) {
         console.warn('[dashboard] loadNews error:', e);
-        el.innerHTML = `<div style="text-align:center;color:var(--text-dim);padding:20px;font-size:13px">
-            暂时无法获取快讯 · <a href="market.html" style="color:var(--primary)">前往市场页</a></div>`;
+        el.innerHTML = `<div class="empty-state" style="padding:32px 8px">
+            <div class="empty-state-icon"><i data-lucide="signal-low"></i></div>
+            <div class="empty-state-title">暂时无法获取快讯</div>
+            <div class="empty-state-desc">行情服务连接异常，稍后再试</div>
+            <a href="market.html" class="empty-state-cta">前往市场页 →</a>
+        </div>`;
+        if (window.cqRefreshIcons) cqRefreshIcons();
     }
 }
 

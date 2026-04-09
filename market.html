@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="assets/css/nav.css">
     <link rel="stylesheet" href="assets/css/components.css">
     <link rel="stylesheet" href="assets/css/animations.css">
+    <!-- Lucide icons -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js" defer></script>
     <style>
         /* ══════════ MARKET-specific styles only ══════════ */
         /* market 是终端式定高布局，需要锁定 viewport */
@@ -387,7 +389,7 @@
         <!-- 热门标的 -->
         <div class="quotes-panel">
             <div class="quotes-header">
-                <div class="quotes-title">热门标的</div>
+                <div class="quotes-title" style="display:flex;align-items:center;gap:6px"><i data-lucide="flame" style="width:14px;height:14px;color:var(--warm-2)"></i> 热门标的</div>
                 <div class="market-tabs">
                     <button class="tab-btn active" onclick="switchTab(this,'a')">A 股</button>
                     <button class="tab-btn" onclick="switchTab(this,'hk')">港 股</button>
@@ -807,6 +809,7 @@
 <!-- sidebar 切换 + auth widget 由 common.js 处理 -->
 <script src="assets/js/common.js"></script>
 <script src="assets/js/motion.js"></script>
+<script src="assets/js/aurora.js"></script>
 <script src="assets/js/pixel-sand.js"></script>
 <script src="shell-bridge.js"></script>
 </body>
