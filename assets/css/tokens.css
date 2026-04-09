@@ -1,0 +1,70 @@
+/* ════════════════════════════════════════════════════════
+   CampusQuant Design Tokens
+   保留旧变量名以兼容未重构页面，新增暖色/动效 token
+   ════════════════════════════════════════════════════════ */
+:root {
+    /* —— 旧版兼容（不改名，11 个未重构页面仍依赖） —— */
+    --primary:   #4facfe;
+    --secondary: #00f2fe;
+    --accent:    #a29bfe;
+    --danger:    #fd79a8;
+    --success:   #55efc4;
+    --warn:      #fdcb6e;
+
+    --bg:        #0b0f19;
+    --card:      rgba(255,255,255,0.04);
+    --border:    rgba(255,255,255,0.10);
+    --text-dim:  #718096;
+    --text-sub:  #a0aec0;
+
+    /* trade.html 专属 */
+    --buy:       #00b894;
+    --sell:      #d63031;
+
+    /* market.html 专属 */
+    --header-h:  56px;
+    --ticker-h:  76px;
+
+    /* —— 新增：暖色 / 年轻活泼 —— */
+    --warm:      #ff9a56;   /* 落日橙 */
+    --warm-2:    #ff6b9d;   /* 莓粉 */
+    --violet:    #b794f4;   /* 浅紫 */
+    --pink:      #f093fb;   /* 亮粉 */
+    --gold:      #ffd86b;   /* 金 */
+    --mint:      #5eead4;   /* 薄荷 */
+
+    /* —— 渐变预设 —— */
+    --grad-cool:    linear-gradient(135deg,#4facfe 0%,#00f2fe 100%);
+    --grad-cool-3:  linear-gradient(135deg,#4facfe 0%,#00f2fe 50%,#a29bfe 100%);
+    --grad-warm:    linear-gradient(135deg,#ff9a56 0%,#ff6b9d 100%);
+    --grad-sunset:  linear-gradient(135deg,#ff9a56 0%,#ff6b9d 50%,#b794f4 100%);
+    --grad-aurora:  linear-gradient(135deg,#4facfe 0%,#a29bfe 35%,#f093fb 70%,#ff9a56 100%);
+    --grad-mint:    linear-gradient(135deg,#5eead4 0%,#4facfe 100%);
+
+    /* —— 玻璃态卡片（升级版） —— */
+    --glass:        rgba(255,255,255,0.055);
+    --glass-strong: rgba(255,255,255,0.085);
+    --glass-border: rgba(255,255,255,0.13);
+    --glass-shine:  linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,0));
+
+    /* —— 发光效果 —— */
+    --glow-cyan:    0 0 24px rgba(0,242,254,.35);
+    --glow-warm:    0 0 24px rgba(255,154,86,.35);
+    --glow-pink:    0 0 24px rgba(240,147,251,.35);
+    --glow-violet:  0 0 24px rgba(183,148,244,.35);
+
+    /* —— 动效时长 —— */
+    --d-fast:    .15s;
+    --d-base:    .25s;
+    --d-slow:    .45s;
+    --d-page:    .6s;
+    --ease-out:  cubic-bezier(.16,1,.3,1);
+    --ease-in-out: cubic-bezier(.65,0,.35,1);
+
+    /* —— 阴影层级 —— */
+    --shadow-sm: 0 2px 8px rgba(0,0,0,.2);
+    --shadow-md: 0 8px 24px rgba(0,0,0,.3);
+    --shadow-lg: 0 16px 48px rgba(0,0,0,.4);
+    --shadow-glow-cool: 0 8px 32px rgba(79,172,254,.18);
+    --shadow-glow-warm: 0 8px 32px rgba(255,154,86,.18);
+}

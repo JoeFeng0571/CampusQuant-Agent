@@ -1,0 +1,222 @@
+/* ════════════════════════════════════════════════════════
+   Animation utility classes + keyframes
+   全 CSS 实现，0 JS 体积
+   ════════════════════════════════════════════════════════ */
+
+/* ══════════ KEYFRAMES ══════════ */
+@keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+@keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in-down {
+    from { opacity: 0; transform: translateY(-20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in-left {
+    from { opacity: 0; transform: translateX(-20px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes fade-in-right {
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes scale-in {
+    from { opacity: 0; transform: scale(.94); }
+    to   { opacity: 1; transform: scale(1); }
+}
+@keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+@keyframes float-y {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-8px); }
+}
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 rgba(0,242,254,0); }
+    50%      { box-shadow: 0 0 28px rgba(0,242,254,.45); }
+}
+@keyframes pulse-glow-warm {
+    0%, 100% { box-shadow: 0 0 0 rgba(255,107,157,0); }
+    50%      { box-shadow: 0 0 28px rgba(255,107,157,.45); }
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+@keyframes gradient-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
+}
+@keyframes bg-pan {
+    0%   { background-position: 0% 0%; }
+    100% { background-position: 100% 100%; }
+}
+@keyframes ripple {
+    0%   { transform: scale(.8); opacity: 1; }
+    100% { transform: scale(2);  opacity: 0; }
+}
+@keyframes typing-bounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30%           { transform: translateY(-6px); }
+}
+@keyframes orbit {
+    from { transform: rotate(0deg) translateX(40px) rotate(0deg); }
+    to   { transform: rotate(360deg) translateX(40px) rotate(-360deg); }
+}
+
+/* ══════════ ENTRANCE UTILITIES ══════════ */
+.fade-in       { animation: fade-in       var(--d-page) var(--ease-out) both; }
+.fade-in-up    { animation: fade-in-up    var(--d-page) var(--ease-out) both; }
+.fade-in-down  { animation: fade-in-down  var(--d-page) var(--ease-out) both; }
+.fade-in-left  { animation: fade-in-left  var(--d-page) var(--ease-out) both; }
+.fade-in-right { animation: fade-in-right var(--d-page) var(--ease-out) both; }
+.scale-in      { animation: scale-in      var(--d-page) var(--ease-out) both; }
+
+/* delay helpers */
+.delay-1 { animation-delay: .08s; }
+.delay-2 { animation-delay: .16s; }
+.delay-3 { animation-delay: .24s; }
+.delay-4 { animation-delay: .32s; }
+.delay-5 { animation-delay: .4s; }
+.delay-6 { animation-delay: .48s; }
+
+/* ══════════ STAGGER（子元素错峰入场） ══════════ */
+.stagger-children > * {
+    opacity: 0;
+    animation: fade-in-up var(--d-page) var(--ease-out) both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: .05s; }
+.stagger-children > *:nth-child(2) { animation-delay: .12s; }
+.stagger-children > *:nth-child(3) { animation-delay: .19s; }
+.stagger-children > *:nth-child(4) { animation-delay: .26s; }
+.stagger-children > *:nth-child(5) { animation-delay: .33s; }
+.stagger-children > *:nth-child(6) { animation-delay: .4s; }
+.stagger-children > *:nth-child(7) { animation-delay: .47s; }
+.stagger-children > *:nth-child(8) { animation-delay: .54s; }
+
+/* ══════════ HOVER UTILITIES ══════════ */
+.hover-lift {
+    transition: transform var(--d-base) var(--ease-out),
+                box-shadow var(--d-base);
+}
+.hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+}
+
+.hover-glow {
+    transition: box-shadow var(--d-base);
+}
+.hover-glow:hover { box-shadow: var(--glow-cyan); }
+.hover-glow-warm:hover { box-shadow: var(--glow-warm); }
+
+.hover-scale {
+    transition: transform var(--d-base) var(--ease-out);
+}
+.hover-scale:hover { transform: scale(1.04); }
+
+/* ══════════ SHIMMER（标题流光） ══════════ */
+.shimmer {
+    background: linear-gradient(90deg,
+        var(--primary) 0%,
+        var(--secondary) 25%,
+        var(--violet) 50%,
+        var(--warm-2) 75%,
+        var(--primary) 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmer 4s linear infinite;
+}
+
+/* ══════════ FLOAT（漂浮元素） ══════════ */
+.float       { animation: float-y 4s ease-in-out infinite; }
+.float-slow  { animation: float-y 6s ease-in-out infinite; }
+.float-fast  { animation: float-y 2.5s ease-in-out infinite; }
+
+/* ══════════ PULSING ══════════ */
+.pulse-glow      { animation: pulse-glow      2.5s ease-in-out infinite; }
+.pulse-glow-warm { animation: pulse-glow-warm 2.5s ease-in-out infinite; }
+
+/* ══════════ ROTATING BG ══════════ */
+.bg-shift {
+    background-size: 200% 200%;
+    animation: gradient-shift 8s ease infinite;
+}
+
+/* ══════════ SCROLL REVEAL（配合 motion.js 使用） ══════════ */
+.reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity var(--d-page) var(--ease-out),
+                transform var(--d-page) var(--ease-out);
+}
+.reveal.in {
+    opacity: 1;
+    transform: translateY(0);
+}
+.reveal-left { transform: translateX(-28px); }
+.reveal-left.in { transform: translateX(0); }
+.reveal-right { transform: translateX(28px); }
+.reveal-right.in { transform: translateX(0); }
+.reveal-scale { transform: scale(.94); }
+.reveal-scale.in { transform: scale(1); }
+
+/* reveal stagger delays */
+.reveal[data-delay="1"] { transition-delay: .08s; }
+.reveal[data-delay="2"] { transition-delay: .16s; }
+.reveal[data-delay="3"] { transition-delay: .24s; }
+.reveal[data-delay="4"] { transition-delay: .32s; }
+.reveal[data-delay="5"] { transition-delay: .4s; }
+
+/* ══════════ TYPING DOTS（聊天/AI 思考中） ══════════ */
+.typing-dots { display: inline-flex; gap: 4px; align-items: center; }
+.typing-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--primary);
+    animation: typing-bounce .9s infinite;
+}
+.typing-dots span:nth-child(2) { animation-delay: .2s; }
+.typing-dots span:nth-child(3) { animation-delay: .4s; }
+
+/* ══════════ MOUSE GLOW（鼠标跟随光晕） ══════════ */
+.mouse-glow {
+    position: relative;
+    overflow: hidden;
+}
+.mouse-glow::after {
+    content: '';
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+        rgba(79,172,254,.18) 0%,
+        rgba(240,147,251,.08) 30%,
+        transparent 60%);
+    top: var(--my, 50%);
+    left: var(--mx, 50%);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .3s;
+}
+.mouse-glow:hover::after { opacity: 1; }
+
+/* ══════════ NUMBER ROLL-IN HELPER ══════════ */
+.num-roll {
+    display: inline-block;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ══════════ PAGE ENTER ══════════ */
+.page-enter {
+    animation: fade-in var(--d-page) var(--ease-out) both;
+}

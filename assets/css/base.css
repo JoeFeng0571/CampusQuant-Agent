@@ -1,0 +1,53 @@
+/* ════════════════════════════════════════════════════════
+   Base reset + body background
+   ════════════════════════════════════════════════════════ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+                 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+body {
+    background-color: var(--bg);
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    /* 升级版背景：原冷色光斑 + 暖色辅助光斑（更有层次） */
+    background-image:
+        radial-gradient(circle at 12% 48%, rgba(0,242,254,.07),  transparent 32%),
+        radial-gradient(circle at 88% 26%, rgba(79,172,254,.07), transparent 32%),
+        radial-gradient(circle at 75% 85%, rgba(255,107,157,.05),transparent 38%),
+        radial-gradient(circle at 18% 90%, rgba(183,148,244,.04),transparent 38%);
+    background-attachment: fixed;
+}
+
+/* 滚动条美化（webkit） */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,.08);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(79,172,254,.3); }
+
+/* 选择高亮 */
+::selection { background: rgba(0,242,254,.3); color: #fff; }
+
+/* 链接默认 */
+a { color: inherit; text-decoration: none; }
+
+/* 防止字体在 macOS Safari 过细 */
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+/* reduce motion 用户友好 */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+    }
+}
