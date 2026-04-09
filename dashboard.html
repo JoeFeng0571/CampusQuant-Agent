@@ -81,75 +81,120 @@
         .welcome-btn:hover::before { transform:translateX(100%); }
         .welcome-btn:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(79,172,254,.5); }
 
-        /* ══ QUICK NAV GRID ══ */
-        .quick-nav-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+        /* ══ QUICK NAV GRID（v3 重设计：文字成主角，图标做角落水印） ══ */
+        .quick-nav-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
         .qnav-item {
-            background:var(--glass); border:1px solid var(--glass-border); border-radius:16px;
-            padding:22px 12px; text-align:center; text-decoration:none;
-            display:flex; flex-direction:column; align-items:center; gap:10px;
-            transition:all var(--d-base) var(--ease-out); cursor:pointer;
-            position:relative; overflow:hidden;
-        }
-        /* 入场 fade-in-up + 默认轻微浮动（错峰）—— 双 animation 组合避免被 stagger-children 的 opacity:0 覆盖 */
-        .qnav-item {
+            background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.025));
+            border:1px solid rgba(255,255,255,.10);
+            border-radius:18px;
+            padding:24px 22px;
+            text-decoration:none;
+            display:flex;
+            flex-direction:column;
+            justify-content:space-between;
+            min-height:120px;
+            position:relative;
+            overflow:hidden;
+            cursor:pointer;
             opacity:0;
             animation:fade-in-up .55s var(--ease-out) forwards, float-y 5.5s ease-in-out infinite;
+            transition:transform var(--d-base) var(--ease-out),
+                       border-color var(--d-base),
+                       box-shadow var(--d-base);
+            box-shadow:
+                0 1px 0 rgba(255,255,255,.06) inset,
+                0 1px 2px rgba(0,0,0,.18),
+                0 8px 24px rgba(0,0,0,.15);
         }
         .qnav-item:nth-child(1) { animation-delay:.08s, 1s; }
         .qnav-item:nth-child(2) { animation-delay:.16s, 1.3s; }
         .qnav-item:nth-child(3) { animation-delay:.24s, 1.6s; }
         .qnav-item:nth-child(4) { animation-delay:.32s, 1.9s; }
-        .qnav-item::before {
-            content:''; position:absolute; inset:0;
-            background:linear-gradient(135deg,rgba(79,172,254,.0),rgba(240,147,251,.0));
-            transition:background var(--d-base);
-        }
-        .qnav-item:nth-child(1):hover::before { background:linear-gradient(135deg,rgba(79,172,254,.12),rgba(0,242,254,.04)); }
-        .qnav-item:nth-child(2):hover::before { background:linear-gradient(135deg,rgba(183,148,244,.12),rgba(240,147,251,.04)); }
-        .qnav-item:nth-child(3):hover::before { background:linear-gradient(135deg,rgba(255,154,86,.12),rgba(255,107,157,.04)); }
-        .qnav-item:nth-child(4):hover::before { background:linear-gradient(135deg,rgba(94,234,212,.12),rgba(79,172,254,.04)); }
-        .qnav-item:hover {
-            border-color:rgba(79,172,254,.4);
-            transform:translateY(-4px);
-            box-shadow:0 12px 30px rgba(79,172,254,.15);
-        }
+
+        /* 大图标做角落水印（极淡） */
         .qnav-icon {
-            width:48px; height:48px; border-radius:14px;
-            display:flex; align-items:center; justify-content:center;
-            position:relative; z-index:1;
-            background:linear-gradient(135deg,rgba(79,172,254,.18),rgba(0,242,254,.06));
-            border:1px solid rgba(79,172,254,.25);
-            color:var(--secondary);
+            position:absolute;
+            top:18px; right:18px;
+            width:auto; height:auto;
+            background:none !important;
+            border:none !important;
+            box-shadow:none !important;
+            color:rgba(255,255,255,.18);
             transition:all var(--d-base) var(--ease-out);
-            box-shadow:inset 0 1px 0 rgba(255,255,255,.1);
         }
-        .qnav-icon i, .qnav-icon svg { width:24px; height:24px; stroke-width:2.2; }
-        .qnav-item:nth-child(2) .qnav-icon {
-            background:linear-gradient(135deg,rgba(183,148,244,.2),rgba(240,147,251,.06));
-            border-color:rgba(183,148,244,.3); color:var(--violet);
+        .qnav-icon i, .qnav-icon svg {
+            width:24px; height:24px; stroke-width:1.8;
         }
-        .qnav-item:nth-child(3) .qnav-icon {
-            background:linear-gradient(135deg,rgba(255,154,86,.2),rgba(255,107,157,.06));
-            border-color:rgba(255,154,86,.3); color:var(--warm);
+
+        /* 大背景图标作为装饰水印 */
+        .qnav-item::after {
+            content:'';
+            position:absolute;
+            right:-30px; bottom:-40px;
+            width:140px; height:140px;
+            border-radius:50%;
+            background:radial-gradient(circle,rgba(79,172,254,.18) 0%,transparent 65%);
+            transition:transform var(--d-base) var(--ease-out),
+                       background var(--d-base);
+            pointer-events:none;
         }
-        .qnav-item:nth-child(4) .qnav-icon {
-            background:linear-gradient(135deg,rgba(94,234,212,.2),rgba(79,172,254,.06));
-            border-color:rgba(94,234,212,.3); color:var(--mint);
+        .qnav-item:nth-child(1)::after { background:radial-gradient(circle,rgba(79,172,254,.20) 0%,transparent 65%); }
+        .qnav-item:nth-child(2)::after { background:radial-gradient(circle,rgba(183,148,244,.20) 0%,transparent 65%); }
+        .qnav-item:nth-child(3)::after { background:radial-gradient(circle,rgba(255,154,86,.20) 0%,transparent 65%); }
+        .qnav-item:nth-child(4)::after { background:radial-gradient(circle,rgba(94,234,212,.20) 0%,transparent 65%); }
+
+        /* 配色按市场区分 icon 颜色 */
+        .qnav-item:nth-child(1) .qnav-icon { color:rgba(79,172,254,.55); }
+        .qnav-item:nth-child(2) .qnav-icon { color:rgba(183,148,244,.55); }
+        .qnav-item:nth-child(3) .qnav-icon { color:rgba(255,154,86,.55); }
+        .qnav-item:nth-child(4) .qnav-icon { color:rgba(94,234,212,.55); }
+
+        .qnav-label {
+            font-family:var(--font-display);
+            font-size:18px;
+            font-weight:700;
+            color:#fff;
+            letter-spacing:-0.01em;
+            position:relative;
+            z-index:1;
+            margin-bottom:6px;
+        }
+        .qnav-desc {
+            font-size:12px;
+            color:var(--text-sub);
+            position:relative;
+            z-index:1;
+        }
+
+        .qnav-item:hover {
+            transform:translateY(-4px);
+            border-color:rgba(79,172,254,.35);
+            box-shadow:
+                0 1px 0 rgba(255,255,255,.10) inset,
+                0 12px 32px rgba(0,0,0,.25),
+                0 24px 48px rgba(79,172,254,.12);
         }
         .qnav-item:hover .qnav-icon {
-            transform:scale(1.08) rotate(-4deg);
-            box-shadow:inset 0 1px 0 rgba(255,255,255,.15), 0 8px 20px rgba(79,172,254,.18);
+            transform:scale(1.15) rotate(-6deg);
+            color:#fff !important;
         }
-        .qnav-label { font-size:13px; font-weight:600; color:#e2e8f0; position:relative; z-index:1; }
-        .qnav-desc { font-size:11px; color:var(--text-dim); position:relative; z-index:1; }
-        .qnav-badge { background:rgba(255,107,157,.2); color:var(--warm-2);
-            font-size:10px; padding:1px 6px; border-radius:8px; }
+        .qnav-item:nth-child(1):hover .qnav-icon { color:var(--secondary) !important; }
+        .qnav-item:nth-child(2):hover .qnav-icon { color:var(--violet) !important; }
+        .qnav-item:nth-child(3):hover .qnav-icon { color:var(--warm) !important; }
+        .qnav-item:nth-child(4):hover .qnav-icon { color:var(--mint) !important; }
+        .qnav-item:hover::after {
+            transform:scale(1.4);
+        }
+        .qnav-badge {
+            background:rgba(255,107,157,.2); color:var(--warm-2);
+            font-size:10px; padding:1px 6px; border-radius:8px;
+        }
 
         /* ══ MAIN GRID ══ */
         .main-grid {
             display:grid;
             grid-template-columns:1fr 380px;
-            grid-template-rows:560px;     /* 与 chat-panel 高度一致，让左右两列底部对齐 */
+            grid-template-rows:720px;     /* 加长，news / chat 都有更多空间 */
             gap:20px;
         }
         .dash-left-col {
@@ -236,7 +281,7 @@
         .news-src span { display:inline-block; margin-right:8px; }
 
         /* ══ CHAT WIDGET ══ */
-        .chat-panel { display:flex; flex-direction:column; height:560px; }
+        .chat-panel { display:flex; flex-direction:column; height:720px; }
         .chat-panel .panel-header { flex-shrink:0; }
         .chat-messages { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px;
             padding:4px 0 8px; scrollbar-width:thin;
@@ -631,12 +676,30 @@ function renderAcct(data, mkt) {
     const ccy  = { ALL:'CNY', A:'CNH', HK:'HKD', US:'USD' };
     const unit = ccy[mkt] || 'CNY';
 
-    // pick market slice
-    const src = (mkt === 'ALL') ? data : (data.markets || {})[mkt] || {};
-    const total     = src.total_assets ?? data.total_assets_cny ?? 0;
-    const cash      = src.cash ?? 0;
-    const positions_val = src.positions_value ?? (total - cash);
-    const pnl_pct   = src.total_pnl_pct ?? data.total_pnl_pct ?? 0;
+    // 字段：data.accounts[mkt] / data.positions_all（不是 markets/positions）
+    const accts = data.accounts || {};
+    let total, cash, positions_val, pnl_pct;
+    if (mkt === 'ALL') {
+        // 用固定汇率折算 CNY（仅 dashboard 概览用，交易页用真实价）
+        const FX = { CNH:1, HKD:0.93, USD:7.30 };
+        total = 0; cash = 0; positions_val = 0;
+        let initialTotal = 0;
+        for (const m of ['A','HK','US']) {
+            const a = accts[m] || {};
+            const fx = FX[a.currency] || 1;
+            total          += (a.total_assets || 0) * fx;
+            cash           += (a.cash || 0)         * fx;
+            positions_val  += (a.market_value || 0) * fx;
+            initialTotal   += (a.initial || 0)      * fx;
+        }
+        pnl_pct = initialTotal > 0 ? ((total - initialTotal) / initialTotal * 100) : 0;
+    } else {
+        const a = accts[mkt] || {};
+        total          = a.total_assets || 0;
+        cash           = a.cash || 0;
+        positions_val  = a.market_value || 0;
+        pnl_pct        = a.total_pnl_pct || 0;
+    }
 
     grid.innerHTML = `
         <div class="acct-stat">
@@ -665,9 +728,12 @@ function renderAcct(data, mkt) {
         document.getElementById('dash-pos').textContent = fmtNum(positions_val);
     }
 
-    // positions table
-    const allPos = data.positions || [];
-    const filtered = mkt === 'ALL' ? allPos : allPos.filter(p => (p.market_type||'').toUpperCase() === mkt);
+    // positions table — 字段是 positions_all（不是 positions）
+    const allPos = data.positions_all || data.positions || [];
+    const filtered = mkt === 'ALL' ? allPos : allPos.filter(p => {
+        const m = (p.market_type || p.market || '').toUpperCase();
+        return m === mkt;
+    });
     const tbody = document.getElementById('mini-pos-body');
     if (!filtered.length) {
         tbody.innerHTML = `<tr><td colspan="5" style="padding:0">
