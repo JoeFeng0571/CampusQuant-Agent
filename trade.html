@@ -4,75 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>模拟演练 · CampusQuant 三市场交易大厅</title>
+    <!-- Shared design system -->
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/nav.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/animations.css">
     <style>
-        * { margin:0; padding:0; box-sizing:border-box;
-            font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif; }
-        :root {
-            --primary:#4facfe; --secondary:#00f2fe; --accent:#a29bfe;
-            --danger:#fd79a8;  --success:#55efc4;  --warn:#fdcb6e;
-            --bg:#0b0f19; --card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.10);
-            --text-dim:#718096; --text-sub:#a0aec0;
-            --buy:#00b894; --sell:#d63031;
-        }
-        body { background-color:var(--bg); color:#fff; min-height:100vh;
-            display:flex; flex-direction:column; overflow-x:hidden;
-            background-image:
-                radial-gradient(circle at 15% 50%,rgba(0,242,254,.06),transparent 32%),
-                radial-gradient(circle at 85% 28%,rgba(79,172,254,.06),transparent 32%); }
-
-        /* ══ NAV ══ */
-        header { position:fixed; top:0; left:0; width:100%;
-            display:flex; justify-content:space-between; align-items:center;
-            padding:16px 48px; background:rgba(11,15,25,0.78);
-            backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-            border-bottom:1px solid var(--border); z-index:1000; }
-        .logo { display:flex; align-items:baseline; gap:6px; text-decoration:none; }
-        .logo-text { font-size:22px; font-weight:800;
-            background:linear-gradient(90deg,#4facfe 0%,#00f2fe 100%);
-            -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-        .logo-sub { font-size:10px; color:var(--text-dim); }
-        nav { display:flex; gap:18px; align-items:center; flex-wrap:nowrap; overflow-x:auto; }
-        nav::-webkit-scrollbar { display:none; }
-        nav a { text-decoration:none; color:var(--text-sub); font-size:14px; font-weight:500;
-            transition:all .25s; position:relative; white-space:nowrap; }
-        nav a:hover, nav a.active { color:var(--secondary); }
-        nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
-            background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .3s; }
-        nav a:hover::after, nav a.active::after { width:100%; }
-        .nav-dot { display:inline-block; width:6px; height:6px; background:var(--danger);
-            border-radius:50%; margin-left:4px; vertical-align:top; margin-top:2px;
-            animation:blink-dot 2s ease-in-out infinite; }
-        @keyframes blink-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
-        .sidebar-btn { background:transparent; border:none; color:var(--text-sub);
-            cursor:pointer; display:flex; align-items:center; padding:8px; margin-left:10px; transition:color .3s; }
-        .sidebar-btn:hover { color:var(--secondary); }
-
-        /* ══ SIDEBAR ══ */
-        .sidebar-overlay { position:fixed; top:0;left:0;right:0;bottom:0;
-            background:rgba(0,0,0,.5); backdrop-filter:blur(3px);
-            z-index:1999; opacity:0; visibility:hidden; transition:all .3s; }
-        .sidebar-overlay.open { opacity:1; visibility:visible; }
-        .sidebar { position:fixed; top:0; right:-320px; width:320px; max-width:85vw; height:100vh;
-            background:rgba(11,15,25,.95); backdrop-filter:blur(14px);
-            border-left:1px solid var(--border); z-index:2000;
-            transition:right .3s cubic-bezier(.4,0,.2,1);
-            display:flex; flex-direction:column; padding:30px 24px;
-            box-shadow:-10px 0 30px rgba(0,0,0,.5); }
-        .sidebar.open { right:0; }
-        .sidebar-header { display:flex; justify-content:space-between; align-items:center;
-            margin-bottom:30px; padding-bottom:16px; border-bottom:1px solid var(--border); }
-        .sidebar-header h2 { font-size:18px; color:#fff; display:flex; align-items:center; gap:8px; }
-        .close-btn { background:none; border:none; color:var(--text-dim); font-size:28px; cursor:pointer; transition:color .2s; padding:8px; }
-        .close-btn:hover { color:var(--danger); }
-        .sidebar-content { display:flex; flex-direction:column; gap:16px; }
-        .sidebar-link { text-decoration:none; color:var(--text-sub); padding:14px 18px;
-            background:var(--card); border:1px solid var(--border); border-radius:12px;
-            transition:all .25s; display:flex; align-items:center; justify-content:space-between; font-weight:500; }
-        .sidebar-link:hover { background:rgba(79,172,254,.1); border-color:rgba(79,172,254,.3);
-            color:var(--primary); transform:translateX(4px); }
-        .sidebar-link.featured { background:linear-gradient(135deg,rgba(79,172,254,.15),rgba(0,242,254,.05));
-            border-color:rgba(79,172,254,.4); color:var(--secondary); }
-
+        /* ══════════ TRADE-specific styles only ══════════ */
         /* ══ PAGE ══ */
         .page-wrap { margin-top:70px; padding:24px 32px; flex:1;
             display:flex; flex-direction:column; gap:20px; max-width:1400px;
@@ -398,22 +337,76 @@
             }
         }
 
-        footer { text-align:center; padding:20px; font-size:12px; color:var(--text-dim);
-            border-top:1px solid var(--border); margin-top:auto; }
-        footer a { color:var(--text-dim); text-decoration:none; }
-
         /* ══ KLINE CHART ══ */
         .kline-section { margin-top:18px; }
         .kline-period-tabs { display:flex; gap:6px; margin-bottom:10px; }
         .kline-ptab { padding:4px 12px; border-radius:6px; border:1px solid var(--border);
-            background:transparent; color:var(--text-sub); font-size:12px; cursor:pointer; transition:all .2s; }
-        .kline-ptab.active { background:rgba(79,172,254,.18); border-color:rgba(79,172,254,.5); color:var(--primary); }
+            background:transparent; color:var(--text-sub); font-size:12px; cursor:pointer; transition:all var(--d-fast); }
+        .kline-ptab.active { background:rgba(79,172,254,.18); border-color:rgba(79,172,254,.5); color:var(--primary); box-shadow:0 0 12px rgba(79,172,254,.2); }
+        .kline-ptab:hover:not(.active) { border-color:rgba(255,255,255,.2); color:#fff; }
         #trade-kline-chart { width:100%; height:400px; min-height:400px; position:relative;
             border-radius:10px; overflow:hidden; display:block; }
         .kline-msg { display:flex; align-items:center; justify-content:center; height:280px;
             color:var(--text-dim); font-size:13px; }
+
+        /* ══════════ PHASE 3 WOW ══════════ */
+        /* 三市场 tab 升级：active 时持续脉冲发光 */
+        .mkt-acct-tab {
+            backdrop-filter:blur(12px);
+        }
+        .mkt-acct-tab.active {
+            animation:pulse-tab 3s ease-in-out infinite;
+        }
+        @keyframes pulse-tab {
+            0%,100% { box-shadow:0 4px 20px rgba(79,172,254,.12); }
+            50%     { box-shadow:0 4px 28px rgba(79,172,254,.28), 0 0 0 1px rgba(0,242,254,.3); }
+        }
+        .mkt-acct-tab[data-mkt="A"].active  { animation-name:pulse-tab-a; }
+        .mkt-acct-tab[data-mkt="HK"].active { animation-name:pulse-tab-hk; }
+        .mkt-acct-tab[data-mkt="US"].active { animation-name:pulse-tab-us; }
+        @keyframes pulse-tab-a  { 0%,100%{box-shadow:0 4px 16px rgba(231,76,60,.12)} 50%{box-shadow:0 4px 26px rgba(231,76,60,.32)} }
+        @keyframes pulse-tab-hk { 0%,100%{box-shadow:0 4px 16px rgba(46,204,113,.12)} 50%{box-shadow:0 4px 26px rgba(46,204,113,.32)} }
+        @keyframes pulse-tab-us { 0%,100%{box-shadow:0 4px 16px rgba(52,152,219,.12)} 50%{box-shadow:0 4px 26px rgba(52,152,219,.32)} }
+
+        /* 资金数字 tabular-nums + 涨跌色变化时闪一下 */
+        .mat-cash, .stat-value, .price-big, .est-value, tbody td {
+            font-variant-numeric:tabular-nums;
+        }
+        .price-flash-up   { animation:flash-up   .8s var(--ease-out); }
+        .price-flash-down { animation:flash-down .8s var(--ease-out); }
+        @keyframes flash-up {
+            0%   { background:rgba(0,184,148,.45); }
+            100% { background:transparent; }
+        }
+        @keyframes flash-down {
+            0%   { background:rgba(214,48,49,.45); }
+            100% { background:transparent; }
+        }
+
+        /* 行情面板 hover 微浮起 */
+        .quote-panel, .order-panel, .account-panel {
+            transition:border-color var(--d-base), box-shadow var(--d-base);
+        }
+        .quote-panel:hover, .order-panel:hover, .account-panel:hover {
+            border-color:rgba(79,172,254,.25);
+            box-shadow:0 8px 32px rgba(79,172,254,.06);
+        }
+
+        /* 下单按钮：成功时撒花是 JS 控制；这里加按钮 hover 流光 */
+        .btn-order { position:relative; overflow:hidden; isolation:isolate; }
+        .btn-order::before {
+            content:''; position:absolute; inset:0;
+            background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.4) 50%,transparent 70%);
+            transform:translateX(-100%); transition:transform .6s var(--ease-out);
+        }
+        .btn-order:hover::before { transform:translateX(100%); }
+
+        /* 价格大数字加 hover glow */
+        .price-big { transition:filter var(--d-base); }
+        .quote-panel:hover .price-big { filter:drop-shadow(0 0 12px rgba(0,242,254,.4)); }
     </style>
     <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 </head>
 <body>
 
@@ -461,7 +454,7 @@
 <div class="page-wrap">
 
     <!-- ① 三市场账户 Tab ── -->
-    <div class="mkt-header">
+    <div class="mkt-header stagger-children fade-in-down">
         <div class="mkt-acct-tab active" data-mkt="A" onclick="selectMkt(this,'A')">
             <div class="mat-flag">🇨🇳</div>
             <div class="mat-name">A 股市场 <span class="mat-ccy">CNH</span></div>
@@ -486,7 +479,7 @@
     </div>
 
     <!-- ② 行情 + 下单 ── -->
-    <div class="trade-grid">
+    <div class="trade-grid reveal">
 
         <!-- 左: 行情面板 -->
         <div class="quote-panel">
@@ -665,6 +658,8 @@ function logout() {
     localStorage.removeItem('cq_user_id');
     renderAuthWidget();
 }
+// 让 common.js 也用 trade 自己的实现
+window.cqRenderAuthWidget = renderAuthWidget;
 
 // ══ Market tab selection ══════════════════════════════════════
 function selectMkt(el, mkt) {
@@ -943,6 +938,20 @@ async function submitOrder() {
                       + `金额 ${pfx}${Number(data.amount).toFixed(2)} + 手续费 ${pfx}${Number(data.fee).toFixed(4)}\n`
                       + `剩余资金：${pfx}${Number(data.cash_after).toFixed(2)}`;
             showOrderResult(true, msg);
+            // 🎉 成功撒花
+            if (typeof confetti === 'function') {
+                const isBuy = action === 'BUY';
+                confetti({
+                    particleCount: 80,
+                    spread: 70,
+                    origin: { y: 0.7 },
+                    colors: isBuy
+                        ? ['#00b894','#55efc4','#00f2fe','#4facfe']
+                        : ['#ff9a56','#ff6b9d','#fdcb6e','#f093fb'],
+                    scalar: 0.85,
+                    ticks: 120,
+                });
+            }
             loadPortfolio();
         }
     } catch(e) {
@@ -1261,19 +1270,7 @@ async function loadTradeKline(symbol, period) {
     }
 }
 
-// ══ SIDEBAR ══════════════════════════════════════════════════
-const sidebar        = document.getElementById('sidebar');
-const sidebarOverlay = document.getElementById('sidebar-overlay');
-document.getElementById('sidebar-toggle').addEventListener('click', () => {
-    sidebar.classList.add('open'); sidebarOverlay.classList.add('open');
-    document.body.style.overflow='hidden';
-});
-document.getElementById('sidebar-close').addEventListener('click', closeSidebar);
-sidebarOverlay.addEventListener('click', closeSidebar);
-function closeSidebar() {
-    sidebar.classList.remove('open'); sidebarOverlay.classList.remove('open');
-    document.body.style.overflow='';
-}
+// ══ SIDEBAR — 由 common.js 处理 ══════════════════════════════
 
 // ══ Init ════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
@@ -1296,6 +1293,9 @@ document.getElementById('sym-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') lookupSymbol();
 });
 </script>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/motion.js"></script>
+<script src="assets/js/pixel-sand.js"></script>
 <script src="shell-bridge.js"></script>
 </body>
 </html>

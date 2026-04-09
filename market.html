@@ -4,89 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>市场快讯 · CampusQuant 校园财商</title>
+    <!-- Shared design system -->
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/nav.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/animations.css">
     <style>
-        * { margin:0; padding:0; box-sizing:border-box;
-            font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif; }
-        :root {
-            --primary:#4facfe; --secondary:#00f2fe; --accent:#a29bfe;
-            --danger:#fd79a8;  --success:#55efc4;  --warn:#fdcb6e;
-            --bg:#0b0f19; --card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.10);
-            --text-dim:#718096; --text-sub:#a0aec0;
-            --header-h:56px;
-            --ticker-h:76px;
-        }
+        /* ══════════ MARKET-specific styles only ══════════ */
+        /* market 是终端式定高布局，需要锁定 viewport */
         html, body { height:100%; overflow:hidden; }
-        body {
-            background-color:var(--bg); color:#fff;
-            display:flex; flex-direction:column;
-            background-image:
-                radial-gradient(circle at 15% 50%,rgba(0,242,254,0.07),transparent 32%),
-                radial-gradient(circle at 85% 28%,rgba(79,172,254,0.07),transparent 32%);
-        }
-
-        /* ══ 导航栏（不变） ══ */
-        header {
-            position:fixed; top:0; left:0; width:100%; height:var(--header-h);
-            display:flex; justify-content:space-between; align-items:center;
-            padding:0 48px; background:rgba(11,15,25,0.78);
-            backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-            border-bottom:1px solid var(--border); z-index:1000;
-        }
-        .logo { display:flex; align-items:baseline; gap:8px; text-decoration:none; }
-        .logo-text { font-size:22px; font-weight:800;
-            background:linear-gradient(90deg,#4facfe 0%,#00f2fe 100%);
-            -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:0.5px; }
-        .logo-sub { font-size:12px; color:var(--text-dim); }
-        nav { display:flex; gap:28px; align-items:center; }
-        nav a { text-decoration:none; color:var(--text-sub); font-size:14px; font-weight:500;
-            transition:all 0.25s; position:relative; }
-        nav a:hover, nav a.active { color:var(--secondary); text-shadow:0 0 8px rgba(0,242,254,0.45); }
-        nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
-            background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width 0.3s; }
-        nav a:hover::after, nav a.active::after { width:100%; }
-        .nav-dot {
-            display:inline-block; width:6px; height:6px; background:var(--danger);
-            border-radius:50%; margin-left:4px; vertical-align:top; margin-top:2px;
-            animation:blink-dot 2s ease-in-out infinite;
-        }
-        @keyframes blink-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-        .sidebar-btn {
-            background:transparent; border:none; color:var(--text-sub);
-            cursor:pointer; display:flex; align-items:center; padding:4px;
-            margin-left:10px; transition:color 0.3s;
-        }
-        .sidebar-btn:hover { color:var(--secondary); }
-
-        /* ══ 侧边栏 ══ */
-        .sidebar-overlay {
-            position:fixed; top:0; left:0; right:0; bottom:0;
-            background:rgba(0,0,0,0.5); backdrop-filter:blur(3px);
-            z-index:1999; opacity:0; visibility:hidden; transition:all 0.3s ease;
-        }
-        .sidebar-overlay.open { opacity:1; visibility:visible; }
-        .sidebar {
-            position:fixed; top:0; right:-320px; width:320px; max-width:85vw; height:100vh;
-            background:rgba(11, 15, 25, 0.95); backdrop-filter:blur(14px);
-            border-left:1px solid var(--border); z-index:2000;
-            transition:right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display:flex; flex-direction:column; padding:30px 24px; box-shadow:-10px 0 30px rgba(0,0,0,0.5);
-        }
-        .sidebar.open { right:0; }
-        .sidebar-header {
-            display:flex; justify-content:space-between; align-items:center;
-            margin-bottom:30px; padding-bottom:16px; border-bottom:1px solid var(--border);
-        }
-        .sidebar-header h2 { font-size:18px; color:#fff; display:flex; align-items:center; gap:8px; }
-        .close-btn { background:none; border:none; color:var(--text-dim); font-size:28px; line-height:1; cursor:pointer; }
-        .close-btn:hover { color:var(--danger); }
-        .sidebar-content { display:flex; flex-direction:column; gap:16px; }
-        .sidebar-link {
-            text-decoration:none; color:var(--text-sub); padding:14px 18px;
-            background:var(--card); border:1px solid var(--border); border-radius:12px;
-            transition:all 0.25s ease; display:flex; align-items:center; justify-content:space-between; font-weight:500;
-        }
-        .sidebar-link:hover { background:rgba(79,172,254,0.1); border-color:rgba(79,172,254,0.3); color:var(--primary); }
-        .sidebar-link.featured { background:linear-gradient(135deg,rgba(79,172,254,0.15),rgba(0,242,254,0.05)); border-color:rgba(79,172,254,0.4); color:var(--secondary); }
+        body { min-height:initial; }
+        /* market 使用 56px header（不是默认 70px），重写 header 高度 */
+        header { height:var(--header-h); padding:0 48px; }
 
         /* ══ 指数滚动屏（逐行向上循环）══ */
         .ticker-wrap {
@@ -292,6 +222,92 @@
         }
 
         @keyframes spin{to{transform:rotate(360deg)}}
+
+        /* ══════════ PHASE 3 WOW ══════════ */
+        /* ticker 数字 tabular-nums + 行切换时淡入 */
+        .ticker-name, .ticker-price, .ticker-pct,
+        .td-price, .td-chg, .sent-val, .kline-price {
+            font-variant-numeric:tabular-nums;
+        }
+        .ticker-row { animation:fade-in .5s var(--ease-out); }
+        .ticker-item { transition:background var(--d-fast); }
+        .ticker-item:hover { background:rgba(79,172,254,.06); }
+
+        /* sector tile hover: scale + soft glow */
+        .sector-tile {
+            transition:transform var(--d-base) var(--ease-out), box-shadow var(--d-base);
+            position:relative;
+            overflow:hidden;
+        }
+        .sector-tile::before {
+            content:''; position:absolute; inset:0;
+            background:linear-gradient(135deg,rgba(255,255,255,.08),transparent 60%);
+            opacity:0; transition:opacity var(--d-base);
+        }
+        .sector-tile:hover {
+            transform:translateY(-2px) scale(1.04);
+            opacity:1;
+            box-shadow:0 4px 14px rgba(0,0,0,.25);
+        }
+        .sector-tile:hover::before { opacity:1; }
+
+        /* 表格行 hover 加亮 + sym 高亮 */
+        tbody tr {
+            transition:background var(--d-fast);
+            cursor:pointer;
+        }
+        tbody tr:hover { background:rgba(79,172,254,.06); }
+        tbody tr:hover .td-sym { color:var(--secondary); text-shadow:0 0 8px rgba(0,242,254,.4); }
+
+        /* sentiment chip hover 微动 */
+        .sent-chip {
+            transition:all var(--d-base) var(--ease-out);
+        }
+        .sent-chip:hover {
+            border-color:rgba(79,172,254,.35);
+            transform:translateY(-2px);
+            box-shadow:0 4px 12px rgba(79,172,254,.1);
+        }
+
+        /* market tab active 时持续微脉冲 */
+        .tab-btn.active {
+            box-shadow:0 0 16px rgba(79,172,254,.18);
+        }
+
+        /* k线区域 placeholder 加旋转 icon 替代静态文字 */
+        .kline-placeholder { font-size:13px; }
+        .kline-placeholder::before {
+            content:''; width:24px; height:24px; border-radius:50%;
+            border:2px solid rgba(79,172,254,.2);
+            border-top-color:var(--primary);
+            animation:spin 1s linear infinite;
+        }
+
+        /* news source block 入场 stagger */
+        .news-source-block { animation:fade-in-up .5s var(--ease-out) both; }
+        .news-source-block:nth-child(1) { animation-delay:.05s; }
+        .news-source-block:nth-child(2) { animation-delay:.12s; }
+        .news-source-block:nth-child(3) { animation-delay:.19s; }
+        .news-source-block:nth-child(4) { animation-delay:.26s; }
+        .news-item { transition:all var(--d-fast); }
+        .news-item:hover { padding-left:14px; }
+        .news-item:hover .news-rank {
+            box-shadow:0 0 12px rgba(79,172,254,.3);
+        }
+
+        /* k线大数字加 hover glow */
+        .kline-price { transition:filter var(--d-base); }
+        .kline-panel:hover .kline-price { filter:drop-shadow(0 0 10px rgba(0,242,254,.4)); }
+
+        /* skeleton 加载状态：sector heatmap 占位 */
+        .sector-tile.skel-loading {
+            background:linear-gradient(90deg,
+                rgba(255,255,255,.04) 25%,
+                rgba(255,255,255,.08) 50%,
+                rgba(255,255,255,.04) 75%);
+            background-size:400% 100%;
+            animation:skel-pulse 1.5s infinite;
+        }
     </style>
 </head>
 <body>
@@ -788,30 +804,10 @@
     }
 </script>
 
-<script>
-    'use strict';
-    const sidebar = document.getElementById('sidebar');
-    const sidebarOverlay = document.getElementById('sidebar-overlay');
-    document.getElementById('sidebar-toggle').addEventListener('click', () => { sidebar.classList.add('open'); sidebarOverlay.classList.add('open'); document.body.style.overflow='hidden'; });
-    document.getElementById('sidebar-close').addEventListener('click', () => { sidebar.classList.remove('open'); sidebarOverlay.classList.remove('open'); document.body.style.overflow=''; });
-    sidebarOverlay.addEventListener('click', () => { sidebar.classList.remove('open'); sidebarOverlay.classList.remove('open'); document.body.style.overflow=''; });
-</script>
-
-<script>
-    function _renderAuthWidget() {
-        const w = document.getElementById('auth-widget');
-        if (!w) return;
-        const u = localStorage.getItem('cq_username') || '';
-        const pg = window.location.pathname.split('/').pop() || 'dashboard.html';
-        if (u) {
-            w.innerHTML = `<span style="font-size:12px;color:var(--text-sub)">${escHtml(u)}</span>
-                <button onclick="['cq_token','cq_username','cq_user_id'].forEach(k=>localStorage.removeItem(k));_renderAuthWidget();" style="background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#8da2b8;font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;
-        } else {
-            w.innerHTML = `<a href="auth.html?v=20260330-auth-code&redirect=${escHtml(pg)}" style="font-size:12px;color:#4facfe;text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
-        }
-    }
-    document.addEventListener('DOMContentLoaded', _renderAuthWidget);
-</script>
+<!-- sidebar 切换 + auth widget 由 common.js 处理 -->
+<script src="assets/js/common.js"></script>
+<script src="assets/js/motion.js"></script>
+<script src="assets/js/pixel-sand.js"></script>
 <script src="shell-bridge.js"></script>
 </body>
 </html>

@@ -4,96 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>持仓体检 · CampusQuant 校园财商</title>
+    <!-- Shared design system -->
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/nav.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/animations.css">
     <style>
-        * { margin:0; padding:0; box-sizing:border-box;
-            font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif; }
-        :root {
-            --primary:#4facfe; --secondary:#00f2fe; --accent:#a29bfe;
-            --danger:#fd79a8;  --success:#55efc4;  --warn:#fdcb6e;
-            --bg:#0b0f19; --card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.10);
-            --text-dim:#718096; --text-sub:#a0aec0;
-        }
-        body {
-            background-color:var(--bg); color:#fff; min-height:100vh;
-            display:flex; flex-direction:column; overflow-x:hidden;
-            background-image:
-                radial-gradient(circle at 15% 50%,rgba(0,242,254,0.07),transparent 32%),
-                radial-gradient(circle at 85% 28%,rgba(79,172,254,0.07),transparent 32%);
-        }
-
-        /* ══ 导航栏 ══ */
-        header {
-            position:fixed; top:0; left:0; width:100%;
-            display:flex; justify-content:space-between; align-items:center;
-            padding:16px 48px; background:rgba(11,15,25,0.78);
-            backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-            border-bottom:1px solid var(--border); z-index:1000;
-        }
-        .logo { display:flex; align-items:baseline; gap:8px; text-decoration:none; }
-        .logo-text { font-size:22px; font-weight:800;
-            background:linear-gradient(90deg,#4facfe 0%,#00f2fe 100%);
-            -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:0.5px; }
-        .logo-sub { font-size:12px; color:var(--text-dim); }
-        nav { display:flex; gap:28px; align-items:center; }
-        nav a { text-decoration:none; color:var(--text-sub); font-size:14px; font-weight:500;
-            transition:all 0.25s; position:relative; }
-        nav a:hover, nav a.active { color:var(--secondary); text-shadow:0 0 8px rgba(0,242,254,0.45); }
-        nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
-            background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width 0.3s; }
-        nav a:hover::after, nav a.active::after { width:100%; }
-        /* 导航小红点标签 */
-        .nav-dot {
-            display:inline-block; width:6px; height:6px; background:var(--danger);
-            border-radius:50%; margin-left:4px; vertical-align:top; margin-top:2px;
-            animation:blink-dot 2s ease-in-out infinite;
-        }
-        @keyframes blink-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-
-        /* 侧边栏触发按钮 */
-        .sidebar-btn {
-            background:transparent; border:none; color:var(--text-sub);
-            cursor:pointer; display:flex; align-items:center; padding:4px;
-            margin-left:10px; transition:color 0.3s;
-        }
-        .auth-avatar { width:30px; height:30px; border-radius:50%;
-            background:linear-gradient(135deg,var(--primary),var(--accent));
-            display:flex; align-items:center; justify-content:center;
-            font-size:13px; font-weight:700; cursor:pointer; }
-        .auth-name { font-size:13px; color:var(--text-sub); }
-        .sidebar-btn:hover { color:var(--secondary); }
-
-        /* ══ 侧边栏及遮罩层样式 ══ */
-        .sidebar-overlay {
-            position:fixed; top:0; left:0; right:0; bottom:0;
-            background:rgba(0,0,0,0.5); backdrop-filter:blur(3px);
-            z-index:1999; opacity:0; visibility:hidden; transition:all 0.3s ease;
-        }
-        .sidebar-overlay.open { opacity:1; visibility:visible; }
-        .sidebar {
-            position:fixed; top:0; right:-320px; width:320px; max-width:85vw; height:100vh;
-            background:rgba(11, 15, 25, 0.95); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-            border-left:1px solid var(--border); z-index:2000;
-            transition:right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display:flex; flex-direction:column; padding:30px 24px; box-shadow:-10px 0 30px rgba(0,0,0,0.5);
-        }
-        .sidebar.open { right:0; }
-        .sidebar-header {
-            display:flex; justify-content:space-between; align-items:center;
-            margin-bottom:30px; padding-bottom:16px; border-bottom:1px solid var(--border);
-        }
-        .sidebar-header h2 { font-size:18px; color:#fff; display:flex; align-items:center; gap:8px; }
-        .close-btn { background:none; border:none; color:var(--text-dim); font-size:28px; line-height:1; cursor:pointer; transition:color 0.2s; }
-        .close-btn:hover { color:var(--danger); }
-        .sidebar-content { display:flex; flex-direction:column; gap:16px; }
-        .sidebar-link {
-            text-decoration:none; color:var(--text-sub); padding:14px 18px;
-            background:var(--card); border:1px solid var(--border); border-radius:12px;
-            transition:all 0.25s ease; display:flex; align-items:center; justify-content:space-between; font-weight:500;
-        }
-        .sidebar-link:hover { background:rgba(79,172,254,0.1); border-color:rgba(79,172,254,0.3); color:var(--primary); transform:translateX(4px); }
-        .sidebar-link.featured { background:linear-gradient(135deg,rgba(79,172,254,0.15),rgba(0,242,254,0.05)); border-color:rgba(79,172,254,0.4); color:var(--secondary); }
-        .sidebar-link.featured:hover { background:linear-gradient(135deg,rgba(79,172,254,0.25),rgba(0,242,254,0.15)); box-shadow:0 4px 15px rgba(0,242,254,0.15); }
-
+        /* ══════════ PLATFORMS-specific styles only ══════════ */
         /* ══ 主体 ══ */
         main { flex:1; margin-top:80px; padding:32px 48px; }
 
@@ -243,12 +161,74 @@
         .risk-high   { background:rgba(253,121,168,0.1); color:var(--danger); }
         .risk-extreme{ background:rgba(253,121,168,0.2); color:var(--danger); border:1px solid var(--danger); }
 
-        /* ══ 页脚 ══ */
-        footer {
-            padding:18px; text-align:center; background:rgba(0,0,0,0.3);
-            border-top:1px solid var(--border); color:var(--text-dim); font-size:13px; margin-top:24px;
+        /* ══════════ PHASE 3 WOW ══════════ */
+        /* 持仓输入卡片渐变描边发光 */
+        .input-panel, .result-panel {
+            transition:border-color var(--d-base), box-shadow var(--d-base);
         }
-        footer a { color:var(--primary); text-decoration:none; }
+        .input-panel:hover, .result-panel:hover {
+            border-color:rgba(79,172,254,.3);
+            box-shadow:0 8px 32px rgba(79,172,254,.08);
+        }
+
+        /* 评分环数字 tabular + 入场放大 */
+        .score-num, .score-text {
+            font-variant-numeric:tabular-nums;
+        }
+        .score-ring-wrap { animation:scale-in .8s var(--ease-out); }
+
+        /* 推荐卡渐变描边 */
+        .recommend-card {
+            position:relative;
+            background:linear-gradient(135deg,
+                rgba(79,172,254,.08),
+                rgba(255,107,157,.04) 50%,
+                rgba(0,242,254,.04));
+            border:1px solid rgba(79,172,254,.25);
+            transition:all var(--d-base);
+        }
+        .recommend-card:hover {
+            border-color:rgba(255,107,157,.35);
+            box-shadow:0 8px 32px rgba(255,107,157,.1);
+            transform:translateY(-2px);
+        }
+
+        /* 持仓列表项 hover */
+        .pos-item, .position-item {
+            transition:all var(--d-fast);
+        }
+        .pos-item:hover, .position-item:hover {
+            background:rgba(79,172,254,.05);
+            transform:translateX(2px);
+        }
+
+        /* 风险标签发光 */
+        .risk-low    { box-shadow:0 0 12px rgba(85,239,196,.18); }
+        .risk-medium { box-shadow:0 0 12px rgba(253,203,110,.18); }
+        .risk-high   { box-shadow:0 0 14px rgba(253,121,168,.22); }
+        .risk-extreme{ box-shadow:0 0 18px rgba(253,121,168,.35); animation:pulse-glow-warm 2.5s ease-in-out infinite; }
+
+        /* 体检按钮流光 */
+        .check-btn {
+            position:relative; overflow:hidden; isolation:isolate;
+        }
+        .check-btn::before {
+            content:''; position:absolute; inset:0;
+            background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.4) 50%,transparent 70%);
+            transform:translateX(-100%); transition:transform .6s var(--ease-out);
+        }
+        .check-btn:hover::before { transform:translateX(100%); }
+
+        /* 指标卡渐变描边 */
+        .metric-card {
+            transition:all var(--d-base) var(--ease-out);
+        }
+        .metric-card:hover {
+            transform:translateY(-3px);
+            border-color:rgba(79,172,254,.35);
+            box-shadow:0 8px 24px rgba(79,172,254,.12);
+        }
+
         /* ══ 移动端优化增强 ══ */
         /* 防止移动端文本选择 */
         .metric-label, .col-label, .panel-title {
@@ -534,12 +514,12 @@
 </aside>
 
 <main>
-    <div class="page-header">
+    <div class="page-header fade-in-down">
         <h1>🩺 持仓体检</h1>
         <p>输入你的持仓信息，AI 将从集中度、回撤风险、流动性三个维度综合评估你的投资组合健康状况。</p>
     </div>
 
-    <div class="layout">
+    <div class="layout reveal">
         <!-- 持仓录入面板 -->
         <div class="input-panel">
             <div class="panel-title">录入持仓</div>
@@ -766,49 +746,10 @@
     @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 </style>
 
-<script>
-    'use strict';
-    const sidebar        = document.getElementById('sidebar');
-    const sidebarOverlay = document.getElementById('sidebar-overlay');
-    const sidebarToggle  = document.getElementById('sidebar-toggle');
-    const sidebarClose   = document.getElementById('sidebar-close');
-
-    function openSidebar() {
-        sidebar.classList.add('open');
-        sidebarOverlay.classList.add('open');
-        document.body.style.overflow = 'hidden'; 
-    }
-
-    function closeSidebar() {
-        sidebar.classList.remove('open');
-        sidebarOverlay.classList.remove('open');
-        document.body.style.overflow = '';
-    }
-
-    sidebarToggle.addEventListener('click', openSidebar);
-    sidebarClose.addEventListener('click', closeSidebar);
-    sidebarOverlay.addEventListener('click', closeSidebar);
-
-    // ══════════════ AUTH WIDGET ══════════════
-    function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-    function renderAuthWidget() {
-        const token = localStorage.getItem('cq_token');
-        const name  = localStorage.getItem('cq_username') || '用户';
-        const el    = document.getElementById('auth-widget');
-        if (!el) return;
-        if (token) {
-            el.innerHTML = `
-                <div class="auth-avatar" title="${escHtml(name)}">${escHtml(name[0].toUpperCase())}</div>
-                <span class="auth-name">${escHtml(name)}</span>
-                <button onclick="logout()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px">退出</button>`;
-        } else {
-            el.innerHTML = `<a href="auth.html?redirect=platforms.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(79,172,254,.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
-        }
-    }
-    function logout() { localStorage.removeItem('cq_token'); localStorage.removeItem('cq_username'); location.reload(); }
-    renderAuthWidget();
-</script>
-
+<!-- sidebar 切换 + auth widget 由 common.js 处理 -->
+<script src="assets/js/common.js"></script>
+<script src="assets/js/motion.js"></script>
+<script src="assets/js/pixel-sand.js"></script>
 <script src="shell-bridge.js"></script>
 </body>
 </html>
