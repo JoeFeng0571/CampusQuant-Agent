@@ -1082,7 +1082,11 @@ window.cqRenderAuthWidget = function () {
     }
 };
 function renderAuthWidget() { window.cqRenderAuthWidget(); }
-function logout() {
+async function logout() {
+    if (window.cqConfirm) {
+        const ok = await cqConfirm('确定要退出登录吗？', '退出登录');
+        if (!ok) return;
+    }
     localStorage.removeItem('cq_token'); localStorage.removeItem('cq_username');
     location.reload();
 }
@@ -1422,10 +1426,15 @@ function quickAsk(text) {
     sendChat();
 }
 
-function clearChat() {
+async function clearChat() {
+    if (window.cqConfirm) {
+        const ok = await cqConfirm('清空全部对话历史？此操作无法撤销', '清空对话');
+        if (!ok) return;
+    }
     _chatHistory = [MENTOR_INTRO];
     saveChatHistory();
     renderAllMessages();
+    if (window.cqToast) cqToast({ message: '对话已清空' }, 'success', 2000);
 }
 
 async function sendChat() {

@@ -993,8 +993,10 @@ async function submitOrder() {
 
         if (!resp.ok) {
             showOrderResult(false, data.detail || `HTTP ${resp.status}`);
+            if (window.cqToast) cqToast({ title:'委托失败', message: data.detail || `HTTP ${resp.status}` }, 'error');
         } else if (!data.success) {
             showOrderResult(false, data.error || '撮合失败');
+            if (window.cqToast) cqToast({ title:'撮合失败', message: data.error || '请检查标的代码和数量' }, 'error');
         } else {
             const pfx    = prefixFor(data.symbol || symbol);
             const srcTag = data.is_spot_price ? '实时现价' : 'EOD收盘';
@@ -1002,6 +1004,13 @@ async function submitOrder() {
                       + `金额 ${pfx}${Number(data.amount).toFixed(2)} + 手续费 ${pfx}${Number(data.fee).toFixed(4)}\n`
                       + `剩余资金：${pfx}${Number(data.cash_after).toFixed(2)}`;
             showOrderResult(true, msg);
+            if (window.cqToast) {
+                const verb = data.action === 'BUY' ? '买入' : '卖出';
+                cqToast({
+                    title: `${verb}成交 · ${data.quantity}股`,
+                    message: `@ ${pfx}${Number(data.exec_price).toFixed(3)} · 剩余 ${pfx}${Number(data.cash_after).toFixed(0)}`,
+                }, 'success', 4500);
+            }
             // 🎉 成功撒花
             if (typeof confetti === 'function') {
                 const isBuy = action === 'BUY';
@@ -1020,6 +1029,7 @@ async function submitOrder() {
         }
     } catch(e) {
         showOrderResult(false, '网络错误：' + e.message + '。请确认后端已在 8000 端口启动。');
+        if (window.cqToast) cqToast({ title:'网络错误', message: e.message }, 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = currentSide==='BUY' ? '买入委托（模拟）' : '卖出委托（模拟）';
