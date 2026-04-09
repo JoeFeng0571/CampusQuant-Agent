@@ -15,7 +15,45 @@
     <style>
         /* ══════════ COMMUNITY-specific styles only ══════════ */
         /* ══ 主体 ══ */
-        main { flex:1; margin-top:80px; padding:32px 48px; }
+        main { flex:1; margin-top:80px; padding:32px 48px 80px; max-width:1320px; margin-left:auto; margin-right:auto; width:100%; }
+
+        /* ══ HERO ══ */
+        .community-hero {
+            display:flex; flex-direction:column; gap:14px;
+            padding:24px 4px 24px;
+        }
+        .community-hero-eyebrow {
+            display:inline-flex; align-items:center; gap:10px;
+            font-size:11px; font-weight:600; color:rgba(255,255,255,.55);
+            letter-spacing:0.08em; text-transform:uppercase;
+            font-family:var(--font-mono);
+        }
+        .community-hero-pulse {
+            display:inline-block; width:6px; height:6px; border-radius:50%;
+            background:#a29bfe; box-shadow:0 0 12px #a29bfe;
+            animation:community-pulse 2.4s ease-in-out infinite;
+        }
+        @keyframes community-pulse {
+            0%,100% { opacity:1; transform:scale(1); }
+            50%     { opacity:.4; transform:scale(.85); }
+        }
+        .community-hero-title {
+            font-family:var(--font-display);
+            font-size:48px; font-weight:800; line-height:1.05;
+            letter-spacing:-0.03em;
+            background:linear-gradient(180deg,#fff 0%,rgba(255,255,255,.7) 100%);
+            -webkit-background-clip:text; background-clip:text;
+            -webkit-text-fill-color:transparent;
+            margin:0;
+        }
+        .community-hero-sub {
+            font-size:15px; color:rgba(255,255,255,.65);
+            line-height:1.6; max-width:60ch; margin:0;
+        }
+        @media(max-width:768px) {
+            main { padding:24px 16px 60px; }
+            .community-hero-title { font-size:34px; }
+        }
 
         .page-header { text-align:center; margin-bottom:40px; }
         .page-header h1 { font-size:32px; font-weight:700; margin-bottom:10px; }
@@ -389,10 +427,14 @@
 </aside>
 
 <main>
-    <div class="page-header">
-        <h1 style="display:inline-flex;align-items:center;gap:12px;justify-content:center"><i data-lucide="users-round" style="width:28px;height:28px;color:var(--violet)"></i> 投教社区</h1>
-        <p>学习 A股、港股、美股基础知识，与同学交流投资心得，共同养成理性财商思维。</p>
-    </div>
+    <section class="community-hero fade-in-down">
+        <div class="community-hero-eyebrow">
+            <span class="community-hero-pulse"></span>
+            <span>STUDENT FORUM · 投教社区</span>
+        </div>
+        <h1 class="community-hero-title">投教社区</h1>
+        <p class="community-hero-sub">学习 A 股、港股、美股基础知识，与同学交流投资心得，共同养成理性财商思维</p>
+    </section>
 
     <!-- 学习中心主入口 Hero -->
     <a href="resources.html" class="learn-hero" style="text-decoration:none;color:inherit;">

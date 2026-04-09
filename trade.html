@@ -15,9 +15,47 @@
     <style>
         /* ══════════ TRADE-specific styles only ══════════ */
         /* ══ PAGE ══ */
-        .page-wrap { margin-top:70px; padding:24px 32px; flex:1;
-            display:flex; flex-direction:column; gap:20px; max-width:1400px;
+        .page-wrap { margin-top:70px; padding:32px 32px 80px; flex:1;
+            display:flex; flex-direction:column; gap:24px; max-width:1400px;
             margin-left:auto; margin-right:auto; width:100%; }
+
+        /* ══ HERO ══ */
+        .trade-hero {
+            display:flex; flex-direction:column; gap:14px;
+            padding:24px 4px 8px;
+        }
+        .trade-hero-eyebrow {
+            display:inline-flex; align-items:center; gap:10px;
+            font-size:11px; font-weight:600; color:rgba(255,255,255,.55);
+            letter-spacing:0.08em; text-transform:uppercase;
+            font-family:var(--font-mono);
+        }
+        .trade-hero-pulse {
+            display:inline-block; width:6px; height:6px; border-radius:50%;
+            background:#fdcb6e; box-shadow:0 0 12px #fdcb6e;
+            animation:trade-pulse 2.4s ease-in-out infinite;
+        }
+        @keyframes trade-pulse {
+            0%,100% { opacity:1; transform:scale(1); }
+            50%     { opacity:.4; transform:scale(.85); }
+        }
+        .trade-hero-title {
+            font-family:var(--font-display);
+            font-size:48px; font-weight:800; line-height:1.05;
+            letter-spacing:-0.03em;
+            background:linear-gradient(180deg,#fff 0%,rgba(255,255,255,.7) 100%);
+            -webkit-background-clip:text; background-clip:text;
+            -webkit-text-fill-color:transparent;
+            margin:0;
+        }
+        .trade-hero-sub {
+            font-size:15px; color:rgba(255,255,255,.65);
+            line-height:1.6; max-width:60ch; margin:0;
+        }
+        @media(max-width:768px) {
+            .trade-hero-title { font-size:34px; }
+            .trade-hero-sub { font-size:13px; }
+        }
 
         /* ══ MARKET ACCOUNT TABS ══ */
         .mkt-header { display:flex; gap:14px; align-items:stretch; flex-wrap:wrap; }
@@ -468,6 +506,16 @@
 </aside>
 
 <div class="page-wrap">
+
+    <!-- HERO -->
+    <section class="trade-hero fade-in-down">
+        <div class="trade-hero-eyebrow">
+            <span class="trade-hero-pulse"></span>
+            <span>SIMULATION ENVIRONMENT · 模拟交易环境</span>
+        </div>
+        <h1 class="trade-hero-title">三市场 · 零风险练手</h1>
+        <p class="trade-hero-sub">A 股 ¥10万 · 港股 HK$10万 · 美股 $1万 · 全部模拟资金，不连接任何真实交易所</p>
+    </section>
 
     <!-- ① 三市场账户 Tab ── -->
     <div class="mkt-header stagger-children fade-in-down">

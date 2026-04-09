@@ -148,12 +148,37 @@
         }
     }
 
+    // ══════════ FIRST VISIT HINT ══════════
+    // 首次访问时（一次性）提示新功能
+    function showFirstVisitHint() {
+        const HINT_KEY = 'cq_hint_v1_seen';
+        if (localStorage.getItem(HINT_KEY)) return;
+        // 等 ui-kit + lucide 都加载完
+        let attempts = 0;
+        const tryShow = () => {
+            attempts++;
+            if (window.cqToast) {
+                setTimeout(() => {
+                    cqToast({
+                        title: '👋 欢迎来到 CampusQuant',
+                        message: '试试 ⌘K 命令面板 / 按 ? 查看快捷键 / 点击右上角 ⚙ 个性化设置',
+                    }, 'info', 7000);
+                    localStorage.setItem(HINT_KEY, '1');
+                }, 1200);
+            } else if (attempts < 30) {
+                setTimeout(tryShow, 200);
+            }
+        };
+        tryShow();
+    }
+
     // ══════════ INIT ══════════
     function init() {
         setNavActive();
         initSidebar();
         cqRenderAuthWidget();
         injectNavTools();
+        showFirstVisitHint();
         // Lucide 可能还没加载，延迟试 + 重试
         if (!initLucideIcons()) {
             let tries = 0;
