@@ -49,6 +49,54 @@
     };
 
     // 智能更新：从上次值滚到新值，并按方向 flash
+    /**
+     * 极简 SVG sparkline 渲染
+     * @param {HTMLElement} container - 目标容器
+     * @param {number[]} data - 数据数组
+     * @param {object} opts - { width, height, color, fillColor, animate }
+     */
+    window.cqSparkline = function (container, data, opts) {
+        if (!container || !data || data.length < 2) return;
+        opts = opts || {};
+        const W = opts.width  || 120;
+        const H = opts.height || 32;
+        const color = opts.color || 'rgba(0,242,254,.85)';
+        const fillColor = opts.fillColor || 'rgba(0,242,254,.15)';
+        const padding = 2;
+
+        const min = Math.min.apply(null, data);
+        const max = Math.max.apply(null, data);
+        const range = max - min || 1;
+        const stepX = (W - padding * 2) / (data.length - 1);
+        const points = data.map((v, i) => [
+            padding + i * stepX,
+            padding + (H - padding * 2) * (1 - (v - min) / range),
+        ]);
+
+        const path  = points.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+        const fillPath = `${path} L${(W - padding).toFixed(1)},${(H - padding).toFixed(1)} L${padding.toFixed(1)},${(H - padding).toFixed(1)} Z`;
+        // 末尾点
+        const lastX = points[points.length - 1][0];
+        const lastY = points[points.length - 1][1];
+
+        container.innerHTML = `
+        <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible;display:block">
+          <defs>
+            <linearGradient id="cq-spark-grad-${Date.now()}" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="${color.replace(/,[\d.]+\)/, ',.4)')}"/>
+              <stop offset="100%" stop-color="${color.replace(/,[\d.]+\)/, ',0)')}"/>
+            </linearGradient>
+          </defs>
+          <path d="${fillPath}" fill="${fillColor}" />
+          <path d="${path}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="${lastX}" cy="${lastY}" r="2.5" fill="${color}" />
+          <circle cx="${lastX}" cy="${lastY}" r="5" fill="${color}" opacity="0.3">
+            <animate attributeName="r" from="3" to="8" dur="1.6s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" from="0.5" to="0" dur="1.6s" repeatCount="indefinite"/>
+          </circle>
+        </svg>`;
+    };
+
     window.cqUpdateNumber = function (el, to, dur) {
         if (!el) return;
         const from = parseFloat(el.dataset.currentValue || '0') || 0;

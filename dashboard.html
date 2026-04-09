@@ -267,12 +267,19 @@
         .mkt-tab:hover:not(.active) { border-color:rgba(255,255,255,.2); color:#fff; }
 
         .acct-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:14px; }
-        .acct-stat { background:rgba(0,0,0,.2); border-radius:12px; padding:14px;
-            border:1px solid rgba(255,255,255,.05); transition:all var(--d-base); }
+        .acct-stat { background:rgba(0,0,0,.2); border-radius:14px; padding:16px;
+            border:1px solid rgba(255,255,255,.045); transition:all var(--d-base); }
         .acct-stat:hover { border-color:rgba(79,172,254,.25); transform:translateY(-2px); }
-        .acct-stat-label { font-size:11px; color:var(--text-dim); margin-bottom:5px; }
-        .acct-stat-value { font-size:18px; font-weight:700; color:#fff; font-variant-numeric:tabular-nums; }
-        .acct-stat-sub { font-size:11px; color:var(--text-sub); margin-top:3px; }
+        .acct-stat-label { font-size:11px; color:var(--text-dim); margin-bottom:6px; letter-spacing:.02em; }
+        .acct-stat-value { font-size:22px; font-weight:800; color:#fff;
+            font-variant-numeric:tabular-nums; font-feature-settings:'tnum' 1, 'cv11' 1;
+            font-family:var(--font-display); letter-spacing:-.02em; line-height:1.1; }
+        .acct-stat-sub { font-size:11px; color:var(--text-sub); margin-top:6px; }
+        .acct-stat-row { display:flex; justify-content:space-between; align-items:center; margin-top:6px; gap:8px; }
+        .acct-stat-hero { background:linear-gradient(135deg,rgba(79,172,254,.10),rgba(0,0,0,.2));
+            border-color:rgba(79,172,254,.18); }
+        .acct-stat-hero .acct-stat-value { font-size:26px; }
+        .acct-spark { display:flex; align-items:center; }
 
         /* position mini table */
         .mini-table { width:100%; border-collapse:collapse; }
@@ -630,6 +637,8 @@
 <script src="assets/js/aurora.js"></script>
 <script src="assets/js/grid-dots.js"></script>
 <script src="assets/js/pixel-sand.js"></script>
+<script src="assets/js/view-transitions.js"></script>
+<script src="assets/js/magnet-cursor.js"></script>
 <script>
 'use strict';
 const API = window.CQ_API;
@@ -729,10 +738,13 @@ function renderAcct(data, mkt) {
     }
 
     grid.innerHTML = `
-        <div class="acct-stat">
+        <div class="acct-stat acct-stat-hero">
             <div class="acct-stat-label">总资产 (${unit})</div>
             <div class="acct-stat-value num-roll" data-decimals="2" id="dash-total">0.00</div>
-            <div class="acct-stat-sub ${clsForNum(pnl_pct)}">${pnl_pct>=0?'+':''}${fmtNum(pnl_pct,2)}%</div>
+            <div class="acct-stat-row">
+                <div class="acct-stat-sub ${clsForNum(pnl_pct)}">${pnl_pct>=0?'+':''}${fmtNum(pnl_pct,2)}%</div>
+                <div class="acct-spark" id="dash-spark"></div>
+            </div>
         </div>
         <div class="acct-stat">
             <div class="acct-stat-label">可用资金</div>
@@ -753,6 +765,22 @@ function renderAcct(data, mkt) {
         document.getElementById('dash-total').textContent = fmtNum(total);
         document.getElementById('dash-cash').textContent = fmtNum(cash);
         document.getElementById('dash-pos').textContent = fmtNum(positions_val);
+    }
+    // sparkline —— 7 日模拟数据（围绕当前 total 上下浮动 ±1.5%，最后一个点是当前真实值）
+    if (window.cqSparkline && total > 0) {
+        const sparkData = [];
+        const seed = total;
+        for (let i = 0; i < 6; i++) {
+            const noise = (Math.sin(i * 1.7 + seed * 0.0001) + Math.cos(i * 2.3)) * 0.012;
+            sparkData.push(seed * (1 + noise));
+        }
+        sparkData.push(total);
+        const isUp = pnl_pct >= 0;
+        cqSparkline(document.getElementById('dash-spark'), sparkData, {
+            width: 110, height: 28,
+            color: isUp ? 'rgba(85,239,196,.95)' : 'rgba(255,107,157,.95)',
+            fillColor: isUp ? 'rgba(85,239,196,.12)' : 'rgba(255,107,157,.12)',
+        });
     }
 
     // positions table — 字段是 positions_all（不是 positions）
