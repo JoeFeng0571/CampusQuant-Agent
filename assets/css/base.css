@@ -67,6 +67,26 @@ tbody td {
     font-feature-settings: 'tnum' 1, 'cv11' 1;
 }
 
+/* ══════════ 全屏 noise grain overlay ══════════
+   细 SVG 噪点 fixed，2.5% 透明，叠加在所有背景之上、内容之下
+   给整站加"胶片质感"，所有顶级 dark UI 必备 */
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    mix-blend-mode: overlay;
+    opacity: 0.045;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1   0 0 0 0 1   0 0 0 0 1   0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+}
+/* 让内容显示在 noise 之上 */
+header, main, footer, .page-wrap, .dash-container, .terminal-grid, aside, .sidebar-overlay {
+    position: relative;
+    z-index: 1;
+}
+
 /* 滚动条美化（webkit） */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }

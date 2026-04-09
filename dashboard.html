@@ -14,15 +14,28 @@
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js" defer></script>
     <style>
         /* ══════════ DASHBOARD-specific styles only ══════════ */
-        .dash-container { width:100%; max-width:1280px; margin:0 auto;
-            padding:96px 24px 48px; flex:1; display:flex; flex-direction:column; gap:24px; }
+        .dash-container { width:100%; max-width:1320px; margin:0 auto;
+            padding:108px 28px 80px; flex:1; display:flex; flex-direction:column; gap:32px; }
+        @media(max-width:768px) { .dash-container { padding:84px 16px 48px; gap:20px; } }
 
         /* ══ WELCOME CARD（升级：渐变描边 + 多层漂浮光球） ══ */
         .welcome-card {
-            background:linear-gradient(135deg,rgba(79,172,254,.14),rgba(255,107,157,.05) 50%,rgba(0,242,254,.04));
-            border:1px solid rgba(79,172,254,.32); border-radius:20px;
-            padding:28px 32px; display:flex; justify-content:space-between; align-items:center; gap:16px;
+            background:linear-gradient(135deg,rgba(79,172,254,.10),rgba(255,107,157,.04) 50%,rgba(0,242,254,.03));
+            border:1px solid rgba(79,172,254,.18);
+            border-radius:24px;
+            padding:48px 48px;          /* 加大 — Linear/Vercel 级 */
+            display:flex; justify-content:space-between; align-items:center; gap:24px;
             position:relative; overflow:hidden;
+            min-height:200px;            /* 强制大 hero 高度 */
+            box-shadow:
+                0 1px 0 rgba(255,255,255,.08) inset,
+                0 0 0 1px rgba(0,0,0,.15),
+                0 2px 4px rgba(0,0,0,.18),
+                0 16px 40px rgba(0,0,0,.22),
+                0 40px 80px rgba(79,172,254,.10);
+        }
+        @media(max-width:768px) {
+            .welcome-card { padding:32px 24px; min-height:auto; }
         }
         /* 漂浮光球 1：橙色，右上角 */
         .welcome-card::before {
@@ -48,12 +61,25 @@
             40%     { transform:translate(25px,-20px) scale(1.08); }
             70%     { transform:translate(-15px,10px) scale(.92); }
         }
-        .welcome-left { display:flex; flex-direction:column; gap:8px; position:relative; z-index:1; }
-        .welcome-greeting { font-size:24px; font-weight:800;
+        .welcome-left { display:flex; flex-direction:column; gap:12px; position:relative; z-index:1; }
+        /* 大 hero 字 — display 字体，44px，与 Linear/Vercel 同级 */
+        .welcome-greeting {
+            font-family:var(--font-display);
+            font-size:44px;
+            font-weight:800;
+            line-height:1.1;
+            letter-spacing:-0.025em;
             background:var(--grad-aurora); background-size:200% auto;
             -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
-            animation:shimmer 5s linear infinite; }
-        .welcome-sub { font-size:14px; color:var(--text-sub); }
+            animation:shimmer 5s linear infinite;
+        }
+        .welcome-sub { font-size:15px; color:var(--text-sub); line-height:1.55; max-width:560px; }
+        @media(max-width:768px) {
+            .welcome-greeting { font-size:32px; }
+        }
+        @media(max-width:480px) {
+            .welcome-greeting { font-size:26px; }
+        }
         .welcome-badges { display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; }
         /* 沿用 components.css 的 .badge，这里只定义页面专属变体 */
         .badge { display:inline-flex; align-items:center; gap:5px; padding:4px 12px;
@@ -602,6 +628,7 @@
 <script src="assets/js/common.js"></script>
 <script src="assets/js/motion.js"></script>
 <script src="assets/js/aurora.js"></script>
+<script src="assets/js/grid-dots.js"></script>
 <script src="assets/js/pixel-sand.js"></script>
 <script>
 'use strict';

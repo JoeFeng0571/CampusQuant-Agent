@@ -33,7 +33,7 @@
         'position:fixed',
         'inset:0',
         'pointer-events:none',
-        'z-index:-2',                  // 极光在最底
+        'z-index:-3',                  // 极光在最底（grid-dots -2，pixel-sand -1）
         'overflow:hidden',
         'opacity:0',
         'transition:opacity 1.6s ease',
