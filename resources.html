@@ -4,8 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>学习资源库 · CampusQuant 校园财商</title>
+<!-- Shared design system -->
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/animations.css">
+<script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js" defer></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#08111f;--card:rgba(255,255,255,.05);--border:rgba(255,255,255,.12);--text:#f6fbff;--sub:#adc2d9;--dim:#7390aa;--pri:#6fd7ff;--primary:#6fd7ff;--mint:#59f0c2;--gold:#ffd37c;--danger:#ff8e8e;--lav:#c9b3ff;--shadow:0 18px 48px rgba(0,0,0,.28)}
 body{min-height:100vh;color:var(--text);background:radial-gradient(circle at top left,rgba(58,185,255,.16),transparent 28%),radial-gradient(circle at top right,rgba(89,240,194,.12),transparent 24%),linear-gradient(180deg,#07101d 0%,#0a1423 48%,#08111f 100%);overflow-x:hidden}
 a{text-decoration:none;color:inherit}
@@ -836,6 +841,9 @@ sidebarOverlay.addEventListener('click',closeSidebar);
 function _renderAuthWidget(){const w=document.getElementById('auth-widget');if(!w)return;const u=localStorage.getItem('cq_username')||'';const pg=window.location.pathname.split('/').pop()||'resources.html';if(u){w.innerHTML=`<span style="font-size:12px;color:var(--sub)">👤 ${u}</span><button onclick="['cq_token','cq_username','cq_user_id'].forEach(k=>localStorage.removeItem(k));_renderAuthWidget();" style="background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#8da2b8;font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;}else{w.innerHTML=`<a href="auth.html?redirect=${pg}" style="font-size:12px;color:#4facfe;text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;}}
 document.addEventListener('DOMContentLoaded',_renderAuthWidget);
 </script>
+<script src="assets/js/aurora.js"></script>
+<script src="assets/js/grid-dots.js"></script>
+<script src="assets/js/pixel-sand.js"></script>
 <script src="shell-bridge.js"></script>
 </body>
 </html>

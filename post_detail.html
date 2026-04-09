@@ -4,50 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>帖子详情 · CampusQuant 投教社区</title>
+    <!-- Shared design system -->
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/nav.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/animations.css">
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js" defer></script>
     <style>
-        * { margin:0; padding:0; box-sizing:border-box;
-            font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif; }
-        :root {
-            --primary:#4facfe; --secondary:#00f2fe; --accent:#a29bfe;
-            --danger:#fd79a8;  --success:#55efc4;  --warn:#fdcb6e;
-            --bg:#0b0f19; --card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.10);
-            --text-dim:#718096; --text-sub:#a0aec0;
-        }
-        body {
-            background-color:var(--bg); color:#fff; min-height:100vh;
-            display:flex; flex-direction:column; overflow-x:hidden;
-            background-image:
-                radial-gradient(circle at 15% 50%,rgba(0,242,254,0.07),transparent 32%),
-                radial-gradient(circle at 85% 28%,rgba(79,172,254,0.07),transparent 32%);
-        }
-
-        /* ══ 导航栏 ══ */
-        header {
-            position:fixed; top:0; left:0; width:100%;
-            display:flex; justify-content:space-between; align-items:center;
-            padding:16px 48px; background:rgba(11,15,25,0.78);
-            backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-            border-bottom:1px solid var(--border); z-index:1000;
-        }
-        .logo { display:flex; align-items:baseline; gap:8px; text-decoration:none; }
-        .logo-text { font-size:22px; font-weight:800;
-            background:linear-gradient(90deg,#4facfe 0%,#00f2fe 100%);
-            -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:0.5px; }
-        .logo-sub { font-size:12px; color:var(--text-dim); }
-        nav { display:flex; gap:28px; align-items:center; }
-        nav a { text-decoration:none; color:var(--text-sub); font-size:14px; font-weight:500;
-            transition:all 0.25s; position:relative; }
-        nav a:hover, nav a.active { color:var(--secondary); text-shadow:0 0 8px rgba(0,242,254,0.45); }
-        nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
-            background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width 0.3s; }
-        nav a:hover::after, nav a.active::after { width:100%; }
-        .nav-dot {
-            display:inline-block; width:6px; height:6px; background:var(--danger);
-            border-radius:50%; margin-left:4px; vertical-align:top; margin-top:2px;
-            animation:blink-dot 2s ease-in-out infinite;
-        }
-        @keyframes blink-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-
+        /* ══════════ POST_DETAIL-specific styles only ══════════ */
         /* ══ 主体 ══ */
         main { flex:1; margin-top:80px; padding:32px 48px; max-width:900px; margin-left:auto; margin-right:auto; width:100%; }
 
@@ -485,6 +450,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
+<script src="assets/js/common.js"></script>
+<script src="assets/js/motion.js"></script>
+<script src="assets/js/aurora.js"></script>
+<script src="assets/js/grid-dots.js"></script>
+<script src="assets/js/pixel-sand.js"></script>
 <script src="shell-bridge.js"></script>
 </body>
 </html>

@@ -4,91 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>学习中心 · CampusQuant 校园财商</title>
+    <!-- Shared design system -->
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/nav.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/animations.css">
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js" defer></script>
     <style>
-        * { margin:0; padding:0; box-sizing:border-box;
-            font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif; }
-        :root {
-            --primary:#4facfe; --secondary:#00f2fe; --accent:#a29bfe;
-            --danger:#fd79a8;  --success:#55efc4;  --warn:#fdcb6e;
-            --bg:#0b0f19; --card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.10);
-            --text-dim:#718096; --text-sub:#a0aec0;
-        }
-        body {
-            background-color:var(--bg); color:#fff; min-height:100vh;
-            display:flex; flex-direction:column; overflow-x:hidden;
-            background-image:
-                radial-gradient(circle at 15% 50%,rgba(0,242,254,0.07),transparent 32%),
-                radial-gradient(circle at 85% 28%,rgba(79,172,254,0.07),transparent 32%);
-        }
-
-        /* ══ 导航栏 ══ */
-        header {
-            position:fixed; top:0; left:0; width:100%;
-            display:flex; justify-content:space-between; align-items:center;
-            padding:16px 48px; background:rgba(11,15,25,0.78);
-            backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-            border-bottom:1px solid var(--border); z-index:1000;
-        }
-        .logo { display:flex; align-items:baseline; gap:8px; text-decoration:none; }
-        .logo-text { font-size:22px; font-weight:800;
-            background:linear-gradient(90deg,#4facfe 0%,#00f2fe 100%);
-            -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:0.5px; }
-        .logo-sub { font-size:12px; color:var(--text-dim); }
-        nav { display:flex; gap:28px; align-items:center; }
-        nav a { text-decoration:none; color:var(--text-sub); font-size:14px; font-weight:500;
-            transition:all 0.25s; position:relative; }
-        nav a:hover, nav a.active { color:var(--secondary); text-shadow:0 0 8px rgba(0,242,254,0.45); }
-        nav a::after { content:''; position:absolute; width:0; height:2px; bottom:-4px; left:0;
-            background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width 0.3s; }
-        nav a:hover::after, nav a.active::after { width:100%; }
-        /* 导航小红点标签 */
-        .nav-dot {
-            display:inline-block; width:6px; height:6px; background:var(--danger);
-            border-radius:50%; margin-left:4px; vertical-align:top; margin-top:2px;
-            animation:blink-dot 2s ease-in-out infinite;
-        }
-        @keyframes blink-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-
-        /* 侧边栏触发按钮 */
-        .sidebar-btn {
-            background:transparent; border:none; color:var(--text-sub);
-            cursor:pointer; display:flex; align-items:center; padding:4px;
-            margin-left:10px; transition:color 0.3s;
-        }
-        .sidebar-btn:hover { color:var(--secondary); }
-
-        /* ══ 侧边栏及遮罩层样式 ══ */
-        .sidebar-overlay {
-            position:fixed; top:0; left:0; right:0; bottom:0;
-            background:rgba(0,0,0,0.5); backdrop-filter:blur(3px);
-            z-index:1999; opacity:0; visibility:hidden; transition:all 0.3s ease;
-        }
-        .sidebar-overlay.open { opacity:1; visibility:visible; }
-        .sidebar {
-            position:fixed; top:0; right:-320px; width:320px; max-width:85vw; height:100vh;
-            background:rgba(11, 15, 25, 0.95); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-            border-left:1px solid var(--border); z-index:2000;
-            transition:right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display:flex; flex-direction:column; padding:30px 24px; box-shadow:-10px 0 30px rgba(0,0,0,0.5);
-        }
-        .sidebar.open { right:0; }
-        .sidebar-header {
-            display:flex; justify-content:space-between; align-items:center;
-            margin-bottom:30px; padding-bottom:16px; border-bottom:1px solid var(--border);
-        }
-        .sidebar-header h2 { font-size:18px; color:#fff; display:flex; align-items:center; gap:8px; }
-        .close-btn { background:none; border:none; color:var(--text-dim); font-size:28px; line-height:1; cursor:pointer; transition:color 0.2s; }
-        .close-btn:hover { color:var(--danger); }
-        .sidebar-content { display:flex; flex-direction:column; gap:16px; }
-        .sidebar-link {
-            text-decoration:none; color:var(--text-sub); padding:14px 18px;
-            background:var(--card); border:1px solid var(--border); border-radius:12px;
-            transition:all 0.25s ease; display:flex; align-items:center; justify-content:space-between; font-weight:500;
-        }
-        .sidebar-link:hover { background:rgba(79,172,254,0.1); border-color:rgba(79,172,254,0.3); color:var(--primary); transform:translateX(4px); }
-        .sidebar-link.featured { background:linear-gradient(135deg,rgba(79,172,254,0.15),rgba(0,242,254,0.05)); border-color:rgba(79,172,254,0.4); color:var(--secondary); }
-        .sidebar-link.featured:hover { background:linear-gradient(135deg,rgba(79,172,254,0.25),rgba(0,242,254,0.15)); box-shadow:0 4px 15px rgba(0,242,254,0.15); }
-
+        /* ══════════ HOME-specific styles only ══════════ */
         /* ══ 主体 ══ */
         main { flex:1; margin-top:80px; padding:32px 48px; }
 
@@ -626,44 +550,13 @@
 
     document.addEventListener('DOMContentLoaded', loadPortfolioSummary);
 
-    // ── 侧边栏逻辑 ────────────────────────────────────────────────
-    const sidebar        = document.getElementById('sidebar');
-    const sidebarOverlay = document.getElementById('sidebar-overlay');
-    const sidebarToggle  = document.getElementById('sidebar-toggle');
-    const sidebarClose   = document.getElementById('sidebar-close');
-
-    function openSidebar() {
-        sidebar.classList.add('open');
-        sidebarOverlay.classList.add('open');
-        document.body.style.overflow = 'hidden'; 
-    }
-
-    function closeSidebar() {
-        sidebar.classList.remove('open');
-        sidebarOverlay.classList.remove('open');
-        document.body.style.overflow = '';
-    }
-
-    sidebarToggle.addEventListener('click', openSidebar);
-    sidebarClose.addEventListener('click', closeSidebar);
-    sidebarOverlay.addEventListener('click', closeSidebar);
+    // sidebar + auth widget 由 common.js 统一处理
 </script>
-
-<script>
-    function _renderAuthWidget() {
-        const w = document.getElementById('auth-widget');
-        if (!w) return;
-        const u = localStorage.getItem('cq_username') || '';
-        const pg = window.location.pathname.split('/').pop() || 'dashboard.html';
-        if (u) {
-            w.innerHTML = `<span style="font-size:12px;color:var(--text-sub)">👤 ${u}</span>
-                <button onclick="['cq_token','cq_username','cq_user_id'].forEach(k=>localStorage.removeItem(k));_renderAuthWidget();" style="background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#8da2b8;font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;
-        } else {
-            w.innerHTML = `<a href="auth.html?v=20260330-auth-code&redirect=${pg}" style="font-size:12px;color:#4facfe;text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
-        }
-    }
-    document.addEventListener('DOMContentLoaded', _renderAuthWidget);
-</script>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/motion.js"></script>
+<script src="assets/js/aurora.js"></script>
+<script src="assets/js/grid-dots.js"></script>
+<script src="assets/js/pixel-sand.js"></script>
 <script src="shell-bridge.js"></script>
 </body>
 </html>
