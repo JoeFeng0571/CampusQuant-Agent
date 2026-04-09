@@ -18,6 +18,151 @@
             padding:108px 28px 80px; flex:1; display:flex; flex-direction:column; gap:32px; }
         @media(max-width:768px) { .dash-container { padding:84px 16px 48px; gap:20px; } }
 
+        /* ══ HERO v3 — Linear Method 风 ══ */
+        .dash-hero {
+            padding:48px 8px 16px;
+            display:flex;
+            flex-direction:column;
+            gap:18px;
+            position:relative;
+        }
+        .dash-hero-eyebrow {
+            display:inline-flex;
+            align-items:center;
+            gap:10px;
+            font-size:12px;
+            font-weight:600;
+            color:var(--text-2);
+            letter-spacing:0.02em;
+            text-transform:uppercase;
+            font-family:var(--font-mono);
+        }
+        .dash-hero-pulse {
+            display:inline-block;
+            width:6px; height:6px;
+            border-radius:50%;
+            background:var(--mint);
+            box-shadow:0 0 12px var(--mint);
+            animation:hero-pulse 2.4s ease-in-out infinite;
+        }
+        @keyframes hero-pulse {
+            0%,100% { opacity:1; transform:scale(1); }
+            50%     { opacity:.4; transform:scale(.85); }
+        }
+        .dash-hero-sep { opacity:.4; }
+
+        .dash-hero-title {
+            font-family:var(--font-display);
+            font-size:64px;
+            font-weight:800;
+            line-height:1.05;
+            letter-spacing:-0.035em;
+            background:linear-gradient(180deg,#fff 0%,rgba(255,255,255,.7) 100%);
+            -webkit-background-clip:text;
+            background-clip:text;
+            -webkit-text-fill-color:transparent;
+            margin:0;
+            max-width:18ch;
+        }
+        .dash-hero-sub {
+            font-size:18px;
+            color:var(--text-2);
+            line-height:1.55;
+            max-width:48ch;
+            margin:0;
+        }
+
+        .dash-hero-actions {
+            display:flex;
+            gap:12px;
+            flex-wrap:wrap;
+            margin-top:12px;
+        }
+        .dash-hero-btn {
+            display:inline-flex;
+            align-items:center;
+            gap:10px;
+            padding:13px 22px;
+            border-radius:14px;
+            font-size:14px;
+            font-weight:600;
+            text-decoration:none;
+            cursor:pointer;
+            border:1px solid transparent;
+            transition:all .25s cubic-bezier(.16,1,.3,1);
+            font-family:inherit;
+            position:relative;
+            overflow:hidden;
+            isolation:isolate;
+        }
+        .dash-hero-btn i, .dash-hero-btn svg { width:16px; height:16px; flex-shrink:0; }
+        .dash-hero-btn.primary {
+            background:linear-gradient(135deg,#fff,rgba(255,255,255,.9));
+            color:#0a0d17;
+            box-shadow:
+                0 1px 0 rgba(255,255,255,.5) inset,
+                0 4px 14px rgba(0,0,0,.25),
+                0 0 0 1px rgba(255,255,255,.1);
+        }
+        .dash-hero-btn.primary::before {
+            content:''; position:absolute; inset:0;
+            background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.6) 50%,transparent 70%);
+            transform:translateX(-100%); transition:transform .7s cubic-bezier(.16,1,.3,1);
+        }
+        .dash-hero-btn.primary:hover::before { transform:translateX(100%); }
+        .dash-hero-btn.primary:hover {
+            transform:translateY(-2px);
+            box-shadow:
+                0 1px 0 rgba(255,255,255,.5) inset,
+                0 8px 22px rgba(0,0,0,.35),
+                0 0 0 1px rgba(255,255,255,.15);
+        }
+        .dash-hero-btn.ghost {
+            background:rgba(255,255,255,.04);
+            color:var(--text-1);
+            border-color:rgba(255,255,255,.08);
+            backdrop-filter:blur(12px);
+        }
+        .dash-hero-btn.ghost:hover {
+            background:rgba(255,255,255,.08);
+            border-color:rgba(255,255,255,.16);
+            transform:translateY(-2px);
+        }
+        .dash-hero-kbd {
+            font-family:var(--font-mono);
+            font-size:10px;
+            padding:2px 6px;
+            border-radius:5px;
+            background:rgba(255,255,255,.08);
+            border:1px solid rgba(255,255,255,.1);
+            color:var(--text-2);
+            margin-left:4px;
+        }
+
+        .dash-hero-tip {
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+            margin-top:6px;
+            font-size:13px;
+            color:var(--text-2);
+            font-style:italic;
+        }
+        .dash-hero-tip i, .dash-hero-tip svg { width:14px; height:14px; }
+
+        @media(max-width:768px) {
+            .dash-hero { padding:32px 4px 8px; gap:14px; }
+            .dash-hero-title { font-size:42px; }
+            .dash-hero-sub { font-size:15px; }
+            .dash-hero-btn { padding:11px 18px; font-size:13px; }
+            .dash-hero-eyebrow { font-size:11px; }
+        }
+        @media(max-width:480px) {
+            .dash-hero-title { font-size:34px; }
+        }
+
+        /* 老 welcome-card 样式保留兼容（已不用） */
+
         /* ══ WELCOME CARD（升级：渐变描边 + 多层漂浮光球） ══ */
         .welcome-card {
             background:linear-gradient(135deg,rgba(79,172,254,.10),rgba(255,107,157,.04) 50%,rgba(0,242,254,.03));
@@ -107,8 +252,14 @@
         .welcome-btn:hover::before { transform:translateX(100%); }
         .welcome-btn:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(79,172,254,.5); }
 
-        /* ══ QUICK NAV GRID（v3 重设计：文字成主角，图标做角落水印） ══ */
-        .quick-nav-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+        /* ══ QUICK NAV GRID（v4 bento 风：文字成主角，图标做角落水印） ══ */
+        .quick-nav-grid {
+            display:grid;
+            grid-template-columns:repeat(4,1fr);
+            gap:14px;
+        }
+        @media(max-width:1100px) { .quick-nav-grid { grid-template-columns:repeat(2,1fr); } }
+        @media(max-width:560px)  { .quick-nav-grid { grid-template-columns:1fr; } }
         .qnav-item {
             background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.025));
             border:1px solid rgba(255,255,255,.10);
@@ -500,24 +651,37 @@
 
 <main class="dash-container">
 
-    <!-- ① WELCOME CARD -->
-    <div class="welcome-card mouse-glow fade-in-up">
-        <div class="welcome-left">
-            <div class="welcome-greeting" id="welcome-text">欢迎回来 👋</div>
-            <div class="welcome-sub" id="welcome-sub">今天是个学习的好日子，你的模拟账户在等你</div>
-            <div class="welcome-badges">
-                <span class="badge badge-date" id="badge-date">📅 --</span>
-                <span class="badge badge-status" id="badge-status">✅ 账户健康</span>
-                <span class="badge badge-tip" id="badge-tip">💡 建议今日复盘</span>
-            </div>
+    <!-- ① HERO（v3：Linear Method 风，多层节奏） -->
+    <section class="dash-hero fade-in-up">
+        <div class="dash-hero-eyebrow">
+            <span class="dash-hero-pulse"></span>
+            <span id="badge-date">--</span>
+            <span class="dash-hero-sep">·</span>
+            <span>校园财商 · AI 投研平台</span>
         </div>
-        <div class="welcome-right">
-            <a href="trade.html" class="welcome-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-                开始模拟交易
+        <h1 class="dash-hero-title" id="welcome-text">欢迎回来</h1>
+        <p class="dash-hero-sub" id="welcome-sub">今天是个学习的好日子</p>
+        <div class="dash-hero-actions">
+            <a href="trade.html" class="dash-hero-btn primary">
+                <i data-lucide="line-chart"></i>
+                <span>开始模拟交易</span>
+                <i data-lucide="arrow-right" style="opacity:.7"></i>
             </a>
+            <a href="analysis.html" class="dash-hero-btn ghost">
+                <i data-lucide="search-code"></i>
+                <span>AI 个股分析</span>
+            </a>
+            <button class="dash-hero-btn ghost" onclick="cqCommandPalette && cqCommandPalette.open()">
+                <i data-lucide="command"></i>
+                <span>命令面板</span>
+                <kbd class="dash-hero-kbd">⌘K</kbd>
+            </button>
         </div>
-    </div>
+        <div class="dash-hero-tip">
+            <i data-lucide="sparkles" style="color:var(--warm)"></i>
+            <span id="badge-tip">建议今日复盘</span>
+        </div>
+    </section>
 
     <!-- ② QUICK NAV GRID -->
     <div class="quick-nav-grid stagger-children">

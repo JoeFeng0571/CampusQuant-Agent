@@ -17,6 +17,9 @@
     // 文字页 quiet 模式：用 4 个光团 + 低透明度
     const BG_MODE = (document.body && document.body.dataset.bgMode) ||
                     (document.documentElement && document.documentElement.dataset.bgMode) || 'ambient';
+    // 移动端 quiet 模式（降低强度但保留极光氛围）
+    const IS_MOBILE = window.matchMedia('(max-width: 768px)').matches;
+    const EFFECTIVE_MODE = IS_MOBILE && BG_MODE === 'ambient' ? 'quiet' : BG_MODE;
 
     // 8 个光团配置：颜色 / 起始位置 / 大小 / 漂移路径
     const ORBS_FULL = [
@@ -36,10 +39,10 @@
         size: o.size * 0.85,
         // 颜色不变，下面 opacity 通过 stage 整体调
     }));
-    const ORBS = BG_MODE === 'quiet' || BG_MODE === 'minimal' ? ORBS_QUIET : ORBS_FULL;
-    const STAGE_OPACITY = BG_MODE === 'minimal' ? 0.25 :
-                          BG_MODE === 'quiet'   ? 0.5  : 1;
-    if (BG_MODE === 'off') return;
+    const ORBS = EFFECTIVE_MODE === 'quiet' || EFFECTIVE_MODE === 'minimal' ? ORBS_QUIET : ORBS_FULL;
+    const STAGE_OPACITY = EFFECTIVE_MODE === 'minimal' ? 0.25 :
+                          EFFECTIVE_MODE === 'quiet'   ? 0.5  : 1;
+    if (EFFECTIVE_MODE === 'off') return;
 
     // 容器（fixed 全屏）
     const stage = document.createElement('div');

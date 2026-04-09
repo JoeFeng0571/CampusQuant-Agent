@@ -16,6 +16,11 @@
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         return;
     }
+    // 移动端：关掉以节省 CPU/电池
+    if (window.matchMedia('(max-width: 768px)').matches
+     || window.matchMedia('(hover: none) and (pointer: coarse)').matches) {
+        return;
+    }
     // 文字页 quiet/minimal/off 模式：直接不显示流沙（容易让文字眼花）
     const BG_MODE = (document.body && document.body.dataset.bgMode) ||
                     (document.documentElement && document.documentElement.dataset.bgMode) || 'ambient';

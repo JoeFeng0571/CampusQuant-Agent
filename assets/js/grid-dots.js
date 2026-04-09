@@ -15,6 +15,11 @@
     const REDUCE = window.matchMedia
         && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+    // 移动端 / 触摸设备：关掉以节省 CPU/电池
+    const IS_MOBILE = window.matchMedia('(max-width: 768px)').matches
+                   || window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+    if (IS_MOBILE) return;
+
     // 文字页 quiet 模式：放大间距 + 减少高亮 + 关脉冲
     const BG_MODE = (document.body && document.body.dataset.bgMode) ||
                     (document.documentElement && document.documentElement.dataset.bgMode) || 'ambient';
