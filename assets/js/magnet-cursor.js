@@ -7,6 +7,26 @@
 (function () {
     'use strict';
 
+    // ── 防御性清理：清掉旧版自定义光标的残留（Cloudflare 缓存可能 serve 老 JS）
+    function cleanupOldCursor() {
+        document.documentElement.style.cursor = '';
+        if (document.body) document.body.style.cursor = '';
+        const oldRing = document.getElementById('cq-cursor-ring');
+        const oldDot = document.getElementById('cq-cursor-dot');
+        if (oldRing) oldRing.remove();
+        if (oldDot) oldDot.remove();
+        // 清掉旧版注入的 cursor:none CSS
+        document.querySelectorAll('style').forEach(s => {
+            if (s.textContent && s.textContent.includes('cursor: none !important')) {
+                s.remove();
+            }
+        });
+    }
+    cleanupOldCursor();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', cleanupOldCursor);
+    }
+
     if (window.matchMedia('(hover: none) and (pointer: coarse)').matches) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
