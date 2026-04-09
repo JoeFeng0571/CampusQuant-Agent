@@ -14,8 +14,12 @@
     const REDUCE = window.matchMedia
         && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+    // 文字页 quiet 模式：用 4 个光团 + 低透明度
+    const BG_MODE = (document.body && document.body.dataset.bgMode) ||
+                    (document.documentElement && document.documentElement.dataset.bgMode) || 'ambient';
+
     // 8 个光团配置：颜色 / 起始位置 / 大小 / 漂移路径
-    const ORBS = [
+    const ORBS_FULL = [
         { color: '79,172,254',  size: 760, top:'-15%', left:'-10%',  driftX: 18, driftY: 12, dur: 32 },
         { color: '0,242,254',   size: 620, top:'5%',   left: '60%',  driftX:-14, driftY: 16, dur: 30 },
         { color: '162,155,254', size: 700, top:'40%',  left:'-15%',  driftX: 16, driftY:-12, dur: 36 },
@@ -25,6 +29,17 @@
         { color: '255,107,157', size: 520, top:'80%',  left:'-5%',   driftX: 20, driftY:-12, dur: 30 },
         { color: '94,234,212',  size: 480, top:'25%',  left: '85%',  driftX:-16, driftY: 14, dur: 33 },
     ];
+
+    // quiet 模式：减半光团 + 更低不透明度（文字页用）
+    const ORBS_QUIET = ORBS_FULL.filter((_, i) => i % 2 === 0).map(o => ({
+        ...o,
+        size: o.size * 0.85,
+        // 颜色不变，下面 opacity 通过 stage 整体调
+    }));
+    const ORBS = BG_MODE === 'quiet' || BG_MODE === 'minimal' ? ORBS_QUIET : ORBS_FULL;
+    const STAGE_OPACITY = BG_MODE === 'minimal' ? 0.25 :
+                          BG_MODE === 'quiet'   ? 0.5  : 1;
+    if (BG_MODE === 'off') return;
 
     // 容器（fixed 全屏）
     const stage = document.createElement('div');
@@ -40,6 +55,10 @@
         // 内置一层非常微弱的暗色蒙版，保证内容可读
         'background:radial-gradient(ellipse at 50% 60%,transparent,rgba(10,13,23,.35) 70%)',
     ].join(';');
+    // 应用 quiet/minimal 整体透明度
+    if (STAGE_OPACITY < 1) {
+        stage.dataset.targetOpacity = String(STAGE_OPACITY);
+    }
 
     // CSS 注入（用 ::before 不行，得真元素）
     const styleTag = document.createElement('style');
@@ -87,7 +106,9 @@
 
     function mount() {
         document.body.appendChild(stage);
-        requestAnimationFrame(() => { stage.style.opacity = '1'; });
+        requestAnimationFrame(() => {
+            stage.style.opacity = stage.dataset.targetOpacity || '1';
+        });
     }
     if (document.body) mount();
     else document.addEventListener('DOMContentLoaded', mount);

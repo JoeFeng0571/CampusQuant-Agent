@@ -15,12 +15,19 @@
     const REDUCE = window.matchMedia
         && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    const GAP = 36;            // 点间距
-    const DOT_SIZE = 1.5;      // 点直径
-    const HIGHLIGHT_RATE = 0.08;  // 8% 的点是高亮的
-    const PULSE_PROB = 0.003;     // 每帧每个点 0.3% 概率开始脉冲
-    const PULSE_DUR = 1800;       // 脉冲持续 ms
-    const MOUSE_RADIUS = 140;     // 鼠标影响半径
+    // 文字页 quiet 模式：放大间距 + 减少高亮 + 关脉冲
+    const BG_MODE = (document.body && document.body.dataset.bgMode) ||
+                    (document.documentElement && document.documentElement.dataset.bgMode) || 'ambient';
+    if (BG_MODE === 'off' || BG_MODE === 'minimal') return;
+
+    const QUIET = BG_MODE === 'quiet';
+    const GAP = QUIET ? 56 : 36;
+    const DOT_SIZE = 1.5;
+    const HIGHLIGHT_RATE = QUIET ? 0.04 : 0.08;
+    const PULSE_PROB = QUIET ? 0.0008 : 0.003;
+    const PULSE_DUR = 1800;
+    const MOUSE_RADIUS = QUIET ? 100 : 140;
+    const STAGE_OPACITY = QUIET ? 0.55 : 1;
 
     // ── canvas
     const canvas = document.createElement('canvas');
@@ -38,7 +45,7 @@
 
     function mount() {
         document.body.appendChild(canvas);
-        requestAnimationFrame(() => { canvas.style.opacity = '1'; });
+        requestAnimationFrame(() => { canvas.style.opacity = String(STAGE_OPACITY); });
     }
     if (document.body) mount();
     else document.addEventListener('DOMContentLoaded', mount);

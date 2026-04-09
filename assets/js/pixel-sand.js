@@ -16,6 +16,10 @@
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         return;
     }
+    // 文字页 quiet/minimal/off 模式：直接不显示流沙（容易让文字眼花）
+    const BG_MODE = (document.body && document.body.dataset.bgMode) ||
+                    (document.documentElement && document.documentElement.dataset.bgMode) || 'ambient';
+    if (BG_MODE !== 'ambient') return;
 
     // 调色板（与 tokens.css 同步）
     const PALETTE = [
