@@ -2,8 +2,19 @@
    Base reset + body background
    字体来自 fonts.bunny.net（Google Fonts 隐私友好镜像，国内可达）
    多字体系统：Inter (UI) + Manrope (display) + Source Serif (editorial) + JetBrains Mono (code)
+   优化：用 display:swap，FOUT 不阻塞 first paint
    ════════════════════════════════════════════════════════ */
 @import url('https://fonts.bunny.net/css?family=inter:400,500,600,700,800|manrope:500,600,700,800|source-serif-4:400,500,600,700|jetbrains-mono:400,500,700&display=swap');
+
+/* 系统字体 fallback 立即可用 */
+@font-face {
+    font-family: 'Inter Fallback';
+    src: local('-apple-system'), local('BlinkMacSystemFont'), local('PingFang SC'), local('Microsoft YaHei');
+    ascent-override: 90%;
+    descent-override: 22.5%;
+    line-gap-override: 0%;
+    size-adjust: 100%;
+}
 
 * {
     margin: 0;
