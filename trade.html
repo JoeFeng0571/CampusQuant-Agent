@@ -49,7 +49,12 @@
         .mat-pnl.flat { color:var(--text-sub); }
 
         /* ══ TRADING AREA ══ */
-        .trade-grid { display:grid; grid-template-columns:1fr 340px; gap:20px; align-items:start; }
+        /* align-items 默认 stretch：行情卡会拉伸到与下单卡同高 */
+        .trade-grid { display:grid; grid-template-columns:1fr 340px; gap:20px; }
+        /* 行情卡内部 flex 布局，让 kline 区域占满剩余空间 */
+        .quote-panel { display:flex; flex-direction:column; }
+        .quote-panel .kline-section { flex:1; display:flex; flex-direction:column; }
+        .quote-panel .kline-section #trade-kline-chart { flex:1; min-height:0; }
 
         /* quote panel */
         .quote-panel { background:var(--card); border:1px solid var(--border);
@@ -350,23 +355,32 @@
             color:var(--text-dim); font-size:13px; }
 
         /* ══════════ PHASE 3 WOW ══════════ */
-        /* 三市场 tab 升级：active 时持续脉冲发光 */
+        /* 三市场 tab 升级：active 时持续脉冲发光（用 ::after 伪元素，避免覆盖元素自身的 animation） */
         .mkt-acct-tab {
             backdrop-filter:blur(12px);
         }
-        .mkt-acct-tab.active {
-            animation:pulse-tab 3s ease-in-out infinite;
+        .mkt-acct-tab.active::after {
+            content:''; position:absolute; inset:-1px; border-radius:inherit;
+            pointer-events:none;
+            box-shadow:0 4px 20px rgba(79,172,254,.12);
+            animation:pulse-shadow 3s ease-in-out infinite;
         }
-        @keyframes pulse-tab {
-            0%,100% { box-shadow:0 4px 20px rgba(79,172,254,.12); }
+        @keyframes pulse-shadow {
+            0%,100% { box-shadow:0 4px 20px rgba(79,172,254,.12), 0 0 0 1px rgba(79,172,254,.0); }
             50%     { box-shadow:0 4px 28px rgba(79,172,254,.28), 0 0 0 1px rgba(0,242,254,.3); }
         }
-        .mkt-acct-tab[data-mkt="A"].active  { animation-name:pulse-tab-a; }
-        .mkt-acct-tab[data-mkt="HK"].active { animation-name:pulse-tab-hk; }
-        .mkt-acct-tab[data-mkt="US"].active { animation-name:pulse-tab-us; }
-        @keyframes pulse-tab-a  { 0%,100%{box-shadow:0 4px 16px rgba(231,76,60,.12)} 50%{box-shadow:0 4px 26px rgba(231,76,60,.32)} }
-        @keyframes pulse-tab-hk { 0%,100%{box-shadow:0 4px 16px rgba(46,204,113,.12)} 50%{box-shadow:0 4px 26px rgba(46,204,113,.32)} }
-        @keyframes pulse-tab-us { 0%,100%{box-shadow:0 4px 16px rgba(52,152,219,.12)} 50%{box-shadow:0 4px 26px rgba(52,152,219,.32)} }
+        .mkt-acct-tab[data-mkt="A"].active::after  {
+            animation:pulse-shadow-a 3s ease-in-out infinite;
+        }
+        .mkt-acct-tab[data-mkt="HK"].active::after {
+            animation:pulse-shadow-hk 3s ease-in-out infinite;
+        }
+        .mkt-acct-tab[data-mkt="US"].active::after {
+            animation:pulse-shadow-us 3s ease-in-out infinite;
+        }
+        @keyframes pulse-shadow-a  { 0%,100%{box-shadow:0 4px 18px rgba(231,76,60,.15)}  50%{box-shadow:0 4px 30px rgba(231,76,60,.4),0 0 0 1px rgba(231,76,60,.4)} }
+        @keyframes pulse-shadow-hk { 0%,100%{box-shadow:0 4px 18px rgba(46,204,113,.15)} 50%{box-shadow:0 4px 30px rgba(46,204,113,.4),0 0 0 1px rgba(46,204,113,.4)} }
+        @keyframes pulse-shadow-us { 0%,100%{box-shadow:0 4px 18px rgba(52,152,219,.15)} 50%{box-shadow:0 4px 30px rgba(52,152,219,.4),0 0 0 1px rgba(52,152,219,.4)} }
 
         /* 资金数字 tabular-nums + 涨跌色变化时闪一下 */
         .mat-cash, .stat-value, .price-big, .est-value, tbody td {
