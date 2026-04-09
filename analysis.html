@@ -16,11 +16,60 @@
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js" defer></script>
     <style>
         /* ══════════ ANALYSIS-specific styles only ══════════ */
+        /* ══ HERO ══ */
+        .analysis-hero {
+            margin-top: 80px;
+            padding: 32px 48px 0;
+            max-width: 1320px;
+            margin-left: auto;
+            margin-right: auto;
+            width: 100%;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        .analysis-hero-eyebrow {
+            display: inline-flex; align-items: center; gap: 10px;
+            font-size: 11px; font-weight: 600; color: rgba(255,255,255,.55);
+            letter-spacing: 0.08em; text-transform: uppercase;
+            font-family: var(--font-mono);
+        }
+        .analysis-hero-pulse {
+            display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+            background: #4facfe; box-shadow: 0 0 12px #4facfe;
+            animation: analysis-pulse 2.4s ease-in-out infinite;
+        }
+        @keyframes analysis-pulse {
+            0%,100% { opacity: 1; transform: scale(1); }
+            50%     { opacity: .4; transform: scale(.85); }
+        }
+        .analysis-hero-title {
+            font-family: var(--font-display);
+            font-size: 48px; font-weight: 800; line-height: 1.05;
+            letter-spacing: -0.03em;
+            background: linear-gradient(180deg, #fff 0%, rgba(255,255,255,.7) 100%);
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+        }
+        .analysis-hero-sub {
+            font-size: 15px; color: rgba(255,255,255,.65);
+            line-height: 1.6; max-width: 60ch; margin: 0;
+        }
+        @media(max-width:768px) {
+            .analysis-hero { padding: 24px 16px 0; }
+            .analysis-hero-title { font-size: 32px; }
+        }
+
         /* ══ 主体布局 ══ */
         main {
-            flex:1; margin-top:80px;
+            flex:1;
+            margin-top:24px;
             display:grid; grid-template-columns:360px 1fr;
-            gap:24px; padding:32px 48px; align-items:start;
+            gap:24px;
+            padding:24px 48px 80px;
+            max-width:1320px;
+            margin-left:auto; margin-right:auto;
+            width:100%;
+            align-items:start;
         }
 
         /* ── 左侧控制面板 ── */
@@ -502,6 +551,15 @@
         </a>
     </div>
 </aside>
+
+<section class="analysis-hero fade-in-down">
+    <div class="analysis-hero-eyebrow">
+        <span class="analysis-hero-pulse"></span>
+        <span>MULTI-AGENT AI · 多智能体研究</span>
+    </div>
+    <h1 class="analysis-hero-title">个股 AI 深度分析</h1>
+    <p class="analysis-hero-sub">基本面 · 技术面 · 情绪面 · 风控 · 多智能体并行研究 · 实时流式输出</p>
+</section>
 
 <main>
     <!-- 左侧控制面板 -->

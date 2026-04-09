@@ -14,7 +14,46 @@
     <style>
         /* ══════════ TEAM-specific styles only ══════════ */
         /* ══ 主体 ══ */
-        main { flex:1; margin-top:80px; padding:40px 48px; display:flex; flex-direction:column; align-items:center; }
+        main { flex:1; margin-top:80px; padding:32px 48px 80px; display:flex; flex-direction:column; align-items:center;
+               max-width:1320px; margin-left:auto; margin-right:auto; width:100%; }
+
+        .team-hero {
+            display:flex; flex-direction:column; gap:14px;
+            margin-bottom:48px;
+            align-self:stretch;
+            padding:0 4px;
+        }
+        .team-hero-eyebrow {
+            display:inline-flex; align-items:center; gap:10px;
+            font-size:11px; font-weight:600; color:rgba(255,255,255,.55);
+            letter-spacing:0.08em; text-transform:uppercase;
+            font-family:var(--font-mono);
+        }
+        .team-hero-pulse {
+            display:inline-block; width:6px; height:6px; border-radius:50%;
+            background:#ff9a56; box-shadow:0 0 12px #ff9a56;
+            animation:team-pulse 2.4s ease-in-out infinite;
+        }
+        @keyframes team-pulse {
+            0%,100% { opacity:1; transform:scale(1); }
+            50%     { opacity:.4; transform:scale(.85); }
+        }
+        .team-hero-title {
+            font-family:var(--font-display);
+            font-size:48px; font-weight:800; line-height:1.05;
+            letter-spacing:-0.03em;
+            background:linear-gradient(180deg,#fff 0%,rgba(255,255,255,.7) 100%);
+            -webkit-background-clip:text; background-clip:text;
+            -webkit-text-fill-color:transparent;
+            margin:0;
+        }
+        .team-hero-sub {
+            font-size:15px; color:rgba(255,255,255,.65);
+            line-height:1.6; max-width:60ch; margin:0;
+        }
+        @media(max-width:768px) {
+            .team-hero-title { font-size:34px; }
+        }
 
         .page-header { text-align:center; margin-bottom:48px; }
         .page-header h1 { font-size:32px; font-weight:700; margin-bottom:10px; }
@@ -308,10 +347,14 @@
 </aside>
 
 <main>
-    <div class="page-header">
-        <h1>关于 CampusQuant</h1>
-        <p>我们是一群热爱金融与 AI 的在校学生，致力于让每位大学生都能安全、理性地学习投资知识。</p>
-    </div>
+    <section class="team-hero fade-in-down">
+        <div class="team-hero-eyebrow">
+            <span class="team-hero-pulse"></span>
+            <span>OUR STORY · 团队故事</span>
+        </div>
+        <h1 class="team-hero-title">关于 CampusQuant</h1>
+        <p class="team-hero-sub">我们是一群热爱金融与 AI 的在校学生 · 致力于让每位大学生都能安全、理性地学习投资知识</p>
+    </section>
 
     <!-- 使命 -->
     <div class="mission-card">

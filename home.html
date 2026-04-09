@@ -14,7 +14,45 @@
     <style>
         /* ══════════ HOME-specific styles only ══════════ */
         /* ══ 主体 ══ */
-        main { flex:1; margin-top:80px; padding:32px 48px; }
+        main { flex:1; margin-top:80px; padding:32px 48px 80px;
+               max-width:1320px; margin-left:auto; margin-right:auto; width:100%; }
+
+        .home-hero {
+            display:flex; flex-direction:column; gap:14px;
+            margin-bottom:32px;
+            padding:0 4px;
+        }
+        .home-hero-eyebrow {
+            display:inline-flex; align-items:center; gap:10px;
+            font-size:11px; font-weight:600; color:rgba(255,255,255,.55);
+            letter-spacing:0.08em; text-transform:uppercase;
+            font-family:var(--font-mono);
+        }
+        .home-hero-pulse {
+            display:inline-block; width:6px; height:6px; border-radius:50%;
+            background:#5eead4; box-shadow:0 0 12px #5eead4;
+            animation:home-pulse 2.4s ease-in-out infinite;
+        }
+        @keyframes home-pulse {
+            0%,100% { opacity:1; transform:scale(1); }
+            50%     { opacity:.4; transform:scale(.85); }
+        }
+        .home-hero-title {
+            font-family:var(--font-display);
+            font-size:48px; font-weight:800; line-height:1.05;
+            letter-spacing:-0.03em;
+            background:linear-gradient(180deg,#fff 0%,rgba(255,255,255,.7) 100%);
+            -webkit-background-clip:text; background-clip:text;
+            -webkit-text-fill-color:transparent;
+            margin:0;
+        }
+        .home-hero-sub {
+            font-size:15px; color:rgba(255,255,255,.65);
+            line-height:1.6; max-width:60ch; margin:0;
+        }
+        @media(max-width:768px) {
+            .home-hero-title { font-size:34px; }
+        }
 
         .page-header { margin-bottom:32px; }
         .page-header h1 { font-size:26px; font-weight:700; margin-bottom:6px; }
@@ -336,10 +374,14 @@
 </aside>
 
 <main>
-    <div class="page-header">
-        <h1>学习中心</h1>
-        <p>模拟持仓概览 · 自选股监控 · AI 分析历史</p>
-    </div>
+    <section class="home-hero fade-in-down">
+        <div class="home-hero-eyebrow">
+            <span class="home-hero-pulse"></span>
+            <span>LEARNING CENTER · 学习中心</span>
+        </div>
+        <h1 class="home-hero-title">学习中心</h1>
+        <p class="home-hero-sub">模拟持仓概览 · 自选股监控 · AI 分析历史 · 一站查看你的全部学习数据</p>
+    </section>
 
     <!-- 数据摘要 -->
     <div class="summary-row">
