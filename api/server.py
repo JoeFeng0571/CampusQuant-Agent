@@ -619,7 +619,7 @@ async def _stream_graph_events(
         elif isinstance(final_order_raw, dict):
             final_order = final_order_raw
         else:
-            final_order = final_order or {}
+            final_order = {}
 
         def _pct(v):
             try: return f"{float(v):.1%}"
@@ -687,6 +687,35 @@ async def _stream_graph_events(
             _eps = _fund_data["eps"]
         if not _total_cap and _fund_data.get("total_market_cap"):
             _total_cap = _fund_data["total_market_cap"]
+
+        # 路径4: yfinance fallback（港股/美股的最后手段）
+        if not _pe or not _eps:
+            try:
+                _mkt = last_state.get("market_type", "")
+                if _mkt in ("HK_STOCK", "US_STOCK") or not symbol.endswith(('.SH', '.SZ')):
+                    import yfinance as yf
+                    _yf_sym = symbol
+                    if '.HK' in symbol:
+                        # 03690.HK → 3690.HK (yfinance format)
+                        _yf_sym = symbol.replace('.HK', '').lstrip('0') + '.HK'
+                    _info = yf.Ticker(_yf_sym).info or {}
+                    if not _pe:
+                        _pe = _info.get("trailingPE") or _info.get("forwardPE")
+                    if not _pb:
+                        _pb = _info.get("priceToBook")
+                    if not _eps:
+                        _eps = _info.get("trailingEps")
+                    if not _roe:
+                        _roe_raw = _info.get("returnOnEquity")
+                        if _roe_raw:
+                            _roe = round(_roe_raw * 100, 2)  # 0.24 → 24.0
+                    if not _total_cap:
+                        _mc = _info.get("marketCap")
+                        if _mc:
+                            _total_cap = f"{_mc / 1e8:.0f}亿"
+                    logger.info(f"[stream] yfinance 补充指标: {symbol} pe={_pe} pb={_pb} roe={_roe} eps={_eps}")
+            except Exception as _yf_err:
+                logger.warning(f"[stream] yfinance 指标获取失败: {_yf_err}")
         _pe_display = f"{_pe:.1f}" if isinstance(_pe, (int, float)) else "--"
         _pb_display = f"{_pb:.2f}" if isinstance(_pb, (int, float)) else "--"
         _roe_display = f"{_roe:.2f}%" if isinstance(_roe, (int, float)) else "--"
