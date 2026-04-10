@@ -601,11 +601,25 @@ async def _stream_graph_events(
         final_order = last_state.get("trade_order") or {}
 
         # 编译 Markdown 深度研报（所有字段全部使用 .get() 安全提取）
-        fundamental = last_state.get("fundamental_report") or {}
-        technical   = last_state.get("technical_report")   or {}
-        sentiment   = last_state.get("sentiment_report")   or {}
-        debate      = last_state.get("debate_outcome")      or {}
-        risk        = last_state.get("risk_decision")       or {}
+        # 安全提取：可能是 Pydantic model 或 dict
+        def _safe_dict(obj):
+            if obj is None: return {}
+            if isinstance(obj, dict): return obj
+            if hasattr(obj, 'model_dump'): return obj.model_dump()
+            return dict(obj) if hasattr(obj, '__iter__') else {}
+
+        fundamental = _safe_dict(last_state.get("fundamental_report"))
+        technical   = _safe_dict(last_state.get("technical_report"))
+        sentiment   = _safe_dict(last_state.get("sentiment_report"))
+        debate      = _safe_dict(last_state.get("debate_outcome"))
+        risk        = _safe_dict(last_state.get("risk_decision"))
+        final_order_raw = last_state.get("trade_order")
+        if final_order_raw and hasattr(final_order_raw, 'model_dump'):
+            final_order = final_order_raw.model_dump()
+        elif isinstance(final_order_raw, dict):
+            final_order = final_order_raw
+        else:
+            final_order = final_order or {}
 
         def _pct(v):
             try: return f"{float(v):.1%}"
@@ -640,12 +654,39 @@ async def _stream_graph_events(
         _total_cap = _fund_key_metrics.get('total_market_cap', None)
         _latest_price = last_state.get("market_data", {}).get("latest_price", None)
 
-        # 【Phase 3 Fix】PE/PB 为 None 时从 EPS + 价格自动计算
+        # 【Phase 3 Fix】PE/PB/ROE 为 None 时尝试多路补算
+        # 路径1: 从 EPS + 价格算 PE
         if not _pe and _eps and _latest_price:
             try:
                 _pe = round(float(_latest_price) / float(_eps), 2)
             except (TypeError, ValueError, ZeroDivisionError):
                 pass
+        # 路径2: 从 market_data.indicators 补充（data_node 可能已从 akshare/yfinance 拿到）
+        _indicators = last_state.get("market_data", {}).get("indicators", {})
+        if not _pe:
+            _pe = _indicators.get("pe") or _indicators.get("PE")
+        if not _pb:
+            _pb = _indicators.get("pb") or _indicators.get("PB")
+        if not _roe:
+            _roe = _indicators.get("roe") or _indicators.get("ROE")
+        if not _eps:
+            _eps = _indicators.get("eps") or _indicators.get("EPS")
+        # 路径3: 从 fundamental_data (原始财务数据) 提取
+        _fund_data = last_state.get("fundamental_data") or {}
+        if isinstance(_fund_data, str):
+            import json as _json
+            try: _fund_data = _json.loads(_fund_data)
+            except: _fund_data = {}
+        if not _pe and _fund_data.get("pe"):
+            _pe = _fund_data["pe"]
+        if not _pb and _fund_data.get("pb"):
+            _pb = _fund_data["pb"]
+        if not _roe and _fund_data.get("roe"):
+            _roe = _fund_data["roe"]
+        if not _eps and _fund_data.get("eps"):
+            _eps = _fund_data["eps"]
+        if not _total_cap and _fund_data.get("total_market_cap"):
+            _total_cap = _fund_data["total_market_cap"]
         _pe_display = f"{_pe:.1f}" if isinstance(_pe, (int, float)) else "--"
         _pb_display = f"{_pb:.2f}" if isinstance(_pb, (int, float)) else "--"
         _roe_display = f"{_roe:.2f}%" if isinstance(_roe, (int, float)) else "--"
@@ -876,6 +917,38 @@ async def _stream_graph_events(
         revenue_data = key_metrics.get("revenue_history") or []
         profit_data  = key_metrics.get("profit_history")  or []
         data_years   = key_metrics.get("years") or []
+
+        # 【Fix】港股/美股 key_metrics 为空时，尝试 yfinance 补充财务数据
+        if not revenue_data and symbol:
+            try:
+                _mkt = last_state.get("market_type", "")
+                if _mkt in ("HK_STOCK", "US_STOCK") or not symbol.endswith(('.SH', '.SZ')):
+                    import yfinance as yf
+                    _yf_sym = symbol.replace('.HK', '') + '.HK' if '.HK' in symbol else symbol
+                    _ticker = yf.Ticker(_yf_sym)
+                    _fin = getattr(_ticker, 'financials', None)
+                    if _fin is not None and not _fin.empty:
+                        # yfinance financials: columns=dates(recent→old), rows=items
+                        _cols = list(reversed(_fin.columns))[-5:]
+                        data_years = [str(c.year) for c in _cols]
+                        _rev_row = None
+                        for _label in ['Total Revenue', 'Operating Revenue', 'Revenue']:
+                            if _label in _fin.index:
+                                _rev_row = _fin.loc[_label]
+                                break
+                        _profit_row = None
+                        for _label in ['Net Income', 'Net Income Common Stockholders']:
+                            if _label in _fin.index:
+                                _profit_row = _fin.loc[_label]
+                                break
+                        if _rev_row is not None:
+                            revenue_data = [round(float(_rev_row[c]) / 1e8, 2) for c in _cols]
+                        if _profit_row is not None:
+                            profit_data = [round(float(_profit_row[c]) / 1e8, 2) for c in _cols]
+                        logger.info(f"[stream] yfinance 补充财务数据: {symbol} years={data_years}")
+            except Exception as _yf_err:
+                logger.warning(f"[stream] yfinance 财务数据获取失败: {_yf_err}")
+
         # 优先使用真实历史年份；无数据时回退到近5年占位
         if data_years and revenue_data:
             chart_years  = [str(y) for y in data_years[-5:]]

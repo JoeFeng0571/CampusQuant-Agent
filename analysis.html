@@ -169,15 +169,31 @@
         #report-pane h1 { font-size:20px; font-weight:800; color:#fff; margin-bottom:12px; }
         #report-pane h2 { font-size:16px; font-weight:700; color:var(--primary);
             margin:22px 0 10px; border-bottom:1px solid var(--border); padding-bottom:6px; }
-        #report-pane table { width:100%; border-collapse:collapse; margin:10px 0; }
+        #report-pane table { width:100%; border-collapse:collapse; margin:10px 0; table-layout:auto; }
         #report-pane th { background:rgba(79,172,254,0.1); color:var(--primary);
-            padding:7px 12px; font-size:12px; text-align:left; }
-        #report-pane td { padding:7px 12px; border-bottom:1px solid rgba(255,255,255,0.05); font-size:13px; }
-        #report-pane blockquote { border-left:3px solid var(--primary); padding-left:12px;
-            color:var(--text-sub); margin:10px 0; font-size:13px; }
-        #report-pane p { margin:6px 0; }
+            padding:8px 14px; font-size:12px; text-align:left; white-space:nowrap; }
+        #report-pane td { padding:8px 14px; border-bottom:1px solid rgba(255,255,255,0.05); font-size:13px; }
+        /* 情景分析等表格第一列不换行 */
+        #report-pane td:first-child { white-space:nowrap; min-width:60px; }
+        #report-pane blockquote { border-left:3px solid var(--primary); padding-left:14px;
+            color:var(--text-sub); margin:12px 0; font-size:14px; line-height:1.7; }
+        #report-pane p { margin:8px 0; }
         #report-pane strong { color:#fff; }
         #report-pane hr { border:none; border-top:1px solid var(--border); margin:18px 0; }
+        /* 详细分析过程 — 更显眼 */
+        #report-pane details {
+            margin:16px 0; padding:14px 18px;
+            background:rgba(79,172,254,0.06); border:1px solid rgba(79,172,254,0.2);
+            border-radius:10px;
+        }
+        #report-pane details summary {
+            cursor:pointer; font-size:15px; font-weight:700; color:var(--primary);
+            padding:4px 0;
+        }
+        #report-pane details summary:hover { color:var(--secondary); }
+        #report-pane details[open] summary { margin-bottom:12px; }
+        /* 表格居中对齐列 */
+        #report-pane td[align="center"], #report-pane th[align="center"] { text-align:center; }
         #report-placeholder { text-align:center; padding:48px; color:var(--text-dim);
             font-size:13px; }
 
