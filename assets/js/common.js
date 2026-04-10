@@ -130,8 +130,6 @@
                     border-color: rgba(129,140,248,.30);
                     color: #818cf8;
                 }
-                [data-theme="light"] .cq-nav-tool { color: rgba(0,0,0,.45); border-color: rgba(0,0,0,.08); background: transparent; }
-                [data-theme="light"] .cq-nav-tool:hover { background: rgba(79,70,229,.08); border-color: rgba(79,70,229,.22); color: #4f46e5; }
                 @media (max-width: 768px) {
                     .cq-nav-tools { display: none !important; }
                 }

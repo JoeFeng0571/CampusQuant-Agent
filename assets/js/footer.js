@@ -62,9 +62,6 @@
         }
 
         /* Light mode */
-        [data-theme="light"] .cq-footer {
-            border-top-color: rgba(0,0,0,.09);
-        }
 
         .cq-footer-grid {
             display: grid;
@@ -74,9 +71,6 @@
             margin: 0 auto;
             padding-bottom: 24px;
             border-bottom: 1px solid var(--border, rgba(255,255,255,.09));
-        }
-        [data-theme="light"] .cq-footer-grid {
-            border-bottom-color: rgba(0,0,0,.09);
         }
 
         .cq-footer-brand { max-width: 280px; }
@@ -88,7 +82,6 @@
             color: var(--text, rgba(255,255,255,.92));
             margin-bottom: 10px;
         }
-        [data-theme="light"] .cq-footer-logo { color: rgba(0,0,0,.85); }
 
         .cq-footer-tagline {
             color: var(--text-sub, rgba(255,255,255,.55));
@@ -96,7 +89,6 @@
             line-height: 1.65;
             margin-bottom: 14px;
         }
-        [data-theme="light"] .cq-footer-tagline { color: rgba(0,0,0,.50); }
 
         .cq-footer-status {
             display: inline-flex;
@@ -110,11 +102,6 @@
             color: rgba(74,222,128,0.90);
             font-family: var(--font-mono, monospace);
         }
-        [data-theme="light"] .cq-footer-status {
-            background: rgba(22,163,74,0.08);
-            border-color: rgba(22,163,74,0.20);
-            color: #15803d;
-        }
 
         .cq-status-dot {
             display: inline-block;
@@ -123,7 +110,6 @@
             background: #4ade80;
             flex-shrink: 0;
         }
-        [data-theme="light"] .cq-status-dot { background: #16a34a; }
 
         .cq-footer-col {
             display: flex;
@@ -139,7 +125,6 @@
             margin-bottom: 4px;
             font-family: var(--font-mono, monospace);
         }
-        [data-theme="light"] .cq-footer-title { color: rgba(0,0,0,.38); }
 
         .cq-footer-col a {
             color: var(--text-sub, rgba(255,255,255,.55));
@@ -148,8 +133,6 @@
             transition: color .15s;
         }
         .cq-footer-col a:hover { color: var(--text-1, rgba(255,255,255,.85)); }
-        [data-theme="light"] .cq-footer-col a { color: rgba(0,0,0,.52); }
-        [data-theme="light"] .cq-footer-col a:hover { color: rgba(0,0,0,.80); }
 
         .cq-footer-bar {
             max-width: 1320px;
@@ -164,7 +147,6 @@
             color: var(--text-dim, rgba(255,255,255,.38));
             font-family: var(--font-mono, monospace);
         }
-        [data-theme="light"] .cq-footer-bar { color: rgba(0,0,0,.36); }
 
         .cq-footer-meta {
             display: flex; gap: 8px; align-items: center; flex-wrap: wrap;

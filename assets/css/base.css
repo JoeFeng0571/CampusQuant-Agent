@@ -37,15 +37,6 @@ body {
     transition: background-color .3s, color .3s;
 }
 
-/* Light mode body */
-[data-theme="light"] body {
-    background-color: #f5f6f8;
-    background-image:
-        radial-gradient(ellipse 90% 45% at 50% -8%,
-            rgba(79,70,229,0.07) 0%, transparent 65%);
-    color: rgba(0,0,0,0.78);
-}
-
 /* ── Main gets all remaining space ── */
 main { flex: 1; min-height: calc(100vh - 56px); }
 
@@ -92,11 +83,6 @@ code:not(pre code) {
     background: rgba(129,140,248,.10);
     border: 1px solid rgba(129,140,248,.18);
     color: var(--secondary);
-}
-[data-theme="light"] code:not(pre code) {
-    background: rgba(79,70,229,.08);
-    border-color: rgba(79,70,229,.15);
-    color: var(--accent);
 }
 
 /* ── Tabular numbers (financial data) ── */
@@ -145,24 +131,20 @@ body::after {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1   0 0 0 0 1   0 0 0 0 1   0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     background-size: 200px 200px;
 }
-[data-theme="light"] body::after { opacity: 0.012; mix-blend-mode: multiply; }
 
 /* ── Z-index stacking ── */
 header, main, footer, .page-wrap, .dash-container,
 .terminal-grid, .sidebar-overlay { position: relative; z-index: 1; }
-/* Note: <aside> excluded — settings drawer uses position:fixed + z-index:9994 */
+/* <aside> excluded — settings drawer needs position:fixed + z-index:9994 */
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(129,140,248,.35); }
-[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,.12); }
-[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(79,70,229,.30); }
 
 /* ── Selection ── */
 ::selection { background: rgba(99,102,241,.28); color: #fff; }
-[data-theme="light"] ::selection { background: rgba(79,70,229,.20); color: #1e1b4b; }
 
 /* ── Links ── */
 a { color: inherit; text-decoration: none; transition: color var(--d-fast); }
