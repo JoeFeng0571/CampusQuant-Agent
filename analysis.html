@@ -511,7 +511,7 @@
         }
     </style>
 </head>
-<body>
+<body data-bg-mode="off">
 
 <header>
     <a href="dashboard.html" class="logo">
@@ -665,6 +665,9 @@
                 <div class="result-meta" id="res-price-type">--</div>
             </div>
         </div>
+        <a id="btn-go-trade" href="#" style="display:none; margin:12px 0 4px; padding:10px 20px; font-size:13px; font-weight:600; color:#fff; background:var(--grad-cool); border-radius:var(--r-md); text-decoration:none; text-align:center; transition:opacity .2s;" onclick="goTrade(); return false;">
+            立即模拟下单 →
+        </a>
 
         <!-- 输出标签切换 -->
         <div class="status-bar" style="padding:8px 14px;" id="output-tabs-bar" style="display:none">
@@ -1153,6 +1156,8 @@
         if (pbEl) pbEl.style.width = '0%';
         const card = document.getElementById('result-card');
         card.className = ''; card.style.display = 'none';
+        const gtBtn = document.getElementById('btn-go-trade');
+        if (gtBtn) gtBtn.style.display = 'none';
         document.getElementById('chat-area').innerHTML = `
             <div class="ai-bubble">
                 <div class="bubble-label">AI 分析助手</div>
@@ -1225,6 +1230,14 @@
             document.getElementById('res-price-type').textContent  = '价格获取失败';
         }
         card.className = 'visible'; card.style.display = 'grid';
+        // Show "go trade" button
+        const gtBtn = document.getElementById('btn-go-trade');
+        if (gtBtn) gtBtn.style.display = 'block';
+    }
+
+    function goTrade() {
+        const sym = document.getElementById('symbol-input').value.trim();
+        if (sym) window.location.href = 'trade.html?symbol=' + encodeURIComponent(sym);
     }
 
     async function startAnalysis() {

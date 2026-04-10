@@ -81,11 +81,11 @@
         .mat-name { font-size:13px; font-weight:700; color:#e2e8f0; display:flex; align-items:center; gap:6px; }
         .mat-ccy  { font-size:10px; padding:2px 7px; border-radius:8px;
             background:rgba(255,255,255,.07); color:var(--text-sub); }
-        .mat-cash { font-size:20px; font-weight:800; color:#fff; }
+        .mat-cash { font-size:20px; font-weight:800; color:#fff; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
         .mat-init { font-size:11px; color:var(--text-dim); }
-        .mat-pnl  { font-size:12px; font-weight:600; }
-        .mat-pnl.up   { color:var(--success); }
-        .mat-pnl.down { color:var(--danger); }
+        .mat-pnl  { font-size:12px; font-weight:600; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+        .mat-pnl.up   { color:#4ade80; }
+        .mat-pnl.down { color:#fb7185; }
         .mat-pnl.flat { color:var(--text-sub); }
 
         /* ══ TRADING AREA ══ */
@@ -133,16 +133,17 @@
         .quote-search button:hover { opacity:.85; }
 
         .price-display { display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:10px; }
-        .price-symbol { font-size:13px; color:var(--text-sub); margin-bottom:4px; }
+        .price-symbol { font-size:13px; color:var(--text-sub); margin-bottom:4px; font-weight:500; }
         .price-big { font-size:50px; font-weight:800; line-height:1;
+            font-family:var(--font-mono); font-variant-numeric:tabular-nums; letter-spacing:-0.03em;
             background:linear-gradient(135deg,#fff 60%,var(--primary));
             -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
         .price-big.up   { background:linear-gradient(135deg,#fff 60%,var(--buy));  -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
         .price-big.down { background:linear-gradient(135deg,#fff 60%,var(--sell)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
         .price-meta { display:flex; flex-direction:column; gap:4px; }
-        .price-chg { font-size:17px; font-weight:700; }
-        .price-chg.up   { color:var(--buy); }
-        .price-chg.down { color:var(--sell); }
+        .price-chg { font-size:17px; font-weight:700; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+        .price-chg.up   { color:#4ade80; }
+        .price-chg.down { color:#fb7185; }
         .price-src { font-size:11px; color:var(--text-dim); }
         #price-timer { font-size:11px; color:var(--text-dim); margin-top:4px; }
 
@@ -462,7 +463,7 @@
     <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 </head>
-<body>
+<body data-bg-mode="off">
 
 <header>
     <a href="dashboard.html" class="logo">
@@ -568,6 +569,9 @@
             </div>
             <div class="price-src" id="price-src"></div>
             <div id="price-timer">输入代码后自动刷新行情</div>
+            <a id="btn-deep-analysis" href="#" style="display:none; margin-top:10px; font-size:13px; font-weight:600; color:var(--primary); text-decoration:none; align-items:center; gap:6px;" onclick="goDeepAnalysis(); return false;">
+                <i data-lucide="brain" style="width:15px;height:15px"></i> AI 深度分析 →
+            </a>
 
             <!-- K线图 -->
             <div class="kline-section" id="kline-section" style="display:none;">
@@ -606,6 +610,12 @@
                 <input class="form-input" id="order-qty" type="number" min="1" step="1" value="100"
                     oninput="updateEstimate()">
                 <div class="balance-hint" id="balance-hint">可用: --</div>
+                <div class="quick-qty-row" style="display:flex; gap:6px; margin-top:6px;">
+                    <button type="button" class="quick-qty-btn" onclick="setQuickQty(1)"    style="flex:1; padding:5px 0; font-size:11px; font-weight:600; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--card); color:var(--text-2); cursor:pointer; transition:all .15s;">全仓</button>
+                    <button type="button" class="quick-qty-btn" onclick="setQuickQty(0.5)"  style="flex:1; padding:5px 0; font-size:11px; font-weight:600; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--card); color:var(--text-2); cursor:pointer; transition:all .15s;">半仓</button>
+                    <button type="button" class="quick-qty-btn" onclick="setQuickQty(0.25)" style="flex:1; padding:5px 0; font-size:11px; font-weight:600; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--card); color:var(--text-2); cursor:pointer; transition:all .15s;">1/4仓</button>
+                    <button type="button" class="quick-qty-btn" onclick="setQuickQty(0.1)"  style="flex:1; padding:5px 0; font-size:11px; font-weight:600; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--card); color:var(--text-2); cursor:pointer; transition:all .15s;">1/10</button>
+                </div>
             </div>
             <div class="estimated-cost">
                 <span class="est-label" id="est-label">预估买入金额</span>
@@ -649,7 +659,11 @@
             </div>
         </div>
         <div id="pos-table-wrap">
-            <div class="empty-pos">暂无持仓，通过上方下单面板买入标的后，持仓将在此显示</div>
+            <div class="empty-pos" style="text-align:center; padding:28px 16px; color:var(--text-2); line-height:1.8;">
+                <div style="font-size:28px; margin-bottom:8px;">📊</div>
+                <div style="font-size:14px; font-weight:600; color:var(--text-1); margin-bottom:4px;">还没有持仓</div>
+                <div style="font-size:12px;">试试搜索 <span style="color:var(--primary); cursor:pointer;" onclick="document.getElementById('sym-input').value='贵州茅台'; lookupSymbol();">贵州茅台</span> 或 <span style="color:var(--primary); cursor:pointer;" onclick="document.getElementById('sym-input').value='AAPL'; lookupSymbol();">AAPL</span>，买入你的第一只股票</div>
+            </div>
         </div>
         <div id="orders-table-wrap" style="display:none;"></div>
     </div>
@@ -867,6 +881,9 @@ async function updateQuoteDisplay(symbol) {
     document.getElementById('order-symbol').value = normalizedSymbol || symbol.toUpperCase();
     updateBalanceHint();
     updateEstimate();
+    // Show deep analysis link
+    const daBtn = document.getElementById('btn-deep-analysis');
+    if (daBtn) { daBtn.style.display = 'inline-flex'; }
     // Load K-line once after quote normalization, so raw inputs like 600519 can
     // still render the correct standardized symbol (e.g. 600519.SH).
     if (normalizedSymbol && _tradeLastKlineSymbol !== normalizedSymbol) {
@@ -1366,6 +1383,27 @@ document.addEventListener('DOMContentLoaded', () => {
 document.getElementById('sym-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') lookupSymbol();
 });
+
+function setQuickQty(fraction) {
+    if (!currentPrice || currentPrice <= 0) return;
+    const mkt = currentMarket;
+    const acct = accounts[mkt];
+    if (!acct) return;
+    const cash = acct.cash || 0;
+    const lotSize = mkt === 'US' ? 1 : 100;
+    let maxShares = Math.floor(cash / currentPrice);
+    // Round down to lot size
+    maxShares = Math.floor(maxShares / lotSize) * lotSize;
+    let qty = Math.floor(maxShares * fraction / lotSize) * lotSize;
+    if (qty < lotSize) qty = lotSize;
+    document.getElementById('order-qty').value = qty;
+    updateEstimate();
+}
+
+function goDeepAnalysis() {
+    const sym = currentSymbol || document.getElementById('order-symbol').value;
+    if (sym) window.location.href = 'analysis.html?symbol=' + encodeURIComponent(sym);
+}
 </script>
 <script src="assets/js/common.js?v=20260411"></script>
 <script src="assets/js/motion.js"></script>

@@ -496,7 +496,7 @@
         }
     </style>
 </head>
-<body>
+<body data-bg-mode="off">
 
 <header>
     <a href="dashboard.html" class="logo">
@@ -580,6 +580,7 @@
             </div>
 
             <button class="add-pos-btn" onclick="addPosition()">+ 添加持仓</button>
+            <button class="add-pos-btn" onclick="autoFillPositions()" style="border-color:var(--primary); color:var(--primary);">📥 导入模拟持仓</button>
 
             <button class="check-btn" id="check-btn" onclick="startHealthCheck()">
                 🩺 开始体检
@@ -630,6 +631,57 @@
             <input class="pos-input" type="number" placeholder="成本价" value="${cost}" min="0" step="0.01" />
             <button class="del-btn" onclick="this.parentElement.remove()">×</button>`;
         list.appendChild(row);
+    }
+
+    async function autoFillPositions() {
+        try {
+            const token = localStorage.getItem('cq_token') || '';
+            const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+            const resp = await fetch('/api/v1/portfolio/positions', { headers });
+            if (!resp.ok) throw new Error('API 不可用');
+            const data = await resp.json();
+            const positions = data.positions || data.data || [];
+            if (!positions.length) {
+                // Fallback: try getting from localStorage simulation accounts
+                const accts = JSON.parse(localStorage.getItem('cq_accounts') || '{}');
+                const allPos = [];
+                for (const mkt of ['A', 'HK', 'US']) {
+                    const mktAcct = accts[mkt];
+                    if (mktAcct && mktAcct.positions) {
+                        mktAcct.positions.forEach(p => allPos.push(p));
+                    }
+                }
+                if (!allPos.length) {
+                    if (typeof cqToast === 'function') cqToast('info', '暂无模拟持仓', '请先在模拟演练中买入股票');
+                    else alert('暂无模拟持仓，请先在模拟演练中买入股票');
+                    return;
+                }
+                document.getElementById('positions-list').innerHTML = '';
+                allPos.forEach(p => addPosition(p.symbol, p.quantity || p.qty, p.avg_cost || p.cost_price));
+            } else {
+                document.getElementById('positions-list').innerHTML = '';
+                positions.forEach(p => addPosition(p.symbol, p.quantity || p.qty, p.avg_cost || p.cost_price));
+            }
+            if (typeof cqToast === 'function') cqToast('success', '导入成功', '已导入 ' + document.querySelectorAll('.position-row').length + ' 条持仓');
+        } catch (e) {
+            // Fallback to localStorage
+            const accts = JSON.parse(localStorage.getItem('cq_accounts') || '{}');
+            const allPos = [];
+            for (const mkt of ['A', 'HK', 'US']) {
+                const mktAcct = accts[mkt];
+                if (mktAcct && mktAcct.positions) {
+                    mktAcct.positions.forEach(p => allPos.push(p));
+                }
+            }
+            if (allPos.length) {
+                document.getElementById('positions-list').innerHTML = '';
+                allPos.forEach(p => addPosition(p.symbol, p.quantity || p.qty, p.avg_cost || p.cost_price));
+                if (typeof cqToast === 'function') cqToast('success', '导入成功', '已从本地导入 ' + allPos.length + ' 条持仓');
+            } else {
+                if (typeof cqToast === 'function') cqToast('info', '暂无持仓', '请先在模拟演练中买入股票');
+                else alert('暂无模拟持仓');
+            }
+        }
     }
 
     function getPositions() {

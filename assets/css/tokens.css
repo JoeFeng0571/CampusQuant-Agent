@@ -54,12 +54,12 @@
     --text-sub: rgba(255,255,255,0.58);
 
     /* 卡片/边框 */
-    --card:         rgba(255,255,255,0.04);
-    --border:       rgba(255,255,255,0.09);
-    --glass:        rgba(255,255,255,0.04);
-    --glass-strong: rgba(255,255,255,0.07);
-    --glass-border: rgba(255,255,255,0.09);
-    --glass-shine:  linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,0));
+    --card:         rgba(255,255,255,0.06);
+    --border:       rgba(255,255,255,0.12);
+    --glass:        rgba(255,255,255,0.06);
+    --glass-strong: rgba(255,255,255,0.09);
+    --glass-border: rgba(255,255,255,0.12);
+    --glass-shine:  linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,0));
 
     /* 渐变（简化版，去掉霓虹色） */
     --grad-cool:   linear-gradient(135deg,#818cf8 0%,#a5b4fc 100%);
@@ -84,10 +84,10 @@
     --ticker-h: 76px;
 
     /* 动效 */
-    --d-fast:    .14s;
-    --d-base:    .22s;
-    --d-slow:    .40s;
-    --d-page:    .55s;
+    --d-fast:    .12s;
+    --d-base:    .20s;
+    --d-slow:    .30s;
+    --d-page:    .35s;
     --ease-out:  cubic-bezier(.16,1,.3,1);
     --ease-in-out: cubic-bezier(.65,0,.35,1);
 

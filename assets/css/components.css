@@ -5,24 +5,53 @@
 
 /* ══ PANEL — clean 1px border card ══ */
 .panel {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.09);
+    background: var(--card);
+    border: 1px solid var(--border);
     border-radius: var(--r-lg);
     padding: var(--sp-5);
     transition: border-color var(--d-base);
 }
-.panel:hover { border-color: rgba(255,255,255,0.16); }
+.panel:hover { border-color: rgba(255,255,255,0.18); }
 
 /* ══ GLASS CARD ══ */
 .glass-card {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.10);
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
     border-radius: var(--r-2xl);
     padding: var(--sp-6);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     transition: border-color var(--d-base), transform var(--d-base);
 }
+
+/* ══ FINANCIAL NUMBER UTILITIES ══ */
+.fin-price {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+}
+.fin-change {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    font-size: 14px;
+}
+.fin-up   { color: #4ade80; }
+.fin-down { color: #fb7185; }
+.fin-flat { color: var(--text-2); }
+.fin-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: var(--r-sm);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+}
+.fin-badge.up   { background: rgba(74,222,128,0.12); color: #4ade80; }
+.fin-badge.down { background: rgba(251,113,133,0.12); color: #fb7185; }
+.fin-badge.flat { background: rgba(255,255,255,0.06); color: var(--text-2); }
 .glass-card.lift:hover {
     transform: translateY(-3px);
     border-color: rgba(129,140,248,.35);

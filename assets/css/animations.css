@@ -77,26 +77,26 @@
 .scale-in      { animation: scale-in      var(--d-page) var(--ease-out) both; }
 
 /* delay helpers */
-.delay-1 { animation-delay: .08s; }
-.delay-2 { animation-delay: .16s; }
-.delay-3 { animation-delay: .24s; }
-.delay-4 { animation-delay: .32s; }
-.delay-5 { animation-delay: .4s; }
-.delay-6 { animation-delay: .48s; }
+.delay-1 { animation-delay: .04s; }
+.delay-2 { animation-delay: .08s; }
+.delay-3 { animation-delay: .12s; }
+.delay-4 { animation-delay: .16s; }
+.delay-5 { animation-delay: .20s; }
+.delay-6 { animation-delay: .24s; }
 
 /* ══════════ STAGGER（子元素错峰入场） ══════════ */
 .stagger-children > * {
     opacity: 0;
     animation: fade-in-up var(--d-page) var(--ease-out) both;
 }
-.stagger-children > *:nth-child(1) { animation-delay: .05s; }
-.stagger-children > *:nth-child(2) { animation-delay: .12s; }
-.stagger-children > *:nth-child(3) { animation-delay: .19s; }
-.stagger-children > *:nth-child(4) { animation-delay: .26s; }
-.stagger-children > *:nth-child(5) { animation-delay: .33s; }
-.stagger-children > *:nth-child(6) { animation-delay: .4s; }
-.stagger-children > *:nth-child(7) { animation-delay: .47s; }
-.stagger-children > *:nth-child(8) { animation-delay: .54s; }
+.stagger-children > *:nth-child(1) { animation-delay: .03s; }
+.stagger-children > *:nth-child(2) { animation-delay: .07s; }
+.stagger-children > *:nth-child(3) { animation-delay: .11s; }
+.stagger-children > *:nth-child(4) { animation-delay: .15s; }
+.stagger-children > *:nth-child(5) { animation-delay: .19s; }
+.stagger-children > *:nth-child(6) { animation-delay: .23s; }
+.stagger-children > *:nth-child(7) { animation-delay: .27s; }
+.stagger-children > *:nth-child(8) { animation-delay: .31s; }
 
 /* ══════════ HOVER UTILITIES ══════════ */
 .hover-lift {
