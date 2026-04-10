@@ -389,31 +389,38 @@
         <h2 class="section-title">项目历程</h2>
         <div class="timeline">
             <div class="tl-item">
-                <div class="tl-date">2024.09</div>
+                <div class="tl-date">2025.12</div>
                 <div class="tl-content">
-                    <h3>项目立项</h3>
-                    <p>课题组在校园创新实验室正式立项，启动基于 LangChain 的金融 Agent 原型研究，首次跑通 A股数据获取与基本面分析闭环。</p>
+                    <h3>项目立项 &amp; 原型验证</h3>
+                    <p>课题组在校园创新实验室正式立项，基于 LangChain 构建金融 Agent 原型；首次跑通 A 股数据获取、基本面分析与模拟交易闭环，验证多 Agent 协作的可行性。</p>
                 </div>
             </div>
             <div class="tl-item">
-                <div class="tl-date">2025.03</div>
+                <div class="tl-date">2026.01</div>
                 <div class="tl-content">
                     <h3>LangGraph 架构升级</h3>
-                    <p>引入 LangGraph StateGraph 多节点并行架构，实现基本面、技术面、情感面三路并行分析 + 多空辩论机制，系统稳定性大幅提升。</p>
+                    <p>迁移至 LangGraph StateGraph 多节点并行架构，实现基本面、技术面、情感面三路并行分析 + 多空辩论机制；引入 DashScope/Qwen 大模型，系统稳定性大幅提升。</p>
                 </div>
             </div>
             <div class="tl-item">
-                <div class="tl-date">2025.09</div>
+                <div class="tl-date">2026.02</div>
                 <div class="tl-content">
-                    <h3>混合 RAG 接入 &amp; 风控完善</h3>
-                    <p>接入 Chroma + BM25 混合检索（RAG），支持研报 PDF 知识库；完善风控节点与大学生仓位守则，正式支持港股、美股市场。</p>
+                    <h3>混合 RAG &amp; 多市场覆盖</h3>
+                    <p>接入 Chroma + BM25 混合检索（RAG），支持研报 PDF 知识库；完善风控节点与大学生仓位守则；正式支持 A 股、港股、美股三大市场。</p>
                 </div>
             </div>
             <div class="tl-item">
                 <div class="tl-date">2026.03</div>
                 <div class="tl-content">
-                    <h3>投教社区上线</h3>
-                    <p>前后端完成重构，发布投教社区模块（学习资源、讨论广场、持仓体检），正式面向校园大学生开放学习体验。</p>
+                    <h3>回测引擎 &amp; 量化基础设施</h3>
+                    <p>自研日频回测引擎（含滑点、手续费仿真）、价格-时间优先撮合引擎、CQ-Bench 评估框架（LLM-as-Judge 四维评分）；可观测性中间件自动采集 API 延迟与 LLM token 消耗。</p>
+                </div>
+            </div>
+            <div class="tl-item">
+                <div class="tl-date">2026.04</div>
+                <div class="tl-content">
+                    <h3>投教社区 &amp; 线上部署</h3>
+                    <p>前后端完成重构，发布投教社区模块（学习资源、讨论广场、持仓体检）；双服务器架构部署（大陆数据中继 + 香港主站），正式面向校园大学生开放。</p>
                 </div>
             </div>
         </div>
@@ -452,6 +459,44 @@
                 <div class="feature-icon">🌏</div>
                 <div class="feature-title">三市场数据支持</div>
                 <div class="feature-desc">A股 akshare（前复权日线）/ 港股 akshare / 美股 yfinance，统一标准化格式输出。</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 技术架构 -->
+    <div class="features-section" style="margin-top:40px;">
+        <h2 class="section-title">技术架构</h2>
+        <p style="color:var(--text-2); text-align:center; margin-bottom:28px; font-size:14px;">不止前端界面 —— 背后是完整的量化基础设施</p>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <div class="feature-title">日频回测引擎</div>
+                <div class="feature-desc">支持手续费、滑点仿真的 Backtest Engine，内置 Sharpe/Sortino/MaxDrawdown/CAGR/Calmar 五大指标，已在 5 只 A 股蓝筹上验证（2023-2024 年化 +16.4%, Sharpe 0.21）。</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-title">价格-时间优先撮合引擎</div>
+                <div class="feature-desc">自研 OrderBook 撮合引擎，支持限价/市价单、部分成交、Maker-Taker 费率模型，14 项单元测试全通过，模拟真实交易所级别撮合逻辑。</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔬</div>
+                <div class="feature-title">CQ-Bench 评估框架</div>
+                <div class="feature-desc">LLM-as-Judge 四维评分（信息密度、覆盖度、推理质量、风险意识），自动生成 HTML 评估报告。修正 HOLD 偏差后方向准确率 50% → 67%。</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📡</div>
+                <div class="feature-title">可观测性中间件</div>
+                <div class="feature-desc">SQLite 时序指标存储，自动采集 API 延迟（P50/P99）、LLM token 消耗与成本、节点执行耗时，FastAPI 中间件零侵入集成。</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🏗</div>
+                <div class="feature-title">双服务器架构</div>
+                <div class="feature-desc">大陆阿里云（47.108.191.110:8001）作为 akshare 数据中继，香港服务器运行主应用 + yfinance 全球数据，SSH Key 直连部署。</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🧠</div>
+                <div class="feature-title">LangGraph 状态图</div>
+                <div class="feature-desc">TypedDict 状态 + add_messages 归约器，节点工具调用防死循环（MAX_TOOL_CALLS=3），辩论 ≤ 2 轮 + 风控重试 ≤ 2 次，SQLite 检查点持久化。</div>
             </div>
         </div>
     </div>

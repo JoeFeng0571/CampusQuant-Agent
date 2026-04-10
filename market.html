@@ -278,14 +278,8 @@
             box-shadow:0 0 16px rgba(79,172,254,.18);
         }
 
-        /* k线区域 placeholder 加旋转 icon 替代静态文字 */
+        /* k线区域 placeholder — 静态图标，不转圈 */
         .kline-placeholder { font-size:13px; }
-        .kline-placeholder::before {
-            content:''; width:24px; height:24px; border-radius:50%;
-            border:2px solid rgba(79,172,254,.2);
-            border-top-color:var(--primary);
-            animation:spin 1s linear infinite;
-        }
 
         /* news source block 入场 stagger */
         .news-source-block { animation:fade-in-up .5s var(--ease-out) both; }
