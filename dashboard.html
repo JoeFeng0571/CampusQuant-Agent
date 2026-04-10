@@ -541,22 +541,30 @@
         }
         .dash-left-col {
             display:flex; flex-direction:column; gap:20px;
-            min-height:0;                 /* 关键：允许子元素 shrink 不超出 */
+            min-height:0;
         }
-        .dash-left-col > .panel:first-child { flex-shrink:0; }   /* 持仓卡按内容自然高度 */
-        .dash-left-col > .panel:last-child {
-            flex:1; min-height:0;          /* news 卡占满剩余空间 */
+        /* 持仓卡和快讯卡 1:1 均分高度 */
+        .dash-left-col > .panel {
+            flex:1 1 0;
+            min-height:0;
             overflow:hidden;
             display:flex; flex-direction:column;
         }
+        /* 持仓卡内部：header 固定 + tabs + stats 自然高度 + 表格区可滚动 */
+        .dash-left-col > .panel:first-child > div[style*="overflow-x"] {
+            flex:1;
+            overflow-y:auto;
+            min-height:0;
+        }
+        /* news-list 可滚动 */
         .dash-left-col > .panel:last-child .news-list {
             flex:1;
             overflow-y:auto;
             min-height:0;
             padding-right:4px;
         }
-        .dash-left-col > .panel:last-child .news-list::-webkit-scrollbar { width:4px; }
-        .dash-left-col > .panel:last-child .news-list::-webkit-scrollbar-thumb {
+        .dash-left-col > .panel ::-webkit-scrollbar { width:4px; }
+        .dash-left-col > .panel ::-webkit-scrollbar-thumb {
             background:rgba(255,255,255,.1); border-radius:2px;
         }
 
@@ -1142,11 +1150,10 @@ function renderAcct(data, mkt) {
     const tbody = document.getElementById('mini-pos-body');
     if (!filtered.length) {
         tbody.innerHTML = `<tr><td colspan="5" style="padding:0">
-            <div class="empty-state" style="padding:24px 8px">
-                <div class="empty-state-icon"><i data-lucide="inbox"></i></div>
-                <div class="empty-state-title">还没有持仓</div>
-                <div class="empty-state-desc">用模拟资金体验三市场交易，零风险练手</div>
-                <a href="trade.html" class="empty-state-cta">开始交易 →</a>
+            <div class="empty-state" style="padding:14px 8px;gap:6px">
+                <div class="empty-state-icon" style="width:40px;height:40px;margin-bottom:0"><i data-lucide="inbox"></i></div>
+                <div class="empty-state-title" style="font-size:13px">还没有持仓</div>
+                <a href="trade.html" class="empty-state-cta" style="margin-top:6px;padding:6px 14px;font-size:11px">开始交易 →</a>
             </div>
         </td></tr>`;
         if (window.cqRefreshIcons) cqRefreshIcons();
@@ -1185,11 +1192,10 @@ function renderAcctOffline() {
         </div>`;
     document.getElementById('mini-pos-body').innerHTML = `
         <tr><td colspan="5" style="padding:0">
-            <div class="empty-state" style="padding:32px 8px">
-                <div class="empty-state-icon"><i data-lucide="user-plus"></i></div>
-                <div class="empty-state-title">登录后开始模拟交易</div>
-                <div class="empty-state-desc">三市场独立资金池：A 股 ¥10万 / 港股 HK$10万 / 美股 $1万 · 全部 0 风险练手</div>
-                <a href="auth.html?redirect=dashboard.html" class="empty-state-cta">立即注册 / 登录 →</a>
+            <div class="empty-state" style="padding:14px 8px;gap:6px">
+                <div class="empty-state-icon" style="width:40px;height:40px;margin-bottom:0"><i data-lucide="user-plus"></i></div>
+                <div class="empty-state-title" style="font-size:13px">登录后开始模拟交易</div>
+                <a href="auth.html?redirect=dashboard.html" class="empty-state-cta" style="margin-top:6px;padding:6px 14px;font-size:11px">立即注册 / 登录 →</a>
             </div>
         </td></tr>`;
     if (window.cqRefreshIcons) cqRefreshIcons();
