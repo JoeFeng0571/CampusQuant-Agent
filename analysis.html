@@ -640,6 +640,7 @@
                 </div>
             </div>
             <div id="node-progress"></div>
+            <div id="agent-summaries" style="margin-top:8px; display:none;"></div>
         </div>
 
         <!-- 结果数值卡片 -->
@@ -1151,6 +1152,8 @@
         document.getElementById('status-dot').className = 'status-dot';
         document.getElementById('status-text').textContent = '准备中...';
         document.getElementById('node-progress').innerHTML = '';
+        const agSum = document.getElementById('agent-summaries');
+        if (agSum) { agSum.innerHTML = ''; agSum.style.display = 'none'; }
         stopCountdown();
         const pbEl = document.getElementById('progress-bar');
         if (pbEl) pbEl.style.width = '0%';
@@ -1316,6 +1319,20 @@
             case 'node_complete':
                 setNodeStatus(ev.node, 'done');
                 appendText('\n' + ev.message);
+                // Show one-line agent summary
+                if (ev.message && ev.node) {
+                    const sumBox = document.getElementById('agent-summaries');
+                    sumBox.style.display = 'block';
+                    const label = NODE_LABELS[ev.node] || ev.node;
+                    // Extract first meaningful sentence (up to 60 chars)
+                    const brief = (ev.message || '').replace(/\n/g,' ').trim().slice(0, 80);
+                    if (brief) {
+                        const line = document.createElement('div');
+                        line.style.cssText = 'font-size:12px; color:var(--text-2); padding:3px 0; animation:fade-in-up .3s var(--ease-out) both;';
+                        line.innerHTML = `<span style="color:var(--primary);font-weight:600;">${label}</span> · ${brief}`;
+                        sumBox.appendChild(line);
+                    }
+                }
                 break;
             case 'conflict':
                 appendText('\n\n' + ev.message);

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 — CampusQuant</title>
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <style>
+        body { display:flex; align-items:center; justify-content:center; min-height:100vh; text-align:center; }
+        .e404 { max-width:420px; padding:40px 24px; }
+        .e404-code { font-size:96px; font-weight:800; font-family:var(--font-mono);
+            background:var(--grad-cool); -webkit-background-clip:text; -webkit-text-fill-color:transparent; line-height:1; }
+        .e404-title { font-size:20px; font-weight:700; margin:16px 0 8px; color:var(--text); }
+        .e404-desc { font-size:14px; color:var(--text-2); line-height:1.6; margin-bottom:24px; }
+        .e404-btn { display:inline-block; padding:10px 24px; border-radius:var(--r-md);
+            background:var(--grad-cool); color:#0d1117; font-weight:600; font-size:14px;
+            text-decoration:none; transition:opacity .2s; }
+        .e404-btn:hover { opacity:.85; }
+        .e404-links { margin-top:16px; font-size:13px; color:var(--text-3); }
+        .e404-links a { color:var(--primary); text-decoration:none; margin:0 8px; }
+        .e404-links a:hover { text-decoration:underline; }
+    </style>
+</head>
+<body>
+    <div class="e404">
+        <div class="e404-code">404</div>
+        <div class="e404-title">页面走丢了</div>
+        <div class="e404-desc">你访问的页面不存在或已被移动。<br>检查一下网址是否正确？</div>
+        <a href="dashboard.html" class="e404-btn">返回控制台</a>
+        <div class="e404-links">
+            或前往 <a href="trade.html">模拟交易</a> <a href="analysis.html">个股分析</a> <a href="market.html">市场快讯</a>
+        </div>
+    </div>
+</body>
+</html>

@@ -116,7 +116,7 @@
         .trade-di { padding:9px 13px; cursor:pointer; display:flex; align-items:center; gap:9px;
             border-bottom:1px solid rgba(255,255,255,.04); transition:background .15s; font-size:13px; }
         .trade-di:last-child { border-bottom:none; }
-        .trade-di:hover { background:rgba(45,212,191,.12); }
+        .trade-di:hover, .trade-di.dd-active { background:rgba(45,212,191,.12); }
         .tdi-sym  { font-weight:700; color:var(--primary); min-width:85px; font-size:12px; }
         .tdi-name { flex:1; color:#e2e8f0; }
         .tdi-type { font-size:11px; padding:2px 6px; border-radius:4px; color:var(--text-dim);
@@ -353,9 +353,19 @@
             .account-stats { flex-direction: column; gap: 12px; }
             .stat-item { display: flex; justify-content: space-between; align-items: center; }
 
-            /* 表格字体进一步缩小 */
-            thead th { font-size: 9px; padding: 4px 6px; }
-            tbody td { padding: 6px 6px; font-size: 11px; }
+            /* 持仓表格 → 卡片布局 */
+            #pos-table-wrap table { border-collapse:separate; border-spacing:0 8px; }
+            #pos-table-wrap thead { display:none; }
+            #pos-table-wrap tbody tr {
+                display:grid; grid-template-columns:1fr 1fr; gap:4px 12px;
+                background:var(--card); border:1px solid var(--border);
+                border-radius:var(--r-md); padding:12px; margin-bottom:4px;
+            }
+            #pos-table-wrap tbody td { padding:2px 0; font-size:12px; border:none; }
+            #pos-table-wrap tbody td::before {
+                content:attr(data-label); display:block; font-size:10px; color:var(--text-3); font-weight:500;
+            }
+            #pos-table-wrap tbody td:last-child { grid-column:1/-1; text-align:right; margin-top:4px; }
         }
 
         /* 平板设备优化 */
@@ -639,19 +649,19 @@
         <div class="account-stats" id="account-stats" style="margin-bottom:16px;">
             <div class="stat-item">
                 <div class="stat-label">可用资金</div>
-                <div class="stat-value primary" id="stat-cash">--</div>
+                <div class="stat-value primary" id="stat-cash"><span class="skel skel-num">&nbsp;</span></div>
             </div>
             <div class="stat-item">
                 <div class="stat-label">持仓市值</div>
-                <div class="stat-value neutral" id="stat-market">--</div>
+                <div class="stat-value neutral" id="stat-market"><span class="skel skel-num">&nbsp;</span></div>
             </div>
             <div class="stat-item">
                 <div class="stat-label">总资产</div>
-                <div class="stat-value neutral" id="stat-total">--</div>
+                <div class="stat-value neutral" id="stat-total"><span class="skel skel-num">&nbsp;</span></div>
             </div>
             <div class="stat-item">
                 <div class="stat-label">持仓浮盈</div>
-                <div class="stat-value neutral" id="stat-pnl">--</div>
+                <div class="stat-value neutral" id="stat-pnl"><span class="skel skel-num">&nbsp;</span></div>
             </div>
             <div class="stat-item">
                 <div class="stat-label">累计成交</div>
@@ -775,7 +785,7 @@ function selectMkt(el, mkt) {
 let _searchTimer = null;
 const _drop = document.getElementById('trade-dropdown');
 
-function closeDrop() { _drop.classList.remove('open'); _drop.innerHTML = ''; }
+function closeDrop() { _drop.classList.remove('open'); _drop.innerHTML = ''; _ddIdx = -1; }
 function renderDrop(list) {
     if (!list || !list.length) { closeDrop(); return; }
     _drop.innerHTML = list.map(s =>
@@ -813,6 +823,30 @@ document.getElementById('sym-input').addEventListener('input', e => {
     }, 300);
 });
 document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) closeDrop(); });
+
+// Keyboard navigation for dropdown
+let _ddIdx = -1;
+document.getElementById('sym-input').addEventListener('keydown', e => {
+    const items = _drop.querySelectorAll('.trade-di');
+    if (!items.length) return;
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        _ddIdx = Math.min(_ddIdx + 1, items.length - 1);
+        items.forEach((li, i) => li.classList.toggle('dd-active', i === _ddIdx));
+        items[_ddIdx]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        _ddIdx = Math.max(_ddIdx - 1, 0);
+        items.forEach((li, i) => li.classList.toggle('dd-active', i === _ddIdx));
+        items[_ddIdx]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter' && _ddIdx >= 0 && items[_ddIdx]) {
+        e.preventDefault();
+        items[_ddIdx].click();
+        _ddIdx = -1;
+    } else if (e.key === 'Escape') {
+        closeDrop(); _ddIdx = -1;
+    }
+});
 
 // ══ Quote polling ═════════════════════════════════════════════
 let currentSide   = 'BUY';
@@ -1042,7 +1076,18 @@ async function submitOrder() {
                     ticks: 120,
                 });
             }
-            loadPortfolio();
+            loadPortfolio().then(() => {
+                // Highlight the traded row
+                const rows = document.querySelectorAll('#pos-table-wrap tr');
+                rows.forEach(tr => {
+                    const sym = tr.querySelector('.td-sym');
+                    if (sym && sym.textContent.trim() === (data.symbol || symbol).toUpperCase()) {
+                        tr.style.transition = 'background .3s';
+                        tr.style.background = action === 'BUY' ? 'rgba(74,222,128,.15)' : 'rgba(248,113,113,.15)';
+                        setTimeout(() => { tr.style.background = ''; }, 2000);
+                    }
+                });
+            });
         }
     } catch(e) {
         showOrderResult(false, '网络错误：' + e.message + '。请确认后端已在 8000 端口启动。');
@@ -1170,16 +1215,16 @@ function renderPositions(positions, pfx, mkt) {
         const dir    = (p.change_pct||0) >= 0 ? 'up' : 'down';
         const pnlDir = (p.pnl_pct||0)   >= 0 ? 'up' : 'down';
         return `<tr>
-            <td class="td-sym">${p.symbol}</td>
-            <td>${p.name || p.symbol}</td>
-            <td><span class="mkt-badge ${mkt}">${MKT_CONFIG[mkt].flag}</span></td>
-            <td>${pfx}${Number(p.current_price||0).toFixed(3)}</td>
-            <td class="${dir}">${(p.change_pct>=0?'+':'') + Number(p.change_pct||0).toFixed(2)}%</td>
-            <td>${p.quantity||0}</td>
-            <td>${pfx}${Number(p.avg_cost||0).toFixed(3)}</td>
-            <td>${pfx}${Number(p.market_value||0).toFixed(2)}</td>
-            <td class="${pnlDir}">${(p.pnl_pct>=0?'+':'') + Number(p.pnl_pct||0).toFixed(2)}%</td>
-            <td><button class="quick-sell" onclick="quickSell('${p.symbol}',${p.quantity})">卖出</button></td>
+            <td class="td-sym" data-label="代码">${p.symbol}</td>
+            <td data-label="名称">${p.name || p.symbol}</td>
+            <td data-label="市场"><span class="mkt-badge ${mkt}">${MKT_CONFIG[mkt].flag}</span></td>
+            <td data-label="现价">${pfx}${Number(p.current_price||0).toFixed(3)}</td>
+            <td class="${dir}" data-label="涨跌">${(p.change_pct>=0?'+':'') + Number(p.change_pct||0).toFixed(2)}%</td>
+            <td data-label="持仓">${p.quantity||0}</td>
+            <td data-label="成本">${pfx}${Number(p.avg_cost||0).toFixed(3)}</td>
+            <td data-label="市值">${pfx}${Number(p.market_value||0).toFixed(2)}</td>
+            <td class="${pnlDir}" data-label="盈亏">${(p.pnl_pct>=0?'+':'') + Number(p.pnl_pct||0).toFixed(2)}%</td>
+            <td data-label=""><button class="quick-sell" onclick="quickSell('${p.symbol}',${p.quantity})">卖出</button></td>
         </tr>`;
     }).join('');
     wrap.innerHTML = `<table>

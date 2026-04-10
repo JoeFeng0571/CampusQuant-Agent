@@ -150,6 +150,22 @@ button:not(:disabled):active,
 .w-2\/3 { width: 66%; }
 .w-1\/2 { width: 50%; }
 
+/* ══ SKELETON LOADER ══ */
+.skel {
+    display: inline-block;
+    background: linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.10) 50%, rgba(255,255,255,.04) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--r-sm);
+    color: transparent !important;
+    user-select: none;
+    min-width: 40px;
+}
+.skel-text { height: 1em; width: 80px; }
+.skel-num  { height: 1.2em; width: 64px; font-variant-numeric: tabular-nums; }
+.skel-lg   { height: 1.4em; width: 120px; }
+.skel-block { height: 48px; width: 100%; border-radius: var(--r-md); }
+
 /* ══ EMPTY STATE ══ */
 .empty-state {
     display: flex; flex-direction: column; align-items: center;
