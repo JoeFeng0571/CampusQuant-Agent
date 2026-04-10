@@ -1301,17 +1301,32 @@ def _compute_weighted_score(
     weighted_score = fw * f_score + tw * t_score + sw * s_score
     avg_confidence = fw * f_conf + tw * t_conf + sw * s_conf
 
-    if weighted_score >= 0.60:
+    # ── 方向判定（双重机制防 HOLD 偏差）──────────────────────
+    # 机制1: 加权阈值（降低 BUY 门槛 0.60→0.52）
+    if weighted_score >= 0.52:
         pre_signal = "BUY"
-    elif weighted_score <= 0.35:
+    elif weighted_score <= 0.40:
         pre_signal = "SELL"
     else:
         pre_signal = "HOLD"
+
+    # 机制2: 多数投票覆盖
+    # 如果 2/3 分析师方向一致且各自 confidence > 0.50，覆盖加权结果
+    recs = [f_rec, t_rec, s_rec]
+    confs = [f_conf, t_conf, s_conf]
+    buy_votes  = sum(1 for r, c in zip(recs, confs) if r == "BUY"  and c > 0.50)
+    sell_votes = sum(1 for r, c in zip(recs, confs) if r == "SELL" and c > 0.50)
+
+    if buy_votes >= 2 and pre_signal != "BUY":
+        pre_signal = "BUY"
+    elif sell_votes >= 2 and pre_signal != "SELL":
+        pre_signal = "SELL"
 
     return {
         "weighted_score":  round(weighted_score, 3),
         "avg_confidence":  round(avg_confidence, 3),
         "pre_signal":      pre_signal,
+        "majority_vote":   f"BUY×{buy_votes} SELL×{sell_votes} (≥2票覆盖)",
         "breakdown": {
             f"基本面({fw:.0%})": f"{f_rec}×{f_conf:.2f}={fw*f_score:.3f}",
             f"技术面({tw:.0%})": f"{t_rec}×{t_conf:.2f}={tw*t_score:.3f}",
