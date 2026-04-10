@@ -149,6 +149,29 @@ def _ts() -> str:
     return datetime.now().strftime("%H:%M:%S")
 
 
+# ── W3 Observability: LLM 调用自动埋点 ──────────────────────────
+
+def _track_llm_response(response, model_name: str, node_name: str = "unknown"):
+    """从 LangChain AIMessage 提取 token usage 并记录 metrics"""
+    try:
+        from observability.llm_tracker import track_llm_call
+        usage = {}
+        if hasattr(response, "response_metadata"):
+            usage = response.response_metadata.get("token_usage", {})
+        elif hasattr(response, "usage_metadata"):
+            usage = response.usage_metadata or {}
+
+        if usage:
+            track_llm_call(
+                model=model_name,
+                node=node_name,
+                prompt_tokens=usage.get("prompt_tokens", usage.get("input_tokens", 0)),
+                completion_tokens=usage.get("completion_tokens", usage.get("output_tokens", 0)),
+            )
+    except Exception:
+        pass  # metrics 失败不影响主流程
+
+
 def _log_entry(node: str, msg: str) -> str:
     return f"[{_ts()}] [{node}] {msg}"
 
@@ -900,6 +923,7 @@ price_target 使用绝对价格数值。
             HumanMessage(content=user_prompt),
         ]
         report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=300.0)
+        _track_llm_response(report, config.DASHSCOPE_MODEL, "fundamental_node")
 
         report_dict = report.model_dump(mode='json')
         log_msg = _log_entry(
@@ -1043,6 +1067,7 @@ async def technical_node(state: TradingGraphState) -> dict:
             HumanMessage(content=user_prompt),
         ]
         report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=300.0)
+        _track_llm_response(report if "report" in dir() else (decision if "decision" in dir() else (order if "order" in dir() else raw_resp)), config.DASHSCOPE_MODEL, "technical_node")
 
         report_dict = report.model_dump(mode='json')
         log_msg = _log_entry(
@@ -1184,6 +1209,7 @@ async def sentiment_node(state: TradingGraphState) -> dict:
             HumanMessage(content=user_prompt),
         ]
         report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=300.0)
+        _track_llm_response(report if "report" in dir() else (decision if "decision" in dir() else (order if "order" in dir() else raw_resp)), config.DASHSCOPE_MODEL, "sentiment_node")
 
         report_dict = report.model_dump(mode='json')
         has_real_news = "新闻获取失败" not in news_text and "获取失败" not in news_text and "暂无" not in news_text
@@ -1443,6 +1469,7 @@ async def portfolio_node(state: TradingGraphState) -> dict:
             HumanMessage(content=user_prompt),
         ]
         decision: AnalystReport = await structured_llm.ainvoke(messages)
+        _track_llm_response(report if "report" in dir() else (decision if "decision" in dir() else (order if "order" in dir() else raw_resp)), config.DASHSCOPE_MODEL, "portfolio_node")
 
         conflict_msg = "⚡ 检测到基本面与技术面冲突！" if has_conflict else ""
         log_msg = _log_entry(
@@ -1669,6 +1696,7 @@ async def debate_node(state: TradingGraphState) -> dict:
             # ── Task 2 层2: 原始调用 + 键名归一化兜底解析 ──────────────────
             try:
                 raw_resp = await asyncio.wait_for(llm.ainvoke(messages), timeout=180.0)
+                _track_llm_response(report if "report" in dir() else (decision if "decision" in dir() else (order if "order" in dir() else raw_resp)), config.DASHSCOPE_MODEL, "debate_node")
                 raw_text = raw_resp.content if hasattr(raw_resp, "content") else str(raw_resp)
                 outcome = _extract_outcome_from_text(raw_text)
                 logger.info("[debate_node] ✅ 层2 原始JSON+键名归一化解析成功")
@@ -1832,6 +1860,7 @@ async def risk_node(state: TradingGraphState) -> dict:
             HumanMessage(content=user_prompt),
         ]
         decision: RiskDecision = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=180.0)
+        _track_llm_response(report if "report" in dir() else (decision if "decision" in dir() else (order if "order" in dir() else raw_resp)), config.DASHSCOPE_MODEL, "risk_node")
 
         decision_dict = decision.model_dump(mode='json')
 
@@ -2046,6 +2075,7 @@ simulated 字段必须为 true。
             HumanMessage(content=user_prompt),
         ]
         order: TradeOrder = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=180.0)
+        _track_llm_response(report if "report" in dir() else (decision if "decision" in dir() else (order if "order" in dir() else raw_resp)), config.DASHSCOPE_MODEL, "trade_executor")
 
         order_dict = order.model_dump(mode='json')
         order_dict["simulated"]       = True            # 强制确保 simulated=True
@@ -2227,6 +2257,7 @@ async def health_node(state: TradingGraphState) -> dict:
             HumanMessage(content=user_prompt),
         ]
         report: PortfolioHealthReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=180.0)
+        _track_llm_response(report if "report" in dir() else (decision if "decision" in dir() else (order if "order" in dir() else raw_resp)), config.DASHSCOPE_MODEL, "health_node")
 
         report_dict = report.model_dump(mode='json')
         log_msg = _log_entry(

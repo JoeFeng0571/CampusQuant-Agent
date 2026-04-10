@@ -2538,6 +2538,54 @@ if not os.path.exists(os.path.join(TRUE_PROJECT_ROOT, "auth.html")):
 # Admin Metrics 端点（W3 Observability）
 # ════════════════════════════════════════════════════════════════
 
+# ════════════════════════════════════════════════════════════════
+# W4: Matching Engine v2 端点（与 mock_exchange 共存）
+# ════════════════════════════════════════════════════════════════
+
+_matching_engine = None
+
+def _get_matching_engine():
+    global _matching_engine
+    if _matching_engine is None:
+        from api.matching_engine import MatchingEngine
+        _matching_engine = MatchingEngine(db_path=TRUE_PROJECT_ROOT / "data" / "matching.db")
+    return _matching_engine
+
+
+@app.post("/api/v2/trade/order", summary="Matching Engine v2 下单")
+async def place_order_v2(
+    symbol: str, side: str, quantity: int, price: float = None,
+):
+    """使用真·Matching Engine 下单（price-time priority）"""
+    from api.matching_engine import Side
+    engine = _get_matching_engine()
+    s = Side.BUY if side.upper() == "BUY" else Side.SELL
+    result = engine.place_order("demo_user", symbol, s, price, quantity)
+    return {
+        "order_id": result.order_id,
+        "status": result.status.value,
+        "filled": result.filled,
+        "remaining": result.remaining,
+        "avg_price": result.avg_price,
+        "total_fee": result.total_fee,
+        "trades": len(result.trades),
+        "rejected": result.rejected,
+    }
+
+
+@app.get("/api/v2/trade/book/{symbol}", summary="Order Book 盘口")
+async def get_order_book(symbol: str, depth: int = 5):
+    """返回 N 档盘口"""
+    engine = _get_matching_engine()
+    return engine.get_depth(symbol, depth)
+
+
+@app.get("/api/v2/trade/trades", summary="成交记录")
+async def get_trades_v2(symbol: str = "", limit: int = 50):
+    engine = _get_matching_engine()
+    return engine.get_trades(symbol, limit)
+
+
 @app.get("/admin/metrics")
 async def admin_metrics(hours: float = 24):
     """返回最近 N 小时的 metrics 摘要 (JSON)"""
