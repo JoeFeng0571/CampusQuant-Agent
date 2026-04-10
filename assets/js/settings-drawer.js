@@ -352,10 +352,9 @@
         if (t.closest('.cq-logout-btn')) { doLogout(); return; }
 
         // Segmented control button
-        const segBtn = t.closest('.cq-seg button[data-v]');
-        if (segBtn) {
-            const seg = segBtn.closest('.cq-seg[data-pref]');
-            if (!seg) return;
+        const segBtn = t.closest('[data-v]');
+        const seg = segBtn && segBtn.closest('.cq-seg[data-pref]');
+        if (segBtn && seg) {
             const pref = seg.dataset.pref;
             prefs[pref] = segBtn.dataset.v;
             savePrefs(prefs);
