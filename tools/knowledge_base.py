@@ -278,6 +278,9 @@ def _build_embedding_model():
                 base_url=config.DASHSCOPE_BASE_URL,
                 # DashScope 仅接受原始字符串，禁用 LangChain 的 tiktoken 预分词
                 check_embedding_ctx_length=False,
+                # 【关键】DashScope embedding API 限制 batch size ≤ 10
+                # langchain_openai 默认 chunk_size=1000 会导致 400 错误
+                chunk_size=10,
             )
             logger.info(f"  Embedding 模型: DashScope {config.DASHSCOPE_EMBEDDING_MODEL} ✅")
             return model

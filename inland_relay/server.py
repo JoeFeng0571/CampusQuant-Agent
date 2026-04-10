@@ -21,6 +21,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+# 【Fix 2026-04-10】启动时加载 .env，否则 nohup 启动的 uvicorn 拿不到 DASHSCOPE_API_KEY
+# Chroma 会初始化失败，整个 RAG 退化成只有 BM25 的单路检索
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / ".env")
+except ImportError:
+    pass
+
 import akshare as ak
 import pandas as pd
 import requests
@@ -1136,11 +1144,10 @@ def hot_news(force_refresh: bool = False):
 # RAG 知识库检索
 # ════════════════════════════════════════════════════════════════
 
-_MARKET_HINTS = {
-    "A_STOCK": "A股 中国 上证 深证 政策 行业景气度 ETF定投",
-    "HK_STOCK": "港股 香港 恒生 南向资金 估值折价 安全边际",
-    "US_STOCK": "美股 纳斯达克 标普500 美联储 EPS FCF 盈利",
-}
+# 【Fix 2026-04-10】老版 hint 每个市场加 6-7 个词直接塞进 query，
+# 导致 BM25 被噪声词淹没（茅台估值 query 命中了宠物药品行业深度报告，
+# 因为它匹配了 "行业"/"政策" 等 hint 词）。改为空字符串，query 不污染。
+_MARKET_HINTS = {"A_STOCK": "", "HK_STOCK": "", "US_STOCK": ""}
 
 
 @app.get("/relay/rag/search", dependencies=[Depends(verify_token)])

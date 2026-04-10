@@ -3,6 +3,9 @@
 *.key
 *.pem
 config_private.py
+
+# ==================== 本地笔记(不 push) ====================
+UPGRADE_PLAN.md
 .venv/
 venv/
 env/

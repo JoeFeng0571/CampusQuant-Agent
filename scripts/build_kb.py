@@ -31,10 +31,25 @@ from __future__ import annotations
 import argparse
 import os
 import pickle
+import re
 import sys
 import time
 from pathlib import Path
 from typing import List
+
+# 【Fix】PyPDF 有时会抽出孤儿 UTF-16 surrogate 字符（\ud800-\udfff），
+# Chroma/embedding API 无法处理。此正则用于清洗。
+_BAD_CHAR_RE = re.compile(r'[\ud800-\udfff]')
+
+def _sanitize_text(text: str) -> str:
+    """清洗 PDF 抽取时产生的孤儿 surrogate / 不可见控制字符"""
+    if not text:
+        return text
+    # 移除孤儿 surrogate
+    text = _BAD_CHAR_RE.sub('', text)
+    # 移除 null bytes 和其他控制字符（保留 \n \r \t）
+    text = ''.join(c for c in text if c == '\n' or c == '\r' or c == '\t' or ord(c) >= 32)
+    return text
 
 # ── 确保项目根目录在 sys.path ──────────────────────────────────────
 ROOT = Path(__file__).parent.parent
@@ -172,25 +187,19 @@ def build_chroma(chunks, force: bool) -> bool:
         print(f"  [Chroma] 开始 Embedding {len(chunks)} 个文本块（需调用 API，请稍候）...")
         t0 = time.time()
 
-        BATCH = 50
-        if len(chunks) <= BATCH:
-            Chroma.from_documents(
-                documents=chunks,
-                embedding=embedding_model,
-                client=client,
-                collection_name=_COLLECTION,
-            )
-        else:
-            vs = Chroma(
-                client=client,
-                collection_name=_COLLECTION,
-                embedding_function=embedding_model,
-            )
-            for i in range(0, len(chunks), BATCH):
-                batch = chunks[i: i + BATCH]
-                vs.add_documents(batch)
-                done = min(i + BATCH, len(chunks))
-                print(f"           进度: {done}/{len(chunks)} 块")
+        # DashScope 限制 batch size ≤ 10，用 10 的小批次写入 Chroma
+        # 注意这是 Chroma 的写入批次，不是 Embedding API 批次（后者由 OpenAIEmbeddings.chunk_size 控制）
+        BATCH = 100
+        vs = Chroma(
+            client=client,
+            collection_name=_COLLECTION,
+            embedding_function=embedding_model,
+        )
+        for i in range(0, len(chunks), BATCH):
+            batch = chunks[i: i + BATCH]
+            vs.add_documents(batch)
+            done = min(i + BATCH, len(chunks))
+            print(f"           进度: {done}/{len(chunks)} 块 ({done/len(chunks)*100:.1f}%)")
 
         elapsed = time.time() - t0
         print(f"  [Chroma] 构建完成，耗时 {elapsed:.1f}s，持久化至 {_CHROMA_DIR}")
@@ -285,6 +294,19 @@ def main():
     print("\n[Step 2/3] 文本切块...")
     chunks = _SPLITTER.split_documents(raw_docs)
     print(f"  {len(raw_docs)} 篇 → {len(chunks)} 个文本块（chunk_size=500, overlap=100）")
+
+    # 清洗所有 chunk 的 page_content
+    cleaned = 0
+    for chunk in chunks:
+        orig = chunk.page_content
+        chunk.page_content = _sanitize_text(orig)
+        if chunk.page_content != orig:
+            cleaned += 1
+    if cleaned:
+        print(f"  清洗了 {cleaned} 个含孤儿 surrogate / 控制字符的块")
+    # 过滤掉清洗后为空的块
+    chunks = [c for c in chunks if c.page_content.strip()]
+    print(f"  清洗后保留 {len(chunks)} 个有效块")
 
     # ── Step 3: 构建索引 ──────────────────────────────────────────
     print("\n[Step 3/3] 构建检索索引...")
