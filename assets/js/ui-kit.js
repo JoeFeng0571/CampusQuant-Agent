@@ -75,13 +75,17 @@
             -webkit-backdrop-filter: blur(8px);
             z-index: 9995;
             opacity: 0;
+            pointer-events: none;
             transition: opacity .35s ease;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 24px;
         }
-        .cq-dialog-backdrop.show { opacity: 1; }
+        .cq-dialog-backdrop.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
         .cq-dialog {
             background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
             border: 1px solid rgba(255,255,255,0.1);

@@ -40,9 +40,13 @@
             display: flex; align-items: center; justify-content: center;
             padding: 24px;
             opacity: 0;
+            pointer-events: none;
             transition: opacity .3s ease;
         }
-        .cq-kbd-backdrop.show { opacity: 1; }
+        .cq-kbd-backdrop.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
         .cq-kbd-panel {
             background: linear-gradient(180deg, rgba(20,25,40,.96), rgba(15,20,35,.96));
             border: 1px solid rgba(255,255,255,.1);

@@ -40,13 +40,17 @@
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             opacity: 0;
+            pointer-events: none;            /* 关闭时不拦截点击 */
             transition: opacity .3s ease;
             display: flex;
             align-items: flex-start;
             justify-content: center;
             padding-top: 14vh;
         }
-        .cq-cmd-backdrop.show { opacity: 1; }
+        .cq-cmd-backdrop.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
         .cq-cmd-panel {
             width: min(640px, 92vw);
             max-height: 70vh;
