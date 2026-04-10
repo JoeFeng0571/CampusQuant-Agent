@@ -188,6 +188,67 @@ def _sanitize_symbol(s: str) -> str:
 
 
 # ════════════════════════════════════════════════════════════════
+# 3-Layer Structured Output Fallback（可复用 helper）
+# ════════════════════════════════════════════════════════════════
+
+async def _invoke_structured_with_fallback(
+    llm, messages: list, pydantic_model, node_name: str, timeout: float = 300.0
+):
+    """
+    三层解析兜底，任何节点都可调用：
+      层1: with_structured_output（Function Calling 路径）
+      层2: 原始 LLM 调用 + regex JSON 提取 + Pydantic 构建
+      层3: 安全默认值（HOLD + 低置信度）
+    返回 Pydantic model instance。
+    """
+    import re as _re_fb
+
+    # 层1: with_structured_output
+    try:
+        structured_llm = llm.with_structured_output(pydantic_model)
+        result = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=timeout)
+        logger.info(f"[{node_name}] ✅ 层1 structured_output 解析成功")
+        return result
+    except Exception as e1:
+        logger.warning(f"[{node_name}] 层1 失败 ({type(e1).__name__}), 降级至层2")
+
+    # 层2: 原始调用 + regex JSON
+    try:
+        raw_resp = await asyncio.wait_for(llm.ainvoke(messages), timeout=timeout)
+        raw_text = raw_resp.content if hasattr(raw_resp, "content") else str(raw_resp)
+        # 去除 markdown 代码块
+        clean = _re_fb.sub(r"```(?:json|JSON)?", "", raw_text).strip().strip("`").strip()
+        m = _re_fb.search(r"\{[\s\S]*\}", clean)
+        if m:
+            raw_dict = json.loads(m.group())
+            result = pydantic_model(**raw_dict)
+            logger.info(f"[{node_name}] ✅ 层2 regex+JSON 解析成功")
+            return result
+        else:
+            raise ValueError("未找到 JSON 对象")
+    except Exception as e2:
+        logger.warning(f"[{node_name}] 层2 失败 ({type(e2).__name__}), 降级至层3 安全默认值")
+
+    # 层3: 安全默认值
+    defaults = {
+        "recommendation": "HOLD", "confidence": 0.30,
+        "reasoning": f"{node_name} 结构化输出解析三层全失败，降级为 HOLD",
+        "key_factors": [], "risk_factors": [],
+        "price_target": None, "signal_strength": "WEAK",
+        "investment_thesis": "", "business_model": "", "moat_assessment": "",
+        "catalysts": [], "financial_highlights": [],
+    }
+    try:
+        result = pydantic_model(**defaults)
+        logger.warning(f"[{node_name}] ⚠ 层3 使用安全默认值: HOLD/0.30")
+        return result
+    except Exception:
+        # 如果 pydantic_model 不是 AnalystReport，构建可能失败
+        # 返回最基础的 dict 让上层处理
+        raise
+
+
+# ════════════════════════════════════════════════════════════════
 # Anti-Loop 工具调用计数器（借鉴 TradingAgents-CN-main）
 # ════════════════════════════════════════════════════════════════
 
@@ -919,12 +980,13 @@ price_target 使用绝对价格数值。
 
     try:
         llm = _build_llm(temperature=0.1)
-        structured_llm = llm.with_structured_output(AnalystReport)
         messages = [
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=300.0)
+        report: AnalystReport = await _invoke_structured_with_fallback(
+            llm, messages, AnalystReport, "fundamental_node", timeout=300.0
+        )
         _track_llm_response(report, config.DASHSCOPE_MODEL, "fundamental_node")
 
         report_dict = report.model_dump(mode='json')
@@ -1063,13 +1125,14 @@ async def technical_node(state: TradingGraphState) -> dict:
 
     try:
         llm = _build_llm(temperature=0.1)
-        structured_llm = llm.with_structured_output(AnalystReport)
         messages = [
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=300.0)
-        _track_llm_response(report if "report" in dir() else (decision if "decision" in dir() else (order if "order" in dir() else raw_resp)), config.DASHSCOPE_MODEL, "technical_node")
+        report: AnalystReport = await _invoke_structured_with_fallback(
+            llm, messages, AnalystReport, "technical_node", timeout=300.0
+        )
+        _track_llm_response(report, config.DASHSCOPE_MODEL, "technical_node")
 
         report_dict = report.model_dump(mode='json')
         log_msg = _log_entry(
@@ -1205,13 +1268,14 @@ async def sentiment_node(state: TradingGraphState) -> dict:
 
     try:
         llm = _build_llm(temperature=0.1)
-        structured_llm = llm.with_structured_output(AnalystReport)
         messages = [
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        report: AnalystReport = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=300.0)
-        _track_llm_response(report if "report" in dir() else (decision if "decision" in dir() else (order if "order" in dir() else raw_resp)), config.DASHSCOPE_MODEL, "sentiment_node")
+        report: AnalystReport = await _invoke_structured_with_fallback(
+            llm, messages, AnalystReport, "sentiment_node", timeout=300.0
+        )
+        _track_llm_response(report, config.DASHSCOPE_MODEL, "sentiment_node")
 
         report_dict = report.model_dump(mode='json')
         has_real_news = "新闻获取失败" not in news_text and "获取失败" not in news_text and "暂无" not in news_text
@@ -1491,12 +1555,13 @@ async def portfolio_node(state: TradingGraphState) -> dict:
 
     try:
         llm = _build_llm(temperature=0.1)
-        structured_llm = llm.with_structured_output(AnalystReport)
         messages = [
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        decision: AnalystReport = await structured_llm.ainvoke(messages)
+        decision: AnalystReport = await _invoke_structured_with_fallback(
+            llm, messages, AnalystReport, "rag_node", timeout=300.0
+        )
         _track_llm_response(report if "report" in dir() else (decision if "decision" in dir() else (order if "order" in dir() else raw_resp)), config.DASHSCOPE_MODEL, "portfolio_node")
 
         conflict_msg = "⚡ 检测到基本面与技术面冲突！" if has_conflict else ""

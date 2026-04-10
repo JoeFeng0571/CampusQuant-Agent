@@ -341,11 +341,21 @@ def _build_chroma_retriever(embedding_model) -> Optional[object]:
             collection_name=_COLLECTION,
             embedding_function=embedding_model,
         )
+        # 检查向量数量
+        coll = chroma_client.get_collection(_COLLECTION)
+        vec_count = coll.count()
+        if vec_count == 0:
+            logger.warning(
+                f"  ⚠ Chroma 集合 '{_COLLECTION}' 存在但向量数=0！"
+                f"请运行: python scripts/build_kb.py 重建索引"
+            )
+            return None
+
         retriever = vector_store.as_retriever(
             search_type="similarity",
             search_kwargs={"k": 5},
         )
-        logger.info("  Chroma 向量检索器: 从磁盘加载完成 ✅")
+        logger.info(f"  Chroma 向量检索器: {vec_count} 向量，从磁盘加载完成 ✅")
         return retriever
 
     except ImportError:
@@ -552,6 +562,48 @@ def init_knowledge_base(force_reload: bool = False) -> bool:
 
 
 # ════════════════════════════════════════════════════════════════════
+# 查询扩展 — 金融领域同义词/翻译
+# ════════════════════════════════════════════════════════════════════
+
+_SYNONYM_MAP = {
+    "美联储": "Federal Reserve Fed 联邦储备 降息 加息",
+    "央行": "PBOC 中国人民银行 货币政策 LPR",
+    "市盈率": "PE P/E ratio 估值",
+    "市净率": "PB P/B ratio 净资产",
+    "净资产收益率": "ROE Return on Equity",
+    "每股收益": "EPS Earnings Per Share",
+    "自由现金流": "FCF Free Cash Flow",
+    "营收": "revenue 营业收入 总收入",
+    "净利润": "net income 归母净利润",
+    "毛利率": "gross margin 毛利",
+    "研发": "R&D 研发费用 研发投入",
+    "股息": "dividend 分红 派息",
+    "回购": "buyback 股票回购",
+    "减持": "insider selling 大股东减持",
+    "融资融券": "margin trading 两融",
+    "北向资金": "northbound 外资 QFII 沪股通 深股通",
+    "南向资金": "southbound 港股通",
+    "ETF": "交易型开放式基金 指数基金",
+    "量化": "quant quantitative 程序化交易",
+    "AI芯片": "GPU AI chip 英伟达 NVIDIA 算力",
+    "新能源": "NEV 电动车 光伏 锂电 储能",
+}
+
+def _expand_query_synonyms(query: str) -> str:
+    """在查询中发现领域术语时，追加同义词/英文翻译以提升召回"""
+    extras = []
+    q_lower = query.lower()
+    for term, synonyms in _SYNONYM_MAP.items():
+        if term.lower() in q_lower or term in query:
+            # 只取前 3 个同义词，避免查询过长
+            parts = synonyms.split()[:3]
+            extras.extend(parts)
+    if extras:
+        return query + " " + " ".join(extras)
+    return query
+
+
+# ════════════════════════════════════════════════════════════════════
 # @tool — search_knowledge_base（LangGraph 节点调用的统一入口）
 # ════════════════════════════════════════════════════════════════════
 
@@ -616,7 +668,8 @@ def search_knowledge_base(query: str, market_type: str = "ALL", max_length: int 
             "US_STOCK": "美股 纳斯达克 标普500 美联储 EPS FCF 盈利",
         }
         market_hint    = _MARKET_HINTS.get(market_type, "")
-        enhanced_query = f"{query} {market_hint}".strip()
+        expanded_query = _expand_query_synonyms(query)
+        enhanced_query = f"{expanded_query} {market_hint}".strip()
         sections.append(_search_local(enhanced_query, original_query=query))
 
     # ────────────────────────────────────────────────────────────────

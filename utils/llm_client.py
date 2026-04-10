@@ -13,6 +13,15 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 
 from config import config
 
+# Rate limit exception types to retry
+_RETRY_EXCEPTIONS = [TimeoutError, asyncio.TimeoutError, ConnectionError, OSError]
+try:
+    from openai import RateLimitError, APITimeoutError, APIConnectionError
+    _RETRY_EXCEPTIONS.extend([RateLimitError, APITimeoutError, APIConnectionError])
+except ImportError:
+    pass
+_RETRY_EXCEPTIONS = tuple(_RETRY_EXCEPTIONS)
+
 
 class LLMClient:
     """LLM 交互客户端，支持多模型切换"""
@@ -68,10 +77,9 @@ class LLMClient:
         return config.DASHSCOPE_MODEL
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        # 只对网络/超时类错误重试；逻辑错误（KeyError/ValueError/API模型不存在）不重试
-        retry=retry_if_exception_type((TimeoutError, asyncio.TimeoutError, ConnectionError, OSError)),
+        stop=stop_after_attempt(4),
+        wait=wait_exponential(multiplier=1.5, min=2, max=30),
+        retry=retry_if_exception_type(_RETRY_EXCEPTIONS),
         reraise=True,
     )
     def generate(
@@ -105,13 +113,43 @@ class LLMClient:
                     prompt, system_prompt, temperature, max_tokens, response_format
                 )
         except Exception as e:
-            # 暴露完整 traceback，不被上层掩盖，便于定位 API / 模型名错误
             logger.error(
                 f"❌ LLM 生成失败 [provider={self.provider} model={self.model}]: "
                 f"{type(e).__name__}: {e}",
-                exc_info=True,
             )
+            # Auto-fallback: try backup provider
+            fallback = self._try_fallback(prompt, system_prompt, temperature, max_tokens, response_format)
+            if fallback is not None:
+                return fallback
             raise
+
+    def _try_fallback(self, prompt, system_prompt, temperature, max_tokens, response_format):
+        """尝试备用 provider（静默降级）"""
+        fallback_chain = {
+            "dashscope": ("openai", config.OPENAI_API_KEY, config.OPENAI_BASE_URL, config.OPENAI_MODEL),
+            "openai": ("dashscope", config.DASHSCOPE_API_KEY, config.DASHSCOPE_BASE_URL, config.DASHSCOPE_MODEL),
+        }
+        fb = fallback_chain.get(self.provider)
+        if not fb or not fb[1]:  # no key configured for fallback
+            return None
+        fb_provider, fb_key, fb_base, fb_model = fb
+        try:
+            logger.warning(f"⚡ 降级到备用 provider: {fb_provider}/{fb_model}")
+            from openai import OpenAI
+            fb_client = OpenAI(api_key=fb_key, base_url=fb_base or "https://api.openai.com/v1", timeout=60.0)
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": prompt})
+            kwargs = {"model": fb_model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
+            if response_format == "json":
+                kwargs["response_format"] = {"type": "json_object"}
+            resp = fb_client.chat.completions.create(**kwargs, timeout=60.0)
+            logger.info(f"✅ 备用 provider {fb_provider} 成功")
+            return resp.choices[0].message.content
+        except Exception as e2:
+            logger.error(f"❌ 备用 provider {fb_provider} 也失败: {e2}")
+            return None
 
     def _generate_openai_compat(
         self,
@@ -170,8 +208,9 @@ class LLMClient:
         return response.content[0].text
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(4),
+        wait=wait_exponential(multiplier=1.5, min=2, max=30),
+        retry=retry_if_exception_type(_RETRY_EXCEPTIONS),
         reraise=True,
     )
     def generate_structured(
