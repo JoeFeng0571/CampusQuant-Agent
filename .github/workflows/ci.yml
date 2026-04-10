@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run unit tests
+        run: |
+          python -m pytest tests/test_matching_engine.py -v --tb=short
+
+      - name: Run schema validation
+        run: |
+          python -c "
+          from bench.schema import BenchCase
+          import json
+          with open('bench/datasets/cq_bench_poc.jsonl', encoding='utf-8') as f:
+              for i, line in enumerate(f, 1):
+                  BenchCase.model_validate_json(line.strip())
+          print(f'OK: {i} cases validated')
+          "
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t campusquant:${{ github.sha }} .
+
+      - name: Verify image
+        run: |
+          docker run --rm campusquant:${{ github.sha }} python -c "
+          from graph.builder import build_graph
+          g = build_graph()
+          print('Graph OK:', list(g.nodes.keys()))
+          "
