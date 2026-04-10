@@ -37,6 +37,7 @@ graph/builder.py — LangGraph StateGraph 装配与编译
 """
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Optional
 
 from langgraph.graph import END, START, StateGraph
@@ -172,6 +173,50 @@ def build_graph_with_memory():
         checkpointer = None
 
     return build_graph(checkpointer=checkpointer)
+
+
+# ────────────────────────────────────────────────────────────────
+# W5 升级：SQLite 持久化检查点（进程崩溃后可恢复）
+# ────────────────────────────────────────────────────────────────
+
+_CHECKPOINT_DB = Path(__file__).parent.parent / "data" / "checkpoints.db"
+
+
+async def build_graph_with_sqlite_checkpoint():
+    """
+    构建带 AsyncSqliteSaver 持久化检查点的图。
+
+    注意: 这是 async 函数，因为 SQLite saver 需要 async context。
+    应在 FastAPI lifespan 或 async 上下文中调用。
+
+    优势 vs MemorySaver:
+      - 进程崩溃后 state 不丢失，可从 thread_id resume
+      - 所有中间 node state 持久化（可回放 debug）
+      - 支持多 worker 共享（SQLite WAL 模式）
+
+    用法 (在 FastAPI lifespan 中):
+      async with build_sqlite_saver() as saver:
+          graph = build_graph(checkpointer=saver)
+          config = {"configurable": {"thread_id": f"{user_id}:{symbol}:{uuid4()}"}}
+          result = await graph.ainvoke(state, config)
+
+    恢复中断的分析:
+      result = await graph.ainvoke(None, config)  # 传 None state 从 checkpoint 恢复
+    """
+    _CHECKPOINT_DB.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+        import aiosqlite
+        conn = await aiosqlite.connect(str(_CHECKPOINT_DB))
+        checkpointer = AsyncSqliteSaver(conn)
+        await checkpointer.setup()  # 创建 checkpoint 表
+        logger.info(f"✅ 使用 AsyncSqliteSaver 持久化检查点: {_CHECKPOINT_DB}")
+        return build_graph(checkpointer=checkpointer), checkpointer
+    except ImportError:
+        logger.warning("langgraph-checkpoint-sqlite 未安装，降级为 MemorySaver")
+        logger.warning("  pip install langgraph-checkpoint-sqlite")
+        return build_graph_with_memory(), None
 
 
 def cleanup_memory_saver(checkpointer) -> int:
