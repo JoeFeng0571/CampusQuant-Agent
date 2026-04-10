@@ -105,9 +105,6 @@
             <button class="cq-nav-tool" title="命令面板 (⌘K)" onclick="cqCommandPalette && cqCommandPalette.open()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </button>
-            <button class="cq-nav-tool" title="快捷键 (?)" onclick="cqKeyShortcuts && cqKeyShortcuts.open()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"/><path d="M6 8h.001"/><path d="M10 8h.001"/><path d="M14 8h.001"/><path d="M18 8h.001"/><path d="M8 12h.001"/><path d="M12 12h.001"/><path d="M16 12h.001"/><path d="M7 16h10"/></svg>
-            </button>
             <button class="cq-nav-tool" title="设置 (⌘,)" onclick="cqSettings && cqSettings.open()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             </button>
@@ -122,17 +119,19 @@
                     border-radius: 8px;
                     border: 1px solid rgba(255,255,255,.06);
                     background: rgba(255,255,255,.03);
-                    color: var(--text-2, rgba(255,255,255,.65));
+                    color: rgba(255,255,255,.55);
                     cursor: pointer;
                     display: flex; align-items: center; justify-content: center;
                     transition: all .2s;
                     padding: 0;
                 }
                 .cq-nav-tool:hover {
-                    background: rgba(79,172,254,.1);
-                    border-color: rgba(79,172,254,.3);
-                    color: #00f2fe;
+                    background: rgba(129,140,248,.12);
+                    border-color: rgba(129,140,248,.30);
+                    color: #818cf8;
                 }
+                [data-theme="light"] .cq-nav-tool { color: rgba(0,0,0,.45); border-color: rgba(0,0,0,.08); background: transparent; }
+                [data-theme="light"] .cq-nav-tool:hover { background: rgba(79,70,229,.08); border-color: rgba(79,70,229,.22); color: #4f46e5; }
                 @media (max-width: 768px) {
                     .cq-nav-tools { display: none !important; }
                 }
@@ -160,8 +159,8 @@
             if (window.cqToast) {
                 setTimeout(() => {
                     cqToast({
-                        title: '👋 欢迎来到 CampusQuant',
-                        message: '试试 ⌘K 命令面板 / 按 ? 查看快捷键 / 点击右上角 ⚙ 个性化设置',
+                        title: '欢迎来到 CampusQuant',
+                        message: '试试 ⌘K 命令面板，或点击右上角 ⚙ 图标个性化设置',
                     }, 'info', 7000);
                     localStorage.setItem(HINT_KEY, '1');
                 }, 1200);

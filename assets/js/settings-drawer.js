@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════
-   settings-drawer.js v4 — 右侧滑入设置抽屉
+   settings-drawer.js v5 — 右侧滑入设置抽屉
    - 主题切换（暗 / 明 / 跟随系统）
    - 背景动效开关
    - 减少动画
@@ -51,25 +51,27 @@
         }
         .cq-settings-backdrop.show { opacity: 1; pointer-events: auto; }
 
-        .cq-settings-drawer {
-            position: fixed; top: 0; right: 0; bottom: 0;
+        /* Override base.css aside rule — drawer must be fixed + high z */
+        aside.cq-settings-drawer {
+            position: fixed !important;
+            top: 0; right: 0; bottom: 0;
             width: min(360px, 92vw);
             background: #161b22;
             border-left: 1px solid rgba(255,255,255,.08);
             box-shadow: -16px 0 40px rgba(0,0,0,.45);
-            z-index: 9994;
+            z-index: 9994 !important;
             display: flex; flex-direction: column;
             transform: translateX(100%);
             transition: transform .32s cubic-bezier(.16,1,.3,1);
             color: rgba(255,255,255,.85);
         }
-        [data-theme="light"] .cq-settings-drawer {
+        [data-theme="light"] aside.cq-settings-drawer {
             background: #fff;
             border-left-color: rgba(0,0,0,.09);
             box-shadow: -16px 0 40px rgba(0,0,0,.12);
             color: rgba(0,0,0,.80);
         }
-        .cq-settings-drawer.show { transform: translateX(0); }
+        aside.cq-settings-drawer.show { transform: translateX(0); }
 
         .cq-settings-header {
             display: flex; justify-content: space-between; align-items: center;
@@ -239,7 +241,7 @@
                         <div class="cq-account-name">${username}</div>
                         <div class="cq-account-sub">模拟投资学员</div>
                     </div>
-                    <button class="cq-logout-btn" id="cq-logout-btn">退出登录</button>
+                    <button class="cq-logout-btn">退出登录</button>
                 </div>
             </div>
         ` : `
@@ -272,7 +274,7 @@
                     <div class="cq-settings-row">
                         <div>
                             <div class="cq-settings-label">背景动效</div>
-                            <div class="cq-settings-desc">极光 / 点阵 / 流沙</div>
+                            <div class="cq-settings-desc">粒子 / 柔和 / 关闭</div>
                         </div>
                         <div class="cq-seg" data-pref="bgMode">
                             <button data-v="default">完整</button>
@@ -296,7 +298,7 @@
                     </div>
                     <div class="cq-settings-row">
                         <div class="cq-settings-label">版本</div>
-                        <span style="font-size:11px;font-family:var(--font-mono,monospace);color:rgba(255,255,255,.38)" id="cq-version-span">v1.0.0</span>
+                        <span class="cq-ver-span" style="font-size:11px;font-family:var(--font-mono,monospace);color:rgba(255,255,255,.38)">v1.0.0</span>
                     </div>
                 </div>
             </div>
@@ -305,6 +307,72 @@
                 <span class="cq-settings-version">校园财商</span>
             </div>
         `;
+    }
+
+    function syncUI() {
+        if (!drawer) return;
+        // Sync segmented controls
+        drawer.querySelectorAll('.cq-seg[data-pref]').forEach(seg => {
+            const cur = prefs[seg.dataset.pref] || (seg.dataset.pref === 'theme' ? 'dark' : 'default');
+            seg.querySelectorAll('button[data-v]').forEach(b => {
+                b.classList.toggle('active', b.dataset.v === cur);
+            });
+        });
+        // Sync toggles
+        drawer.querySelectorAll('.cq-toggle[data-pref]').forEach(t => {
+            t.classList.toggle('on', !!prefs[t.dataset.pref]);
+        });
+        // Fix version span color in light mode
+        const isLight = document.documentElement.dataset.theme === 'light';
+        drawer.querySelectorAll('.cq-ver-span').forEach(el => {
+            el.style.color = isLight ? 'rgba(0,0,0,.36)' : 'rgba(255,255,255,.38)';
+        });
+    }
+
+    async function doLogout() {
+        const confirmed = window.cqConfirm
+            ? await cqConfirm('确定退出登录吗？', '退出登录')
+            : confirm('确定退出登录吗？');
+        if (!confirmed) return;
+        localStorage.removeItem('cq_token');
+        localStorage.removeItem('cq_username');
+        close();
+        if (window.cqRenderAuthWidget) cqRenderAuthWidget();
+        setTimeout(() => { location.href = 'index.html'; }, 300);
+    }
+
+    // ── Event delegation — one listener on drawer, survives innerHTML swaps ──
+    function handleDrawerClick(e) {
+        const t = e.target;
+
+        // Close button
+        if (t.closest('.cq-settings-close')) { close(); return; }
+
+        // Logout button
+        if (t.closest('.cq-logout-btn')) { doLogout(); return; }
+
+        // Segmented control button
+        const segBtn = t.closest('.cq-seg button[data-v]');
+        if (segBtn) {
+            const seg = segBtn.closest('.cq-seg[data-pref]');
+            if (!seg) return;
+            const pref = seg.dataset.pref;
+            prefs[pref] = segBtn.dataset.v;
+            savePrefs(prefs);
+            syncUI();
+            applyPrefs();
+            return;
+        }
+
+        // Toggle button
+        const tog = t.closest('.cq-toggle[data-pref]');
+        if (tog) {
+            prefs[tog.dataset.pref] = !prefs[tog.dataset.pref];
+            savePrefs(prefs);
+            syncUI();
+            applyPrefs();
+            return;
+        }
     }
 
     function build() {
@@ -323,89 +391,18 @@
         drawer.className = 'cq-settings-drawer';
         drawer.setAttribute('role', 'dialog');
         drawer.setAttribute('aria-modal', 'true');
-        drawer.innerHTML = buildDrawerHTML();
         document.body.appendChild(drawer);
 
-        bindEvents();
-        syncUI();
-    }
-
-    function bindEvents() {
-        drawer.querySelector('.cq-settings-close').addEventListener('click', close);
+        // Event delegation — bind ONCE, survives all future innerHTML replacements
+        drawer.addEventListener('click', handleDrawerClick);
         backdrop.addEventListener('click', close);
-
-        // Logout button (may not exist if not logged in)
-        const logoutBtn = drawer.querySelector('#cq-logout-btn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', async () => {
-                const confirmed = window.cqConfirm
-                    ? await cqConfirm('确定退出登录吗？', '退出登录')
-                    : confirm('确定退出登录吗？');
-                if (!confirmed) return;
-                localStorage.removeItem('cq_token');
-                localStorage.removeItem('cq_username');
-                close();
-                // Rebuild auth widget if available
-                if (window.cqRenderAuthWidget) cqRenderAuthWidget();
-                // Redirect to home
-                setTimeout(() => { location.href = 'index.html'; }, 300);
-            });
-        }
-
-        // Segmented controls
-        drawer.querySelectorAll('.cq-seg[data-pref]').forEach(seg => {
-            const pref = seg.dataset.pref;
-            seg.querySelectorAll('button[data-v]').forEach(b => {
-                b.addEventListener('click', () => {
-                    if (b.disabled) return;
-                    prefs[pref] = b.dataset.v;
-                    savePrefs(prefs);
-                    syncUI();
-                    applyPrefs();
-                    if (pref === 'bgMode') {
-                        cqToast && cqToast({ title: '设置已保存', message: '刷新后生效' }, 'success');
-                    }
-                });
-            });
-        });
-
-        // Toggles
-        drawer.querySelectorAll('.cq-toggle[data-pref]').forEach(t => {
-            t.addEventListener('click', () => {
-                prefs[t.dataset.pref] = !prefs[t.dataset.pref];
-                savePrefs(prefs);
-                syncUI();
-                applyPrefs();
-            });
-        });
-    }
-
-    function syncUI() {
-        if (!drawer) return;
-        drawer.querySelectorAll('.cq-seg[data-pref]').forEach(seg => {
-            const pref = seg.dataset.pref;
-            const cur  = prefs[pref] || (pref === 'theme' ? 'dark' : pref === 'lang' ? 'zh' : 'default');
-            seg.querySelectorAll('button[data-v]').forEach(b => {
-                b.classList.toggle('active', b.dataset.v === cur);
-            });
-        });
-        drawer.querySelectorAll('.cq-toggle[data-pref]').forEach(t => {
-            t.classList.toggle('on', !!prefs[t.dataset.pref]);
-        });
-        // Fix light-mode version span color
-        const vs = drawer.querySelector('#cq-version-span');
-        if (vs) {
-            const isLight = document.documentElement.dataset.theme === 'light';
-            vs.style.color = isLight ? 'rgba(0,0,0,.36)' : 'rgba(255,255,255,.38)';
-        }
     }
 
     function open() {
         if (isOpen) return;
         if (!drawer) build();
-        // Rebuild account section in case login state changed
+        // Rebuild content (account section needs to reflect current login state)
         drawer.innerHTML = buildDrawerHTML();
-        bindEvents();
         syncUI();
         isOpen = true;
         backdrop.classList.add('show');
@@ -421,7 +418,7 @@
 
     function toggle() { isOpen ? close() : open(); }
 
-    // 快捷键 Cmd+, / Ctrl+,
+    // Keyboard shortcut Cmd+, / Ctrl+,
     document.addEventListener('keydown', (e) => {
         if ((e.metaKey || e.ctrlKey) && e.key === ',') { e.preventDefault(); toggle(); }
         else if (e.key === 'Escape' && isOpen) close();
