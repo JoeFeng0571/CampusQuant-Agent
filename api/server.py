@@ -632,12 +632,67 @@ async def _stream_graph_events(
         _risk_factors = fundamental.get('risk_factors') or []
         _risk_factors_md = "\n".join(f"- {r}" for r in _risk_factors) if _risk_factors else "暂无特别风险提示"
 
-        # 估值指标
-        _pe = _fund_key_metrics.get('pe', 'N/A')
-        _pb = _fund_key_metrics.get('pb', 'N/A')
-        _roe = _fund_key_metrics.get('roe', 'N/A')
-        _eps = _fund_key_metrics.get('eps', 'N/A')
-        _total_cap = _fund_key_metrics.get('total_market_cap', 'N/A')
+        # 估值指标 + PE/PB 自动补算
+        _pe = _fund_key_metrics.get('pe', None)
+        _pb = _fund_key_metrics.get('pb', None)
+        _roe = _fund_key_metrics.get('roe', None)
+        _eps = _fund_key_metrics.get('eps', None)
+        _total_cap = _fund_key_metrics.get('total_market_cap', None)
+        _latest_price = last_state.get("market_data", {}).get("latest_price", None)
+
+        # 【Phase 3 Fix】PE/PB 为 None 时从 EPS + 价格自动计算
+        if not _pe and _eps and _latest_price:
+            try:
+                _pe = round(float(_latest_price) / float(_eps), 2)
+            except (TypeError, ValueError, ZeroDivisionError):
+                pass
+        _pe_display = f"{_pe:.1f}" if isinstance(_pe, (int, float)) else "--"
+        _pb_display = f"{_pb:.2f}" if isinstance(_pb, (int, float)) else "--"
+        _roe_display = f"{_roe:.2f}%" if isinstance(_roe, (int, float)) else "--"
+        _eps_display = f"{_eps:.2f}" if isinstance(_eps, (int, float)) else "--"
+        _cap_display = str(_total_cap) if _total_cap else "--"
+        _price_display = f"{float(_latest_price):.2f}" if _latest_price else "--"
+
+        # 简化 DCF 估值 (Phase 4)
+        _dcf_section = ""
+        if _eps and _latest_price:
+            try:
+                eps_val = float(_eps)
+                price_val = float(_latest_price)
+                # 假设: 增长率 8%, 折现率 10%, 5 年
+                growth = 0.08
+                discount = 0.10
+                dcf_value = sum(eps_val * (1+growth)**i / (1+discount)**i for i in range(1, 6))
+                # 终值 (PE=15 退出)
+                terminal = eps_val * (1+growth)**5 * 15 / (1+discount)**5
+                fair_value = dcf_value + terminal
+                margin = (fair_value / price_val - 1) * 100
+                margin_text = f"+{margin:.1f}%" if margin > 0 else f"{margin:.1f}%"
+                _dcf_section = f"""
+## 简化估值模型
+
+> ⚠ 以下为教学用简化 DCF（现金流折现）模型，假设条件较多，仅供参考学习。
+
+| 假设 | 值 |
+|------|-----|
+| 当前 EPS（每股收益） | ¥{eps_val:.2f} |
+| 假设年增长率 | 8% |
+| 折现率 | 10% |
+| 退出 PE 倍数 | 15x |
+| 估值周期 | 5 年 |
+
+| 指标 | 计算结果 |
+|------|----------|
+| **DCF 合理价值** | **¥{fair_value:.2f}** |
+| 当前价格 | ¥{price_val:.2f} |
+| 安全边际（margin of safety） | {margin_text} |
+
+> 💡 **通俗解释**：DCF 模型的意思是"这家公司未来 5 年赚的钱，折算到今天值多少"。如果合理价值 > 当前价格，说明可能被低估。
+
+---
+"""
+            except Exception:
+                pass
 
         # 学生行动建议
         _action_rec = final_order.get('action', 'HOLD')
@@ -661,118 +716,159 @@ async def _stream_graph_events(
                 "- 利用等待时间继续研究公司基本面和行业动态"
             )
 
-        markdown_report = f"""# {symbol} · 投资研报
+        # 分析师观点汇总
+        _fund_rec = fundamental.get('recommendation', 'N/A')
+        _tech_rec = technical.get('recommendation', 'N/A')
+        _sent_rec = sentiment.get('recommendation', 'N/A')
+        _fund_conf = fundamental.get('confidence', 0)
+        _tech_conf = technical.get('confidence', 0)
+        _sent_conf = sentiment.get('confidence', 0)
 
-> 生成时间：{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}　｜　CampusQuant 多智能体分析引擎
+        # 一句话结论
+        _one_liner = _thesis if _thesis else final_order.get('rationale', '')
+        if len(_one_liner) > 120:
+            _one_liner = _one_liner[:120] + '...'
+
+        markdown_report = f"""# {symbol} · AI 投资研报
+
+> 📅 {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}　·　CampusQuant 多智能体分析引擎　·　6 个 AI 智能体协作
 {_error_banner}
 
-## 投资建议
+## 💡 一句话结论
 
-| 操作 | 置信度 | 建议仓位 | 止损 | 止盈 | 风险等级 |
-|------|--------|----------|------|------|----------|
-| **{final_order.get('action', 'N/A')}** | {_pct(final_order.get('confidence', 0))} | {float(final_order.get('quantity_pct') or 0):.1f}% | {final_order.get('stop_loss', 'N/A')} | {final_order.get('take_profit', 'N/A')} | {risk.get('risk_level', 'N/A')} |
-
-{f"> 辩论裁决：{debate.get('resolved_recommendation','N/A')} | 决定因素：{debate.get('deciding_factor','')}" if debate else ""}
+> **{_one_liner if _one_liner else '暂无投资论点摘要'}**
 
 ---
 
-## 投资论点
+## 📊 投资建议
+
+| 操作方向 | 综合置信度 | 建议仓位 | 止损线 | 目标价 | 风险等级 |
+|:--------:|:---------:|:--------:|:------:|:------:|:--------:|
+| **{final_order.get('action', 'N/A')}** | {_pct(final_order.get('confidence', 0))} | {float(final_order.get('quantity_pct') or 0):.1f}% | {final_order.get('stop_loss') or '--'} | {final_order.get('take_profit') or fundamental.get('price_target') or '--'} | {risk.get('risk_level', 'N/A')} |
+
+{f"> 🏛️ 多空辩论结果：{debate.get('resolved_recommendation','N/A')} · 决定因素：{debate.get('deciding_factor','')}" if debate else ""}
+
+---
+
+## 🔬 三维度分析师观点汇总
+
+| 维度 | 建议 | 置信度 | 核心观点 |
+|:----:|:----:|:------:|----------|
+| 📈 基本面 | **{_fund_rec}** | {_pct(_fund_conf)} | {', '.join((fundamental.get('key_factors') or ['暂无'])[:2])} |
+| 📉 技术面 | **{_tech_rec}** | {_pct(_tech_conf)} | {', '.join((technical.get('key_factors') or ['暂无'])[:2])} |
+| 🌡️ 市场情绪 | **{_sent_rec}** | {_pct(_sent_conf)} | {', '.join((sentiment.get('key_factors') or ['暂无'])[:2])} |
+
+---
+
+## 📋 核心指标速览
+
+| 指标 | 数值 | 含义 |
+|------|:----:|------|
+| 当前价格 | **{_price_display}** | 最新交易价格 |
+| PE（市盈率） | **{_pe_display}** | 股价 ÷ 每股收益，越低越"便宜" |
+| PB（市净率） | **{_pb_display}** | 股价 ÷ 每股净资产，<1 可能被低估 |
+| ROE（净资产收益率） | **{_roe_display}** | 公司用股东的钱赚钱的效率，>15% 算优秀 |
+| EPS（每股收益） | **{_eps_display}** | 每股赚多少钱，越高越好 |
+| 总市值 | {_cap_display} | 公司在市场上的"总价格" |
+
+---
+
+## 🏢 投资论点
 
 {_thesis if _thesis else fundamental.get('reasoning', '暂无详细推理')[:500]}
 
 ---
 
-## 商业模式 & 收入驱动
+## 💼 商业模式
 
 {_biz_model if _biz_model else '（基本面数据不足，无法生成商业模式分析）'}
 
 ---
 
-## 护城河 & 竞争优势
+## 🏰 护城河 & 竞争优势
 
 {_moat if _moat else '（基本面数据不足，无法生成护城河评估）'}
 
 ---
 
-## 估值 & 同行对比
+## 📊 估值 & 同行对比
 
 {_peer if _peer else '（暂无同行对比数据）'}
 
-| PE | PB | ROE | EPS | 总市值 |
-|----|----|----|-----|--------|
-| {_pe if _pe and _pe != 'N/A' else '--'} | {_pb if _pb and _pb != 'N/A' else '--'} | {_roe if _roe and _roe != 'N/A' else '--'} | {_eps if _eps and _eps != 'N/A' else '--'} | {_total_cap if _total_cap and _total_cap != 'N/A' else '--'} |
-
 ---
 
-## 催化剂（未来 1-2 季度）
+{_dcf_section}
+
+## 🚀 催化剂（未来 1-2 季度可能推动股价的事件）
 
 {_catalysts_md}
 
 ---
 
-## 核心风险
+## ⚠️ 核心风险
 
 {_risk_factors_md}
 
 ---
 
-## 情景分析
+## 📈📉 情景分析
 
 | 情景 | 描述 |
-|------|------|
-| 乐观 | {_bull if _bull else '暂无'} |
-| 悲观 | {_bear if _bear else '暂无'} |
+|:----:|------|
+| 🟢 乐观 | {_bull if _bull else '暂无'} |
+| 🔴 悲观 | {_bear if _bear else '暂无'} |
 
 ---
 
-## 学生行动建议
+## 🎓 大学生行动建议
 
 {_student_advice}
 
 ---
 
 <details>
-<summary>详细分析过程（点击展开）</summary>
+<summary>🔍 详细分析过程（点击展开完整三维度报告）</summary>
 
-### 基本面分析
+### 基本面分析师报告
 
 | 建议 | 置信度 | 信号强度 |
-|------|--------|----------|
-| **{fundamental.get('recommendation', 'N/A')}** | {_pct(fundamental.get('confidence', 0))} | {fundamental.get('signal_strength', 'N/A')} |
+|:----:|:------:|:--------:|
+| **{_fund_rec}** | {_pct(_fund_conf)} | {fundamental.get('signal_strength', 'N/A')} |
 
 {fundamental.get('reasoning', '暂无') or '暂无'}
 
 **关键因素**：{', '.join(fundamental.get('key_factors') or ['暂无'])}
 
-### 技术面分析
+### 技术面分析师报告
 
 | 建议 | 置信度 | 信号强度 |
-|------|--------|----------|
-| **{technical.get('recommendation', 'N/A')}** | {_pct(technical.get('confidence', 0))} | {technical.get('signal_strength', 'N/A')} |
+|:----:|:------:|:--------:|
+| **{_tech_rec}** | {_pct(_tech_conf)} | {technical.get('signal_strength', 'N/A')} |
 
 {technical.get('reasoning', '暂无') or '暂无'}
 
 **关键因素**：{', '.join(technical.get('key_factors') or ['暂无'])}
 
-### 市场情绪分析
+### 市场情绪分析师报告
 
 | 建议 | 置信度 |
-|------|--------|
-| **{sentiment.get('recommendation', 'N/A')}** | {_pct(sentiment.get('confidence', 0))} |
+|:----:|:------:|
+| **{_sent_rec}** | {_pct(_sent_conf)} |
 
 {sentiment.get('reasoning', '暂无') or '暂无'}
 
-### 风控决策
+### 风控审核
 
-| 审批状态 | 仓位 | 止损 | 止盈 |
-|----------|------|------|------|
+| 审批 | 仓位 | 止损 | 止盈 |
+|:----:|:----:|:----:|:----:|
 | **{risk.get('approval_status', 'N/A')}** | {float(risk.get('position_pct') or 0):.1f}% | {float(risk.get('stop_loss_pct') or 0):.1f}% | {float(risk.get('take_profit_pct') or 0):.1f}% |
 
 </details>
 
 ---
 
-⚠ *本研报由 AI 多智能体自动生成，仅供学习参考，不构成投资建议。大学生守则：单股仓位 ≤ 15%，务必设止损，切勿加杠杆。*
+> ⚠️ *本研报由 6 个 AI 智能体（基本面/技术面/情绪面/风控/调度/执行）协作生成，仅供学习参考，不构成投资建议。*
+> *大学生守则：单股仓位 ≤ 15%，务必设止损，切勿加杠杆。定投宽基 ETF（如沪深300ETF）是最安全的入门方式。*
 """
 
         # 图表数据：从基本面 key_metrics 中提取实际历年数据
