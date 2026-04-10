@@ -1,0 +1,175 @@
+{
+  "run_id": "20260410_192124",
+  "runner_name": "cq",
+  "judge_name": "qwen-plus",
+  "started_at": "2026-04-10T19:21:35.192055",
+  "finished_at": "2026-04-10T19:43:00.670691",
+  "case_count": 3,
+  "cases": [
+    {
+      "id": "BENCH-001",
+      "symbol": "600519.SH",
+      "market": "A_STOCK",
+      "name": "贵州茅台",
+      "expected_direction": "HOLD",
+      "key_points": [
+        "高端白酒龙头地位稳固",
+        "PE 估值相对合理区间",
+        "消费降级对高端影响有限",
+        "批发价是核心观察指标"
+      ],
+      "risk_points": [
+        "白酒行业景气度下行",
+        "年轻人饮酒习惯变化",
+        "经济弱复苏下需求承压",
+        "政策风险(反三公消费类)"
+      ],
+      "analyst_notes": "作为白酒绝对龙头,护城河极深,但短期面临行业去库存 + 消费降级压力,建议 HOLD 等待右侧拐点信号",
+      "extra_context": null
+    },
+    {
+      "id": "BENCH-002",
+      "symbol": "000858.SZ",
+      "market": "A_STOCK",
+      "name": "五粮液",
+      "expected_direction": "HOLD",
+      "key_points": [
+        "白酒行业第二品牌",
+        "次高端份额竞争激烈",
+        "PE 低于历史中枢",
+        "分红率稳定"
+      ],
+      "risk_points": [
+        "普五批价压力",
+        "库存水平",
+        "区域酒挤压"
+      ],
+      "analyst_notes": "次高端承压但龙头地位稳固,估值已消化悲观预期,建议持有观察动销恢复",
+      "extra_context": null
+    },
+    {
+      "id": "BENCH-003",
+      "symbol": "300750.SZ",
+      "market": "A_STOCK",
+      "name": "宁德时代",
+      "expected_direction": "BUY",
+      "key_points": [
+        "全球动力电池龙头",
+        "麒麟电池/神行超充产品力强",
+        "海外市场扩张(欧洲/北美)",
+        "储能业务增长加速"
+      ],
+      "risk_points": [
+        "产能过剩/价格战",
+        "上游锂价波动",
+        "特斯拉自研电池威胁",
+        "地缘政治风险"
+      ],
+      "analyst_notes": "动力电池行业拐点已现,宁王技术+规模壁垒最深,估值回到合理区间,储能提供第二增长曲线",
+      "extra_context": null
+    }
+  ],
+  "outputs": [
+    {
+      "case_id": "BENCH-001",
+      "runner_name": "campusquant",
+      "direction": "BUY",
+      "confidence": 0.75,
+      "rationale": "综合基本面与舆情共振，PE28.22 倍对应 ROE24.64% 具备确定性溢价，估值合理。技术面站稳 MA20 支撑，中期趋势向好，建议买入并中长期持有。",
+      "fundamental_summary": null,
+      "technical_summary": null,
+      "sentiment_summary": null,
+      "rag_context_preview": "【本地知识库 — 混合检索结果（BM25 + 向量语义）】\n  [1] 来源: D:\\000intern\\0agent\\trading_agents_system\\data\\docs\\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1\n      利益冲突。 \n本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。\n复制、刊登、发表或引用。 \n \n分析员声明 \n本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本\n报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观\n点而直接或间接收到任何形式的补偿。 \n \n \n国 元 国 际 控 股 有 限 公 司 \n香港中环康乐广场 8 号交易广场三期 17 楼 \n电       话：(852) 3769 6888 \n传       真：(852) 3769 6999 \n服务热线：400-888-1313 \n公司网址：http://www.gyzq.com.hk\n\n  [",
+      "latency_seconds": 407.8534622999141,
+      "error": null,
+      "raw_state_path": "D:\\000intern\\0agent\\trading_agents_system\\bench\\results\\20260410_192124\\raw_states\\BENCH-001.json"
+    },
+    {
+      "case_id": "BENCH-002",
+      "runner_name": "campusquant",
+      "direction": "HOLD",
+      "confidence": 0.55,
+      "rationale": "PE 18.42 低于历史平均且 ROE 达 15.37%，估值具备安全边际。但股价受制于 MA5 与 MA20 均线压力，综合置信度 0.55 低于阈值，故维持持有观望策略。",
+      "fundamental_summary": null,
+      "technical_summary": null,
+      "sentiment_summary": null,
+      "rag_context_preview": "【本地知识库 — 混合检索结果（BM25 + 向量语义）】\n  [1] 来源: D:\\000intern\\0agent\\trading_agents_system\\data\\docs\\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1\n      利益冲突。 \n本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。\n复制、刊登、发表或引用。 \n \n分析员声明 \n本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本\n报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观\n点而直接或间接收到任何形式的补偿。 \n \n \n国 元 国 际 控 股 有 限 公 司 \n香港中环康乐广场 8 号交易广场三期 17 楼 \n电       话：(852) 3769 6888 \n传       真：(852) 3769 6999 \n服务热线：400-888-1313 \n公司网址：http://www.gyzq.com.hk\n\n  [",
+      "latency_seconds": 484.1102676000446,
+      "error": null,
+      "raw_state_path": "D:\\000intern\\0agent\\trading_agents_system\\bench\\results\\20260410_192124\\raw_states\\BENCH-002.json"
+    },
+    {
+      "case_id": "BENCH-003",
+      "runner_name": "campusquant",
+      "direction": "BUY",
+      "confidence": 0.76,
+      "rationale": "基本面 PE25.77 倍估值合理，ROE24.91% 显护城河；技术面突破 MA5 及 MA20 均线，基本面与技术面共振，符合量化锚点方向。",
+      "fundamental_summary": null,
+      "technical_summary": null,
+      "sentiment_summary": null,
+      "rag_context_preview": "【本地知识库 — 混合检索结果（BM25 + 向量语义）】\n  [1] 来源: D:\\000intern\\0agent\\trading_agents_system\\data\\docs\\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1\n      利益冲突。 \n本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。\n复制、刊登、发表或引用。 \n \n分析员声明 \n本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本\n报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观\n点而直接或间接收到任何形式的补偿。 \n \n \n国 元 国 际 控 股 有 限 公 司 \n香港中环康乐广场 8 号交易广场三期 17 楼 \n电       话：(852) 3769 6888 \n传       真：(852) 3769 6999 \n服务热线：400-888-1313 \n公司网址：http://www.gyzq.com.hk\n\n  [",
+      "latency_seconds": 380.46379860001616,
+      "error": null,
+      "raw_state_path": "D:\\000intern\\0agent\\trading_agents_system\\bench\\results\\20260410_192124\\raw_states\\BENCH-003.json"
+    }
+  ],
+  "scores": [
+    {
+      "case_id": "BENCH-001",
+      "runner_name": "campusquant",
+      "judge_name": "qwen-plus",
+      "direction_match": false,
+      "grounding_score": 3,
+      "coverage_score": 1,
+      "reasoning_score": 2,
+      "risk_awareness_score": 1,
+      "judge_comment": "AI仅引用PE和ROE两个数字但未说明数据来源或可比性，完全未覆盖人工标注的4个关键论点（如龙头地位、批发价观察、消费降级影响等）及全部4个风险点；BUY建议与HOLD人工结论直接冲突，且用‘技术面站稳MA20’等模糊表述替代实证分析，属典型过度乐观、脱离基本面语境的误判。",
+      "failure_modes": [
+        "空泛",
+        "缺少风险提示",
+        "逻辑矛盾",
+        "偏乐观"
+      ]
+    },
+    {
+      "case_id": "BENCH-002",
+      "runner_name": "campusquant",
+      "judge_name": "qwen-plus",
+      "direction_match": true,
+      "grounding_score": 3,
+      "coverage_score": 2,
+      "reasoning_score": 3,
+      "risk_awareness_score": 1,
+      "judge_comment": "AI 引用了PE和ROE具体数值（+grounding），但未覆盖人工标注的4个关键论点中的3个（仅提PE，漏掉品牌地位、次高端竞争、分红率）；完全未提及任何人工标注的3项风险（批价、库存、区域酒挤压）；技术面理由（MA压力）与人工分析师强调的动销/基本面逻辑脱节。",
+      "failure_modes": [
+        "缺少风险提示",
+        "空泛",
+        "覆盖不足"
+      ]
+    },
+    {
+      "case_id": "BENCH-003",
+      "runner_name": "campusquant",
+      "judge_name": "qwen-plus",
+      "direction_match": true,
+      "grounding_score": 3,
+      "coverage_score": 1,
+      "reasoning_score": 2,
+      "risk_awareness_score": 1,
+      "judge_comment": "AI仅引用PE和ROE两个静态指标，未覆盖任何人工标注的关键论点（如麒麟电池、海外扩张、储能增长等），也未提及任一风险点；推理将技术面均线突破与基本面简单‘共振’，缺乏行业逻辑支撑，属典型信号拼凑式输出。",
+      "failure_modes": [
+        "空泛",
+        "缺少风险提示",
+        "偏乐观"
+      ]
+    }
+  ],
+  "direction_accuracy": 0.6666666666666666,
+  "avg_grounding": 3.0,
+  "avg_coverage": 1.3333333333333333,
+  "avg_reasoning": 2.3333333333333335,
+  "avg_risk": 1.0,
+  "avg_overall": 1.6266666666666667,
+  "fail_rate": 0.0,
+  "total_latency_seconds": 1272.4275284999749
+}
