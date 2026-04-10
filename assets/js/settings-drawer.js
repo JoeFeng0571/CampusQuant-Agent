@@ -1,11 +1,11 @@
 /* ════════════════════════════════════════════════════════
-   settings-drawer.js — 右侧滑入设置抽屉
-   - 主题切换（明 / 暗 / 跟随系统）
-   - 背景模式（ambient / quiet / minimal / off）
-   - 动效强度
-   - 语言（占位）
-   - 持久化到 localStorage，重新加载生效
-   - 支持快捷键 ⌘, (Mac) / Ctrl+, (Win)
+   settings-drawer.js v4 — 右侧滑入设置抽屉
+   - 主题切换（暗 / 明 / 跟随系统）
+   - 背景动效开关
+   - 减少动画
+   - 账户登出
+   - 持久化 localStorage
+   - 快捷键 ⌘, / Ctrl+,
    ════════════════════════════════════════════════════════ */
 (function () {
     'use strict';
@@ -15,29 +15,23 @@
     const STORAGE_KEY = 'cq_settings_v1';
 
     function loadPrefs() {
-        try {
-            return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-        } catch (_) { return {}; }
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+        catch (_) { return {}; }
     }
-    function savePrefs(p) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
-    }
+    function savePrefs(p) { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); }
 
     let prefs = loadPrefs();
 
-    // 应用 prefs（在抽屉之外也会自动调用）
     function applyPrefs() {
         // 背景模式
         if (prefs.bgMode && prefs.bgMode !== 'default') {
             document.body.dataset.bgMode = prefs.bgMode;
+        } else {
+            delete document.body.dataset.bgMode;
         }
         // 减动效
-        if (prefs.reduceMotion) {
-            document.body.classList.add('cq-reduce-motion');
-        } else {
-            document.body.classList.remove('cq-reduce-motion');
-        }
-        // 主题（dark / light / auto）
+        document.body.classList.toggle('cq-reduce-motion', !!prefs.reduceMotion);
+        // 主题
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         if (prefs.theme === 'light' || (prefs.theme === 'auto' && !prefersDark)) {
             document.documentElement.dataset.theme = 'light';
@@ -47,158 +41,179 @@
     }
     applyPrefs();
 
-    // CSS
+    // ── CSS ──────────────────────────────────────────────
     const STYLE = `
         .cq-settings-backdrop {
             position: fixed; inset: 0; z-index: 9993;
-            background: rgba(5,8,16,.55);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-            opacity: 0;
-            transition: opacity .35s ease;
-            pointer-events: none;
+            background: rgba(0,0,0,.40);
+            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+            opacity: 0; transition: opacity .28s; pointer-events: none;
         }
-        .cq-settings-backdrop.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
+        .cq-settings-backdrop.show { opacity: 1; pointer-events: auto; }
+
         .cq-settings-drawer {
-            position: fixed;
-            top: 0; right: 0;
-            bottom: 0;
-            width: min(380px, 92vw);
-            background: linear-gradient(180deg, rgba(15,20,35,.97), rgba(10,14,25,.97));
+            position: fixed; top: 0; right: 0; bottom: 0;
+            width: min(360px, 92vw);
+            background: #161b22;
             border-left: 1px solid rgba(255,255,255,.08);
-            backdrop-filter: blur(28px) saturate(150%);
-            -webkit-backdrop-filter: blur(28px) saturate(150%);
-            box-shadow: -24px 0 56px rgba(0,0,0,.4);
+            box-shadow: -16px 0 40px rgba(0,0,0,.45);
             z-index: 9994;
-            display: flex;
-            flex-direction: column;
+            display: flex; flex-direction: column;
             transform: translateX(100%);
-            transition: transform .4s cubic-bezier(.16,1,.3,1);
-            color: var(--text-1, rgba(255,255,255,.87));
+            transition: transform .32s cubic-bezier(.16,1,.3,1);
+            color: rgba(255,255,255,.85);
+        }
+        [data-theme="light"] .cq-settings-drawer {
+            background: #fff;
+            border-left-color: rgba(0,0,0,.09);
+            box-shadow: -16px 0 40px rgba(0,0,0,.12);
+            color: rgba(0,0,0,.80);
         }
         .cq-settings-drawer.show { transform: translateX(0); }
+
         .cq-settings-header {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 24px 28px;
-            border-bottom: 1px solid rgba(255,255,255,.06);
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(255,255,255,.07);
+            flex-shrink: 0;
         }
+        [data-theme="light"] .cq-settings-header { border-bottom-color: rgba(0,0,0,.08); }
         .cq-settings-title {
-            font-family: var(--font-display, inherit);
-            font-size: 20px;
-            font-weight: 700;
-            color: #fff;
-            letter-spacing: -0.015em;
+            font-size: 16px; font-weight: 700; letter-spacing: -0.01em;
+            color: rgba(255,255,255,.95);
         }
+        [data-theme="light"] .cq-settings-title { color: rgba(0,0,0,.88); }
         .cq-settings-close {
-            background: rgba(255,255,255,.06);
-            border: 1px solid rgba(255,255,255,.08);
-            color: var(--text-2, rgba(255,255,255,.65));
-            width: 32px; height: 32px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 18px;
-            line-height: 1;
+            background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.09);
+            color: rgba(255,255,255,.55); width: 30px; height: 30px; border-radius: 7px;
+            cursor: pointer; font-size: 17px; line-height: 1;
             display: flex; align-items: center; justify-content: center;
-            transition: all .2s;
+            transition: background .15s, color .15s;
         }
-        .cq-settings-close:hover { background: rgba(255,255,255,.1); color: #fff; }
-        .cq-settings-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px 28px 28px;
+        .cq-settings-close:hover { background: rgba(255,255,255,.12); color: rgba(255,255,255,.90); }
+        [data-theme="light"] .cq-settings-close {
+            background: rgba(0,0,0,.05); border-color: rgba(0,0,0,.09);
+            color: rgba(0,0,0,.45);
         }
-        .cq-settings-section {
-            margin-top: 22px;
-        }
+        [data-theme="light"] .cq-settings-close:hover { background: rgba(0,0,0,.09); color: rgba(0,0,0,.80); }
+
+        .cq-settings-body { flex: 1; overflow-y: auto; padding: 12px 24px 20px; }
+        .cq-settings-section { margin-top: 20px; }
         .cq-settings-section-title {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--text-3, rgba(255,255,255,.45));
-            font-weight: 700;
-            margin-bottom: 10px;
+            font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+            color: rgba(255,255,255,.38); font-weight: 700; margin-bottom: 8px;
             font-family: var(--font-mono, monospace);
         }
+        [data-theme="light"] .cq-settings-section-title { color: rgba(0,0,0,.36); }
+
         .cq-settings-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            font-size: 13px;
-            border-bottom: 1px solid rgba(255,255,255,.04);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 11px 0; font-size: 13px;
+            border-bottom: 1px solid rgba(255,255,255,.05);
         }
         .cq-settings-row:last-child { border-bottom: none; }
-        .cq-settings-label { color: var(--text-1, rgba(255,255,255,.87)); }
-        .cq-settings-desc {
-            font-size: 11px;
-            color: var(--text-3, rgba(255,255,255,.4));
-            margin-top: 2px;
-        }
+        [data-theme="light"] .cq-settings-row { border-bottom-color: rgba(0,0,0,.06); }
+        .cq-settings-label { color: rgba(255,255,255,.85); font-weight: 500; }
+        [data-theme="light"] .cq-settings-label { color: rgba(0,0,0,.78); }
+        .cq-settings-desc { font-size: 11px; color: rgba(255,255,255,.38); margin-top: 2px; }
+        [data-theme="light"] .cq-settings-desc { color: rgba(0,0,0,.40); }
+
+        /* Segmented control */
         .cq-seg {
-            display: inline-flex;
-            background: rgba(255,255,255,.05);
-            border: 1px solid rgba(255,255,255,.08);
-            border-radius: 8px;
-            padding: 2px;
-            gap: 2px;
+            display: inline-flex; background: rgba(255,255,255,.05);
+            border: 1px solid rgba(255,255,255,.08); border-radius: 8px;
+            padding: 2px; gap: 2px;
         }
+        [data-theme="light"] .cq-seg { background: rgba(0,0,0,.05); border-color: rgba(0,0,0,.09); }
         .cq-seg button {
-            background: none;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            color: var(--text-2, rgba(255,255,255,.65));
-            cursor: pointer;
-            font-family: inherit;
-            transition: all .2s;
+            background: none; border: none; padding: 5px 10px; border-radius: 6px;
+            font-size: 12px; color: rgba(255,255,255,.55); cursor: pointer;
+            font-family: inherit; transition: color .15s, background .15s; white-space: nowrap;
         }
-        .cq-seg button:hover { color: #fff; }
+        [data-theme="light"] .cq-seg button { color: rgba(0,0,0,.48); }
+        .cq-seg button:hover { color: rgba(255,255,255,.85); }
+        [data-theme="light"] .cq-seg button:hover { color: rgba(0,0,0,.80); }
         .cq-seg button.active {
-            background: linear-gradient(135deg, rgba(79,172,254,.25), rgba(0,242,254,.15));
-            color: #fff;
-            box-shadow: 0 0 0 1px rgba(79,172,254,.35) inset;
+            background: rgba(129,140,248,.22); color: #a5b4fc;
+            box-shadow: 0 0 0 1px rgba(129,140,248,.35) inset;
         }
+        [data-theme="light"] .cq-seg button.active {
+            background: rgba(79,70,229,.14); color: #4f46e5;
+            box-shadow: 0 0 0 1px rgba(79,70,229,.30) inset;
+        }
+
+        /* Toggle */
         .cq-toggle {
-            position: relative;
-            width: 36px; height: 20px;
-            background: rgba(255,255,255,.1);
-            border-radius: 999px;
-            cursor: pointer;
-            transition: background .2s;
-            border: none;
+            position: relative; width: 36px; height: 20px;
+            background: rgba(255,255,255,.12); border-radius: 999px;
+            cursor: pointer; transition: background .2s; border: none; flex-shrink: 0;
         }
+        [data-theme="light"] .cq-toggle { background: rgba(0,0,0,.14); }
         .cq-toggle::after {
-            content: '';
-            position: absolute;
-            top: 2px; left: 2px;
-            width: 16px; height: 16px;
-            border-radius: 50%;
-            background: #fff;
-            transition: all .25s cubic-bezier(.16,1,.3,1);
+            content: ''; position: absolute; top: 2px; left: 2px;
+            width: 16px; height: 16px; border-radius: 50%; background: #fff;
+            transition: left .22s cubic-bezier(.16,1,.3,1);
         }
-        .cq-toggle.on {
-            background: linear-gradient(135deg, #4facfe, #00f2fe);
-        }
+        [data-theme="light"] .cq-toggle::after { background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+        .cq-toggle.on { background: #6366f1; }
         .cq-toggle.on::after { left: 18px; }
+
+        /* Account section */
+        .cq-account-card {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 14px;
+            background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08);
+            border-radius: 10px; margin-bottom: 10px;
+        }
+        [data-theme="light"] .cq-account-card {
+            background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.09);
+        }
+        .cq-account-avatar {
+            width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+            background: rgba(129,140,248,.22); border: 1px solid rgba(129,140,248,.35);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700; color: #818cf8;
+        }
+        [data-theme="light"] .cq-account-avatar { background: rgba(79,70,229,.12); color: #4f46e5; }
+        .cq-account-name { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.90); }
+        [data-theme="light"] .cq-account-name { color: rgba(0,0,0,.82); }
+        .cq-account-sub { font-size: 11px; color: rgba(255,255,255,.40); margin-top: 1px; }
+        [data-theme="light"] .cq-account-sub { color: rgba(0,0,0,.40); }
+        .cq-logout-btn {
+            margin-left: auto; flex-shrink: 0;
+            background: rgba(248,113,113,.12); border: 1px solid rgba(248,113,113,.25);
+            color: #f87171; font-size: 12px; padding: 5px 12px; border-radius: 6px;
+            cursor: pointer; font-family: inherit; transition: background .15s;
+        }
+        .cq-logout-btn:hover { background: rgba(248,113,113,.22); }
+        [data-theme="light"] .cq-logout-btn { background: rgba(220,38,38,.08); border-color: rgba(220,38,38,.20); color: #dc2626; }
+        [data-theme="light"] .cq-logout-btn:hover { background: rgba(220,38,38,.14); }
+
+        .cq-login-btn {
+            display: block; width: 100%; padding: 9px; border-radius: 8px; text-align: center;
+            background: rgba(129,140,248,.15); border: 1px solid rgba(129,140,248,.28);
+            color: #818cf8; font-size: 13px; font-weight: 500; cursor: pointer;
+            text-decoration: none; transition: background .15s; margin-bottom: 6px;
+        }
+        .cq-login-btn:hover { background: rgba(129,140,248,.25); }
+        [data-theme="light"] .cq-login-btn { background: rgba(79,70,229,.09); border-color: rgba(79,70,229,.22); color: #4f46e5; }
+
+        /* Footer */
         .cq-settings-footer {
-            padding: 16px 28px 24px;
+            padding: 14px 24px 18px;
             border-top: 1px solid rgba(255,255,255,.06);
-            font-size: 11px;
-            color: var(--text-3, rgba(255,255,255,.45));
+            font-size: 11px; color: rgba(255,255,255,.35);
             font-family: var(--font-mono, monospace);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            display: flex; justify-content: space-between; align-items: center;
+            flex-shrink: 0;
         }
+        [data-theme="light"] .cq-settings-footer { border-top-color: rgba(0,0,0,.07); color: rgba(0,0,0,.35); }
         .cq-settings-version {
-            background: rgba(255,255,255,.05);
-            padding: 3px 8px;
-            border-radius: 5px;
+            background: rgba(255,255,255,.06); padding: 2px 7px; border-radius: 4px;
         }
+        [data-theme="light"] .cq-settings-version { background: rgba(0,0,0,.06); }
+
+        /* Reduce motion */
         .cq-reduce-motion *, .cq-reduce-motion *::before, .cq-reduce-motion *::after {
             animation-duration: 0.01ms !important;
             animation-iteration-count: 1 !important;
@@ -210,26 +225,37 @@
     let backdrop = null;
     let isOpen = false;
 
-    function build() {
-        const s = document.createElement('style');
-        s.id = 'cq-settings-style';
-        s.textContent = STYLE;
-        document.head.appendChild(s);
+    function buildDrawerHTML() {
+        const token    = localStorage.getItem('cq_token');
+        const username = localStorage.getItem('cq_username') || '用户';
+        const initial  = username[0].toUpperCase();
 
-        backdrop = document.createElement('div');
-        backdrop.className = 'cq-settings-backdrop';
-        document.body.appendChild(backdrop);
+        const accountSection = token ? `
+            <div class="cq-settings-section">
+                <div class="cq-settings-section-title">账户</div>
+                <div class="cq-account-card">
+                    <div class="cq-account-avatar">${initial}</div>
+                    <div>
+                        <div class="cq-account-name">${username}</div>
+                        <div class="cq-account-sub">模拟投资学员</div>
+                    </div>
+                    <button class="cq-logout-btn" id="cq-logout-btn">退出登录</button>
+                </div>
+            </div>
+        ` : `
+            <div class="cq-settings-section">
+                <div class="cq-settings-section-title">账户</div>
+                <a href="auth.html?redirect=${encodeURIComponent(location.pathname + location.search)}" class="cq-login-btn">登录 / 注册</a>
+            </div>
+        `;
 
-        drawer = document.createElement('aside');
-        drawer.className = 'cq-settings-drawer';
-        drawer.setAttribute('role', 'dialog');
-        drawer.setAttribute('aria-modal', 'true');
-        drawer.innerHTML = `
+        return `
             <div class="cq-settings-header">
                 <div class="cq-settings-title">设置</div>
                 <button class="cq-settings-close" aria-label="关闭">×</button>
             </div>
             <div class="cq-settings-body">
+                ${accountSection}
                 <div class="cq-settings-section">
                     <div class="cq-settings-section-title">外观</div>
                     <div class="cq-settings-row">
@@ -246,132 +272,159 @@
                     <div class="cq-settings-row">
                         <div>
                             <div class="cq-settings-label">背景动效</div>
-                            <div class="cq-settings-desc">极光 / 点阵 / 流沙的强度</div>
+                            <div class="cq-settings-desc">极光 / 点阵 / 流沙</div>
                         </div>
                         <div class="cq-seg" data-pref="bgMode">
                             <button data-v="default">完整</button>
                             <button data-v="quiet">柔和</button>
-                            <button data-v="minimal">极简</button>
                             <button data-v="off">关闭</button>
                         </div>
                     </div>
                     <div class="cq-settings-row">
                         <div>
                             <div class="cq-settings-label">减少动画</div>
-                            <div class="cq-settings-desc">关闭所有动效（晕动症友好）</div>
+                            <div class="cq-settings-desc">晕动症友好模式</div>
                         </div>
                         <button class="cq-toggle" data-pref="reduceMotion"></button>
-                    </div>
-                </div>
-                <div class="cq-settings-section">
-                    <div class="cq-settings-section-title">语言</div>
-                    <div class="cq-settings-row">
-                        <div>
-                            <div class="cq-settings-label">界面语言</div>
-                            <div class="cq-settings-desc">English coming soon</div>
-                        </div>
-                        <div class="cq-seg" data-pref="lang">
-                            <button data-v="zh">简体中文</button>
-                            <button data-v="en" disabled style="opacity:.4;cursor:not-allowed">English</button>
-                        </div>
                     </div>
                 </div>
                 <div class="cq-settings-section">
                     <div class="cq-settings-section-title">关于</div>
                     <div class="cq-settings-row">
                         <div class="cq-settings-label">CampusQuant</div>
-                        <a href="team.html" style="color:var(--secondary,#00f2fe);font-size:12px;text-decoration:none">团队</a>
+                        <a href="team.html" style="color:var(--primary,#818cf8);font-size:12px;text-decoration:none">关于团队 →</a>
                     </div>
                     <div class="cq-settings-row">
-                        <div class="cq-settings-label">键盘快捷键</div>
-                        <button class="cq-seg" style="cursor:pointer;padding:5px 10px;font-size:11px;color:var(--text-1)" onclick="cqSettings.close();setTimeout(()=>cqKeyShortcuts && cqKeyShortcuts.open(),200)">查看 ?</button>
+                        <div class="cq-settings-label">版本</div>
+                        <span style="font-size:11px;font-family:var(--font-mono,monospace);color:rgba(255,255,255,.38)" id="cq-version-span">v1.0.0</span>
                     </div>
                 </div>
             </div>
             <div class="cq-settings-footer">
-                <span>校园财商 · 全部模拟数据</span>
-                <span class="cq-settings-version">v1.0.0</span>
+                <span>全部交易均为模拟</span>
+                <span class="cq-settings-version">校园财商</span>
             </div>
         `;
+    }
+
+    function build() {
+        if (!document.getElementById('cq-settings-style')) {
+            const s = document.createElement('style');
+            s.id = 'cq-settings-style';
+            s.textContent = STYLE;
+            document.head.appendChild(s);
+        }
+
+        backdrop = document.createElement('div');
+        backdrop.className = 'cq-settings-backdrop';
+        document.body.appendChild(backdrop);
+
+        drawer = document.createElement('aside');
+        drawer.className = 'cq-settings-drawer';
+        drawer.setAttribute('role', 'dialog');
+        drawer.setAttribute('aria-modal', 'true');
+        drawer.innerHTML = buildDrawerHTML();
         document.body.appendChild(drawer);
 
-        // 绑定
+        bindEvents();
+        syncUI();
+    }
+
+    function bindEvents() {
         drawer.querySelector('.cq-settings-close').addEventListener('click', close);
         backdrop.addEventListener('click', close);
 
-        // segmented controls
+        // Logout button (may not exist if not logged in)
+        const logoutBtn = drawer.querySelector('#cq-logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+                const confirmed = window.cqConfirm
+                    ? await cqConfirm('确定退出登录吗？', '退出登录')
+                    : confirm('确定退出登录吗？');
+                if (!confirmed) return;
+                localStorage.removeItem('cq_token');
+                localStorage.removeItem('cq_username');
+                close();
+                // Rebuild auth widget if available
+                if (window.cqRenderAuthWidget) cqRenderAuthWidget();
+                // Redirect to home
+                setTimeout(() => { location.href = 'index.html'; }, 300);
+            });
+        }
+
+        // Segmented controls
         drawer.querySelectorAll('.cq-seg[data-pref]').forEach(seg => {
             const pref = seg.dataset.pref;
             seg.querySelectorAll('button[data-v]').forEach(b => {
                 b.addEventListener('click', () => {
                     if (b.disabled) return;
-                    const val = b.dataset.v;
-                    prefs[pref] = val;
+                    prefs[pref] = b.dataset.v;
                     savePrefs(prefs);
                     syncUI();
+                    applyPrefs();
                     if (pref === 'bgMode') {
-                        // 背景模式立即生效需要重载（因为 JS 在加载时读取一次）
                         cqToast && cqToast({ title: '设置已保存', message: '刷新后生效' }, 'success');
-                    } else {
-                        applyPrefs();
                     }
                 });
             });
         });
 
-        // toggles
+        // Toggles
         drawer.querySelectorAll('.cq-toggle[data-pref]').forEach(t => {
             t.addEventListener('click', () => {
-                const pref = t.dataset.pref;
-                prefs[pref] = !prefs[pref];
+                prefs[t.dataset.pref] = !prefs[t.dataset.pref];
                 savePrefs(prefs);
                 syncUI();
                 applyPrefs();
             });
         });
-
-        syncUI();
     }
 
     function syncUI() {
         if (!drawer) return;
-        // segs
         drawer.querySelectorAll('.cq-seg[data-pref]').forEach(seg => {
             const pref = seg.dataset.pref;
-            const cur = prefs[pref] || (pref === 'theme' ? 'dark' : pref === 'lang' ? 'zh' : 'default');
+            const cur  = prefs[pref] || (pref === 'theme' ? 'dark' : pref === 'lang' ? 'zh' : 'default');
             seg.querySelectorAll('button[data-v]').forEach(b => {
                 b.classList.toggle('active', b.dataset.v === cur);
             });
         });
-        // toggles
         drawer.querySelectorAll('.cq-toggle[data-pref]').forEach(t => {
             t.classList.toggle('on', !!prefs[t.dataset.pref]);
         });
+        // Fix light-mode version span color
+        const vs = drawer.querySelector('#cq-version-span');
+        if (vs) {
+            const isLight = document.documentElement.dataset.theme === 'light';
+            vs.style.color = isLight ? 'rgba(0,0,0,.36)' : 'rgba(255,255,255,.38)';
+        }
     }
 
     function open() {
         if (isOpen) return;
         if (!drawer) build();
+        // Rebuild account section in case login state changed
+        drawer.innerHTML = buildDrawerHTML();
+        bindEvents();
+        syncUI();
         isOpen = true;
         backdrop.classList.add('show');
         requestAnimationFrame(() => drawer.classList.add('show'));
     }
+
     function close() {
         if (!isOpen || !drawer) return;
         isOpen = false;
         drawer.classList.remove('show');
         backdrop.classList.remove('show');
     }
+
     function toggle() { isOpen ? close() : open(); }
 
-    // 全局快捷键 Cmd+, / Ctrl+,
+    // 快捷键 Cmd+, / Ctrl+,
     document.addEventListener('keydown', (e) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === ',') {
-            e.preventDefault();
-            toggle();
-        } else if (e.key === 'Escape' && isOpen) {
-            close();
-        }
+        if ((e.metaKey || e.ctrlKey) && e.key === ',') { e.preventDefault(); toggle(); }
+        else if (e.key === 'Escape' && isOpen) close();
     });
 
     window.cqSettings = { open, close, toggle, prefs, applyPrefs };
