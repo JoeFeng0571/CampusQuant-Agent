@@ -18,28 +18,7 @@
            no particle background, reduced animation noise.
            ═══════════════════════════════════════════════════ */
 
-        /* ── Page-level color overrides ── */
-        :root {
-            --primary:      #818cf8;   /* indigo-400 — readable on dark */
-            --secondary:    #a5b4fc;   /* indigo-300 */
-            --accent:       #6366f1;   /* indigo-500 */
-            --success:      #4ade80;   /* green-400  */
-            --danger:       #f87171;   /* red-400    */
-            --warn:         #fbbf24;   /* amber-400  */
-            --bg:           #0d1117;
-            --bg-1:         #161b22;
-            --bg-2:         #21262d;
-            --card:         rgba(255,255,255,0.04);
-            --border:       rgba(255,255,255,0.09);
-            --glass:        rgba(255,255,255,0.04);
-            --glass-border: rgba(255,255,255,0.09);
-            --text-dim:     rgba(255,255,255,0.40);
-            --text-sub:     rgba(255,255,255,0.58);
-            --buy:          #4ade80;
-            --sell:         #f87171;
-        }
-
-        /* Override base.css neon light spots — single subtle ambient */
+        /* Ambient background — tokens.css + base.css handle variables & light mode */
         body {
             background-color: #0d1117;
             background-image:
@@ -408,6 +387,70 @@
             .quick-nav-grid { gap: 6px; }
             .qnav-item { padding: 12px 10px; }
             .chat-panel { height: 340px; }
+        }
+
+        /* ── Light Mode Overrides ── */
+        [data-theme="light"] .dash-hero-title { color: rgba(0,0,0,0.88); }
+        [data-theme="light"] .qnav-item {
+            background: rgba(255,255,255,0.85);
+            border-color: rgba(0,0,0,0.09);
+        }
+        [data-theme="light"] .qnav-item:hover {
+            background: #fff;
+            border-color: rgba(79,70,229,0.22);
+        }
+        [data-theme="light"] .qnav-label { color: rgba(0,0,0,0.82); }
+        [data-theme="light"] .panel {
+            background: rgba(255,255,255,0.85);
+            border-color: rgba(0,0,0,0.09);
+        }
+        [data-theme="light"] .panel:hover { border-color: rgba(0,0,0,0.14); }
+        [data-theme="light"] .panel-header { border-bottom-color: rgba(0,0,0,0.07); }
+        [data-theme="light"] .panel-title { color: rgba(0,0,0,0.80); }
+        [data-theme="light"] .panel-action { color: rgba(0,0,0,0.48); }
+        [data-theme="light"] .panel-action:hover { color: rgba(0,0,0,0.75); }
+        [data-theme="light"] .mkt-tab:hover:not(.active) { color: rgba(0,0,0,0.60); }
+        [data-theme="light"] .acct-stat {
+            background: rgba(0,0,0,0.04);
+            border-color: rgba(0,0,0,0.08);
+        }
+        [data-theme="light"] .acct-stat-value { color: rgba(0,0,0,0.85); }
+        [data-theme="light"] .mini-table th {
+            color: rgba(0,0,0,0.45);
+            border-bottom-color: rgba(0,0,0,0.08);
+        }
+        [data-theme="light"] .mini-table td {
+            color: rgba(0,0,0,0.72);
+            border-bottom-color: rgba(0,0,0,0.05);
+        }
+        [data-theme="light"] .mini-table tr:hover td { background: rgba(0,0,0,0.03); }
+        [data-theme="light"] .news-item { border-bottom-color: rgba(0,0,0,0.07); }
+        [data-theme="light"] .news-item:hover { background: rgba(0,0,0,0.03); }
+        [data-theme="light"] .news-rank { background: rgba(0,0,0,0.07); color: rgba(0,0,0,0.45); }
+        [data-theme="light"] .news-title { color: rgba(0,0,0,0.75); }
+        [data-theme="light"] .msg.bot .msg-bubble {
+            background: rgba(79,70,229,0.08);
+            border-color: rgba(79,70,229,0.15);
+            color: rgba(0,0,0,0.80);
+        }
+        [data-theme="light"] .msg.user .msg-bubble {
+            background: rgba(0,0,0,0.05);
+            border-color: rgba(0,0,0,0.10);
+            color: rgba(0,0,0,0.78);
+        }
+        [data-theme="light"] .msg.user .msg-avatar {
+            background: rgba(0,0,0,0.07);
+            border-color: rgba(0,0,0,0.12);
+        }
+        [data-theme="light"] .chat-input {
+            background: rgba(255,255,255,0.90);
+            border-color: rgba(0,0,0,0.12);
+            color: rgba(0,0,0,0.85);
+        }
+        [data-theme="light"] .chat-input::placeholder { color: rgba(0,0,0,0.38); }
+        [data-theme="light"] .qp-btn {
+            background: rgba(0,0,0,0.05);
+            border-color: rgba(0,0,0,0.10);
         }
     </style>
 </head>
