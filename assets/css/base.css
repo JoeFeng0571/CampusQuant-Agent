@@ -1,20 +1,8 @@
 /* ════════════════════════════════════════════════════════
    Base reset + body background
-   字体来自 fonts.bunny.net（Google Fonts 隐私友好镜像，国内可达）
-   多字体系统：Inter (UI) + Manrope (display) + Source Serif (editorial) + JetBrains Mono (code)
-   优化：用 display:swap，FOUT 不阻塞 first paint
+   fonts.bunny.net — Google Fonts privacy-friendly mirror
    ════════════════════════════════════════════════════════ */
-@import url('https://fonts.bunny.net/css?family=inter:400,500,600,700,800|manrope:500,600,700,800|source-serif-4:400,500,600,700|jetbrains-mono:400,500,700&display=swap');
-
-/* 系统字体 fallback 立即可用 */
-@font-face {
-    font-family: 'Inter Fallback';
-    src: local('-apple-system'), local('BlinkMacSystemFont'), local('PingFang SC'), local('Microsoft YaHei');
-    ascent-override: 90%;
-    descent-override: 22.5%;
-    line-gap-override: 0%;
-    size-adjust: 100%;
-}
+@import url('https://fonts.bunny.net/css?family=inter:400,500,600,700,800|source-serif-4:400,500,600,700|jetbrains-mono:400,500,700&display=swap');
 
 * {
     margin: 0;
@@ -27,14 +15,13 @@ html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    /* Inter 的工程级数字 + cv11 字符变体 */
     font-feature-settings: 'cv11', 'ss01', 'ss03';
     font-variant-ligatures: common-ligatures;
 }
 
 body {
     background-color: var(--bg);
-    color: var(--text-1);   /* 默认正文用 87% 白，不再纯白 */
+    color: var(--text-1);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -42,94 +29,87 @@ body {
     font-size: 14px;
     line-height: 1.55;
     letter-spacing: -0.005em;
-    /* 升级版背景：4 色光斑（极光会盖在上面再加一层） */
+    /* Single subtle indigo ambient — replaces 4-color neon spots */
     background-image:
-        radial-gradient(circle at 12% 48%, rgba(0,242,254,.05),  transparent 38%),
-        radial-gradient(circle at 88% 26%, rgba(79,172,254,.05), transparent 38%),
-        radial-gradient(circle at 75% 85%, rgba(255,107,157,.04),transparent 42%),
-        radial-gradient(circle at 18% 90%, rgba(183,148,244,.035),transparent 42%);
+        radial-gradient(ellipse 90% 45% at 50% -8%,
+            rgba(99,102,241,0.09) 0%, transparent 65%);
     background-attachment: fixed;
+    transition: background-color .3s, color .3s;
 }
 
-/* 标题用 Manrope display 字体 */
-h1, h2, h3, h4, h5, h6,
-.display, .heading {
-    font-family: var(--font-display);
+/* Light mode body */
+[data-theme="light"] body {
+    background-color: #f5f6f8;
+    background-image:
+        radial-gradient(ellipse 90% 45% at 50% -8%,
+            rgba(79,70,229,0.07) 0%, transparent 65%);
+    color: rgba(0,0,0,0.78);
+}
+
+/* ── Main gets all remaining space ── */
+main { flex: 1; min-height: calc(100vh - 56px); }
+
+/* ── Headings ── */
+h1, h2, h3, h4, h5, h6, .display, .heading {
+    font-family: var(--font-sans);
     font-weight: 700;
-    letter-spacing: -0.022em;
-    line-height: 1.15;
+    letter-spacing: -0.018em;
+    line-height: 1.2;
     color: var(--text);
 }
-h1 { font-size: 38px; font-weight: 800; }
-h2 { font-size: 28px; }
-h3 { font-size: 22px; }
+h1 { font-size: 36px; font-weight: 800; }
+h2 { font-size: 26px; }
+h3 { font-size: 20px; }
 
-/* 段落默认正文用 87% 白 */
-p, li {
-    color: var(--text-1);
-}
+p, li { color: var(--text-1); }
 
-/* 长文阅读字体（serif）：text-heavy 容器内自动应用 */
+/* ── Serif long-read ── */
 [data-bg-mode="quiet"] .topic-body p,
 [data-bg-mode="quiet"] .post-content-body,
 [data-bg-mode="quiet"] .topic-body li,
 .serif-body p, .serif-body li {
     font-family: var(--font-serif);
     font-size: 16px;
-    line-height: 1.78;
+    line-height: 1.80;
     letter-spacing: 0.005em;
     color: var(--text-1);
 }
 [data-bg-mode="quiet"] .topic h1,
 [data-bg-mode="quiet"] .topic h2,
-[data-bg-mode="quiet"] .topic-head-info h2,
 .serif-body h1, .serif-body h2 {
     font-family: var(--font-serif);
     font-weight: 700;
     letter-spacing: -0.012em;
 }
-
-/* 内容窗宽：长文容器自动收紧 */
 [data-bg-mode="quiet"] .topic-body,
-[data-bg-mode="quiet"] .post-content-body {
-    max-width: var(--content-narrow);
-}
+[data-bg-mode="quiet"] .post-content-body { max-width: var(--content-narrow); }
 
-/* 代码字体 */
-code, pre, kbd, samp, .mono {
-    font-family: var(--font-mono);
-    font-feature-settings: 'tnum' 1;
-}
+/* ── Code ── */
+code, pre, kbd, samp, .mono { font-family: var(--font-mono); }
 code:not(pre code) {
-    font-size: 0.92em;
-    padding: 1px 6px;
+    font-size: 0.91em; padding: 1px 6px;
     border-radius: 4px;
-    background: rgba(255,255,255,.06);
-    border: 1px solid rgba(255,255,255,.08);
-    color: var(--text);
+    background: rgba(129,140,248,.10);
+    border: 1px solid rgba(129,140,248,.18);
+    color: var(--secondary);
+}
+[data-theme="light"] code:not(pre code) {
+    background: rgba(79,70,229,.08);
+    border-color: rgba(79,70,229,.15);
+    color: var(--accent);
 }
 
-/* 数字 tabular（金融场景至关重要） */
-.num,
-.num-roll,
-[data-numeric],
-.acct-stat-value,
-.mat-cash, .mat-pnl,
-.stat-value, .est-value,
-.price-big, .price-chg,
-.score-num, .score-text,
-.kline-price,
-.ticker-price, .ticker-pct,
-tbody td {
+/* ── Tabular numbers (financial data) ── */
+.num, .num-roll, [data-numeric],
+.acct-stat-value, .mat-cash, .mat-pnl,
+.stat-value, .est-value, .price-big, .price-chg,
+.score-num, .score-text, .kline-price,
+.ticker-price, .ticker-pct, tbody td {
     font-variant-numeric: tabular-nums;
     font-feature-settings: 'tnum' 1, 'cv11' 1;
 }
 
-/* ══════════ 文字页 quiet 模式 — 增强可读性 ══════════
-   body[data-bg-mode="quiet"] 时：
-   - 内容卡片背景更不透明
-   - 加 backdrop blur 隔离背景动画
-   - main 内容区加暗色 scrim */
+/* ── Quiet mode card overlays ── */
 body[data-bg-mode="quiet"] .topic,
 body[data-bg-mode="quiet"] .post-card,
 body[data-bg-mode="quiet"] .article-item,
@@ -140,62 +120,53 @@ body[data-bg-mode="quiet"] .hero-side,
 body[data-bg-mode="quiet"] .stat-card,
 body[data-bg-mode="quiet"] .book-card,
 body[data-bg-mode="quiet"] .comments-section {
-    background: rgba(8, 12, 22, 0.78) !important;
-    backdrop-filter: blur(20px) saturate(140%);
-    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    background: rgba(13,17,23,0.80) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-color: rgba(255,255,255,.08);
 }
 body[data-bg-mode="quiet"] .topic-body,
 body[data-bg-mode="quiet"] .post-content-body,
 body[data-bg-mode="quiet"] .article-summary {
-    color: rgba(255,255,255,0.88) !important;
+    color: rgba(255,255,255,0.85) !important;
     line-height: 1.85 !important;
 }
 body[data-bg-mode="quiet"] .topic h2,
 body[data-bg-mode="quiet"] .post-title-h1,
-body[data-bg-mode="quiet"] .article-item h3 {
-    color: #fff !important;
-}
+body[data-bg-mode="quiet"] .article-item h3 { color: #fff !important; }
 
-/* ══════════ 全屏 noise grain overlay ══════════
-   细 SVG 噪点 fixed，2.5% 透明，叠加在所有背景之上、内容之下
-   给整站加"胶片质感"，所有顶级 dark UI 必备 */
+/* ── Subtle noise grain overlay ── */
 body::after {
     content: '';
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: 0;
     mix-blend-mode: overlay;
-    opacity: 0.045;
+    opacity: 0.025;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1   0 0 0 0 1   0 0 0 0 1   0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     background-size: 200px 200px;
 }
-/* 让内容显示在 noise 之上 */
-header, main, footer, .page-wrap, .dash-container, .terminal-grid, aside, .sidebar-overlay {
-    position: relative;
-    z-index: 1;
-}
+[data-theme="light"] body::after { opacity: 0.012; mix-blend-mode: multiply; }
 
-/* 滚动条美化（webkit） */
+/* ── Z-index stacking ── */
+header, main, footer, .page-wrap, .dash-container,
+.terminal-grid, aside, .sidebar-overlay { position: relative; z-index: 1; }
+
+/* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,.08);
-    border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover { background: rgba(79,172,254,.3); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(129,140,248,.35); }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,.12); }
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(79,70,229,.30); }
 
-/* 选择高亮 */
-::selection { background: rgba(0,242,254,.3); color: #fff; }
+/* ── Selection ── */
+::selection { background: rgba(99,102,241,.28); color: #fff; }
+[data-theme="light"] ::selection { background: rgba(79,70,229,.20); color: #1e1b4b; }
 
-/* 链接默认 */
-a { color: inherit; text-decoration: none; }
+/* ── Links ── */
+a { color: inherit; text-decoration: none; transition: color var(--d-fast); }
 
-/* 防止字体在 macOS Safari 过细 */
-html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-
-/* reduce motion 用户友好 */
+/* ── Reduce motion ── */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: .01ms !important;

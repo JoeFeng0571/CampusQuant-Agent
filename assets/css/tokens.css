@@ -1,118 +1,145 @@
 /* ════════════════════════════════════════════════════════
-   CampusQuant Design Tokens
-   保留旧变量名以兼容未重构页面，新增暖色/动效/字体/间距 token
+   CampusQuant Design Tokens v3 — Linear/Vercel style
+   Indigo-based palette · Dark default · Light mode support
    ════════════════════════════════════════════════════════ */
 :root {
-    /* —— 字体栈（多层次字体系统，参考 Railway） —— */
-    --font-sans: 'Inter','Manrope',-apple-system,BlinkMacSystemFont,
-                 'Segoe UI','PingFang SC','Microsoft YaHei',
-                 'Helvetica Neue',Arial,sans-serif;
-    --font-display: 'Manrope','Inter',-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
-    /* 编辑字体：长文阅读用，serif 增加质感（learn 页、文章页） */
-    --font-serif: 'Source Serif 4','Source Serif Pro','Noto Serif SC','Songti SC','SimSun',Georgia,serif;
-    --font-mono: 'JetBrains Mono','SF Mono','Cascadia Code','Inter',ui-monospace,monospace;
+    /* —— 字体栈 —— */
+    --font-sans:    'Inter','Manrope',-apple-system,BlinkMacSystemFont,
+                    'PingFang SC','Microsoft YaHei',sans-serif;
+    --font-display: 'Inter','Manrope',-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    --font-serif:   'Source Serif 4','Noto Serif SC','Songti SC','SimSun',Georgia,serif;
+    --font-mono:    'JetBrains Mono','SF Mono','Cascadia Code',ui-monospace,monospace;
 
-    /* —— 间距节奏（8/12/16/20/24/32/40/48/64） —— */
-    --sp-1:  4px;
-    --sp-2:  8px;
-    --sp-3:  12px;
-    --sp-4:  16px;
-    --sp-5:  20px;
-    --sp-6:  24px;
-    --sp-8:  32px;
-    --sp-10: 40px;
-    --sp-12: 48px;
-    --sp-16: 64px;
-    --sp-20: 80px;
+    /* —— 间距节奏 —— */
+    --sp-1:  4px;  --sp-2:  8px;  --sp-3:  12px; --sp-4:  16px;
+    --sp-5:  20px; --sp-6:  24px; --sp-8:  32px; --sp-10: 40px;
+    --sp-12: 48px; --sp-16: 64px; --sp-20: 80px;
 
-    /* —— 圆角节奏 —— */
-    --r-sm:   8px;
-    --r-md:  12px;
-    --r-lg:  16px;
-    --r-xl:  20px;
-    --r-2xl: 24px;
-    --r-3xl: 28px;
-    --r-full:9999px;
+    /* —— 圆角 —— */
+    --r-sm:   6px;  --r-md:   8px;  --r-lg:  12px;
+    --r-xl:  16px;  --r-2xl: 20px;  --r-3xl: 24px;
+    --r-full: 9999px;
 
-    /* —— 旧版兼容（不改名，11 个未重构页面仍依赖） —— */
-    --primary:   #4facfe;
-    --secondary: #00f2fe;
-    --accent:    #a29bfe;
-    --danger:    #fd79a8;
-    --success:   #55efc4;
-    --warn:      #fdcb6e;
+    /* —— Dark mode 颜色（默认） —— */
+    --primary:   #818cf8;   /* indigo-400 */
+    --secondary: #a5b4fc;   /* indigo-300 */
+    --accent:    #6366f1;   /* indigo-500 */
+    --danger:    #f87171;   /* red-400    */
+    --success:   #4ade80;   /* green-400  */
+    --warn:      #fbbf24;   /* amber-400  */
 
-    /* 深空背景（带轻微紫调，参考 Railway hsl(250,24%,9%)） */
-    --bg:        hsl(228, 24%, 7%);
-    --bg-1:      hsl(228, 22%, 9%);
-    --bg-2:      hsl(228, 20%, 11%);
+    /* 保留兼容别名（部分旧页面用到） */
+    --warm:      #fb923c;   /* orange-400 */
+    --warm-2:    #f87171;   /* 同 danger   */
+    --violet:    #a78bfa;   /* violet-400 */
+    --mint:      #34d399;   /* emerald-400 */
+    --gold:      #fbbf24;
 
-    /* 文字 4 级颜色（取代单一 #fff） */
-    --text:      rgba(255,255,255,0.97);   /* 标题强调 */
-    --text-1:    rgba(255,255,255,0.87);   /* 正文 */
-    --text-2:    rgba(255,255,255,0.65);   /* 次要 */
-    --text-3:    rgba(255,255,255,0.45);   /* 弱提示 */
-    --text-4:    rgba(255,255,255,0.30);   /* 装饰 */
+    /* 交易专用 */
+    --buy:  #4ade80;
+    --sell: #f87171;
 
-    /* 旧名兼容 */
-    --card:      rgba(255,255,255,0.04);
-    --border:    rgba(255,255,255,0.10);
-    --text-dim:  rgba(255,255,255,0.45);
-    --text-sub:  rgba(255,255,255,0.65);
+    /* 背景层级 */
+    --bg:   #0d1117;
+    --bg-1: #161b22;
+    --bg-2: #21262d;
 
-    /* 内容宽度（Linear 风：长文 65ch / 中等 720px / 宽 1320px） */
+    /* 文字 4 级 */
+    --text:     rgba(255,255,255,0.95);
+    --text-1:   rgba(255,255,255,0.85);
+    --text-2:   rgba(255,255,255,0.60);
+    --text-3:   rgba(255,255,255,0.40);
+    --text-4:   rgba(255,255,255,0.25);
+    --text-dim: rgba(255,255,255,0.40);
+    --text-sub: rgba(255,255,255,0.58);
+
+    /* 卡片/边框 */
+    --card:         rgba(255,255,255,0.04);
+    --border:       rgba(255,255,255,0.09);
+    --glass:        rgba(255,255,255,0.04);
+    --glass-strong: rgba(255,255,255,0.07);
+    --glass-border: rgba(255,255,255,0.09);
+    --glass-shine:  linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,0));
+
+    /* 渐变（简化版，去掉霓虹色） */
+    --grad-cool:   linear-gradient(135deg,#818cf8 0%,#a5b4fc 100%);
+    --grad-warm:   linear-gradient(135deg,#fb923c 0%,#f87171 100%);
+    --grad-aurora: linear-gradient(135deg,#818cf8 0%,#a78bfa 50%,#a5b4fc 100%);
+    --grad-mint:   linear-gradient(135deg,#34d399 0%,#818cf8 100%);
+    --grad-sunset: linear-gradient(135deg,#fb923c 0%,#f87171 50%,#a78bfa 100%);
+
+    /* 发光（弱化，只用于必要场景） */
+    --glow-cyan:   0 0 16px rgba(129,140,248,.20);
+    --glow-warm:   0 0 16px rgba(251,146,60,.20);
+    --glow-pink:   0 0 16px rgba(248,113,113,.20);
+    --glow-violet: 0 0 16px rgba(167,139,250,.20);
+
+    /* 内容宽度 */
     --content-narrow: 660px;
     --content-md:     820px;
-    --content-wide:   1320px;
+    --content-wide:  1320px;
 
-    /* trade.html 专属 */
-    --buy:       #00b894;
-    --sell:      #d63031;
+    /* 页面专属（兼容旧页面） */
+    --header-h: 56px;
+    --ticker-h: 76px;
 
-    /* market.html 专属 */
-    --header-h:  56px;
-    --ticker-h:  76px;
-
-    /* —— 新增：暖色 / 年轻活泼 —— */
-    --warm:      #ff9a56;   /* 落日橙 */
-    --warm-2:    #ff6b9d;   /* 莓粉 */
-    --violet:    #b794f4;   /* 浅紫 */
-    --pink:      #f093fb;   /* 亮粉 */
-    --gold:      #ffd86b;   /* 金 */
-    --mint:      #5eead4;   /* 薄荷 */
-
-    /* —— 渐变预设 —— */
-    --grad-cool:    linear-gradient(135deg,#4facfe 0%,#00f2fe 100%);
-    --grad-cool-3:  linear-gradient(135deg,#4facfe 0%,#00f2fe 50%,#a29bfe 100%);
-    --grad-warm:    linear-gradient(135deg,#ff9a56 0%,#ff6b9d 100%);
-    --grad-sunset:  linear-gradient(135deg,#ff9a56 0%,#ff6b9d 50%,#b794f4 100%);
-    --grad-aurora:  linear-gradient(135deg,#4facfe 0%,#a29bfe 35%,#f093fb 70%,#ff9a56 100%);
-    --grad-mint:    linear-gradient(135deg,#5eead4 0%,#4facfe 100%);
-
-    /* —— 玻璃态卡片（升级版） —— */
-    --glass:        rgba(255,255,255,0.055);
-    --glass-strong: rgba(255,255,255,0.085);
-    --glass-border: rgba(255,255,255,0.13);
-    --glass-shine:  linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,0));
-
-    /* —— 发光效果 —— */
-    --glow-cyan:    0 0 24px rgba(0,242,254,.35);
-    --glow-warm:    0 0 24px rgba(255,154,86,.35);
-    --glow-pink:    0 0 24px rgba(240,147,251,.35);
-    --glow-violet:  0 0 24px rgba(183,148,244,.35);
-
-    /* —— 动效时长 —— */
-    --d-fast:    .15s;
-    --d-base:    .25s;
-    --d-slow:    .45s;
-    --d-page:    .6s;
+    /* 动效 */
+    --d-fast:    .14s;
+    --d-base:    .22s;
+    --d-slow:    .40s;
+    --d-page:    .55s;
     --ease-out:  cubic-bezier(.16,1,.3,1);
     --ease-in-out: cubic-bezier(.65,0,.35,1);
 
-    /* —— 阴影层级 —— */
-    --shadow-sm: 0 2px 8px rgba(0,0,0,.2);
-    --shadow-md: 0 8px 24px rgba(0,0,0,.3);
-    --shadow-lg: 0 16px 48px rgba(0,0,0,.4);
-    --shadow-glow-cool: 0 8px 32px rgba(79,172,254,.18);
-    --shadow-glow-warm: 0 8px 32px rgba(255,154,86,.18);
+    /* 阴影（简化为 2 层） */
+    --shadow-sm: 0 1px 4px rgba(0,0,0,.18);
+    --shadow-md: 0 4px 16px rgba(0,0,0,.28);
+    --shadow-lg: 0 12px 36px rgba(0,0,0,.36);
+}
+
+/* ════════════════════════════════
+   Light Mode Overrides
+   用法：<html data-theme="light">
+   ════════════════════════════════ */
+[data-theme="light"] {
+    --primary:   #4f46e5;   /* indigo-600 */
+    --secondary: #6366f1;   /* indigo-500 */
+    --accent:    #4338ca;   /* indigo-700 */
+    --danger:    #dc2626;   /* red-600    */
+    --success:   #16a34a;   /* green-600  */
+    --warn:      #d97706;   /* amber-600  */
+    --warm:      #ea580c;
+    --warm-2:    #dc2626;
+    --violet:    #7c3aed;
+    --mint:      #059669;
+    --buy:       #16a34a;
+    --sell:      #dc2626;
+
+    --bg:   #f5f6f8;
+    --bg-1: #eef0f4;
+    --bg-2: #e4e7ed;
+
+    --text:     rgba(0,0,0,0.92);
+    --text-1:   rgba(0,0,0,0.78);
+    --text-2:   rgba(0,0,0,0.55);
+    --text-3:   rgba(0,0,0,0.38);
+    --text-4:   rgba(0,0,0,0.24);
+    --text-dim: rgba(0,0,0,0.38);
+    --text-sub: rgba(0,0,0,0.52);
+
+    --card:         rgba(255,255,255,0.80);
+    --border:       rgba(0,0,0,0.09);
+    --glass:        rgba(255,255,255,0.75);
+    --glass-strong: rgba(255,255,255,0.92);
+    --glass-border: rgba(0,0,0,0.09);
+    --glass-shine:  linear-gradient(135deg,rgba(255,255,255,.6),rgba(255,255,255,0));
+
+    --glow-cyan:   none;
+    --glow-warm:   none;
+    --glow-pink:   none;
+    --glow-violet: none;
+
+    --shadow-sm: 0 1px 4px rgba(0,0,0,.08);
+    --shadow-md: 0 4px 16px rgba(0,0,0,.10);
+    --shadow-lg: 0 12px 36px rgba(0,0,0,.14);
 }

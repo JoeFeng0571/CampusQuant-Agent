@@ -37,8 +37,9 @@
         } else {
             document.body.classList.remove('cq-reduce-motion');
         }
-        // 主题（暂时只支持 dark，light 是 placeholder）
-        if (prefs.theme === 'light') {
+        // 主题（dark / light / auto）
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (prefs.theme === 'light' || (prefs.theme === 'auto' && !prefersDark)) {
             document.documentElement.dataset.theme = 'light';
         } else {
             document.documentElement.dataset.theme = 'dark';
@@ -234,12 +235,12 @@
                     <div class="cq-settings-row">
                         <div>
                             <div class="cq-settings-label">主题</div>
-                            <div class="cq-settings-desc">明亮模式即将上线</div>
+                            <div class="cq-settings-desc">暗色 / 明亮 / 跟随系统</div>
                         </div>
                         <div class="cq-seg" data-pref="theme">
                             <button data-v="dark">暗</button>
-                            <button data-v="light" disabled style="opacity:.4;cursor:not-allowed">明</button>
-                            <button data-v="auto" disabled style="opacity:.4;cursor:not-allowed">自动</button>
+                            <button data-v="light">明</button>
+                            <button data-v="auto">自动</button>
                         </div>
                     </div>
                     <div class="cq-settings-row">
