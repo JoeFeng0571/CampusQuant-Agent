@@ -113,6 +113,24 @@ class AnalystReport(BaseModel):
         description="悲观情景描述，需量化下跌空间和具体触发条件"
     )
 
+    # 【Fix】LLM 有时返回空字符串 "" 而不是空列表 []，导致 Pydantic 验证失败
+    # sentiment_node 频繁因此崩溃。用 validator 自动修正。
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_list_fields(cls, values):
+        """把 LLM 返回的空字符串/None 自动转为空列表"""
+        if isinstance(values, dict):
+            for key in ("key_factors", "risk_factors", "catalysts"):
+                v = values.get(key)
+                if v is None or v == "" or v == "无" or v == "N/A":
+                    values[key] = []
+                elif isinstance(v, str):
+                    # "因素1, 因素2" → ["因素1", "因素2"]
+                    values[key] = [x.strip() for x in v.split("|") if x.strip()] or \
+                                  [x.strip() for x in v.split(",") if x.strip()] or \
+                                  [v]
+        return values
+
 
 class RiskDecision(BaseModel):
     """风控官结构化决策输出"""
