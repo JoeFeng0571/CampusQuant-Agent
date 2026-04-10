@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CQ-Bench Report · 20260410_172902</title>
+<style>
+    :root {
+        --bg: hsl(228, 24%, 7%);
+        --card: rgba(255,255,255,0.04);
+        --border: rgba(255,255,255,0.08);
+        --text: rgba(255,255,255,0.92);
+        --text-2: rgba(255,255,255,0.65);
+        --text-3: rgba(255,255,255,0.45);
+        --primary: #4facfe;
+        --cyan: #00f2fe;
+        --mint: #5eead4;
+        --warm: #ff9a56;
+        --danger: #ff6b9d;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+        background: var(--bg); color: var(--text);
+        font-family: 'Inter', system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        font-size: 14px; line-height: 1.5;
+    }
+    body { padding: 40px; max-width: 1400px; margin: 0 auto; }
+    h1, h2, h3, h4 { font-weight: 700; }
+    header {
+        padding-bottom: 24px; margin-bottom: 32px;
+        border-bottom: 1px solid var(--border);
+    }
+    h1 { font-size: 32px; letter-spacing: -0.02em; }
+    .meta { color: var(--text-2); font-size: 12px; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+    .meta span { margin-right: 16px; }
+
+    .summary-grid {
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+        margin-bottom: 40px;
+    }
+    .metric {
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: 12px; padding: 18px 20px;
+    }
+    .metric.highlight { background: linear-gradient(135deg,rgba(79,172,254,0.12),rgba(0,242,254,0.04)); border-color: rgba(79,172,254,0.3); }
+    .metric-label { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; }
+    .metric-value { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
+    .unit { font-size: 14px; color: var(--text-3); margin-left: 4px; }
+
+    .cases-section h2 { font-size: 18px; margin-bottom: 16px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.04em; }
+
+    .case {
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: 14px; margin-bottom: 18px; overflow: hidden;
+    }
+    .case.match { border-left: 3px solid var(--mint); }
+    .case.mismatch { border-left: 3px solid var(--warm); }
+    .case.fail { border-left: 3px solid var(--danger); }
+
+    .case-header {
+        display: flex; align-items: center; gap: 16px;
+        padding: 14px 20px; background: rgba(255,255,255,0.02);
+        border-bottom: 1px solid var(--border);
+    }
+    .case-id { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-3); }
+    .case-sym { font-size: 15px; font-weight: 700; flex: 1; }
+    .case-market { font-size: 10px; background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 4px; color: var(--text-2); font-family: 'JetBrains Mono', monospace; }
+    .direction-box { display: flex; gap: 8px; font-size: 12px; }
+    .exp-dir { color: var(--text-2); }
+    .ai-dir { color: var(--cyan); font-weight: 700; }
+    .latency { font-size: 11px; color: var(--text-3); font-family: 'JetBrains Mono', monospace; }
+
+    .case-body { display: grid; grid-template-columns: 1fr 1.4fr; gap: 24px; padding: 20px; }
+    .section { margin-bottom: 18px; }
+    .section h4 {
+        font-size: 11px; text-transform: uppercase; color: var(--text-3);
+        letter-spacing: 0.06em; margin-bottom: 8px; font-family: 'JetBrains Mono', monospace;
+    }
+    .kp-list, .rp-list { list-style: none; padding-left: 0; }
+    .kp-list li { padding: 4px 0 4px 16px; position: relative; font-size: 13px; color: var(--text); }
+    .kp-list li::before { content: "◆"; position: absolute; left: 0; color: var(--mint); }
+    .rp-list li { padding: 4px 0 4px 16px; position: relative; font-size: 13px; color: var(--text-2); }
+    .rp-list li::before { content: "▲"; position: absolute; left: 0; color: var(--warm); }
+    .analyst-notes { font-size: 13px; color: var(--text-2); font-style: italic; line-height: 1.65; }
+
+    .rationale {
+        font-size: 14px; line-height: 1.7;
+        background: rgba(255,255,255,0.03); padding: 14px 16px;
+        border-radius: 8px; border-left: 2px solid var(--primary);
+        white-space: pre-wrap;
+    }
+    .confidence { font-size: 11px; color: var(--text-3); margin-top: 8px; font-family: 'JetBrains Mono', monospace; }
+
+    details { margin: 16px 0; }
+    details summary { cursor: pointer; font-size: 12px; color: var(--primary); padding: 4px 0; }
+    details pre {
+        white-space: pre-wrap; font-family: inherit; font-size: 12px;
+        color: var(--text-2); padding: 10px; background: rgba(255,255,255,0.02);
+        border-radius: 6px; margin-top: 6px;
+    }
+    .analyst-section strong { display: block; margin-top: 10px; color: var(--text); font-size: 11px; text-transform: uppercase; }
+
+    .scores {
+        margin-top: 16px; padding-top: 16px;
+        border-top: 1px solid var(--border);
+    }
+    .score-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 6px 0; font-size: 13px;
+    }
+    .score-row.overall { border-top: 1px dashed var(--border); margin-top: 6px; padding-top: 10px; font-weight: 700; color: var(--cyan); }
+    .score-label { color: var(--text-2); }
+    .stars { font-family: monospace; letter-spacing: 2px; color: var(--cyan); }
+    .stars .empty { color: var(--text-3); }
+    .stars + .num { color: var(--text-3); font-size: 11px; margin-left: 6px; }
+    .ok { color: var(--mint); }
+    .bad { color: var(--danger); }
+
+    .judge-comment {
+        margin-top: 14px; padding: 10px 12px;
+        background: rgba(79,172,254,0.06); border-radius: 6px;
+        font-size: 12px; line-height: 1.6; color: var(--text-2);
+    }
+    .judge-comment strong { color: var(--primary); }
+
+    .failure-modes { margin-top: 10px; font-size: 11px; color: var(--text-3); }
+    .failure-modes .tag {
+        display: inline-block; margin: 2px 4px 2px 0;
+        padding: 2px 8px; background: rgba(255,107,157,0.12);
+        color: var(--danger); border-radius: 10px;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .error {
+        background: rgba(255,107,157,0.08); border: 1px solid rgba(255,107,157,0.3);
+        padding: 12px; border-radius: 8px; margin-bottom: 14px;
+    }
+    .error pre { white-space: pre-wrap; font-size: 11px; color: var(--danger); margin-top: 4px; }
+
+    @media (max-width: 900px) {
+        body { padding: 20px; }
+        .summary-grid { grid-template-columns: repeat(2, 1fr); }
+        .case-body { grid-template-columns: 1fr; }
+    }
+</style>
+</head>
+<body>
+<header>
+    <h1>CQ-Bench Report</h1>
+    <div class="meta">
+        <span>Run ID: 20260410_172902</span>
+        <span>Runner: cq</span>
+        <span>Judge: qwen-plus</span>
+        <span>Started: 2026-04-10 17:29:26</span>
+    </div>
+</header>
+
+    <div class="summary-grid">
+        <div class="metric">
+            <div class="metric-label">Direction Accuracy</div>
+            <div class="metric-value">100%</div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Grounding</div>
+            <div class="metric-value">3.00<span class="unit">/5</span></div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Coverage</div>
+            <div class="metric-value">2.00<span class="unit">/5</span></div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Reasoning</div>
+            <div class="metric-value">2.00<span class="unit">/5</span></div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Risk Aware</div>
+            <div class="metric-value">1.00<span class="unit">/5</span></div>
+        </div>
+        <div class="metric highlight">
+            <div class="metric-label">Overall</div>
+            <div class="metric-value">2.00<span class="unit">/5</span></div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Fail Rate</div>
+            <div class="metric-value">0%</div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Total Latency</div>
+            <div class="metric-value">481<span class="unit">s</span></div>
+        </div>
+    </div>
+    
+<section class="cases-section">
+    <h2>Cases</h2>
+    
+    <div class="case match">
+        <div class="case-header">
+            <div class="case-id">BENCH-001</div>
+            <div class="case-sym">600519.SH · 贵州茅台</div>
+            <div class="case-market">A_STOCK</div>
+            <div class="direction-box">
+                <span class="exp-dir">预期: HOLD</span>
+                <span class="ai-dir">AI: HOLD</span>
+            </div>
+            <div class="latency">481.3s</div>
+        </div>
+
+        <div class="case-body">
+            <div class="case-left">
+                <div class="section">
+                    <h4>人工标注要点</h4>
+                    <ul class="kp-list">
+                        <li>高端白酒龙头地位稳固</li><li>PE 估值相对合理区间</li><li>消费降级对高端影响有限</li><li>批发价是核心观察指标</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工风险点</h4>
+                    <ul class="rp-list">
+                        <li>白酒行业景气度下行</li><li>年轻人饮酒习惯变化</li><li>经济弱复苏下需求承压</li><li>政策风险(反三公消费类)</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工概述</h4>
+                    <p class="analyst-notes">作为白酒绝对龙头,护城河极深,但短期面临行业去库存 + 消费降级压力,建议 HOLD 等待右侧拐点信号</p>
+                </div>
+            </div>
+
+            <div class="case-right">
+                
+                <div class="section">
+                    <h4>AI Decision</h4>
+                    <p class="rationale">公司 ROE 高达 24.64% 且 PE 处于合理区间，具备长期价值。但技术面受 MA5 压制，置信度 0.62 处临界区，策略要求观望等待突破信号，严禁此时开仓。</p>
+                    <div class="confidence">Confidence: 0.62</div>
+                </div>
+
+                <details>
+                    <summary>分析师摘要 (展开)</summary>
+                    <div class="analyst-section">
+                        <strong>基本面:</strong>
+                        <pre>(无)</pre>
+                        <strong>技术面:</strong>
+                        <pre>(无)</pre>
+                        <strong>情绪面:</strong>
+                        <pre>(无)</pre>
+                    </div>
+                </details>
+
+                <details><summary>RAG Context Preview</summary><pre class="rag">【本地知识库 — 混合检索结果（BM25 + 向量语义）】
+  [1] 来源: D:\000intern\0agent\trading_agents_system\data\docs\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1
+      利益冲突。 
+本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。
+复制、刊登、发表或引用。 
+ 
+分析员声明 
+本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本
+报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观
+点而直接或间接收到任何形式的补偿。 
+ 
+ 
+国 元 国 际 控 股 有 限 公 司 
+香港中环康乐广场 8 号交易广场三期 17 楼 
+电       话：(852) 3769 6888 
+传       真：(852) 3769 6999 
+服务热线：400-888-1313 
+公司网址：http://www.gyzq.com.hk
+
+  [</pre></details>
+
+                
+        <div class="scores">
+            <div class="score-row">
+                <span class="score-label">方向匹配</span>
+                <span class="score-val ok">
+                    ✅
+                </span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Grounding</span>
+                <span class="score-val"><span class="stars">●●●<span class="empty">○○</span></span> <span class="num">3</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Coverage</span>
+                <span class="score-val"><span class="stars">●●<span class="empty">○○○</span></span> <span class="num">2</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Reasoning</span>
+                <span class="score-val"><span class="stars">●●<span class="empty">○○○</span></span> <span class="num">2</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Risk Aware</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row overall">
+                <span class="score-label">Overall</span>
+                <span class="score-val">2.0 / 5</span>
+            </div>
+            <div class="judge-comment">
+                <strong>Judge:</strong> AI仅引用ROE和PE两个数字（部分 grounding），但未覆盖任何人工标注的关键论点（如龙头地位、批发价、消费降级影响等），完全未提及四项风险点，且用技术面MA5压制替代基本面风险分析，逻辑浅层且乐观倾向明显。
+            </div>
+            <div class="failure-modes"><strong>Failure Modes:</strong> <span class="tag">空泛</span><span class="tag">缺少风险提示</span><span class="tag">偏乐观</span></div>
+        </div>
+        
+            </div>
+        </div>
+    </div>
+    
+</section>
+</body>
+</html>

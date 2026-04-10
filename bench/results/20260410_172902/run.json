@@ -1,0 +1,73 @@
+{
+  "run_id": "20260410_172902",
+  "runner_name": "cq",
+  "judge_name": "qwen-plus",
+  "started_at": "2026-04-10T17:29:26.547246",
+  "finished_at": "2026-04-10T17:37:32.131480",
+  "case_count": 1,
+  "cases": [
+    {
+      "id": "BENCH-001",
+      "symbol": "600519.SH",
+      "market": "A_STOCK",
+      "name": "贵州茅台",
+      "expected_direction": "HOLD",
+      "key_points": [
+        "高端白酒龙头地位稳固",
+        "PE 估值相对合理区间",
+        "消费降级对高端影响有限",
+        "批发价是核心观察指标"
+      ],
+      "risk_points": [
+        "白酒行业景气度下行",
+        "年轻人饮酒习惯变化",
+        "经济弱复苏下需求承压",
+        "政策风险(反三公消费类)"
+      ],
+      "analyst_notes": "作为白酒绝对龙头,护城河极深,但短期面临行业去库存 + 消费降级压力,建议 HOLD 等待右侧拐点信号",
+      "extra_context": null
+    }
+  ],
+  "outputs": [
+    {
+      "case_id": "BENCH-001",
+      "runner_name": "campusquant",
+      "direction": "HOLD",
+      "confidence": 0.62,
+      "rationale": "公司 ROE 高达 24.64% 且 PE 处于合理区间，具备长期价值。但技术面受 MA5 压制，置信度 0.62 处临界区，策略要求观望等待突破信号，严禁此时开仓。",
+      "fundamental_summary": null,
+      "technical_summary": null,
+      "sentiment_summary": null,
+      "rag_context_preview": "【本地知识库 — 混合检索结果（BM25 + 向量语义）】\n  [1] 来源: D:\\000intern\\0agent\\trading_agents_system\\data\\docs\\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1\n      利益冲突。 \n本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。\n复制、刊登、发表或引用。 \n \n分析员声明 \n本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本\n报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观\n点而直接或间接收到任何形式的补偿。 \n \n \n国 元 国 际 控 股 有 限 公 司 \n香港中环康乐广场 8 号交易广场三期 17 楼 \n电       话：(852) 3769 6888 \n传       真：(852) 3769 6999 \n服务热线：400-888-1313 \n公司网址：http://www.gyzq.com.hk\n\n  [",
+      "latency_seconds": 481.2931264000945,
+      "error": null,
+      "raw_state_path": "D:\\000intern\\0agent\\trading_agents_system\\bench\\results\\20260410_172902\\raw_states\\BENCH-001.json"
+    }
+  ],
+  "scores": [
+    {
+      "case_id": "BENCH-001",
+      "runner_name": "campusquant",
+      "judge_name": "qwen-plus",
+      "direction_match": true,
+      "grounding_score": 3,
+      "coverage_score": 2,
+      "reasoning_score": 2,
+      "risk_awareness_score": 1,
+      "judge_comment": "AI仅引用ROE和PE两个数字（部分 grounding），但未覆盖任何人工标注的关键论点（如龙头地位、批发价、消费降级影响等），完全未提及四项风险点，且用技术面MA5压制替代基本面风险分析，逻辑浅层且乐观倾向明显。",
+      "failure_modes": [
+        "空泛",
+        "缺少风险提示",
+        "偏乐观"
+      ]
+    }
+  ],
+  "direction_accuracy": 1.0,
+  "avg_grounding": 3.0,
+  "avg_coverage": 2.0,
+  "avg_reasoning": 2.0,
+  "avg_risk": 1.0,
+  "avg_overall": 2.0,
+  "fail_rate": 0.0,
+  "total_latency_seconds": 481.2931264000945
+}
