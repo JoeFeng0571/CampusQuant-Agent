@@ -18,13 +18,12 @@
             padding:108px 28px 80px; flex:1; display:flex; flex-direction:column; gap:32px; }
         @media(max-width:768px) { .dash-container { padding:84px 16px 48px; gap:20px; } }
 
-        /* ══ HERO v4 — Linear Method 风（左文右图） ══ */
+        /* ══ HERO v5 — 单列干净版 ══ */
         .dash-hero {
             padding:48px 8px 16px;
-            display:grid;
-            grid-template-columns:1fr 380px;
-            gap:32px;
-            align-items:center;
+            display:flex;
+            flex-direction:column;
+            gap:18px;
             position:relative;
         }
         .dash-hero-text {
@@ -849,89 +848,7 @@
                 <span id="badge-tip">建议今日复盘</span>
             </div>
         </div>
-        <div class="dash-hero-art" aria-hidden="true">
-            <svg viewBox="0 0 400 320" xmlns="http://www.w3.org/2000/svg" class="hero-svg">
-                <defs>
-                    <linearGradient id="hg-line-1" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="#4facfe" stop-opacity=".9"/>
-                        <stop offset="100%" stop-color="#00f2fe" stop-opacity=".4"/>
-                    </linearGradient>
-                    <linearGradient id="hg-line-2" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="#a29bfe" stop-opacity=".7"/>
-                        <stop offset="100%" stop-color="#f093fb" stop-opacity=".3"/>
-                    </linearGradient>
-                    <linearGradient id="hg-line-3" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="#5eead4" stop-opacity=".85"/>
-                        <stop offset="100%" stop-color="#5eead4" stop-opacity=".25"/>
-                    </linearGradient>
-                    <radialGradient id="hg-glow" cx="50%" cy="50%" r="50%">
-                        <stop offset="0%" stop-color="#00f2fe" stop-opacity=".25"/>
-                        <stop offset="100%" stop-color="#00f2fe" stop-opacity="0"/>
-                    </radialGradient>
-                </defs>
-                <circle cx="220" cy="160" r="180" fill="url(#hg-glow)"/>
-                <g stroke="rgba(255,255,255,.05)" stroke-width="1">
-                    <line x1="20" y1="80"  x2="380" y2="80"/>
-                    <line x1="20" y1="140" x2="380" y2="140"/>
-                    <line x1="20" y1="200" x2="380" y2="200"/>
-                    <line x1="20" y1="260" x2="380" y2="260"/>
-                </g>
-                <g class="hero-bars">
-                    <rect x="30"  y="180" width="8" height="60"  rx="2" fill="#5eead4" opacity=".35"/>
-                    <rect x="50"  y="200" width="8" height="40"  rx="2" fill="#ff6b9d" opacity=".35"/>
-                    <rect x="70"  y="160" width="8" height="80"  rx="2" fill="#5eead4" opacity=".5"/>
-                    <rect x="90"  y="140" width="8" height="100" rx="2" fill="#5eead4" opacity=".55"/>
-                    <rect x="110" y="170" width="8" height="70"  rx="2" fill="#ff6b9d" opacity=".45"/>
-                    <rect x="130" y="120" width="8" height="120" rx="2" fill="#5eead4" opacity=".7"/>
-                    <rect x="150" y="100" width="8" height="140" rx="2" fill="#5eead4" opacity=".8"/>
-                    <rect x="170" y="130" width="8" height="110" rx="2" fill="#ff6b9d" opacity=".5"/>
-                </g>
-                <path d="M 30 180 Q 80 120 130 130 T 240 90 T 380 60"
-                      fill="none" stroke="url(#hg-line-1)" stroke-width="2.5" stroke-linecap="round"
-                      class="hero-path-1"/>
-                <path d="M 30 220 Q 100 200 160 180 T 280 150 T 380 120"
-                      fill="none" stroke="url(#hg-line-2)" stroke-width="2" stroke-linecap="round"
-                      stroke-dasharray="4 4"/>
-                <path d="M 30 250 Q 100 240 180 220 T 320 200 T 380 180"
-                      fill="none" stroke="url(#hg-line-3)" stroke-width="1.5" stroke-linecap="round"/>
-                <circle cx="380" cy="60"  r="4" fill="#00f2fe"/>
-                <circle cx="380" cy="60"  r="9" fill="#00f2fe" opacity=".25" class="hero-dot-pulse"/>
-                <circle cx="380" cy="120" r="3" fill="#a29bfe"/>
-                <circle cx="380" cy="180" r="3" fill="#5eead4"/>
-                <g font-family="Inter, sans-serif" font-size="11" fill="rgba(255,255,255,.55)" font-weight="600">
-                    <text x="20" y="40">A股 / 港股 / 美股 · 实时</text>
-                    <text x="290" y="40" fill="#5eead4">+2.34%</text>
-                </g>
-            </svg>
-        </div>
     </section>
-
-    <!-- KPI 横向数据条（社会证明 / 平台规模感） -->
-    <div class="dash-kpi-bar fade-in-up" style="animation-delay:.25s">
-        <div class="dash-kpi">
-            <div class="dash-kpi-label">支持市场</div>
-            <div class="dash-kpi-value">3</div>
-            <div class="dash-kpi-sub">A · HK · US</div>
-        </div>
-        <div class="dash-kpi-divider"></div>
-        <div class="dash-kpi">
-            <div class="dash-kpi-label">AI 智能体</div>
-            <div class="dash-kpi-value">6</div>
-            <div class="dash-kpi-sub">基本面/技术/情绪/风控/调度/PM</div>
-        </div>
-        <div class="dash-kpi-divider"></div>
-        <div class="dash-kpi">
-            <div class="dash-kpi-label">总模拟资金</div>
-            <div class="dash-kpi-value">¥280K</div>
-            <div class="dash-kpi-sub">三市场起手资金</div>
-        </div>
-        <div class="dash-kpi-divider"></div>
-        <div class="dash-kpi">
-            <div class="dash-kpi-label">真实风险</div>
-            <div class="dash-kpi-value">0%</div>
-            <div class="dash-kpi-sub">100% 模拟环境</div>
-        </div>
-    </div>
 
     <!-- ② QUICK NAV GRID -->
     <div class="quick-nav-grid stagger-children">
