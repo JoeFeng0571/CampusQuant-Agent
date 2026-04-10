@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CQ-Bench Report · 20260410_141912</title>
+<style>
+    :root {
+        --bg: hsl(228, 24%, 7%);
+        --card: rgba(255,255,255,0.04);
+        --border: rgba(255,255,255,0.08);
+        --text: rgba(255,255,255,0.92);
+        --text-2: rgba(255,255,255,0.65);
+        --text-3: rgba(255,255,255,0.45);
+        --primary: #4facfe;
+        --cyan: #00f2fe;
+        --mint: #5eead4;
+        --warm: #ff9a56;
+        --danger: #ff6b9d;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+        background: var(--bg); color: var(--text);
+        font-family: 'Inter', system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        font-size: 14px; line-height: 1.5;
+    }
+    body { padding: 40px; max-width: 1400px; margin: 0 auto; }
+    h1, h2, h3, h4 { font-weight: 700; }
+    header {
+        padding-bottom: 24px; margin-bottom: 32px;
+        border-bottom: 1px solid var(--border);
+    }
+    h1 { font-size: 32px; letter-spacing: -0.02em; }
+    .meta { color: var(--text-2); font-size: 12px; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+    .meta span { margin-right: 16px; }
+
+    .summary-grid {
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+        margin-bottom: 40px;
+    }
+    .metric {
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: 12px; padding: 18px 20px;
+    }
+    .metric.highlight { background: linear-gradient(135deg,rgba(79,172,254,0.12),rgba(0,242,254,0.04)); border-color: rgba(79,172,254,0.3); }
+    .metric-label { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; }
+    .metric-value { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
+    .unit { font-size: 14px; color: var(--text-3); margin-left: 4px; }
+
+    .cases-section h2 { font-size: 18px; margin-bottom: 16px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.04em; }
+
+    .case {
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: 14px; margin-bottom: 18px; overflow: hidden;
+    }
+    .case.match { border-left: 3px solid var(--mint); }
+    .case.mismatch { border-left: 3px solid var(--warm); }
+    .case.fail { border-left: 3px solid var(--danger); }
+
+    .case-header {
+        display: flex; align-items: center; gap: 16px;
+        padding: 14px 20px; background: rgba(255,255,255,0.02);
+        border-bottom: 1px solid var(--border);
+    }
+    .case-id { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-3); }
+    .case-sym { font-size: 15px; font-weight: 700; flex: 1; }
+    .case-market { font-size: 10px; background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 4px; color: var(--text-2); font-family: 'JetBrains Mono', monospace; }
+    .direction-box { display: flex; gap: 8px; font-size: 12px; }
+    .exp-dir { color: var(--text-2); }
+    .ai-dir { color: var(--cyan); font-weight: 700; }
+    .latency { font-size: 11px; color: var(--text-3); font-family: 'JetBrains Mono', monospace; }
+
+    .case-body { display: grid; grid-template-columns: 1fr 1.4fr; gap: 24px; padding: 20px; }
+    .section { margin-bottom: 18px; }
+    .section h4 {
+        font-size: 11px; text-transform: uppercase; color: var(--text-3);
+        letter-spacing: 0.06em; margin-bottom: 8px; font-family: 'JetBrains Mono', monospace;
+    }
+    .kp-list, .rp-list { list-style: none; padding-left: 0; }
+    .kp-list li { padding: 4px 0 4px 16px; position: relative; font-size: 13px; color: var(--text); }
+    .kp-list li::before { content: "◆"; position: absolute; left: 0; color: var(--mint); }
+    .rp-list li { padding: 4px 0 4px 16px; position: relative; font-size: 13px; color: var(--text-2); }
+    .rp-list li::before { content: "▲"; position: absolute; left: 0; color: var(--warm); }
+    .analyst-notes { font-size: 13px; color: var(--text-2); font-style: italic; line-height: 1.65; }
+
+    .rationale {
+        font-size: 14px; line-height: 1.7;
+        background: rgba(255,255,255,0.03); padding: 14px 16px;
+        border-radius: 8px; border-left: 2px solid var(--primary);
+        white-space: pre-wrap;
+    }
+    .confidence { font-size: 11px; color: var(--text-3); margin-top: 8px; font-family: 'JetBrains Mono', monospace; }
+
+    details { margin: 16px 0; }
+    details summary { cursor: pointer; font-size: 12px; color: var(--primary); padding: 4px 0; }
+    details pre {
+        white-space: pre-wrap; font-family: inherit; font-size: 12px;
+        color: var(--text-2); padding: 10px; background: rgba(255,255,255,0.02);
+        border-radius: 6px; margin-top: 6px;
+    }
+    .analyst-section strong { display: block; margin-top: 10px; color: var(--text); font-size: 11px; text-transform: uppercase; }
+
+    .scores {
+        margin-top: 16px; padding-top: 16px;
+        border-top: 1px solid var(--border);
+    }
+    .score-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 6px 0; font-size: 13px;
+    }
+    .score-row.overall { border-top: 1px dashed var(--border); margin-top: 6px; padding-top: 10px; font-weight: 700; color: var(--cyan); }
+    .score-label { color: var(--text-2); }
+    .stars { font-family: monospace; letter-spacing: 2px; color: var(--cyan); }
+    .stars .empty { color: var(--text-3); }
+    .stars + .num { color: var(--text-3); font-size: 11px; margin-left: 6px; }
+    .ok { color: var(--mint); }
+    .bad { color: var(--danger); }
+
+    .judge-comment {
+        margin-top: 14px; padding: 10px 12px;
+        background: rgba(79,172,254,0.06); border-radius: 6px;
+        font-size: 12px; line-height: 1.6; color: var(--text-2);
+    }
+    .judge-comment strong { color: var(--primary); }
+
+    .failure-modes { margin-top: 10px; font-size: 11px; color: var(--text-3); }
+    .failure-modes .tag {
+        display: inline-block; margin: 2px 4px 2px 0;
+        padding: 2px 8px; background: rgba(255,107,157,0.12);
+        color: var(--danger); border-radius: 10px;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .error {
+        background: rgba(255,107,157,0.08); border: 1px solid rgba(255,107,157,0.3);
+        padding: 12px; border-radius: 8px; margin-bottom: 14px;
+    }
+    .error pre { white-space: pre-wrap; font-size: 11px; color: var(--danger); margin-top: 4px; }
+
+    @media (max-width: 900px) {
+        body { padding: 20px; }
+        .summary-grid { grid-template-columns: repeat(2, 1fr); }
+        .case-body { grid-template-columns: 1fr; }
+    }
+</style>
+</head>
+<body>
+<header>
+    <h1>CQ-Bench Report</h1>
+    <div class="meta">
+        <span>Run ID: 20260410_141912</span>
+        <span>Runner: cq</span>
+        <span>Judge: qwen-plus</span>
+        <span>Started: 2026-04-10 14:19:18</span>
+    </div>
+</header>
+
+    <div class="summary-grid">
+        <div class="metric">
+            <div class="metric-label">Direction Accuracy</div>
+            <div class="metric-value">50%</div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Grounding</div>
+            <div class="metric-value">1.10<span class="unit">/5</span></div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Coverage</div>
+            <div class="metric-value">1.10<span class="unit">/5</span></div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Reasoning</div>
+            <div class="metric-value">2.00<span class="unit">/5</span></div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Risk Aware</div>
+            <div class="metric-value">1.00<span class="unit">/5</span></div>
+        </div>
+        <div class="metric highlight">
+            <div class="metric-label">Overall</div>
+            <div class="metric-value">0.97<span class="unit">/5</span></div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Fail Rate</div>
+            <div class="metric-value">0%</div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Total Latency</div>
+            <div class="metric-value">4656<span class="unit">s</span></div>
+        </div>
+    </div>
+    
+<section class="cases-section">
+    <h2>Cases</h2>
+    
+    <div class="case match">
+        <div class="case-header">
+            <div class="case-id">BENCH-001</div>
+            <div class="case-sym">600519.SH · 贵州茅台</div>
+            <div class="case-market">A_STOCK</div>
+            <div class="direction-box">
+                <span class="exp-dir">预期: HOLD</span>
+                <span class="ai-dir">AI: HOLD</span>
+            </div>
+            <div class="latency">377.3s</div>
+        </div>
+
+        <div class="case-body">
+            <div class="case-left">
+                <div class="section">
+                    <h4>人工标注要点</h4>
+                    <ul class="kp-list">
+                        <li>高端白酒龙头地位稳固</li><li>PE 估值相对合理区间</li><li>消费降级对高端影响有限</li><li>批发价是核心观察指标</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工风险点</h4>
+                    <ul class="rp-list">
+                        <li>白酒行业景气度下行</li><li>年轻人饮酒习惯变化</li><li>经济弱复苏下需求承压</li><li>政策风险(反三公消费类)</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工概述</h4>
+                    <p class="analyst-notes">作为白酒绝对龙头,护城河极深,但短期面临行业去库存 + 消费降级压力,建议 HOLD 等待右侧拐点信号</p>
+                </div>
+            </div>
+
+            <div class="case-right">
+                
+                <div class="section">
+                    <h4>AI Decision</h4>
+                    <p class="rationale">三份报告建议 HOLD，舆情与量化冲突，置信度 0.54 低于 0.60 阈值强制持有。基本面稳健缺乏催化剂，技术面动能不足，维持中性观望规避超额风险。</p>
+                    <div class="confidence">Confidence: 0.54</div>
+                </div>
+
+                <details>
+                    <summary>分析师摘要 (展开)</summary>
+                    <div class="analyst-section">
+                        <strong>基本面:</strong>
+                        <pre>(无)</pre>
+                        <strong>技术面:</strong>
+                        <pre>(无)</pre>
+                        <strong>情绪面:</strong>
+                        <pre>(无)</pre>
+                    </div>
+                </details>
+
+                <details><summary>RAG Context Preview</summary><pre class="rag">【本地知识库 — 混合检索结果（BM25 + 向量语义）】
+  [1] 来源: D:\000intern\0agent\trading_agents_system\data\docs\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1
+      利益冲突。 
+本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。
+复制、刊登、发表或引用。 
+ 
+分析员声明 
+本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本
+报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观
+点而直接或间接收到任何形式的补偿。 
+ 
+ 
+国 元 国 际 控 股 有 限 公 司 
+香港中环康乐广场 8 号交易广场三期 17 楼 
+电       话：(852) 3769 6888 
+传       真：(852) 3769 6999 
+服务热线：400-888-1313 
+公司网址：http://www.gyzq.com.hk
+
+  [</pre></details>
+
+                
+        <div class="scores">
+            <div class="score-row">
+                <span class="score-label">方向匹配</span>
+                <span class="score-val ok">
+                    ✅
+                </span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Grounding</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Coverage</span>
+                <span class="score-val"><span class="stars">●●<span class="empty">○○○</span></span> <span class="num">2</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Reasoning</span>
+                <span class="score-val"><span class="stars">●●<span class="empty">○○○</span></span> <span class="num">2</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Risk Aware</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row overall">
+                <span class="score-label">Overall</span>
+                <span class="score-val">1.5 / 5</span>
+            </div>
+            <div class="judge-comment">
+                <strong>Judge:</strong> AI输出未引用任何具体数据（如PE值、批发价、营收增速），仅泛泛提及'基本面稳健'；关键论点仅隐含'龙头地位'和'缺乏催化剂'，覆盖不足30%；'舆情与量化冲突'等表述无定义且逻辑断裂；完全未提及四项人工标注风险点。
+            </div>
+            <div class="failure-modes"><strong>Failure Modes:</strong> <span class="tag">空泛</span><span class="tag">缺少风险提示</span><span class="tag">逻辑矛盾</span></div>
+        </div>
+        
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="case match">
+        <div class="case-header">
+            <div class="case-id">BENCH-002</div>
+            <div class="case-sym">000858.SZ · 五粮液</div>
+            <div class="case-market">A_STOCK</div>
+            <div class="direction-box">
+                <span class="exp-dir">预期: HOLD</span>
+                <span class="ai-dir">AI: HOLD</span>
+            </div>
+            <div class="latency">424.4s</div>
+        </div>
+
+        <div class="case-body">
+            <div class="case-left">
+                <div class="section">
+                    <h4>人工标注要点</h4>
+                    <ul class="kp-list">
+                        <li>白酒行业第二品牌</li><li>次高端份额竞争激烈</li><li>PE 低于历史中枢</li><li>分红率稳定</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工风险点</h4>
+                    <ul class="rp-list">
+                        <li>普五批价压力</li><li>库存水平</li><li>区域酒挤压</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工概述</h4>
+                    <p class="analyst-notes">次高端承压但龙头地位稳固,估值已消化悲观预期,建议持有观察动销恢复</p>
+                </div>
+            </div>
+
+            <div class="case-right">
+                
+                <div class="section">
+                    <h4>AI Decision</h4>
+                    <p class="rationale">基本面估值具备安全边际但技术面受均线压制且量能不足，舆情显示板块资金流出。综合置信度 0.47 低于 0.60 阈值，依据本金安全原则建议观望等待技术面反转信号，风控强制压缩仓位。</p>
+                    <div class="confidence">Confidence: 0.47</div>
+                </div>
+
+                <details>
+                    <summary>分析师摘要 (展开)</summary>
+                    <div class="analyst-section">
+                        <strong>基本面:</strong>
+                        <pre>(无)</pre>
+                        <strong>技术面:</strong>
+                        <pre>(无)</pre>
+                        <strong>情绪面:</strong>
+                        <pre>(无)</pre>
+                    </div>
+                </details>
+
+                <details><summary>RAG Context Preview</summary><pre class="rag">【本地知识库 — 混合检索结果（BM25 + 向量语义）】
+  [1] 来源: D:\000intern\0agent\trading_agents_system\data\docs\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1
+      利益冲突。 
+本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。
+复制、刊登、发表或引用。 
+ 
+分析员声明 
+本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本
+报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观
+点而直接或间接收到任何形式的补偿。 
+ 
+ 
+国 元 国 际 控 股 有 限 公 司 
+香港中环康乐广场 8 号交易广场三期 17 楼 
+电       话：(852) 3769 6888 
+传       真：(852) 3769 6999 
+服务热线：400-888-1313 
+公司网址：http://www.gyzq.com.hk
+
+  [</pre></details>
+
+                
+        <div class="scores">
+            <div class="score-row">
+                <span class="score-label">方向匹配</span>
+                <span class="score-val ok">
+                    ✅
+                </span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Grounding</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Coverage</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Reasoning</span>
+                <span class="score-val"><span class="stars">●●<span class="empty">○○○</span></span> <span class="num">2</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Risk Aware</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row overall">
+                <span class="score-label">Overall</span>
+                <span class="score-val">1.25 / 5</span>
+            </div>
+            <div class="judge-comment">
+                <strong>Judge:</strong> AI未引用任何具体数据（如PE值、分红率、批价、库存等），完全未覆盖人工标注的4个关键论点和3个风险点；技术面与舆情理由与A股白酒板块实际特征脱节，且将'置信度0.47&lt;0.60'机械映射为'压缩仓位'，违背HOLD指令本意，存在逻辑矛盾。
+            </div>
+            <div class="failure-modes"><strong>Failure Modes:</strong> <span class="tag">空泛</span><span class="tag">缺少风险提示</span><span class="tag">逻辑矛盾</span><span class="tag">数字编造</span></div>
+        </div>
+        
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="case mismatch">
+        <div class="case-header">
+            <div class="case-id">BENCH-003</div>
+            <div class="case-sym">300750.SZ · 宁德时代</div>
+            <div class="case-market">A_STOCK</div>
+            <div class="direction-box">
+                <span class="exp-dir">预期: BUY</span>
+                <span class="ai-dir">AI: HOLD</span>
+            </div>
+            <div class="latency">387.7s</div>
+        </div>
+
+        <div class="case-body">
+            <div class="case-left">
+                <div class="section">
+                    <h4>人工标注要点</h4>
+                    <ul class="kp-list">
+                        <li>全球动力电池龙头</li><li>麒麟电池/神行超充产品力强</li><li>海外市场扩张(欧洲/北美)</li><li>储能业务增长加速</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工风险点</h4>
+                    <ul class="rp-list">
+                        <li>产能过剩/价格战</li><li>上游锂价波动</li><li>特斯拉自研电池威胁</li><li>地缘政治风险</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工概述</h4>
+                    <p class="analyst-notes">动力电池行业拐点已现,宁王技术+规模壁垒最深,估值回到合理区间,储能提供第二增长曲线</p>
+                </div>
+            </div>
+
+            <div class="case-right">
+                
+                <div class="section">
+                    <h4>AI Decision</h4>
+                    <p class="rationale">基本面 ROE 优异但技术面呈空头排列，成交量萎缩。虽长期逻辑向好，但短期缺乏反弹动能，建议观望等待均线修复，避免左侧交易风险，确保本金安全。</p>
+                    <div class="confidence">Confidence: 0.63</div>
+                </div>
+
+                <details>
+                    <summary>分析师摘要 (展开)</summary>
+                    <div class="analyst-section">
+                        <strong>基本面:</strong>
+                        <pre>(无)</pre>
+                        <strong>技术面:</strong>
+                        <pre>(无)</pre>
+                        <strong>情绪面:</strong>
+                        <pre>(无)</pre>
+                    </div>
+                </details>
+
+                <details><summary>RAG Context Preview</summary><pre class="rag">【本地知识库 — 混合检索结果（BM25 + 向量语义）】
+  [1] 来源: D:\000intern\0agent\trading_agents_system\data\docs\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1
+      利益冲突。 
+本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。
+复制、刊登、发表或引用。 
+ 
+分析员声明 
+本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本
+报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观
+点而直接或间接收到任何形式的补偿。 
+ 
+ 
+国 元 国 际 控 股 有 限 公 司 
+香港中环康乐广场 8 号交易广场三期 17 楼 
+电       话：(852) 3769 6888 
+传       真：(852) 3769 6999 
+服务热线：400-888-1313 
+公司网址：http://www.gyzq.com.hk
+
+  [</pre></details>
+
+                
+        <div class="scores">
+            <div class="score-row">
+                <span class="score-label">方向匹配</span>
+                <span class="score-val bad">
+                    ❌
+                </span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Grounding</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Coverage</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Reasoning</span>
+                <span class="score-val"><span class="stars">●●<span class="empty">○○○</span></span> <span class="num">2</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Risk Aware</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row overall">
+                <span class="score-label">Overall</span>
+                <span class="score-val">0.62 / 5</span>
+            </div>
+            <div class="judge-comment">
+                <strong>Judge:</strong> AI输出完全未引用任何具体数据、未覆盖任一关键论点或风险点，技术面理由空洞且与人工标注的积极基本面背道而驰；'长期逻辑向好'与'HOLD'决策缺乏因果衔接，属典型表面化、无依据的模糊判断。
+            </div>
+            <div class="failure-modes"><strong>Failure Modes:</strong> <span class="tag">空泛</span><span class="tag">缺少风险提示</span><span class="tag">逻辑矛盾</span><span class="tag">偏乐观（实际建议HOLD但称‘长期逻辑向好’却未支撑BUY）</span></div>
+        </div>
+        
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="case mismatch">
+        <div class="case-header">
+            <div class="case-id">BENCH-004</div>
+            <div class="case-sym">688256.SH · 寒武纪</div>
+            <div class="case-market">A_STOCK</div>
+            <div class="direction-box">
+                <span class="exp-dir">预期: SELL</span>
+                <span class="ai-dir">AI: HOLD</span>
+            </div>
+            <div class="latency">545.5s</div>
+        </div>
+
+        <div class="case-body">
+            <div class="case-left">
+                <div class="section">
+                    <h4>人工标注要点</h4>
+                    <ul class="kp-list">
+                        <li>AI 芯片设计公司</li><li>长期巨额亏损</li><li>PS 估值远超同行</li><li>客户集中度高</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工风险点</h4>
+                    <ul class="rp-list">
+                        <li>技术突破难度极大</li><li>竞争格局激烈(华为昇腾)</li><li>现金流持续消耗</li><li>解禁压力</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工概述</h4>
+                    <p class="analyst-notes">估值已脱离基本面,持续亏损无改善迹象,短期游资炒作居多,不建议追高</p>
+                </div>
+            </div>
+
+            <div class="case-right">
+                
+                <div class="section">
+                    <h4>AI Decision</h4>
+                    <p class="rationale">市盈率 243 倍极端高估，舆情解析失败且技术基本面冲突，置信度 0.55 低于安全阈值。科创板高波动不符合本金安全原则，依据 CampusQuant 原则强制持有观望。</p>
+                    <div class="confidence">Confidence: 0.55</div>
+                </div>
+
+                <details>
+                    <summary>分析师摘要 (展开)</summary>
+                    <div class="analyst-section">
+                        <strong>基本面:</strong>
+                        <pre>(无)</pre>
+                        <strong>技术面:</strong>
+                        <pre>(无)</pre>
+                        <strong>情绪面:</strong>
+                        <pre>(无)</pre>
+                    </div>
+                </details>
+
+                <details><summary>RAG Context Preview</summary><pre class="rag">【本地知识库 — 混合检索结果（BM25 + 向量语义）】
+  [1] 来源: D:\000intern\0agent\trading_agents_system\data\docs\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1
+      利益冲突。 
+本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。
+复制、刊登、发表或引用。 
+ 
+分析员声明 
+本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本
+报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观
+点而直接或间接收到任何形式的补偿。 
+ 
+ 
+国 元 国 际 控 股 有 限 公 司 
+香港中环康乐广场 8 号交易广场三期 17 楼 
+电       话：(852) 3769 6888 
+传       真：(852) 3769 6999 
+服务热线：400-888-1313 
+公司网址：http://www.gyzq.com.hk
+
+  [</pre></details>
+
+                
+        <div class="scores">
+            <div class="score-row">
+                <span class="score-label">方向匹配</span>
+                <span class="score-val bad">
+                    ❌
+                </span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Grounding</span>
+                <span class="score-val"><span class="stars">●●<span class="empty">○○○</span></span> <span class="num">2</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Coverage</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Reasoning</span>
+                <span class="score-val"><span class="stars">●●<span class="empty">○○○</span></span> <span class="num">2</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Risk Aware</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row overall">
+                <span class="score-label">Overall</span>
+                <span class="score-val">0.75 / 5</span>
+            </div>
+            <div class="judge-comment">
+                <strong>Judge:</strong> AI仅引用PE=243（但寒武纪当前为亏损，PE无意义，属指标误用），未提PS、亏损额、客户集中度、解禁等任一关键事实或风险；'HOLD'结论与人工SELL方向冲突，且'CampusQuant原则'等虚构术语削弱可信度。
+            </div>
+            <div class="failure-modes"><strong>Failure Modes:</strong> <span class="tag">空泛</span><span class="tag">缺少风险提示</span><span class="tag">逻辑矛盾</span><span class="tag">未覆盖关键论点</span></div>
+        </div>
+        
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="case mismatch">
+        <div class="case-header">
+            <div class="case-id">BENCH-005</div>
+            <div class="case-sym">00700.HK · 腾讯控股</div>
+            <div class="case-market">HK_STOCK</div>
+            <div class="direction-box">
+                <span class="exp-dir">预期: BUY</span>
+                <span class="ai-dir">AI: HOLD</span>
+            </div>
+            <div class="latency">397.2s</div>
+        </div>
+
+        <div class="case-body">
+            <div class="case-left">
+                <div class="section">
+                    <h4>人工标注要点</h4>
+                    <ul class="kp-list">
+                        <li>游戏业务恢复增长(王者/和平/金铲铲)</li><li>视频号广告货币化加速</li><li>AI 云/混元大模型</li><li>港股回购 + 南向资金流入</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工风险点</h4>
+                    <ul class="rp-list">
+                        <li>监管政策反复</li><li>游戏版号收紧</li><li>微信小程序生态挑战</li><li>电商业务进展慢</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工概述</h4>
+                    <p class="analyst-notes">估值回到历史低位,多条业务线恢复增长,回购 + 股息 + AI 三轮驱动,风险收益比极佳</p>
+                </div>
+            </div>
+
+            <div class="case-right">
+                
+                <div class="section">
+                    <h4>AI Decision</h4>
+                    <p class="rationale">基本面虽有回购支撑但估值数据缺失，技术面受 MA20 压制且长期趋势不明，舆情置信度过低且存在数据噪音。综合置信度 0.54 低于 0.60 安全阈值，遵循校园量化本金安全原则，宁可错过不做错，维持持有观望。</p>
+                    <div class="confidence">Confidence: 0.54</div>
+                </div>
+
+                <details>
+                    <summary>分析师摘要 (展开)</summary>
+                    <div class="analyst-section">
+                        <strong>基本面:</strong>
+                        <pre>(无)</pre>
+                        <strong>技术面:</strong>
+                        <pre>(无)</pre>
+                        <strong>情绪面:</strong>
+                        <pre>(无)</pre>
+                    </div>
+                </details>
+
+                <details><summary>RAG Context Preview</summary><pre class="rag">【本地知识库 — 混合检索结果（BM25 + 向量语义）】
+  [1] 来源: D:\000intern\0agent\trading_agents_system\data\docs\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1
+      利益冲突。 
+本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。
+复制、刊登、发表或引用。 
+ 
+分析员声明 
+本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本
+报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观
+点而直接或间接收到任何形式的补偿。 
+ 
+ 
+国 元 国 际 控 股 有 限 公 司 
+香港中环康乐广场 8 号交易广场三期 17 楼 
+电       话：(852) 3769 6888 
+传       真：(852) 3769 6999 
+服务热线：400-888-1313 
+公司网址：http://www.gyzq.com.hk
+
+  [</pre></details>
+
+                
+        <div class="scores">
+            <div class="score-row">
+                <span class="score-label">方向匹配</span>
+                <span class="score-val bad">
+                    ❌
+                </span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Grounding</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Coverage</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Reasoning</span>
+                <span class="score-val"><span class="stars">●●<span class="empty">○○○</span></span> <span class="num">2</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Risk Aware</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row overall">
+                <span class="score-label">Overall</span>
+                <span class="score-val">0.62 / 5</span>
+            </div>
+            <div class="judge-comment">
+                <strong>Judge:</strong> AI输出完全未引用任何具体数据、未覆盖任一人工标注的关键论点或风险点，推理脱离案例上下文（如虚构'校园量化本金安全原则'），且将'HOLD'归因为技术面/舆情等未提供的信息，属严重失焦。
+            </div>
+            <div class="failure-modes"><strong>Failure Modes:</strong> <span class="tag">空泛</span><span class="tag">缺少风险提示</span><span class="tag">逻辑脱节</span><span class="tag">未响应关键论点</span></div>
+        </div>
+        
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="case match">
+        <div class="case-header">
+            <div class="case-id">BENCH-006</div>
+            <div class="case-sym">09988.HK · 阿里巴巴</div>
+            <div class="case-market">HK_STOCK</div>
+            <div class="direction-box">
+                <span class="exp-dir">预期: HOLD</span>
+                <span class="ai-dir">AI: HOLD</span>
+            </div>
+            <div class="latency">555.5s</div>
+        </div>
+
+        <div class="case-body">
+            <div class="case-left">
+                <div class="section">
+                    <h4>人工标注要点</h4>
+                    <ul class="kp-list">
+                        <li>电商主业面临拼多多/抖音竞争</li><li>云业务增速放缓</li><li>国际 AIDC 增长亮眼</li><li>蒋凡回归淘天改革</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工风险点</h4>
+                    <ul class="rp-list">
+                        <li>核心电商份额流失</li><li>本地生活亏损</li><li>监管反垄断</li><li>SOTP 分部估值不被市场认可</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工概述</h4>
+                    <p class="analyst-notes">多维度变革进行中,效果待观察,估值便宜但催化剂不足,建议持有观察季度数据</p>
+                </div>
+            </div>
+
+            <div class="case-right">
+                
+                <div class="section">
+                    <h4>AI Decision</h4>
+                    <p class="rationale">基本面估值底部但消费复苏缓慢，技术面受均线压制且成交量萎缩，综合置信度 0.53 低于 0.60 安全阈值，依据风控原则维持 HOLD 等待右侧信号。</p>
+                    <div class="confidence">Confidence: 0.53</div>
+                </div>
+
+                <details>
+                    <summary>分析师摘要 (展开)</summary>
+                    <div class="analyst-section">
+                        <strong>基本面:</strong>
+                        <pre>(无)</pre>
+                        <strong>技术面:</strong>
+                        <pre>(无)</pre>
+                        <strong>情绪面:</strong>
+                        <pre>(无)</pre>
+                    </div>
+                </details>
+
+                <details><summary>RAG Context Preview</summary><pre class="rag">【本地知识库 — 混合检索结果（BM25 + 向量语义）】
+  [1] 来源: D:\000intern\0agent\trading_agents_system\data\docs\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1
+      利益冲突。 
+本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。
+复制、刊登、发表或引用。 
+ 
+分析员声明 
+本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本
+报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观
+点而直接或间接收到任何形式的补偿。 
+ 
+ 
+国 元 国 际 控 股 有 限 公 司 
+香港中环康乐广场 8 号交易广场三期 17 楼 
+电       话：(852) 3769 6888 
+传       真：(852) 3769 6999 
+服务热线：400-888-1313 
+公司网址：http://www.gyzq.com.hk
+
+  [</pre></details>
+
+                
+        <div class="scores">
+            <div class="score-row">
+                <span class="score-label">方向匹配</span>
+                <span class="score-val ok">
+                    ✅
+                </span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Grounding</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Coverage</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Reasoning</span>
+                <span class="score-val"><span class="stars">●●<span class="empty">○○○</span></span> <span class="num">2</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Risk Aware</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row overall">
+                <span class="score-label">Overall</span>
+                <span class="score-val">1.25 / 5</span>
+            </div>
+            <div class="judge-comment">
+                <strong>Judge:</strong> AI输出未引用任何具体数据、未覆盖任一人工标注的关键论点或风险点，理由中‘基本面估值底部’‘消费复苏缓慢’等表述空泛无依据；技术面描述与港股阿里实际走势（如2024年Q1放量突破均线）可能矛盾，且完全忽略监管、分部估值、蒋凡改革等核心维度。
+            </div>
+            <div class="failure-modes"><strong>Failure Modes:</strong> <span class="tag">空泛</span><span class="tag">缺少风险提示</span><span class="tag">逻辑矛盾</span></div>
+        </div>
+        
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="case match">
+        <div class="case-header">
+            <div class="case-id">BENCH-007</div>
+            <div class="case-sym">NVDA · NVIDIA</div>
+            <div class="case-market">US_STOCK</div>
+            <div class="direction-box">
+                <span class="exp-dir">预期: HOLD</span>
+                <span class="ai-dir">AI: HOLD</span>
+            </div>
+            <div class="latency">402.6s</div>
+        </div>
+
+        <div class="case-body">
+            <div class="case-left">
+                <div class="section">
+                    <h4>人工标注要点</h4>
+                    <ul class="kp-list">
+                        <li>AI 芯片绝对龙头</li><li>Blackwell 产品周期强劲</li><li>数据中心收入占比超 80%</li><li>CUDA 生态护城河</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工风险点</h4>
+                    <ul class="rp-list">
+                        <li>估值偏贵(PE 60+)</li><li>大客户自研芯片(Google TPU/AWS Trainium)</li><li>中国市场受限</li><li>AI 需求 peak 担忧</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工概述</h4>
+                    <p class="analyst-notes">基本面无可挑剔但估值已反映大部分乐观预期,持有等待回调加仓机会</p>
+                </div>
+            </div>
+
+            <div class="case-right">
+                
+                <div class="section">
+                    <h4>AI Decision</h4>
+                    <p class="rationale">基本面与技术面共振看涨但数据不足，综合置信度 0.54 低于 0.60 安全线，依据本金安全优先原则选择观望，等待更明确催化剂。</p>
+                    <div class="confidence">Confidence: 0.54</div>
+                </div>
+
+                <details>
+                    <summary>分析师摘要 (展开)</summary>
+                    <div class="analyst-section">
+                        <strong>基本面:</strong>
+                        <pre>(无)</pre>
+                        <strong>技术面:</strong>
+                        <pre>(无)</pre>
+                        <strong>情绪面:</strong>
+                        <pre>(无)</pre>
+                    </div>
+                </details>
+
+                <details><summary>RAG Context Preview</summary><pre class="rag">【本地知识库 — 混合检索结果（BM25 + 向量语义）】
+  [1] 来源: D:\000intern\0agent\trading_agents_system\data\docs\科技行业专题研究：美股四朵小花（MIPS）黎明将至？_【发现报告 fxbaogao.com】.pdf  p.7
+      800 亿美元。因此，若按目前英特尔约 1000 亿美元市值算，分拆或将释放 2.65 倍价值。 
+ 
+我们预测英特尔 FY25/26/27 营收为 567/615/649 亿美元，FY25/26/27 调整后净利润为 52/ 
+85/88 亿美元。我们参考可比公司 2025 年的 PS 范围为 3.1-23.4x，考虑到公司管理层的不
+稳定因素， 不过或可实行分拆释放价值，给予公司 25 年估值约 2.3x PS， 目标价31 美元，
+潜在空间 25%（截止 2 月 21 日收盘价） ，维持“买入” 。 
+ 
+图表14： 英特尔可比公司估值表（数据截至 2025 年 2 月 21 日） 
+    PE(倍) PS（倍） PB（倍） 
+    2025E 2026E 2027E 20</pre></details>
+
+                
+        <div class="scores">
+            <div class="score-row">
+                <span class="score-label">方向匹配</span>
+                <span class="score-val ok">
+                    ✅
+                </span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Grounding</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Coverage</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Reasoning</span>
+                <span class="score-val"><span class="stars">●●<span class="empty">○○○</span></span> <span class="num">2</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Risk Aware</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row overall">
+                <span class="score-label">Overall</span>
+                <span class="score-val">1.25 / 5</span>
+            </div>
+            <div class="judge-comment">
+                <strong>Judge:</strong> AI 输出未引用任何具体数据（如PE 60+、数据中心80%收入等），完全未覆盖人工标注的4个关键论点和4个风险点；'基本面与技术面共振看涨'与最终HOLD结论矛盾，且声称'看涨'却无任何基本面/技术面摘要支撑，属逻辑断裂。
+            </div>
+            <div class="failure-modes"><strong>Failure Modes:</strong> <span class="tag">空泛</span><span class="tag">缺少风险提示</span><span class="tag">逻辑矛盾</span><span class="tag">数字编造</span></div>
+        </div>
+        
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="case mismatch">
+        <div class="case-header">
+            <div class="case-id">BENCH-008</div>
+            <div class="case-sym">TSLA · Tesla</div>
+            <div class="case-market">US_STOCK</div>
+            <div class="direction-box">
+                <span class="exp-dir">预期: SELL</span>
+                <span class="ai-dir">AI: HOLD</span>
+            </div>
+            <div class="latency">629.5s</div>
+        </div>
+
+        <div class="case-body">
+            <div class="case-left">
+                <div class="section">
+                    <h4>人工标注要点</h4>
+                    <ul class="kp-list">
+                        <li>EV 销量增长放缓</li><li>中国市场份额被国产车蚕食</li><li>Cybertruck 产能/质量问题</li><li>FSD/Robotaxi 故事短期难兑现</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工风险点</h4>
+                    <ul class="rp-list">
+                        <li>毛利率持续下滑</li><li>估值仍按科技股计</li><li>Musk 分散精力(X/xAI/SpaceX)</li><li>传统车企转型追赶</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工概述</h4>
+                    <p class="analyst-notes">汽车业务增长停滞,AI/Robotaxi 叙事短期难变现,估值未充分 de-rate,建议降低仓位</p>
+                </div>
+            </div>
+
+            <div class="case-right">
+                
+                <div class="section">
+                    <h4>AI Decision</h4>
+                    <p class="rationale">综合技术面空头排列与基本面数据缺失，置信度 0.56 低于 0.60 安全阈值，遵循本金安全优先原则强制 HOLD 观望，避免超额风险，等待更明确估值支撑。</p>
+                    <div class="confidence">Confidence: 0.56</div>
+                </div>
+
+                <details>
+                    <summary>分析师摘要 (展开)</summary>
+                    <div class="analyst-section">
+                        <strong>基本面:</strong>
+                        <pre>(无)</pre>
+                        <strong>技术面:</strong>
+                        <pre>(无)</pre>
+                        <strong>情绪面:</strong>
+                        <pre>(无)</pre>
+                    </div>
+                </details>
+
+                <details><summary>RAG Context Preview</summary><pre class="rag">【本地知识库 — 混合检索结果（BM25 + 向量语义）】
+  [1] 来源: D:\000intern\0agent\trading_agents_system\data\docs\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1
+      利益冲突。 
+本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。
+复制、刊登、发表或引用。 
+ 
+分析员声明 
+本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本
+报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观
+点而直接或间接收到任何形式的补偿。 
+ 
+ 
+国 元 国 际 控 股 有 限 公 司 
+香港中环康乐广场 8 号交易广场三期 17 楼 
+电       话：(852) 3769 6888 
+传       真：(852) 3769 6999 
+服务热线：400-888-1313 
+公司网址：http://www.gyzq.com.hk
+
+  [</pre></details>
+
+                
+        <div class="scores">
+            <div class="score-row">
+                <span class="score-label">方向匹配</span>
+                <span class="score-val bad">
+                    ❌
+                </span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Grounding</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Coverage</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Reasoning</span>
+                <span class="score-val"><span class="stars">●●<span class="empty">○○○</span></span> <span class="num">2</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Risk Aware</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row overall">
+                <span class="score-label">Overall</span>
+                <span class="score-val">0.62 / 5</span>
+            </div>
+            <div class="judge-comment">
+                <strong>Judge:</strong> AI 输出未引用任何具体数据、未覆盖任一关键论点或风险点，理由中虚构‘技术面空头排列’和‘基本面数据缺失’等无依据表述，且将置信度低于阈值直接推导为HOLD违背SELL人工结论，逻辑断裂。
+            </div>
+            <div class="failure-modes"><strong>Failure Modes:</strong> <span class="tag">空泛</span><span class="tag">缺少风险提示</span><span class="tag">逻辑矛盾</span><span class="tag">数字编造</span></div>
+        </div>
+        
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="case match">
+        <div class="case-header">
+            <div class="case-id">BENCH-009</div>
+            <div class="case-sym">AAPL · Apple</div>
+            <div class="case-market">US_STOCK</div>
+            <div class="direction-box">
+                <span class="exp-dir">预期: HOLD</span>
+                <span class="ai-dir">AI: HOLD</span>
+            </div>
+            <div class="latency">389.1s</div>
+        </div>
+
+        <div class="case-body">
+            <div class="case-left">
+                <div class="section">
+                    <h4>人工标注要点</h4>
+                    <ul class="kp-list">
+                        <li>iPhone 16 AI 功能升级</li><li>服务业务高毛利持续</li><li>印度/东南亚市场增长</li><li>Apple Intelligence 生态</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工风险点</h4>
+                    <ul class="rp-list">
+                        <li>中国区销量下滑</li><li>硬件创新乏力</li><li>AI 落后 Google/MS</li><li>估值高于历史中枢</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工概述</h4>
+                    <p class="analyst-notes">基本盘稳健,AI 故事讲起来了但实际落地慢,估值中性偏贵,HOLD 等待 iPhone 17 周期</p>
+                </div>
+            </div>
+
+            <div class="case-right">
+                
+                <div class="section">
+                    <h4>AI Decision</h4>
+                    <p class="rationale">基本面看好 AI 与降息但数据源干扰致置信度受损，技术面量价背离风险未消，综合置信度低于 0.60 优先保障本金安全，建议观望等待更明确信号。</p>
+                    <div class="confidence">Confidence: 0.58</div>
+                </div>
+
+                <details>
+                    <summary>分析师摘要 (展开)</summary>
+                    <div class="analyst-section">
+                        <strong>基本面:</strong>
+                        <pre>(无)</pre>
+                        <strong>技术面:</strong>
+                        <pre>(无)</pre>
+                        <strong>情绪面:</strong>
+                        <pre>(无)</pre>
+                    </div>
+                </details>
+
+                <details><summary>RAG Context Preview</summary><pre class="rag">【本地知识库 — 混合检索结果（BM25 + 向量语义）】
+  [1] 来源: D:\000intern\0agent\trading_agents_system\data\docs\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1
+      利益冲突。 
+本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。
+复制、刊登、发表或引用。 
+ 
+分析员声明 
+本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本
+报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观
+点而直接或间接收到任何形式的补偿。 
+ 
+ 
+国 元 国 际 控 股 有 限 公 司 
+香港中环康乐广场 8 号交易广场三期 17 楼 
+电       话：(852) 3769 6888 
+传       真：(852) 3769 6999 
+服务热线：400-888-1313 
+公司网址：http://www.gyzq.com.hk
+
+  [</pre></details>
+
+                
+        <div class="scores">
+            <div class="score-row">
+                <span class="score-label">方向匹配</span>
+                <span class="score-val ok">
+                    ✅
+                </span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Grounding</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Coverage</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Reasoning</span>
+                <span class="score-val"><span class="stars">●●<span class="empty">○○○</span></span> <span class="num">2</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Risk Aware</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row overall">
+                <span class="score-label">Overall</span>
+                <span class="score-val">1.25 / 5</span>
+            </div>
+            <div class="judge-comment">
+                <strong>Judge:</strong> AI输出未引用任何具体数据、未覆盖任一人工标注的关键论点或风险点，理由笼统模糊（如'数据源干扰''量价背离风险未消'无定义），且完全回避中国销量、估值、AI落地节奏等核心矛盾。
+            </div>
+            <div class="failure-modes"><strong>Failure Modes:</strong> <span class="tag">空泛</span><span class="tag">缺少风险提示</span><span class="tag">逻辑模糊</span></div>
+        </div>
+        
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="case mismatch">
+        <div class="case-header">
+            <div class="case-id">BENCH-010</div>
+            <div class="case-sym">MSFT · Microsoft</div>
+            <div class="case-market">US_STOCK</div>
+            <div class="direction-box">
+                <span class="exp-dir">预期: BUY</span>
+                <span class="ai-dir">AI: HOLD</span>
+            </div>
+            <div class="latency">547.4s</div>
+        </div>
+
+        <div class="case-body">
+            <div class="case-left">
+                <div class="section">
+                    <h4>人工标注要点</h4>
+                    <ul class="kp-list">
+                        <li>Azure AI 云业务超预期</li><li>OpenAI 战略投资最大受益者</li><li>Copilot 企业渗透加速</li><li>生产力+游戏双轮驱动(Activision 并表)</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工风险点</h4>
+                    <ul class="rp-list">
+                        <li>AI 投入 vs 回报周期</li><li>反垄断调查</li><li>Azure 产能供应紧张</li><li>估值不便宜</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <h4>人工概述</h4>
+                    <p class="analyst-notes">AI 时代最大确定性受益者,Azure + Copilot + OpenAI 三位一体,长期持有首选</p>
+                </div>
+            </div>
+
+            <div class="case-right">
+                
+                <div class="section">
+                    <h4>AI Decision</h4>
+                    <p class="rationale">基本面受益 AI 但技术面承压位于 MA20 下方，舆情置信度低，综合置信度 0.48 未达 0.60 安全阈值，为保护本金安全宁可错过不承担超额风险，维持 HOLD。</p>
+                    <div class="confidence">Confidence: 0.48</div>
+                </div>
+
+                <details>
+                    <summary>分析师摘要 (展开)</summary>
+                    <div class="analyst-section">
+                        <strong>基本面:</strong>
+                        <pre>(无)</pre>
+                        <strong>技术面:</strong>
+                        <pre>(无)</pre>
+                        <strong>情绪面:</strong>
+                        <pre>(无)</pre>
+                    </div>
+                </details>
+
+                <details><summary>RAG Context Preview</summary><pre class="rag">【本地知识库 — 混合检索结果（BM25 + 向量语义）】
+  [1] 来源: D:\000intern\0agent\trading_agents_system\data\docs\海外核电专题报告：从基荷能源到科技引擎，AI巨头的战略押注与投资逻辑重构_【发现报告 fxbaogao.com】.pdf  p.24
+      (通过Sam Altman)​​ ​Oklo (OKLO)​​ ​个人战略投资与深度绑定。Sam Altman是Oklo的早期投资者兼前董事长，认为核裂变是满足AI能源需求的关键 
+​Meta (META)​​ ​Constellation Energy (CEG)​​ ​长期购电协议 (PPA)​。Meta签署20年协议，从2027年起包销Constellation旗下Clinton核电站约1.1吉瓦的全部发
+电量，这是该公司史上最大的电力交易 
+​微软 (MSFT)​​ ​Constellation Energy (CEG)​​ ​长期购电协议与项目重启。与Constellation合作重启著名的三哩岛核电站，并签署20年购电协议，为其AI数据中
+心供电 
+</pre></details>
+
+                
+        <div class="scores">
+            <div class="score-row">
+                <span class="score-label">方向匹配</span>
+                <span class="score-val bad">
+                    ❌
+                </span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Grounding</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Coverage</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Reasoning</span>
+                <span class="score-val"><span class="stars">●●<span class="empty">○○○</span></span> <span class="num">2</span></span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Risk Aware</span>
+                <span class="score-val"><span class="stars">●<span class="empty">○○○○</span></span> <span class="num">1</span></span>
+            </div>
+            <div class="score-row overall">
+                <span class="score-label">Overall</span>
+                <span class="score-val">0.62 / 5</span>
+            </div>
+            <div class="judge-comment">
+                <strong>Judge:</strong> AI输出未引用任何具体数据、未覆盖任一关键论点或风险点，理由仅依赖模糊技术面信号（如'MA20下方'）且未定义来源，与人工标注的深度基本面驱动逻辑完全脱节；'宁可错过不承担超额风险'与人工'长期持有首选'结论冲突，暴露模型对战略确定性认知缺失。
+            </div>
+            <div class="failure-modes"><strong>Failure Modes:</strong> <span class="tag">空泛</span><span class="tag">缺少风险提示</span><span class="tag">逻辑矛盾</span></div>
+        </div>
+        
+            </div>
+        </div>
+    </div>
+    
+</section>
+</body>
+</html>

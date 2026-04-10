@@ -1,0 +1,537 @@
+{
+  "run_id": "20260410_141912",
+  "runner_name": "cq",
+  "judge_name": "qwen-plus",
+  "started_at": "2026-04-10T14:19:18.474470",
+  "finished_at": "2026-04-10T15:37:36.093316",
+  "case_count": 10,
+  "cases": [
+    {
+      "id": "BENCH-001",
+      "symbol": "600519.SH",
+      "market": "A_STOCK",
+      "name": "贵州茅台",
+      "expected_direction": "HOLD",
+      "key_points": [
+        "高端白酒龙头地位稳固",
+        "PE 估值相对合理区间",
+        "消费降级对高端影响有限",
+        "批发价是核心观察指标"
+      ],
+      "risk_points": [
+        "白酒行业景气度下行",
+        "年轻人饮酒习惯变化",
+        "经济弱复苏下需求承压",
+        "政策风险(反三公消费类)"
+      ],
+      "analyst_notes": "作为白酒绝对龙头,护城河极深,但短期面临行业去库存 + 消费降级压力,建议 HOLD 等待右侧拐点信号",
+      "extra_context": null
+    },
+    {
+      "id": "BENCH-002",
+      "symbol": "000858.SZ",
+      "market": "A_STOCK",
+      "name": "五粮液",
+      "expected_direction": "HOLD",
+      "key_points": [
+        "白酒行业第二品牌",
+        "次高端份额竞争激烈",
+        "PE 低于历史中枢",
+        "分红率稳定"
+      ],
+      "risk_points": [
+        "普五批价压力",
+        "库存水平",
+        "区域酒挤压"
+      ],
+      "analyst_notes": "次高端承压但龙头地位稳固,估值已消化悲观预期,建议持有观察动销恢复",
+      "extra_context": null
+    },
+    {
+      "id": "BENCH-003",
+      "symbol": "300750.SZ",
+      "market": "A_STOCK",
+      "name": "宁德时代",
+      "expected_direction": "BUY",
+      "key_points": [
+        "全球动力电池龙头",
+        "麒麟电池/神行超充产品力强",
+        "海外市场扩张(欧洲/北美)",
+        "储能业务增长加速"
+      ],
+      "risk_points": [
+        "产能过剩/价格战",
+        "上游锂价波动",
+        "特斯拉自研电池威胁",
+        "地缘政治风险"
+      ],
+      "analyst_notes": "动力电池行业拐点已现,宁王技术+规模壁垒最深,估值回到合理区间,储能提供第二增长曲线",
+      "extra_context": null
+    },
+    {
+      "id": "BENCH-004",
+      "symbol": "688256.SH",
+      "market": "A_STOCK",
+      "name": "寒武纪",
+      "expected_direction": "SELL",
+      "key_points": [
+        "AI 芯片设计公司",
+        "长期巨额亏损",
+        "PS 估值远超同行",
+        "客户集中度高"
+      ],
+      "risk_points": [
+        "技术突破难度极大",
+        "竞争格局激烈(华为昇腾)",
+        "现金流持续消耗",
+        "解禁压力"
+      ],
+      "analyst_notes": "估值已脱离基本面,持续亏损无改善迹象,短期游资炒作居多,不建议追高",
+      "extra_context": null
+    },
+    {
+      "id": "BENCH-005",
+      "symbol": "00700.HK",
+      "market": "HK_STOCK",
+      "name": "腾讯控股",
+      "expected_direction": "BUY",
+      "key_points": [
+        "游戏业务恢复增长(王者/和平/金铲铲)",
+        "视频号广告货币化加速",
+        "AI 云/混元大模型",
+        "港股回购 + 南向资金流入"
+      ],
+      "risk_points": [
+        "监管政策反复",
+        "游戏版号收紧",
+        "微信小程序生态挑战",
+        "电商业务进展慢"
+      ],
+      "analyst_notes": "估值回到历史低位,多条业务线恢复增长,回购 + 股息 + AI 三轮驱动,风险收益比极佳",
+      "extra_context": null
+    },
+    {
+      "id": "BENCH-006",
+      "symbol": "09988.HK",
+      "market": "HK_STOCK",
+      "name": "阿里巴巴",
+      "expected_direction": "HOLD",
+      "key_points": [
+        "电商主业面临拼多多/抖音竞争",
+        "云业务增速放缓",
+        "国际 AIDC 增长亮眼",
+        "蒋凡回归淘天改革"
+      ],
+      "risk_points": [
+        "核心电商份额流失",
+        "本地生活亏损",
+        "监管反垄断",
+        "SOTP 分部估值不被市场认可"
+      ],
+      "analyst_notes": "多维度变革进行中,效果待观察,估值便宜但催化剂不足,建议持有观察季度数据",
+      "extra_context": null
+    },
+    {
+      "id": "BENCH-007",
+      "symbol": "NVDA",
+      "market": "US_STOCK",
+      "name": "NVIDIA",
+      "expected_direction": "HOLD",
+      "key_points": [
+        "AI 芯片绝对龙头",
+        "Blackwell 产品周期强劲",
+        "数据中心收入占比超 80%",
+        "CUDA 生态护城河"
+      ],
+      "risk_points": [
+        "估值偏贵(PE 60+)",
+        "大客户自研芯片(Google TPU/AWS Trainium)",
+        "中国市场受限",
+        "AI 需求 peak 担忧"
+      ],
+      "analyst_notes": "基本面无可挑剔但估值已反映大部分乐观预期,持有等待回调加仓机会",
+      "extra_context": null
+    },
+    {
+      "id": "BENCH-008",
+      "symbol": "TSLA",
+      "market": "US_STOCK",
+      "name": "Tesla",
+      "expected_direction": "SELL",
+      "key_points": [
+        "EV 销量增长放缓",
+        "中国市场份额被国产车蚕食",
+        "Cybertruck 产能/质量问题",
+        "FSD/Robotaxi 故事短期难兑现"
+      ],
+      "risk_points": [
+        "毛利率持续下滑",
+        "估值仍按科技股计",
+        "Musk 分散精力(X/xAI/SpaceX)",
+        "传统车企转型追赶"
+      ],
+      "analyst_notes": "汽车业务增长停滞,AI/Robotaxi 叙事短期难变现,估值未充分 de-rate,建议降低仓位",
+      "extra_context": null
+    },
+    {
+      "id": "BENCH-009",
+      "symbol": "AAPL",
+      "market": "US_STOCK",
+      "name": "Apple",
+      "expected_direction": "HOLD",
+      "key_points": [
+        "iPhone 16 AI 功能升级",
+        "服务业务高毛利持续",
+        "印度/东南亚市场增长",
+        "Apple Intelligence 生态"
+      ],
+      "risk_points": [
+        "中国区销量下滑",
+        "硬件创新乏力",
+        "AI 落后 Google/MS",
+        "估值高于历史中枢"
+      ],
+      "analyst_notes": "基本盘稳健,AI 故事讲起来了但实际落地慢,估值中性偏贵,HOLD 等待 iPhone 17 周期",
+      "extra_context": null
+    },
+    {
+      "id": "BENCH-010",
+      "symbol": "MSFT",
+      "market": "US_STOCK",
+      "name": "Microsoft",
+      "expected_direction": "BUY",
+      "key_points": [
+        "Azure AI 云业务超预期",
+        "OpenAI 战略投资最大受益者",
+        "Copilot 企业渗透加速",
+        "生产力+游戏双轮驱动(Activision 并表)"
+      ],
+      "risk_points": [
+        "AI 投入 vs 回报周期",
+        "反垄断调查",
+        "Azure 产能供应紧张",
+        "估值不便宜"
+      ],
+      "analyst_notes": "AI 时代最大确定性受益者,Azure + Copilot + OpenAI 三位一体,长期持有首选",
+      "extra_context": null
+    }
+  ],
+  "outputs": [
+    {
+      "case_id": "BENCH-001",
+      "runner_name": "campusquant",
+      "direction": "HOLD",
+      "confidence": 0.54,
+      "rationale": "三份报告建议 HOLD，舆情与量化冲突，置信度 0.54 低于 0.60 阈值强制持有。基本面稳健缺乏催化剂，技术面动能不足，维持中性观望规避超额风险。",
+      "fundamental_summary": null,
+      "technical_summary": null,
+      "sentiment_summary": null,
+      "rag_context_preview": "【本地知识库 — 混合检索结果（BM25 + 向量语义）】\n  [1] 来源: D:\\000intern\\0agent\\trading_agents_system\\data\\docs\\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1\n      利益冲突。 \n本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。\n复制、刊登、发表或引用。 \n \n分析员声明 \n本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本\n报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观\n点而直接或间接收到任何形式的补偿。 \n \n \n国 元 国 际 控 股 有 限 公 司 \n香港中环康乐广场 8 号交易广场三期 17 楼 \n电       话：(852) 3769 6888 \n传       真：(852) 3769 6999 \n服务热线：400-888-1313 \n公司网址：http://www.gyzq.com.hk\n\n  [",
+      "latency_seconds": 377.330776900053,
+      "error": null,
+      "raw_state_path": "D:\\000intern\\0agent\\trading_agents_system\\bench\\results\\20260410_141912\\raw_states\\BENCH-001.json"
+    },
+    {
+      "case_id": "BENCH-002",
+      "runner_name": "campusquant",
+      "direction": "HOLD",
+      "confidence": 0.47,
+      "rationale": "基本面估值具备安全边际但技术面受均线压制且量能不足，舆情显示板块资金流出。综合置信度 0.47 低于 0.60 阈值，依据本金安全原则建议观望等待技术面反转信号，风控强制压缩仓位。",
+      "fundamental_summary": null,
+      "technical_summary": null,
+      "sentiment_summary": null,
+      "rag_context_preview": "【本地知识库 — 混合检索结果（BM25 + 向量语义）】\n  [1] 来源: D:\\000intern\\0agent\\trading_agents_system\\data\\docs\\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1\n      利益冲突。 \n本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。\n复制、刊登、发表或引用。 \n \n分析员声明 \n本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本\n报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观\n点而直接或间接收到任何形式的补偿。 \n \n \n国 元 国 际 控 股 有 限 公 司 \n香港中环康乐广场 8 号交易广场三期 17 楼 \n电       话：(852) 3769 6888 \n传       真：(852) 3769 6999 \n服务热线：400-888-1313 \n公司网址：http://www.gyzq.com.hk\n\n  [",
+      "latency_seconds": 424.4332037999993,
+      "error": null,
+      "raw_state_path": "D:\\000intern\\0agent\\trading_agents_system\\bench\\results\\20260410_141912\\raw_states\\BENCH-002.json"
+    },
+    {
+      "case_id": "BENCH-003",
+      "runner_name": "campusquant",
+      "direction": "HOLD",
+      "confidence": 0.63,
+      "rationale": "基本面 ROE 优异但技术面呈空头排列，成交量萎缩。虽长期逻辑向好，但短期缺乏反弹动能，建议观望等待均线修复，避免左侧交易风险，确保本金安全。",
+      "fundamental_summary": null,
+      "technical_summary": null,
+      "sentiment_summary": null,
+      "rag_context_preview": "【本地知识库 — 混合检索结果（BM25 + 向量语义）】\n  [1] 来源: D:\\000intern\\0agent\\trading_agents_system\\data\\docs\\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1\n      利益冲突。 \n本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。\n复制、刊登、发表或引用。 \n \n分析员声明 \n本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本\n报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观\n点而直接或间接收到任何形式的补偿。 \n \n \n国 元 国 际 控 股 有 限 公 司 \n香港中环康乐广场 8 号交易广场三期 17 楼 \n电       话：(852) 3769 6888 \n传       真：(852) 3769 6999 \n服务热线：400-888-1313 \n公司网址：http://www.gyzq.com.hk\n\n  [",
+      "latency_seconds": 387.6958085000515,
+      "error": null,
+      "raw_state_path": "D:\\000intern\\0agent\\trading_agents_system\\bench\\results\\20260410_141912\\raw_states\\BENCH-003.json"
+    },
+    {
+      "case_id": "BENCH-004",
+      "runner_name": "campusquant",
+      "direction": "HOLD",
+      "confidence": 0.55,
+      "rationale": "市盈率 243 倍极端高估，舆情解析失败且技术基本面冲突，置信度 0.55 低于安全阈值。科创板高波动不符合本金安全原则，依据 CampusQuant 原则强制持有观望。",
+      "fundamental_summary": null,
+      "technical_summary": null,
+      "sentiment_summary": null,
+      "rag_context_preview": "【本地知识库 — 混合检索结果（BM25 + 向量语义）】\n  [1] 来源: D:\\000intern\\0agent\\trading_agents_system\\data\\docs\\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1\n      利益冲突。 \n本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。\n复制、刊登、发表或引用。 \n \n分析员声明 \n本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本\n报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观\n点而直接或间接收到任何形式的补偿。 \n \n \n国 元 国 际 控 股 有 限 公 司 \n香港中环康乐广场 8 号交易广场三期 17 楼 \n电       话：(852) 3769 6888 \n传       真：(852) 3769 6999 \n服务热线：400-888-1313 \n公司网址：http://www.gyzq.com.hk\n\n  [",
+      "latency_seconds": 545.5276905999053,
+      "error": null,
+      "raw_state_path": "D:\\000intern\\0agent\\trading_agents_system\\bench\\results\\20260410_141912\\raw_states\\BENCH-004.json"
+    },
+    {
+      "case_id": "BENCH-005",
+      "runner_name": "campusquant",
+      "direction": "HOLD",
+      "confidence": 0.54,
+      "rationale": "基本面虽有回购支撑但估值数据缺失，技术面受 MA20 压制且长期趋势不明，舆情置信度过低且存在数据噪音。综合置信度 0.54 低于 0.60 安全阈值，遵循校园量化本金安全原则，宁可错过不做错，维持持有观望。",
+      "fundamental_summary": null,
+      "technical_summary": null,
+      "sentiment_summary": null,
+      "rag_context_preview": "【本地知识库 — 混合检索结果（BM25 + 向量语义）】\n  [1] 来源: D:\\000intern\\0agent\\trading_agents_system\\data\\docs\\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1\n      利益冲突。 \n本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。\n复制、刊登、发表或引用。 \n \n分析员声明 \n本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本\n报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观\n点而直接或间接收到任何形式的补偿。 \n \n \n国 元 国 际 控 股 有 限 公 司 \n香港中环康乐广场 8 号交易广场三期 17 楼 \n电       话：(852) 3769 6888 \n传       真：(852) 3769 6999 \n服务热线：400-888-1313 \n公司网址：http://www.gyzq.com.hk\n\n  [",
+      "latency_seconds": 397.2427985999966,
+      "error": null,
+      "raw_state_path": "D:\\000intern\\0agent\\trading_agents_system\\bench\\results\\20260410_141912\\raw_states\\BENCH-005.json"
+    },
+    {
+      "case_id": "BENCH-006",
+      "runner_name": "campusquant",
+      "direction": "HOLD",
+      "confidence": 0.53,
+      "rationale": "基本面估值底部但消费复苏缓慢，技术面受均线压制且成交量萎缩，综合置信度 0.53 低于 0.60 安全阈值，依据风控原则维持 HOLD 等待右侧信号。",
+      "fundamental_summary": null,
+      "technical_summary": null,
+      "sentiment_summary": null,
+      "rag_context_preview": "【本地知识库 — 混合检索结果（BM25 + 向量语义）】\n  [1] 来源: D:\\000intern\\0agent\\trading_agents_system\\data\\docs\\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1\n      利益冲突。 \n本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。\n复制、刊登、发表或引用。 \n \n分析员声明 \n本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本\n报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观\n点而直接或间接收到任何形式的补偿。 \n \n \n国 元 国 际 控 股 有 限 公 司 \n香港中环康乐广场 8 号交易广场三期 17 楼 \n电       话：(852) 3769 6888 \n传       真：(852) 3769 6999 \n服务热线：400-888-1313 \n公司网址：http://www.gyzq.com.hk\n\n  [",
+      "latency_seconds": 555.5200060999487,
+      "error": null,
+      "raw_state_path": "D:\\000intern\\0agent\\trading_agents_system\\bench\\results\\20260410_141912\\raw_states\\BENCH-006.json"
+    },
+    {
+      "case_id": "BENCH-007",
+      "runner_name": "campusquant",
+      "direction": "HOLD",
+      "confidence": 0.54,
+      "rationale": "基本面与技术面共振看涨但数据不足，综合置信度 0.54 低于 0.60 安全线，依据本金安全优先原则选择观望，等待更明确催化剂。",
+      "fundamental_summary": null,
+      "technical_summary": null,
+      "sentiment_summary": null,
+      "rag_context_preview": "【本地知识库 — 混合检索结果（BM25 + 向量语义）】\n  [1] 来源: D:\\000intern\\0agent\\trading_agents_system\\data\\docs\\科技行业专题研究：美股四朵小花（MIPS）黎明将至？_【发现报告 fxbaogao.com】.pdf  p.7\n      800 亿美元。因此，若按目前英特尔约 1000 亿美元市值算，分拆或将释放 2.65 倍价值。 \n \n我们预测英特尔 FY25/26/27 营收为 567/615/649 亿美元，FY25/26/27 调整后净利润为 52/ \n85/88 亿美元。我们参考可比公司 2025 年的 PS 范围为 3.1-23.4x，考虑到公司管理层的不\n稳定因素， 不过或可实行分拆释放价值，给予公司 25 年估值约 2.3x PS， 目标价31 美元，\n潜在空间 25%（截止 2 月 21 日收盘价） ，维持“买入” 。 \n \n图表14： 英特尔可比公司估值表（数据截至 2025 年 2 月 21 日） \n    PE(倍) PS（倍） PB（倍） \n    2025E 2026E 2027E 20",
+      "latency_seconds": 402.6342716999352,
+      "error": null,
+      "raw_state_path": "D:\\000intern\\0agent\\trading_agents_system\\bench\\results\\20260410_141912\\raw_states\\BENCH-007.json"
+    },
+    {
+      "case_id": "BENCH-008",
+      "runner_name": "campusquant",
+      "direction": "HOLD",
+      "confidence": 0.56,
+      "rationale": "综合技术面空头排列与基本面数据缺失，置信度 0.56 低于 0.60 安全阈值，遵循本金安全优先原则强制 HOLD 观望，避免超额风险，等待更明确估值支撑。",
+      "fundamental_summary": null,
+      "technical_summary": null,
+      "sentiment_summary": null,
+      "rag_context_preview": "【本地知识库 — 混合检索结果（BM25 + 向量语义）】\n  [1] 来源: D:\\000intern\\0agent\\trading_agents_system\\data\\docs\\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1\n      利益冲突。 \n本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。\n复制、刊登、发表或引用。 \n \n分析员声明 \n本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本\n报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观\n点而直接或间接收到任何形式的补偿。 \n \n \n国 元 国 际 控 股 有 限 公 司 \n香港中环康乐广场 8 号交易广场三期 17 楼 \n电       话：(852) 3769 6888 \n传       真：(852) 3769 6999 \n服务热线：400-888-1313 \n公司网址：http://www.gyzq.com.hk\n\n  [",
+      "latency_seconds": 629.479988600011,
+      "error": null,
+      "raw_state_path": "D:\\000intern\\0agent\\trading_agents_system\\bench\\results\\20260410_141912\\raw_states\\BENCH-008.json"
+    },
+    {
+      "case_id": "BENCH-009",
+      "runner_name": "campusquant",
+      "direction": "HOLD",
+      "confidence": 0.58,
+      "rationale": "基本面看好 AI 与降息但数据源干扰致置信度受损，技术面量价背离风险未消，综合置信度低于 0.60 优先保障本金安全，建议观望等待更明确信号。",
+      "fundamental_summary": null,
+      "technical_summary": null,
+      "sentiment_summary": null,
+      "rag_context_preview": "【本地知识库 — 混合检索结果（BM25 + 向量语义）】\n  [1] 来源: D:\\000intern\\0agent\\trading_agents_system\\data\\docs\\锂电池逐步取消出口退税，行业中长期发展更健康_【发现报告 fxbaogao.com】.pdf  p.1\n      利益冲突。 \n本报告的版权仅为国元证券经纪（香港）所有，未经书面许可任何机构和个人不得以任何形式转发、翻版。\n复制、刊登、发表或引用。 \n \n分析员声明 \n本人具备香港证监会授予的第四类牌照——就证券提供意见。本人以勤勉的职业态度，独立、客观地出具本\n报告。本报告清晰准确地反映了本人的研究观点。本人不曾因，不因，也将不会因本报告中的具体推荐意见或观\n点而直接或间接收到任何形式的补偿。 \n \n \n国 元 国 际 控 股 有 限 公 司 \n香港中环康乐广场 8 号交易广场三期 17 楼 \n电       话：(852) 3769 6888 \n传       真：(852) 3769 6999 \n服务热线：400-888-1313 \n公司网址：http://www.gyzq.com.hk\n\n  [",
+      "latency_seconds": 389.069831199944,
+      "error": null,
+      "raw_state_path": "D:\\000intern\\0agent\\trading_agents_system\\bench\\results\\20260410_141912\\raw_states\\BENCH-009.json"
+    },
+    {
+      "case_id": "BENCH-010",
+      "runner_name": "campusquant",
+      "direction": "HOLD",
+      "confidence": 0.48,
+      "rationale": "基本面受益 AI 但技术面承压位于 MA20 下方，舆情置信度低，综合置信度 0.48 未达 0.60 安全阈值，为保护本金安全宁可错过不承担超额风险，维持 HOLD。",
+      "fundamental_summary": null,
+      "technical_summary": null,
+      "sentiment_summary": null,
+      "rag_context_preview": "【本地知识库 — 混合检索结果（BM25 + 向量语义）】\n  [1] 来源: D:\\000intern\\0agent\\trading_agents_system\\data\\docs\\海外核电专题报告：从基荷能源到科技引擎，AI巨头的战略押注与投资逻辑重构_【发现报告 fxbaogao.com】.pdf  p.24\n      (通过Sam Altman)​​ ​Oklo (OKLO)​​ ​个人战略投资与深度绑定。Sam Altman是Oklo的早期投资者兼前董事长，认为核裂变是满足AI能源需求的关键 \n​Meta (META)​​ ​Constellation Energy (CEG)​​ ​长期购电协议 (PPA)​。Meta签署20年协议，从2027年起包销Constellation旗下Clinton核电站约1.1吉瓦的全部发\n电量，这是该公司史上最大的电力交易 \n​微软 (MSFT)​​ ​Constellation Energy (CEG)​​ ​长期购电协议与项目重启。与Constellation合作重启著名的三哩岛核电站，并签署20年购电协议，为其AI数据中\n心供电 \n",
+      "latency_seconds": 547.4494150000392,
+      "error": null,
+      "raw_state_path": "D:\\000intern\\0agent\\trading_agents_system\\bench\\results\\20260410_141912\\raw_states\\BENCH-010.json"
+    }
+  ],
+  "scores": [
+    {
+      "case_id": "BENCH-001",
+      "runner_name": "campusquant",
+      "judge_name": "qwen-plus",
+      "direction_match": true,
+      "grounding_score": 1,
+      "coverage_score": 2,
+      "reasoning_score": 2,
+      "risk_awareness_score": 1,
+      "judge_comment": "AI输出未引用任何具体数据（如PE值、批发价、营收增速），仅泛泛提及'基本面稳健'；关键论点仅隐含'龙头地位'和'缺乏催化剂'，覆盖不足30%；'舆情与量化冲突'等表述无定义且逻辑断裂；完全未提及四项人工标注风险点。",
+      "failure_modes": [
+        "空泛",
+        "缺少风险提示",
+        "逻辑矛盾"
+      ]
+    },
+    {
+      "case_id": "BENCH-002",
+      "runner_name": "campusquant",
+      "judge_name": "qwen-plus",
+      "direction_match": true,
+      "grounding_score": 1,
+      "coverage_score": 1,
+      "reasoning_score": 2,
+      "risk_awareness_score": 1,
+      "judge_comment": "AI未引用任何具体数据（如PE值、分红率、批价、库存等），完全未覆盖人工标注的4个关键论点和3个风险点；技术面与舆情理由与A股白酒板块实际特征脱节，且将'置信度0.47<0.60'机械映射为'压缩仓位'，违背HOLD指令本意，存在逻辑矛盾。",
+      "failure_modes": [
+        "空泛",
+        "缺少风险提示",
+        "逻辑矛盾",
+        "数字编造"
+      ]
+    },
+    {
+      "case_id": "BENCH-003",
+      "runner_name": "campusquant",
+      "judge_name": "qwen-plus",
+      "direction_match": false,
+      "grounding_score": 1,
+      "coverage_score": 1,
+      "reasoning_score": 2,
+      "risk_awareness_score": 1,
+      "judge_comment": "AI输出完全未引用任何具体数据、未覆盖任一关键论点或风险点，技术面理由空洞且与人工标注的积极基本面背道而驰；'长期逻辑向好'与'HOLD'决策缺乏因果衔接，属典型表面化、无依据的模糊判断。",
+      "failure_modes": [
+        "空泛",
+        "缺少风险提示",
+        "逻辑矛盾",
+        "偏乐观（实际建议HOLD但称‘长期逻辑向好’却未支撑BUY）"
+      ]
+    },
+    {
+      "case_id": "BENCH-004",
+      "runner_name": "campusquant",
+      "judge_name": "qwen-plus",
+      "direction_match": false,
+      "grounding_score": 2,
+      "coverage_score": 1,
+      "reasoning_score": 2,
+      "risk_awareness_score": 1,
+      "judge_comment": "AI仅引用PE=243（但寒武纪当前为亏损，PE无意义，属指标误用），未提PS、亏损额、客户集中度、解禁等任一关键事实或风险；'HOLD'结论与人工SELL方向冲突，且'CampusQuant原则'等虚构术语削弱可信度。",
+      "failure_modes": [
+        "空泛",
+        "缺少风险提示",
+        "逻辑矛盾",
+        "未覆盖关键论点"
+      ]
+    },
+    {
+      "case_id": "BENCH-005",
+      "runner_name": "campusquant",
+      "judge_name": "qwen-plus",
+      "direction_match": false,
+      "grounding_score": 1,
+      "coverage_score": 1,
+      "reasoning_score": 2,
+      "risk_awareness_score": 1,
+      "judge_comment": "AI输出完全未引用任何具体数据、未覆盖任一人工标注的关键论点或风险点，推理脱离案例上下文（如虚构'校园量化本金安全原则'），且将'HOLD'归因为技术面/舆情等未提供的信息，属严重失焦。",
+      "failure_modes": [
+        "空泛",
+        "缺少风险提示",
+        "逻辑脱节",
+        "未响应关键论点"
+      ]
+    },
+    {
+      "case_id": "BENCH-006",
+      "runner_name": "campusquant",
+      "judge_name": "qwen-plus",
+      "direction_match": true,
+      "grounding_score": 1,
+      "coverage_score": 1,
+      "reasoning_score": 2,
+      "risk_awareness_score": 1,
+      "judge_comment": "AI输出未引用任何具体数据、未覆盖任一人工标注的关键论点或风险点，理由中‘基本面估值底部’‘消费复苏缓慢’等表述空泛无依据；技术面描述与港股阿里实际走势（如2024年Q1放量突破均线）可能矛盾，且完全忽略监管、分部估值、蒋凡改革等核心维度。",
+      "failure_modes": [
+        "空泛",
+        "缺少风险提示",
+        "逻辑矛盾"
+      ]
+    },
+    {
+      "case_id": "BENCH-007",
+      "runner_name": "campusquant",
+      "judge_name": "qwen-plus",
+      "direction_match": true,
+      "grounding_score": 1,
+      "coverage_score": 1,
+      "reasoning_score": 2,
+      "risk_awareness_score": 1,
+      "judge_comment": "AI 输出未引用任何具体数据（如PE 60+、数据中心80%收入等），完全未覆盖人工标注的4个关键论点和4个风险点；'基本面与技术面共振看涨'与最终HOLD结论矛盾，且声称'看涨'却无任何基本面/技术面摘要支撑，属逻辑断裂。",
+      "failure_modes": [
+        "空泛",
+        "缺少风险提示",
+        "逻辑矛盾",
+        "数字编造"
+      ]
+    },
+    {
+      "case_id": "BENCH-008",
+      "runner_name": "campusquant",
+      "judge_name": "qwen-plus",
+      "direction_match": false,
+      "grounding_score": 1,
+      "coverage_score": 1,
+      "reasoning_score": 2,
+      "risk_awareness_score": 1,
+      "judge_comment": "AI 输出未引用任何具体数据、未覆盖任一关键论点或风险点，理由中虚构‘技术面空头排列’和‘基本面数据缺失’等无依据表述，且将置信度低于阈值直接推导为HOLD违背SELL人工结论，逻辑断裂。",
+      "failure_modes": [
+        "空泛",
+        "缺少风险提示",
+        "逻辑矛盾",
+        "数字编造"
+      ]
+    },
+    {
+      "case_id": "BENCH-009",
+      "runner_name": "campusquant",
+      "judge_name": "qwen-plus",
+      "direction_match": true,
+      "grounding_score": 1,
+      "coverage_score": 1,
+      "reasoning_score": 2,
+      "risk_awareness_score": 1,
+      "judge_comment": "AI输出未引用任何具体数据、未覆盖任一人工标注的关键论点或风险点，理由笼统模糊（如'数据源干扰''量价背离风险未消'无定义），且完全回避中国销量、估值、AI落地节奏等核心矛盾。",
+      "failure_modes": [
+        "空泛",
+        "缺少风险提示",
+        "逻辑模糊"
+      ]
+    },
+    {
+      "case_id": "BENCH-010",
+      "runner_name": "campusquant",
+      "judge_name": "qwen-plus",
+      "direction_match": false,
+      "grounding_score": 1,
+      "coverage_score": 1,
+      "reasoning_score": 2,
+      "risk_awareness_score": 1,
+      "judge_comment": "AI输出未引用任何具体数据、未覆盖任一关键论点或风险点，理由仅依赖模糊技术面信号（如'MA20下方'）且未定义来源，与人工标注的深度基本面驱动逻辑完全脱节；'宁可错过不承担超额风险'与人工'长期持有首选'结论冲突，暴露模型对战略确定性认知缺失。",
+      "failure_modes": [
+        "空泛",
+        "缺少风险提示",
+        "逻辑矛盾"
+      ]
+    }
+  ],
+  "direction_accuracy": 0.5,
+  "avg_grounding": 1.1,
+  "avg_coverage": 1.1,
+  "avg_reasoning": 2.0,
+  "avg_risk": 1.0,
+  "avg_overall": 0.9730000000000001,
+  "fail_rate": 0.0,
+  "total_latency_seconds": 4656.383790999884
+}

@@ -19,9 +19,10 @@ class Config:
     DASHSCOPE_EMBEDDING_MODEL = "text-embedding-v3"                     # Embedding 模型
 
     # ==================== 备用 LLM（按需启用）====================
-    # OpenAI API
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_MODEL   = "gpt-4-turbo-preview"
+    # OpenAI API (支持 OpenAI 兼容代理,如 vibe.supai.app)
+    OPENAI_API_KEY  = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    OPENAI_MODEL    = os.getenv("OPENAI_MODEL", "gpt-4o")
 
     # Anthropic Claude API
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
