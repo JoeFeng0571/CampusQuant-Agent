@@ -117,10 +117,11 @@ class LLMClient:
                 f"❌ LLM 生成失败 [provider={self.provider} model={self.model}]: "
                 f"{type(e).__name__}: {e}",
             )
-            # Auto-fallback: try backup provider
-            fallback = self._try_fallback(prompt, system_prompt, temperature, max_tokens, response_format)
-            if fallback is not None:
-                return fallback
+            # Only fallback on network/rate-limit errors (not config/model errors)
+            if isinstance(e, _RETRY_EXCEPTIONS):
+                fallback = self._try_fallback(prompt, system_prompt, temperature, max_tokens, response_format)
+                if fallback is not None:
+                    return fallback
             raise
 
     def _try_fallback(self, prompt, system_prompt, temperature, max_tokens, response_format):

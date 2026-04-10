@@ -653,7 +653,8 @@ def search_knowledge_base(query: str, market_type: str = "ALL", max_length: int 
     # ────────────────────────────────────────────────────────────────
     # ① 本地混合检索：优先走内地 relay（RAG 部署在内地服务器）
     # ────────────────────────────────────────────────────────────────
-    inland_result = _search_local_via_inland_relay(query, market_type, max_length)
+    expanded_query_for_relay = _expand_query_synonyms(query)
+    inland_result = _search_local_via_inland_relay(expanded_query_for_relay, market_type, max_length)
     if inland_result:
         sections.append(inland_result)
     else:

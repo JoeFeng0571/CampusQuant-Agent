@@ -38,38 +38,48 @@ def find_latest_runs(top_n: int = 5) -> list[Path]:
 
 
 def load_run_summary(run_dir: Path) -> dict:
-    """加载一次 run 的摘要"""
+    """加载一次 run 的摘要（兼容实际 run.json 格式）"""
     run_file = run_dir / "run.json"
     if not run_file.exists():
         return {}
     with run_file.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
-    # Extract key metrics
+    cases = data.get("cases", [])
+    outputs = data.get("outputs", [])
     scores = data.get("scores", [])
-    if not scores:
+    total = data.get("case_count", len(cases))
+
+    if total == 0:
         return {"run_id": run_dir.name, "cases": 0}
 
-    directions = [s.get("output", {}).get("action", "HOLD") for s in scores]
-    correct = sum(
-        1 for s in scores
-        if s.get("output", {}).get("action", "").upper() == s.get("case", {}).get("expected_direction", "").upper()
-    )
-    total = len(scores)
+    # Build case_id → expected_direction lookup
+    expected = {c.get("id", ""): c.get("expected_direction", "HOLD") for c in cases}
 
-    # Average judge scores
-    avg_grounding = 0
-    avg_coverage = 0
-    avg_reasoning = 0
-    avg_risk = 0
+    # Direction accuracy
+    correct = 0
+    hold_count = 0
+    for o in outputs:
+        d = (o.get("direction") or "HOLD").upper()
+        if d == "HOLD":
+            hold_count += 1
+        case_id = o.get("case_id", "")
+        if d == expected.get(case_id, "").upper():
+            correct += 1
+
+    # Average judge scores (from scores list)
+    avg_grounding = avg_coverage = avg_reasoning = avg_risk = 0
     n_judged = 0
     for s in scores:
-        judge = s.get("judge_score", {})
-        if judge:
-            avg_grounding += judge.get("grounding", 0)
-            avg_coverage += judge.get("coverage", 0)
-            avg_reasoning += judge.get("reasoning_quality", 0)
-            avg_risk += judge.get("risk_awareness", 0)
+        g = s.get("grounding_score", 0)
+        c = s.get("coverage_score", 0)
+        r = s.get("reasoning_score", 0)
+        k = s.get("risk_awareness_score", 0)
+        if g or c or r or k:
+            avg_grounding += g
+            avg_coverage += c
+            avg_reasoning += r
+            avg_risk += k
             n_judged += 1
 
     if n_judged > 0:
@@ -78,13 +88,12 @@ def load_run_summary(run_dir: Path) -> dict:
         avg_reasoning /= n_judged
         avg_risk /= n_judged
 
-    hold_count = sum(1 for d in directions if d.upper() == "HOLD")
-
+    n_out = len(outputs) or total
     return {
         "run_id": run_dir.name,
         "cases": total,
-        "direction_accuracy": f"{correct}/{total} ({correct/total:.0%})" if total > 0 else "N/A",
-        "hold_rate": f"{hold_count}/{total} ({hold_count/total:.0%})" if total > 0 else "N/A",
+        "direction_accuracy": f"{correct}/{n_out} ({correct/n_out:.0%})" if n_out > 0 else "N/A",
+        "hold_rate": f"{hold_count}/{n_out} ({hold_count/n_out:.0%})" if n_out > 0 else "N/A",
         "avg_grounding": round(avg_grounding, 2),
         "avg_coverage": round(avg_coverage, 2),
         "avg_reasoning": round(avg_reasoning, 2),

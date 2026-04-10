@@ -122,15 +122,18 @@ class BacktestEngine:
                 continue
 
             # 止损/止盈检查（在策略信号之前执行）
+            stopped_symbols: set[str] = set()
             if self.stop_rule:
-                self._check_stop_rules(t, prices)
+                stopped_symbols = self._check_stop_rules(t, prices)
 
             # 生成信号
             signals = self.strategy.generate(t, prices)
 
-            # 执行交易
+            # 执行交易（排除当日止损的标的，防止同日重入）
             if signals:
-                self._rebalance(t, signals, prices)
+                signals = [s for s in signals if s.symbol not in stopped_symbols]
+                if signals:
+                    self._rebalance(t, signals, prices)
 
             # 计算 NAV
             nav = self._compute_nav(prices)
@@ -255,11 +258,11 @@ class BacktestEngine:
                     amount=proceeds, fee=fee,
                 ))
 
-    def _check_stop_rules(self, t: date, prices: dict[str, float]):
-        """检查止损/止盈/移动止损"""
+    def _check_stop_rules(self, t: date, prices: dict[str, float]) -> set[str]:
+        """检查止损/止盈/移动止损，返回被止损的 symbol 集合"""
         sr = self.stop_rule
         if not sr:
-            return
+            return set()
 
         to_close: list[str] = []
         for sym, qty in list(self.positions.items()):
@@ -293,7 +296,7 @@ class BacktestEngine:
                     logger.info(f"[Trailing-Stop] {sym} @ {price:.2f} | peak={peak:.2f} | dd={drawdown:.2%}")
                     to_close.append(sym)
 
-        # Execute stop orders
+        # Execute stop orders and return closed symbols
         for sym in to_close:
             qty = self.positions.get(sym, 0)
             if qty <= 0:
@@ -311,6 +314,7 @@ class BacktestEngine:
                 quantity=qty, price=exec_price,
                 amount=proceeds, fee=fee,
             ))
+        return set(to_close)
 
 
 def compare_strategies(
