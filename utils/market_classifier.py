@@ -382,6 +382,13 @@ class MarketClassifier:
         seen_symbols: set[str] = set()
 
         # ── 1. 本地字典前缀匹配 ──────────────────────────────────────
+        # 构建反向映射：code → 中文名（用于拼音搜索时显示中文名）
+        _code_to_chinese: dict[str, str] = {}
+        for _k, _c in _FUZZY_NAME_MAP.items():
+            if _c != "不上市" and not re.match(r'^[a-z]+$', _k) and not re.match(r'^[a-z]{2}\d{5,6}$', _k):
+                if _c not in _code_to_chinese:
+                    _code_to_chinese[_c] = _k
+
         for key, code in _FUZZY_NAME_MAP.items():
             if code == "不上市":
                 continue
@@ -390,9 +397,14 @@ class MarketClassifier:
                     seen_symbols.add(code)
                     market_type, norm_code = MarketClassifier.classify(code)
                     type_label = market_type.value if market_type != MarketType.UNKNOWN else "其他"
-                    # 用 key 做展示名，跳过纯拼音缩写和代码格式的 key
-                    if not re.match(r'^[a-z]+$', key) and not re.match(r'^[a-z]{2}\d{5,6}$', key):
-                        results.append({"symbol": norm_code, "name": key, "type": type_label})
+                    # 展示名优先用中文名，拼音/代码 key 回退到反向映射的中文名
+                    is_pinyin = re.match(r'^[a-z]+$', key)
+                    is_code_fmt = re.match(r'^[a-z]{2}\d{5,6}$', key)
+                    if is_pinyin or is_code_fmt:
+                        display_name = _code_to_chinese.get(code, norm_code)
+                    else:
+                        display_name = key
+                    results.append({"symbol": norm_code, "name": display_name, "type": type_label})
                     if len(results) >= 5:
                         break
 
