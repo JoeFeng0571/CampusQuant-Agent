@@ -126,9 +126,9 @@
                     padding: 0;
                 }
                 .cq-nav-tool:hover {
-                    background: rgba(129,140,248,.12);
-                    border-color: rgba(129,140,248,.30);
-                    color: #818cf8;
+                    background: rgba(45,212,191,.12);
+                    border-color: rgba(45,212,191,.30);
+                    color: #2dd4bf;
                 }
                 @media (max-width: 768px) {
                     .cq-nav-tools { display: none !important; }

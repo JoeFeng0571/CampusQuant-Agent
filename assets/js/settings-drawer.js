@@ -109,8 +109,8 @@
         }
         .cq-seg button:hover { color: rgba(255,255,255,.85); }
         .cq-seg button.active {
-            background: rgba(129,140,248,.22); color: #a5b4fc;
-            box-shadow: 0 0 0 1px rgba(129,140,248,.35) inset;
+            background: rgba(45,212,191,.22); color: #5eead4;
+            box-shadow: 0 0 0 1px rgba(45,212,191,.35) inset;
         }
 
         /* Toggle */
@@ -124,7 +124,7 @@
             width: 16px; height: 16px; border-radius: 50%; background: #fff;
             transition: left .22s cubic-bezier(.16,1,.3,1);
         }
-        .cq-toggle.on { background: #6366f1; }
+        .cq-toggle.on { background: #14b8a6; }
         .cq-toggle.on::after { left: 18px; }
 
         /* Account section */
@@ -136,9 +136,9 @@
         }
         .cq-account-avatar {
             width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
-            background: rgba(129,140,248,.22); border: 1px solid rgba(129,140,248,.35);
+            background: rgba(45,212,191,.22); border: 1px solid rgba(45,212,191,.35);
             display: flex; align-items: center; justify-content: center;
-            font-size: 14px; font-weight: 700; color: #818cf8;
+            font-size: 14px; font-weight: 700; color: #2dd4bf;
         }
         .cq-account-name { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.90); }
         .cq-account-sub { font-size: 11px; color: rgba(255,255,255,.40); margin-top: 1px; }
@@ -152,11 +152,11 @@
 
         .cq-login-btn {
             display: block; width: 100%; padding: 9px; border-radius: 8px; text-align: center;
-            background: rgba(129,140,248,.15); border: 1px solid rgba(129,140,248,.28);
-            color: #818cf8; font-size: 13px; font-weight: 500; cursor: pointer;
+            background: rgba(45,212,191,.15); border: 1px solid rgba(45,212,191,.28);
+            color: #2dd4bf; font-size: 13px; font-weight: 500; cursor: pointer;
             text-decoration: none; transition: background .15s; margin-bottom: 6px;
         }
-        .cq-login-btn:hover { background: rgba(129,140,248,.25); }
+        .cq-login-btn:hover { background: rgba(45,212,191,.25); }
 
         /* Footer */
         .cq-settings-footer {
@@ -239,7 +239,7 @@
                     <div class="cq-settings-section-title">关于</div>
                     <div class="cq-settings-row">
                         <div class="cq-settings-label">CampusQuant</div>
-                        <a href="team.html" style="color:var(--primary,#818cf8);font-size:12px;text-decoration:none">关于团队 →</a>
+                        <a href="team.html" style="color:var(--primary,#2dd4bf);font-size:12px;text-decoration:none">关于团队 →</a>
                     </div>
                     <div class="cq-settings-row">
                         <div class="cq-settings-label">版本</div>

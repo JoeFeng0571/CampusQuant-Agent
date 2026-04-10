@@ -29,10 +29,10 @@ body {
     font-size: 14px;
     line-height: 1.55;
     letter-spacing: -0.005em;
-    /* Single subtle indigo ambient — replaces 4-color neon spots */
+    /* Single subtle teal ambient */
     background-image:
         radial-gradient(ellipse 90% 45% at 50% -8%,
-            rgba(99,102,241,0.09) 0%, transparent 65%);
+            rgba(20,184,166,0.09) 0%, transparent 65%);
     background-attachment: fixed;
     transition: background-color .3s, color .3s;
 }
@@ -80,8 +80,8 @@ code, pre, kbd, samp, .mono { font-family: var(--font-mono); }
 code:not(pre code) {
     font-size: 0.91em; padding: 1px 6px;
     border-radius: 4px;
-    background: rgba(129,140,248,.10);
-    border: 1px solid rgba(129,140,248,.18);
+    background: rgba(45,212,191,.10);
+    border: 1px solid rgba(45,212,191,.18);
     color: var(--secondary);
 }
 
@@ -141,10 +141,10 @@ header, main, footer, .page-wrap, .dash-container,
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(129,140,248,.35); }
+::-webkit-scrollbar-thumb:hover { background: rgba(45,212,191,.35); }
 
 /* ── Selection ── */
-::selection { background: rgba(99,102,241,.28); color: #fff; }
+::selection { background: rgba(20,184,166,.28); color: #fff; }
 
 /* ── Links ── */
 a { color: inherit; text-decoration: none; transition: color var(--d-fast); }

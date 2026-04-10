@@ -144,7 +144,26 @@
       "mcp__codex__codex",
       "WebFetch(domain:47.76.197.100)",
       "Bash(.venv/Scripts/python -c \"import akshare as ak; help\\(ak.stock_hk_valuation_baidu\\)\")",
-      "Bash(.venv/Scripts/python -c ':*)"
+      "Bash(.venv/Scripts/python -c ':*)",
+      "WebFetch(domain:campusquant.store)",
+      "WebFetch(domain:www.campusquant.store)",
+      "WebFetch(domain:linear.app)",
+      "WebFetch(domain:vercel.com)",
+      "WebFetch(domain:bolt.new)",
+      "WebFetch(domain:raycast.com)",
+      "WebFetch(domain:railway.app)",
+      "WebFetch(domain:railway.com)",
+      "WebFetch(domain:liveblocks.io)",
+      "WebFetch(domain:www.framer.com)",
+      "WebFetch(domain:supabase.com)",
+      "WebFetch(domain:www.cursor.com)",
+      "WebFetch(domain:magicui.design)",
+      "WebFetch(domain:v0.app)",
+      "WebFetch(domain:21st.dev)",
+      "Skill(research-lit)",
+      "Skill(idea-creator)",
+      "mcp__codex__codex-reply",
+      "WebSearch"
     ]
   }
 }

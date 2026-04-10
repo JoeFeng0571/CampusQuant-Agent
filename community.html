@@ -69,7 +69,7 @@
             transition:all 0.25s; cursor:pointer; text-decoration:none; color:inherit;
             display:flex; flex-direction:column; align-items:center;
         }
-        .res-card:hover { transform:translateY(-5px); border-color:rgba(79,172,254,0.35);
+        .res-card:hover { transform:translateY(-5px); border-color:rgba(45,212,191,0.35);
             box-shadow:0 10px 28px rgba(0,242,254,0.10); }
         .res-icon { font-size:36px; margin-bottom:12px; }
         .res-title { font-size:15px; font-weight:700; color:#fff; margin-bottom:6px; }
@@ -95,7 +95,7 @@
             border:1px solid var(--border); color:var(--text-sub); cursor:pointer;
             background:transparent; transition:all 0.2s;
         }
-        .filter-btn.active { border-color:var(--primary); color:var(--primary); background:rgba(79,172,254,0.09); }
+        .filter-btn.active { border-color:var(--primary); color:var(--primary); background:rgba(45,212,191,0.09); }
 
         .post-list { padding:8px 0; }
         .post-item {
@@ -103,7 +103,7 @@
             cursor:pointer; transition:background 0.2s;
         }
         .post-item:last-child { border-bottom:none; }
-        .post-item:hover { background:rgba(79,172,254,0.04); }
+        .post-item:hover { background:rgba(45,212,191,0.04); }
         .post-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
         .post-title { font-size:15px; font-weight:600; color:#fff; line-height:1.4; flex:1; }
         .post-meta { display:flex; align-items:center; gap:14px; }
@@ -114,7 +114,7 @@
         .post-tag {
             padding:2px 9px; border-radius:5px; font-size:11px; font-weight:600;
         }
-        .tag-learn    { background:rgba(79,172,254,0.15); color:var(--primary); }
+        .tag-learn    { background:rgba(45,212,191,0.15); color:var(--primary); }
         .tag-analysis { background:rgba(85,239,196,0.15); color:var(--success); }
         .tag-risk     { background:rgba(253,203,110,0.15); color:var(--warn); }
         .tag-exp      { background:rgba(162,155,254,0.15); color:var(--accent); }
@@ -155,14 +155,14 @@
             border-radius:10px; text-decoration:none; color:inherit;
             transition:background 0.2s, color 0.2s;
         }
-        .path-list a.path-link:hover { background:rgba(79,172,254,0.08); }
+        .path-list a.path-link:hover { background:rgba(45,212,191,0.08); }
         .path-list a.path-link:hover .path-text { color:var(--secondary); }
 
         /* 学习中心主入口 Hero CTA */
         .learn-hero {
             position:relative; overflow:hidden;
-            background:linear-gradient(135deg,rgba(79,172,254,0.16),rgba(0,242,254,0.06));
-            border:1px solid rgba(79,172,254,0.32); border-radius:18px;
+            background:linear-gradient(135deg,rgba(45,212,191,0.16),rgba(0,242,254,0.06));
+            border:1px solid rgba(45,212,191,0.32); border-radius:18px;
             padding:24px 28px; margin-bottom:20px;
             display:flex; align-items:center; justify-content:space-between; gap:24px;
             box-shadow:0 12px 36px rgba(0,242,254,0.08);
@@ -210,8 +210,8 @@
 
         /* 大学生守则卡 */
         .rules-card {
-            background:linear-gradient(135deg,rgba(79,172,254,0.08),rgba(0,242,254,0.05));
-            border:1px solid rgba(79,172,254,0.2); border-radius:16px; padding:24px; margin-top:24px;
+            background:linear-gradient(135deg,rgba(45,212,191,0.08),rgba(0,242,254,0.05));
+            border:1px solid rgba(45,212,191,0.2); border-radius:16px; padding:24px; margin-top:24px;
         }
         .rules-title { font-size:16px; font-weight:700; margin-bottom:16px;
             display:flex; align-items:center; gap:10px; }
@@ -241,17 +241,17 @@
         }
         .res-card::before {
             content:''; position:absolute; inset:0;
-            background:linear-gradient(135deg,rgba(79,172,254,.0),rgba(255,107,157,.0));
+            background:linear-gradient(135deg,rgba(45,212,191,.0),rgba(255,107,157,.0));
             transition:background var(--d-base);
             pointer-events:none;
         }
         .res-card:hover {
             transform:translateY(-4px);
-            border-color:rgba(79,172,254,.4);
-            box-shadow:0 12px 28px rgba(79,172,254,.12);
+            border-color:rgba(45,212,191,.4);
+            box-shadow:0 12px 28px rgba(45,212,191,.12);
         }
         .res-card:hover::before {
-            background:linear-gradient(135deg,rgba(79,172,254,.06),rgba(255,107,157,.04));
+            background:linear-gradient(135deg,rgba(45,212,191,.06),rgba(255,107,157,.04));
         }
 
         /* 帖子卡 stagger 入场 + hover */
@@ -267,8 +267,8 @@
         .post-item:nth-child(6) { animation-delay:.4s; }
         .post-item:hover {
             transform:translateX(4px);
-            border-color:rgba(79,172,254,.3);
-            box-shadow:0 6px 18px rgba(79,172,254,.1);
+            border-color:rgba(45,212,191,.3);
+            box-shadow:0 6px 18px rgba(45,212,191,.1);
         }
 
         /* 头像 hover 呼吸光晕 */
@@ -295,7 +295,7 @@
             transition:all var(--d-fast);
         }
         .tag:hover, .post-tag:hover, .topic-tag:hover {
-            background:rgba(79,172,254,.18);
+            background:rgba(45,212,191,.18);
             transform:translateY(-1px);
         }
 
@@ -482,7 +482,7 @@
                         <button class="filter-btn" data-sort="featured" onclick="filterPosts(this,'featured')">精选</button>
                         <button class="filter-btn" data-sort="qa" onclick="filterPosts(this,'qa')">问答</button>
                     </div>
-                    <button onclick="openPostModal()" style="padding:4px 14px;border-radius:16px;font-size:12px;font-weight:600;border:1px solid var(--primary);color:var(--primary);background:rgba(79,172,254,0.08);cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(79,172,254,0.18)'" onmouseout="this.style.background='rgba(79,172,254,0.08)'">＋ 发帖</button>
+                    <button onclick="openPostModal()" style="padding:4px 14px;border-radius:16px;font-size:12px;font-weight:600;border:1px solid var(--primary);color:var(--primary);background:rgba(45,212,191,0.08);cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(45,212,191,0.18)'" onmouseout="this.style.background='rgba(45,212,191,0.08)'">＋ 发帖</button>
                 </div>
             </div>
             <div class="post-list" id="post-list">
@@ -603,7 +603,7 @@
             <div>
                 <label style="font-size:12px;color:var(--text-sub);display:block;margin-bottom:6px;">标签</label>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;" id="tag-selector">
-                    <button class="tag-sel active" data-tag="learn"    onclick="selectTag(this)" style="padding:5px 14px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--primary);color:var(--primary);background:rgba(79,172,254,0.12);">基础知识</button>
+                    <button class="tag-sel active" data-tag="learn"    onclick="selectTag(this)" style="padding:5px 14px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--primary);color:var(--primary);background:rgba(45,212,191,0.12);">基础知识</button>
                     <button class="tag-sel" data-tag="analysis" onclick="selectTag(this)" style="padding:5px 14px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--text-sub);background:transparent;">深度分析</button>
                     <button class="tag-sel" data-tag="risk"     onclick="selectTag(this)" style="padding:5px 14px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--text-sub);background:transparent;">风险警示</button>
                     <button class="tag-sel" data-tag="exp"      onclick="selectTag(this)" style="padding:5px 14px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--text-sub);background:transparent;">实战分享</button>
@@ -658,7 +658,7 @@
             w.innerHTML = `<span style="font-size:12px;color:var(--text-sub);">👤 ${u}</span>
                 <button onclick="logout()" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;
         } else {
-            w.innerHTML = `<a href="auth.html?redirect=community.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(79,172,254,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
+            w.innerHTML = `<a href="auth.html?redirect=community.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(45,212,191,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
         }
     }
     function logout() {
@@ -799,7 +799,7 @@
         });
         btn.style.borderColor = 'var(--primary)';
         btn.style.color       = 'var(--primary)';
-        btn.style.background  = 'rgba(79,172,254,0.12)';
+        btn.style.background  = 'rgba(45,212,191,0.12)';
         btn.classList.add('active');
         _selectedTag = btn.dataset.tag;
     }

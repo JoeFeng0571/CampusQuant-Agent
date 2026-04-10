@@ -21,9 +21,9 @@
     --r-full: 9999px;
 
     /* —— Dark mode 颜色（默认） —— */
-    --primary:   #818cf8;   /* indigo-400 */
-    --secondary: #a5b4fc;   /* indigo-300 */
-    --accent:    #6366f1;   /* indigo-500 */
+    --primary:   #2dd4bf;   /* teal-400   */
+    --secondary: #5eead4;   /* teal-300   */
+    --accent:    #14b8a6;   /* teal-500   */
     --danger:    #f87171;   /* red-400    */
     --success:   #4ade80;   /* green-400  */
     --warn:      #fbbf24;   /* amber-400  */
@@ -31,7 +31,7 @@
     /* 保留兼容别名（部分旧页面用到） */
     --warm:      #fb923c;   /* orange-400 */
     --warm-2:    #f87171;   /* 同 danger   */
-    --violet:    #a78bfa;   /* violet-400 */
+    --violet:    #22d3ee;   /* cyan-400   */
     --mint:      #34d399;   /* emerald-400 */
     --gold:      #fbbf24;
 
@@ -61,18 +61,18 @@
     --glass-border: rgba(255,255,255,0.12);
     --glass-shine:  linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,0));
 
-    /* 渐变（简化版，去掉霓虹色） */
-    --grad-cool:   linear-gradient(135deg,#818cf8 0%,#a5b4fc 100%);
+    /* 渐变 */
+    --grad-cool:   linear-gradient(135deg,#2dd4bf 0%,#5eead4 100%);
     --grad-warm:   linear-gradient(135deg,#fb923c 0%,#f87171 100%);
-    --grad-aurora: linear-gradient(135deg,#818cf8 0%,#a78bfa 50%,#a5b4fc 100%);
-    --grad-mint:   linear-gradient(135deg,#34d399 0%,#818cf8 100%);
-    --grad-sunset: linear-gradient(135deg,#fb923c 0%,#f87171 50%,#a78bfa 100%);
+    --grad-aurora: linear-gradient(135deg,#14b8a6 0%,#22d3ee 50%,#5eead4 100%);
+    --grad-mint:   linear-gradient(135deg,#34d399 0%,#2dd4bf 100%);
+    --grad-sunset: linear-gradient(135deg,#fb923c 0%,#f87171 50%,#22d3ee 100%);
 
     /* 发光（弱化，只用于必要场景） */
-    --glow-cyan:   0 0 16px rgba(129,140,248,.20);
+    --glow-cyan:   0 0 16px rgba(45,212,191,.20);
     --glow-warm:   0 0 16px rgba(251,146,60,.20);
     --glow-pink:   0 0 16px rgba(248,113,113,.20);
-    --glow-violet: 0 0 16px rgba(167,139,250,.20);
+    --glow-violet: 0 0 16px rgba(34,211,238,.20);
 
     /* 内容宽度 */
     --content-narrow: 660px;

@@ -65,8 +65,8 @@
             display:flex; flex-direction:column; gap:6px; position:relative; overflow:hidden;
         }
         .mkt-acct-tab.active {
-            background:rgba(79,172,254,.08); border-color:rgba(79,172,254,.45);
-            box-shadow:0 4px 20px rgba(79,172,254,.12);
+            background:rgba(45,212,191,.08); border-color:rgba(45,212,191,.45);
+            box-shadow:0 4px 20px rgba(45,212,191,.12);
         }
         .mkt-acct-tab:hover:not(.active) { border-color:rgba(255,255,255,.2); }
         .mkt-acct-tab::before {
@@ -109,14 +109,14 @@
 
         .search-wrap { position:relative; flex:1; }
         .trade-dropdown { position:absolute; top:calc(100%+4px); left:0; right:0; z-index:9999;
-            background:rgba(15,20,35,.97); border:1px solid rgba(79,172,254,.3);
+            background:rgba(15,20,35,.97); border:1px solid rgba(45,212,191,.3);
             border-radius:10px; overflow:hidden; list-style:none;
             backdrop-filter:blur(16px); box-shadow:0 8px 32px rgba(0,0,0,.5); display:none; }
         .trade-dropdown.open { display:block; }
         .trade-di { padding:9px 13px; cursor:pointer; display:flex; align-items:center; gap:9px;
             border-bottom:1px solid rgba(255,255,255,.04); transition:background .15s; font-size:13px; }
         .trade-di:last-child { border-bottom:none; }
-        .trade-di:hover { background:rgba(79,172,254,.12); }
+        .trade-di:hover { background:rgba(45,212,191,.12); }
         .tdi-sym  { font-weight:700; color:var(--primary); min-width:85px; font-size:12px; }
         .tdi-name { flex:1; color:#e2e8f0; }
         .tdi-type { font-size:11px; padding:2px 6px; border-radius:4px; color:var(--text-dim);
@@ -164,7 +164,7 @@
         .form-input:focus { border-color:var(--primary); }
         .form-input[readonly] { opacity:.6; cursor:default; }
         .balance-hint { font-size:11px; color:var(--text-dim); margin-top:4px; }
-        .estimated-cost { background:rgba(79,172,254,.08); border:1px solid rgba(79,172,254,.2);
+        .estimated-cost { background:rgba(45,212,191,.08); border:1px solid rgba(45,212,191,.2);
             border-radius:9px; padding:10px 14px; margin-bottom:14px;
             display:flex; justify-content:space-between; align-items:center; }
         .est-label { font-size:12px; color:var(--text-sub); }
@@ -190,7 +190,7 @@
         .acct-sub-tab { padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600;
             cursor:pointer; border:1px solid var(--border); background:transparent;
             color:var(--text-sub); transition:all .2s; }
-        .acct-sub-tab.active { background:rgba(79,172,254,.18); border-color:rgba(79,172,254,.5); color:var(--primary); }
+        .acct-sub-tab.active { background:rgba(45,212,191,.18); border-color:rgba(45,212,191,.5); color:var(--primary); }
         .account-stats { display:flex; gap:28px; flex-wrap:wrap; }
         .stat-label { font-size:11px; color:var(--text-sub); margin-bottom:3px; }
         .stat-value { font-size:17px; font-weight:800; }
@@ -388,7 +388,7 @@
         .kline-period-tabs { display:flex; gap:6px; margin-bottom:10px; }
         .kline-ptab { padding:4px 12px; border-radius:6px; border:1px solid var(--border);
             background:transparent; color:var(--text-sub); font-size:12px; cursor:pointer; transition:all var(--d-fast); }
-        .kline-ptab.active { background:rgba(79,172,254,.18); border-color:rgba(79,172,254,.5); color:var(--primary); box-shadow:0 0 12px rgba(79,172,254,.2); }
+        .kline-ptab.active { background:rgba(45,212,191,.18); border-color:rgba(45,212,191,.5); color:var(--primary); box-shadow:0 0 12px rgba(45,212,191,.2); }
         .kline-ptab:hover:not(.active) { border-color:rgba(255,255,255,.2); color:#fff; }
         #trade-kline-chart { width:100%; height:400px; min-height:400px; position:relative;
             border-radius:10px; overflow:hidden; display:block; }
@@ -403,12 +403,12 @@
         .mkt-acct-tab.active::after {
             content:''; position:absolute; inset:-1px; border-radius:inherit;
             pointer-events:none;
-            box-shadow:0 4px 20px rgba(79,172,254,.12);
+            box-shadow:0 4px 20px rgba(45,212,191,.12);
             animation:pulse-shadow 3s ease-in-out infinite;
         }
         @keyframes pulse-shadow {
-            0%,100% { box-shadow:0 4px 20px rgba(79,172,254,.12), 0 0 0 1px rgba(79,172,254,.0); }
-            50%     { box-shadow:0 4px 28px rgba(79,172,254,.28), 0 0 0 1px rgba(0,242,254,.3); }
+            0%,100% { box-shadow:0 4px 20px rgba(45,212,191,.12), 0 0 0 1px rgba(45,212,191,.0); }
+            50%     { box-shadow:0 4px 28px rgba(45,212,191,.28), 0 0 0 1px rgba(0,242,254,.3); }
         }
         .mkt-acct-tab[data-mkt="A"].active::after  {
             animation:pulse-shadow-a 3s ease-in-out infinite;
@@ -443,8 +443,8 @@
             transition:border-color var(--d-base), box-shadow var(--d-base);
         }
         .quote-panel:hover, .order-panel:hover, .account-panel:hover {
-            border-color:rgba(79,172,254,.25);
-            box-shadow:0 8px 32px rgba(79,172,254,.06);
+            border-color:rgba(45,212,191,.25);
+            box-shadow:0 8px 32px rgba(45,212,191,.06);
         }
 
         /* 下单按钮：成功时撒花是 JS 控制；这里加按钮 hover 流光 */
@@ -727,7 +727,7 @@ function renderAuthWidget() {
         w.innerHTML = `<span style="font-size:12px;color:var(--text-sub);">👤 ${u}</span>
             <button onclick="logout()" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;
     } else {
-        w.innerHTML = `<a href="auth.html?v=20260330-auth-code&redirect=trade.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(79,172,254,.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
+        w.innerHTML = `<a href="auth.html?v=20260330-auth-code&redirect=trade.html" style="font-size:12px;color:var(--primary);text-decoration:none;border:1px solid rgba(45,212,191,.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;
     }
 }
 function logout() {
