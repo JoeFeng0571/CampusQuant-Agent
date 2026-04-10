@@ -16,7 +16,9 @@
         /* ══════════ MARKET-specific styles only ══════════ */
         /* market 是终端式定高布局，需要锁定 viewport */
         html, body { height:100%; overflow:hidden; }
-        body { min-height:initial; }
+        body { min-height:initial; background-image:none; }
+        /* 终端布局：main 不得强制撑高 */
+        main { min-height:0 !important; }
         /* market 使用 56px header（不是默认 70px），重写 header 高度 */
         header { height:var(--header-h); padding:0 48px; }
 
@@ -813,12 +815,7 @@
 <script src="assets/js/command-palette.js"></script>
 <script src="assets/js/keyboard-shortcuts.js"></script>
 <script src="assets/js/settings-drawer.js"></script>
-<script src="assets/js/footer.js"></script>
-<script src="assets/js/aurora.js"></script>
-<script src="assets/js/grid-dots.js"></script>
-<script src="assets/js/pixel-sand.js"></script>
 <script src="assets/js/view-transitions.js"></script>
-<script src="assets/js/magnet-cursor.js"></script>
 <script src="shell-bridge.js"></script>
 </body>
 </html>
