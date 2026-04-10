@@ -63,8 +63,8 @@
         .cq-toast.error .cq-toast-icon { color: #ff6b9d; }
         .cq-toast.warn    { border-left: 3px solid #ffd86b; }
         .cq-toast.warn .cq-toast-icon { color: #ffd86b; }
-        .cq-toast.info    { border-left: 3px solid #4facfe; }
-        .cq-toast.info .cq-toast-icon { color: #4facfe; }
+        .cq-toast.info    { border-left: 3px solid #2dd4bf; }
+        .cq-toast.info .cq-toast-icon { color: #2dd4bf; }
 
         /* DIALOG */
         .cq-dialog-backdrop {
@@ -138,13 +138,13 @@
             font-family: inherit;
         }
         .cq-dialog-btn.primary {
-            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            background: linear-gradient(135deg, #2dd4bf, #22d3ee);
             color: #0a0d17;
-            box-shadow: 0 4px 16px rgba(79,172,254,0.3);
+            box-shadow: 0 4px 16px rgba(45,212,191,0.3);
         }
         .cq-dialog-btn.primary:hover {
             transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(79,172,254,0.45);
+            box-shadow: 0 6px 20px rgba(45,212,191,0.45);
         }
         .cq-dialog-btn.ghost {
             background: rgba(255,255,255,0.06);

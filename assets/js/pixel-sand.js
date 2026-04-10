@@ -28,7 +28,7 @@
 
     // 调色板（与 tokens.css 同步）
     const PALETTE = [
-        { c: '79,172,254', a: 0.55 },  // primary cyan
+        { c: '45,212,191', a: 0.55 },  // primary cyan
         { c: '0,242,254',  a: 0.50 },  // secondary
         { c: '162,155,254', a: 0.55 }, // accent violet
         { c: '183,148,244', a: 0.50 }, // violet

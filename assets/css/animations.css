@@ -198,7 +198,7 @@
     height: 600px;
     border-radius: 50%;
     background: radial-gradient(circle,
-        rgba(79,172,254,.18) 0%,
+        rgba(45,212,191,.18) 0%,
         rgba(240,147,251,.08) 30%,
         transparent 60%);
     top: var(--my, 50%);

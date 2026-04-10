@@ -60,8 +60,8 @@
         opts = opts || {};
         const W = opts.width  || 120;
         const H = opts.height || 32;
-        const color = opts.color || 'rgba(0,242,254,.85)';
-        const fillColor = opts.fillColor || 'rgba(0,242,254,.15)';
+        const color = opts.color || 'rgba(34,211,238,.85)';
+        const fillColor = opts.fillColor || 'rgba(34,211,238,.15)';
         const padding = 2;
 
         const min = Math.min.apply(null, data);

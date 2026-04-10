@@ -131,10 +131,10 @@
             transition: background .12s, color .12s;
         }
         .cq-cmd-item.sel {
-            background: linear-gradient(90deg, rgba(79,172,254,.18), rgba(79,172,254,.08));
+            background: linear-gradient(90deg, rgba(45,212,191,.18), rgba(45,212,191,.08));
             color: #fff;
         }
-        .cq-cmd-item.sel .cq-cmd-icon { color: #00f2fe; }
+        .cq-cmd-item.sel .cq-cmd-icon { color: #22d3ee; }
         .cq-cmd-item:hover { background: rgba(255,255,255,0.05); }
         .cq-cmd-icon {
             width: 18px; height: 18px;

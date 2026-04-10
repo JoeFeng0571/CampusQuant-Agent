@@ -1,6 +1,20 @@
 /* ════════════════════════════════════════════════════════
-   CampusQuant Design Tokens v3 — Linear/Vercel style
-   Indigo-based palette · Dark default · Light mode support
+   CampusQuant Design Tokens v4 — Teal/Cyan palette
+   Dark default · Light mode support
+
+   ── COLOR REFERENCE ──────────────────────────────────
+   改颜色只改这个文件! 所有页面通过 var(--xxx) 引用。
+
+   品牌色:  --primary (#2dd4bf teal-400)
+            --secondary (#5eead4 teal-300)
+            --accent (#14b8a6 teal-500)
+            --highlight (#22d3ee cyan-400)
+   功能色:  --success/--buy (#4ade80 green-400)
+            --danger/--sell (#f87171 red-400)
+            --warn (#fbbf24 amber-400)
+   中性色:  --text/--text-1/--text-2/--text-3/--text-4
+            --bg/--bg-1/--bg-2
+            --card/--border
    ════════════════════════════════════════════════════════ */
 :root {
     /* —— 字体栈 —— */
@@ -28,12 +42,24 @@
     --success:   #4ade80;   /* green-400  */
     --warn:      #fbbf24;   /* amber-400  */
 
-    /* 保留兼容别名（部分旧页面用到） */
+    /* 高亮/第三品牌色 */
+    --highlight: #22d3ee;   /* cyan-400 — 用于强调、渐变终点 */
+
+    /* 功能别名 */
     --warm:      #fb923c;   /* orange-400 */
     --warm-2:    #f87171;   /* 同 danger   */
-    --violet:    #22d3ee;   /* cyan-400   */
+    --violet:    #22d3ee;   /* → highlight 别名 */
     --mint:      #34d399;   /* emerald-400 */
     --gold:      #fbbf24;
+
+    /* 品牌色 RGB 分量 — 用于 rgba() 场景 */
+    --primary-rgb:   45,212,191;
+    --secondary-rgb: 94,234,212;
+    --accent-rgb:    20,184,166;
+    --highlight-rgb: 34,211,238;
+    --danger-rgb:    248,113,113;
+    --success-rgb:   74,222,128;
+    --warn-rgb:      251,191,36;
 
     /* 交易专用 */
     --buy:  #4ade80;
@@ -61,18 +87,22 @@
     --glass-border: rgba(255,255,255,0.12);
     --glass-shine:  linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,0));
 
-    /* 渐变 */
-    --grad-cool:   linear-gradient(135deg,#2dd4bf 0%,#5eead4 100%);
-    --grad-warm:   linear-gradient(135deg,#fb923c 0%,#f87171 100%);
-    --grad-aurora: linear-gradient(135deg,#14b8a6 0%,#22d3ee 50%,#5eead4 100%);
-    --grad-mint:   linear-gradient(135deg,#34d399 0%,#2dd4bf 100%);
-    --grad-sunset: linear-gradient(135deg,#fb923c 0%,#f87171 50%,#22d3ee 100%);
+    /* 渐变 — 引用上面的 hex，改主色只需改上面 */
+    --grad-cool:   linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    --grad-warm:   linear-gradient(135deg, var(--warm) 0%, var(--danger) 100%);
+    --grad-aurora: linear-gradient(135deg, var(--accent) 0%, var(--highlight) 50%, var(--secondary) 100%);
+    --grad-mint:   linear-gradient(135deg, var(--mint) 0%, var(--primary) 100%);
+    --grad-sunset: linear-gradient(135deg, var(--warm) 0%, var(--danger) 50%, var(--highlight) 100%);
 
-    /* 发光（弱化，只用于必要场景） */
-    --glow-cyan:   0 0 16px rgba(45,212,191,.20);
-    --glow-warm:   0 0 16px rgba(251,146,60,.20);
-    --glow-pink:   0 0 16px rgba(248,113,113,.20);
-    --glow-violet: 0 0 16px rgba(34,211,238,.20);
+    /* 发光 — 使用 RGB 分量 */
+    --glow-primary: 0 0 16px rgba(var(--primary-rgb), .20);
+    --glow-warm:    0 0 16px rgba(var(--warn-rgb), .20);
+    --glow-danger:  0 0 16px rgba(var(--danger-rgb), .20);
+    --glow-highlight: 0 0 16px rgba(var(--highlight-rgb), .20);
+    /* 兼容旧名 */
+    --glow-cyan:   var(--glow-primary);
+    --glow-pink:   var(--glow-danger);
+    --glow-violet: var(--glow-highlight);
 
     /* 内容宽度 */
     --content-narrow: 660px;

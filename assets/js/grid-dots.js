@@ -62,7 +62,7 @@
 
     // 高亮点的 5 色（与 tokens.css 同步）
     const HIGHLIGHT_COLORS = [
-        '79,172,254',   // primary
+        '45,212,191',   // primary
         '0,242,254',    // secondary
         '162,155,254',  // accent
         '240,147,251',  // pink

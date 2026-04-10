@@ -20,10 +20,10 @@
             'top:0', 'left:0',
             'height:2px',
             'width:0%',
-            'background:linear-gradient(90deg,#4facfe,#00f2fe,#a29bfe)',
+            'background:linear-gradient(90deg,#2dd4bf,#22d3ee,#22d3ee)',
             'z-index:9991',
             'transition:width .12s ease-out',
-            'box-shadow:0 0 12px rgba(0,242,254,.5)',
+            'box-shadow:0 0 12px rgba(34,211,238,.5)',
             'pointer-events:none',
         ].join(';');
         document.body.appendChild(bar);
@@ -54,8 +54,8 @@
         ].join(';');
         btn.addEventListener('mouseover', () => {
             btn.style.background = 'rgba(30,40,60,0.95)';
-            btn.style.borderColor = 'rgba(0,242,254,.5)';
-            btn.style.color = 'rgba(0,242,254,1)';
+            btn.style.borderColor = 'rgba(34,211,238,.5)';
+            btn.style.color = 'rgba(34,211,238,1)';
         });
         btn.addEventListener('mouseout', () => {
             btn.style.background = 'rgba(20,25,40,0.9)';

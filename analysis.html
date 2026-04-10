@@ -34,7 +34,7 @@
         }
         .analysis-hero-pulse {
             display: inline-block; width: 6px; height: 6px; border-radius: 50%;
-            background: #4facfe; box-shadow: 0 0 12px #4facfe;
+            background: #2dd4bf; box-shadow: 0 0 12px #2dd4bf;
             animation: analysis-pulse 2.4s ease-in-out infinite;
         }
         @keyframes analysis-pulse {
@@ -224,7 +224,7 @@
             color: #718096; cursor: pointer; transition: all 0.2s;
         }
         .chart-tab.active {
-            border-color: #4facfe; color: #4facfe;
+            border-color: #2dd4bf; color: #2dd4bf;
             background: rgba(45,212,191,0.10);
         }
         .chart-period { font-size: 11px; color: #718096; margin-left: auto; }
@@ -863,8 +863,8 @@
                     type: 'bar', barWidth: '35%',
                     data: hasData ? chartData.revenue : chartData.years.map(() => null),
                     itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1,
-                        [{ offset:0, color:'#4facfe'}, { offset:1, color:'#00f2fe'}]) },
-                    label: { show: hasData, position: 'top', color: '#4facfe', fontSize: 11,
+                        [{ offset:0, color:'#2dd4bf'}, { offset:1, color:'#22d3ee'}]) },
+                    label: { show: hasData, position: 'top', color: '#2dd4bf', fontSize: 11,
                              formatter: v => v.value != null ? v.value.toFixed(1) : '' },
                 },
                 {
@@ -889,7 +889,7 @@
     }
 
     // ══ 主营收入构成圆环图 ════════════════════════════════════════
-    const _COMP_COLORS = ['#4facfe','#00f2fe','#a29bfe','#55efc4','#fdcb6e','#fd79a8','#74b9ff','#0984e3','#e17055','#6c5ce7'];
+    const _COMP_COLORS = ['#2dd4bf','#22d3ee','#22d3ee','#55efc4','#fdcb6e','#fd79a8','#74b9ff','#0984e3','#e17055','#6c5ce7'];
 
     function renderCompositionDonut(data, mode) {
         // data: [{name, revenue_yi, pct}, ...]
@@ -968,7 +968,7 @@
         const q4 = (perf.quarterly || {})['q4_' + qSuffix] || [];
         const hasQuarterly = q1.length > 0 && q1.some(v => v != null && v !== 0);
         const barData = hasQuarterly ? [q1, q2, q3, q4] : [vals, [], [], []];
-        const QCOLORS = ['#4facfe', '#00c9ff', '#74b9ff', '#0984e3'];
+        const QCOLORS = ['#2dd4bf', '#00c9ff', '#74b9ff', '#0984e3'];
         const unit = metric === 'eps' ? '元' : '亿元';
 
         const option = {
