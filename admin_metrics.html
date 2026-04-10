@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metrics Dashboard — CampusQuant Admin</title>
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <style>
+        body { padding: 24px; max-width: 1200px; margin: 0 auto; }
+        h1 { font-size: 24px; margin-bottom: 8px; }
+        .subtitle { color: var(--text-2); font-size: 13px; margin-bottom: 24px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; }
+        .card-title { font-size: 12px; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; font-weight: 600; margin-bottom: 12px; }
+        .metric-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+        .metric-row:last-child { border-bottom: none; }
+        .metric-label { font-size: 13px; color: var(--text-2); }
+        .metric-value { font-size: 14px; font-weight: 600; font-family: var(--font-mono); color: var(--text); }
+        .metric-big { font-size: 32px; font-weight: 800; font-family: var(--font-mono); color: var(--primary); }
+        .metric-unit { font-size: 12px; color: var(--text-3); margin-left: 4px; }
+        .bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.06); margin-top: 4px; }
+        .bar-fill { height: 100%; border-radius: 3px; background: var(--grad-cool); transition: width .5s; }
+        .refresh-btn { padding: 8px 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--card); color: var(--text-2); cursor: pointer; font-size: 12px; font-weight: 600; }
+        .refresh-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .error { color: var(--danger); font-size: 13px; padding: 12px; }
+        .section-title { font-size: 18px; font-weight: 700; margin: 24px 0 12px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; padding: 8px 12px; color: var(--text-3); font-weight: 600; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--text-1); font-family: var(--font-mono); }
+    </style>
+</head>
+<body data-bg-mode="off">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <h1>Metrics Dashboard</h1>
+            <div class="subtitle" id="last-refresh">点击刷新获取数据</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+            <select id="hours-select" style="padding:6px 10px; background:var(--card); border:1px solid var(--border); border-radius:var(--r-sm); color:var(--text-1); font-size:12px;">
+                <option value="1">最近 1 小时</option>
+                <option value="6">最近 6 小时</option>
+                <option value="24" selected>最近 24 小时</option>
+                <option value="168">最近 7 天</option>
+            </select>
+            <button class="refresh-btn" onclick="refresh()">刷新</button>
+            <a href="dashboard.html" style="padding:8px 16px; font-size:12px; color:var(--text-2); text-decoration:none;">← 返回</a>
+        </div>
+    </div>
+
+    <div class="grid" id="overview-grid">
+        <div class="card"><div class="card-title">总分析请求</div><div class="metric-big" id="total-requests">--</div></div>
+        <div class="card"><div class="card-title">LLM 调用次数</div><div class="metric-big" id="total-llm-calls">--</div></div>
+        <div class="card"><div class="card-title">LLM 总成本 (CNY)</div><div class="metric-big" id="total-cost">--</div></div>
+        <div class="card"><div class="card-title">平均响应时间</div><div class="metric-big" id="avg-latency">--</div><span class="metric-unit">ms</span></div>
+    </div>
+
+    <div class="section-title">LLM 调用分布</div>
+    <div class="grid">
+        <div class="card">
+            <div class="card-title">按模型</div>
+            <div id="by-model">加载中...</div>
+        </div>
+        <div class="card">
+            <div class="card-title">按节点</div>
+            <div id="by-node">加载中...</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Token 使用量 (百分位)</div>
+            <div id="token-percentiles">加载中...</div>
+        </div>
+    </div>
+
+    <div class="section-title">API 请求</div>
+    <div class="card" id="api-section">
+        <div>加载中...</div>
+    </div>
+
+    <script>
+    const API = window.location.origin;
+
+    async function refresh() {
+        const hours = document.getElementById('hours-select').value;
+        document.getElementById('last-refresh').textContent = '加载中...';
+
+        try {
+            const [general, llm] = await Promise.all([
+                fetch(`${API}/admin/metrics?hours=${hours}`).then(r => r.json()),
+                fetch(`${API}/admin/metrics/llm?hours=${hours}`).then(r => r.json()),
+            ]);
+
+            // Overview
+            document.getElementById('total-requests').textContent = general.counters?.analyze_request_total || 0;
+            document.getElementById('total-llm-calls').textContent = llm.calls || 0;
+
+            const costData = llm.cost_cny || {};
+            const totalCost = (costData.p50 || 0) * (llm.calls || 0);
+            document.getElementById('total-cost').textContent = totalCost.toFixed(2);
+
+            // By model
+            const byModel = llm.calls_by_model || {};
+            document.getElementById('by-model').innerHTML = Object.entries(byModel)
+                .map(([k,v]) => `<div class="metric-row"><span class="metric-label">${k}</span><span class="metric-value">${v}</span></div>`)
+                .join('') || '<div class="metric-label">暂无数据</div>';
+
+            // By node
+            const byNode = llm.calls_by_node || {};
+            document.getElementById('by-node').innerHTML = Object.entries(byNode)
+                .map(([k,v]) => `<div class="metric-row"><span class="metric-label">${k}</span><span class="metric-value">${v}</span></div>`)
+                .join('') || '<div class="metric-label">暂无数据</div>';
+
+            // Token percentiles
+            const tokens = llm.tokens || {};
+            document.getElementById('token-percentiles').innerHTML = Object.entries(tokens)
+                .map(([k,v]) => `<div class="metric-row"><span class="metric-label">P${k}</span><span class="metric-value">${Math.round(v)}</span></div>`)
+                .join('') || '<div class="metric-label">暂无数据</div>';
+
+            // API section
+            const apiCounters = general.counters || {};
+            const apiHTML = Object.entries(apiCounters)
+                .map(([k,v]) => `<div class="metric-row"><span class="metric-label">${k}</span><span class="metric-value">${v}</span></div>`)
+                .join('') || '<div class="metric-label">暂无 API 请求数据</div>';
+            document.getElementById('api-section').innerHTML = apiHTML;
+
+            document.getElementById('last-refresh').textContent = `最后刷新: ${new Date().toLocaleTimeString('zh-CN')} · 时间范围: ${hours}h`;
+
+        } catch (e) {
+            document.getElementById('last-refresh').textContent = `加载失败: ${e.message}`;
+            document.getElementById('last-refresh').style.color = 'var(--danger)';
+        }
+    }
+
+    // Auto-refresh on load
+    refresh();
+    </script>
+</body>
+</html>

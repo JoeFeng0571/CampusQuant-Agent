@@ -72,6 +72,14 @@ class Strategy:
         raise NotImplementedError
 
 
+@dataclass
+class StopRule:
+    """止损/止盈规则"""
+    stop_loss_pct: float = 0.05    # 亏损 5% 止损
+    take_profit_pct: float = 0.15  # 盈利 15% 止盈
+    trailing_stop_pct: float = 0.0 # 移动止损 (0=关闭)
+
+
 class BacktestEngine:
     FEE_RATE = 0.0003     # 手续费
     SLIPPAGE = 0.001      # 滑点
@@ -83,15 +91,19 @@ class BacktestEngine:
         end: str | date = "2024-12-31",
         initial_cash: float = 1_000_000,
         price_data: Optional[dict[str, pd.DataFrame]] = None,
+        stop_rule: Optional[StopRule] = None,
     ):
         self.strategy = strategy
         self.start = pd.Timestamp(start).date()
         self.end = pd.Timestamp(end).date()
         self.initial_cash = initial_cash
         self.price_data = price_data or {}
+        self.stop_rule = stop_rule
 
         self.cash = initial_cash
         self.positions: dict[str, int] = {}    # symbol → shares
+        self.entry_prices: dict[str, float] = {}  # symbol → avg entry price
+        self.peak_prices: dict[str, float] = {}   # symbol → highest price since entry
         self.nav_history: list[tuple[date, float]] = []
         self.trades: list[TradeRecord] = []
 
@@ -108,6 +120,10 @@ class BacktestEngine:
             if not prices:
                 t += timedelta(days=1)
                 continue
+
+            # 止损/止盈检查（在策略信号之前执行）
+            if self.stop_rule:
+                self._check_stop_rules(t, prices)
 
             # 生成信号
             signals = self.strategy.generate(t, prices)
@@ -214,6 +230,11 @@ class BacktestEngine:
                         quantity=diff, price=exec_price,
                         amount=cost, fee=fee,
                     ))
+                    # Track entry price (weighted avg)
+                    old_qty = current_qty
+                    old_cost = self.entry_prices.get(sig.symbol, exec_price) * old_qty
+                    self.entry_prices[sig.symbol] = (old_cost + cost) / (old_qty + diff)
+                    self.peak_prices[sig.symbol] = max(self.peak_prices.get(sig.symbol, 0), price)
             elif diff < 0:
                 # SELL
                 sell_qty = min(abs(diff), current_qty)
@@ -226,8 +247,97 @@ class BacktestEngine:
                 self.positions[sig.symbol] = current_qty - sell_qty
                 if self.positions[sig.symbol] == 0:
                     del self.positions[sig.symbol]
+                    self.entry_prices.pop(sig.symbol, None)
+                    self.peak_prices.pop(sig.symbol, None)
                 self.trades.append(TradeRecord(
                     date=t, symbol=sig.symbol, side="SELL",
                     quantity=sell_qty, price=exec_price,
                     amount=proceeds, fee=fee,
                 ))
+
+    def _check_stop_rules(self, t: date, prices: dict[str, float]):
+        """检查止损/止盈/移动止损"""
+        sr = self.stop_rule
+        if not sr:
+            return
+
+        to_close: list[str] = []
+        for sym, qty in list(self.positions.items()):
+            if qty <= 0 or sym not in prices:
+                continue
+            price = prices[sym]
+            entry = self.entry_prices.get(sym, price)
+
+            # Update peak price
+            self.peak_prices[sym] = max(self.peak_prices.get(sym, price), price)
+
+            pnl_pct = (price - entry) / entry if entry > 0 else 0
+
+            # Stop-loss
+            if sr.stop_loss_pct > 0 and pnl_pct <= -sr.stop_loss_pct:
+                logger.info(f"[Stop-Loss] {sym} @ {price:.2f} | entry={entry:.2f} | pnl={pnl_pct:.2%}")
+                to_close.append(sym)
+                continue
+
+            # Take-profit
+            if sr.take_profit_pct > 0 and pnl_pct >= sr.take_profit_pct:
+                logger.info(f"[Take-Profit] {sym} @ {price:.2f} | entry={entry:.2f} | pnl={pnl_pct:.2%}")
+                to_close.append(sym)
+                continue
+
+            # Trailing stop
+            if sr.trailing_stop_pct > 0:
+                peak = self.peak_prices.get(sym, price)
+                drawdown = (price - peak) / peak if peak > 0 else 0
+                if drawdown <= -sr.trailing_stop_pct:
+                    logger.info(f"[Trailing-Stop] {sym} @ {price:.2f} | peak={peak:.2f} | dd={drawdown:.2%}")
+                    to_close.append(sym)
+
+        # Execute stop orders
+        for sym in to_close:
+            qty = self.positions.get(sym, 0)
+            if qty <= 0:
+                continue
+            price = prices[sym]
+            exec_price = price * (1 - self.SLIPPAGE)
+            proceeds = qty * exec_price
+            fee = proceeds * self.FEE_RATE
+            self.cash += proceeds - fee
+            del self.positions[sym]
+            self.entry_prices.pop(sym, None)
+            self.peak_prices.pop(sym, None)
+            self.trades.append(TradeRecord(
+                date=t, symbol=sym, side="STOP",
+                quantity=qty, price=exec_price,
+                amount=proceeds, fee=fee,
+            ))
+
+
+def compare_strategies(
+    strategies: list[Strategy],
+    start: str = "2023-01-01",
+    end: str = "2024-12-31",
+    initial_cash: float = 1_000_000,
+    price_data: dict[str, pd.DataFrame] = None,
+    stop_rule: Optional[StopRule] = None,
+) -> pd.DataFrame:
+    """
+    多策略对比：运行多个策略并返回指标对比表。
+
+    Returns:
+        DataFrame with columns = metric names, index = strategy names
+    """
+    results = []
+    for strat in strategies:
+        engine = BacktestEngine(
+            strategy=strat, start=start, end=end,
+            initial_cash=initial_cash, price_data=price_data,
+            stop_rule=stop_rule,
+        )
+        result = engine.run()
+        row = {"strategy": strat.name, **result.metrics, "trades_count": len(result.trades)}
+        results.append(row)
+
+    df = pd.DataFrame(results).set_index("strategy")
+    logger.info(f"\n[Strategy Comparison]\n{df.to_string()}")
+    return df
