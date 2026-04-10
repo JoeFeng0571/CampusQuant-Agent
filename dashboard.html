@@ -15,21 +15,21 @@
     <style>
         /* ══════════ DASHBOARD-specific styles only ══════════ */
         .dash-container { width:100%; max-width:1320px; margin:0 auto;
-            padding:108px 28px 80px; flex:1; display:flex; flex-direction:column; gap:32px; }
-        @media(max-width:768px) { .dash-container { padding:84px 16px 48px; gap:20px; } }
+            padding:88px 28px 60px; flex:1; display:flex; flex-direction:column; gap:20px; }
+        @media(max-width:768px) { .dash-container { padding:76px 16px 40px; gap:16px; } }
 
-        /* ══ HERO v5 — 单列干净版 ══ */
+        /* ══ HERO v5 — 极简单列版（压缩高度让首屏能看到快讯） ══ */
         .dash-hero {
-            padding:48px 8px 16px;
+            padding:16px 8px 8px;
             display:flex;
             flex-direction:column;
-            gap:18px;
+            gap:10px;
             position:relative;
         }
         .dash-hero-text {
             display:flex;
             flex-direction:column;
-            gap:18px;
+            gap:10px;
         }
         .dash-hero-art {
             position:relative;
@@ -172,22 +172,22 @@
 
         .dash-hero-title {
             font-family:var(--font-display);
-            font-size:64px;
+            font-size:44px;
             font-weight:800;
             line-height:1.05;
-            letter-spacing:-0.035em;
+            letter-spacing:-0.03em;
             background:linear-gradient(180deg,#fff 0%,rgba(255,255,255,.7) 100%);
             -webkit-background-clip:text;
             background-clip:text;
             -webkit-text-fill-color:transparent;
             margin:0;
-            max-width:18ch;
+            max-width:22ch;
         }
         .dash-hero-sub {
-            font-size:18px;
+            font-size:15px;
             color:var(--text-2);
-            line-height:1.55;
-            max-width:48ch;
+            line-height:1.5;
+            max-width:52ch;
             margin:0;
         }
 
@@ -382,13 +382,13 @@
         .qnav-item {
             background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.025));
             border:1px solid rgba(255,255,255,.10);
-            border-radius:18px;
-            padding:24px 22px;
+            border-radius:16px;
+            padding:18px 20px;
             text-decoration:none;
             display:flex;
             flex-direction:column;
             justify-content:space-between;
-            min-height:120px;
+            min-height:92px;
             position:relative;
             overflow:hidden;
             cursor:pointer;
@@ -536,7 +536,7 @@
         .main-grid {
             display:grid;
             grid-template-columns:1fr 380px;
-            grid-template-rows:720px;     /* 加长，news / chat 都有更多空间 */
+            grid-template-rows:640px;     /* 比 720 稍矮，让首屏能看到 */
             gap:20px;
         }
         .dash-left-col {
@@ -630,7 +630,7 @@
         .news-src span { display:inline-block; margin-right:8px; }
 
         /* ══ CHAT WIDGET ══ */
-        .chat-panel { display:flex; flex-direction:column; height:720px; }
+        .chat-panel { display:flex; flex-direction:column; height:640px; }
         .chat-panel .panel-header { flex-shrink:0; }
         .chat-messages { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px;
             padding:4px 0 8px; scrollbar-width:thin;
@@ -816,38 +816,16 @@
 
 <main class="dash-container">
 
-    <!-- ① HERO（v4：左文右图 SVG illustration） -->
+    <!-- ① HERO（v5：极简版，只剩标题+副标题） -->
     <section class="dash-hero fade-in-up">
-        <div class="dash-hero-text">
-            <div class="dash-hero-eyebrow">
-                <span class="dash-hero-pulse"></span>
-                <span id="badge-date">--</span>
-                <span class="dash-hero-sep">·</span>
-                <span>校园财商 · AI 投研平台</span>
-            </div>
-            <h1 class="dash-hero-title" id="welcome-text">欢迎回来</h1>
-            <p class="dash-hero-sub" id="welcome-sub">今天是个学习的好日子</p>
-            <div class="dash-hero-actions">
-                <a href="trade.html" class="dash-hero-btn primary">
-                    <i data-lucide="line-chart"></i>
-                    <span>开始模拟交易</span>
-                    <i data-lucide="arrow-right" style="opacity:.7"></i>
-                </a>
-                <a href="analysis.html" class="dash-hero-btn ghost">
-                    <i data-lucide="search-code"></i>
-                    <span>AI 个股分析</span>
-                </a>
-                <button class="dash-hero-btn ghost" onclick="cqCommandPalette && cqCommandPalette.open()">
-                    <i data-lucide="command"></i>
-                    <span>命令面板</span>
-                    <kbd class="dash-hero-kbd">⌘K</kbd>
-                </button>
-            </div>
-            <div class="dash-hero-tip">
-                <i data-lucide="sparkles" style="color:var(--warm)"></i>
-                <span id="badge-tip">建议今日复盘</span>
-            </div>
+        <div class="dash-hero-eyebrow">
+            <span class="dash-hero-pulse"></span>
+            <span id="badge-date">--</span>
+            <span class="dash-hero-sep">·</span>
+            <span>校园财商 · AI 投研平台</span>
         </div>
+        <h1 class="dash-hero-title" id="welcome-text">欢迎回来</h1>
+        <p class="dash-hero-sub" id="welcome-sub">今天是个学习的好日子</p>
     </section>
 
     <!-- ② QUICK NAV GRID -->
