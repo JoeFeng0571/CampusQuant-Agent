@@ -112,6 +112,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Observability middleware（W3）──
+try:
+    from observability.middleware import add_observability_middleware
+    add_observability_middleware(app)
+except ImportError:
+    pass  # observability 不是硬依赖
+
 # ════════════════════════════════════════════════════════════════
 # 简易速率限制器（IP 维度，防滥用 LLM 端点）
 # ════════════════════════════════════════════════════════════════
@@ -2526,6 +2533,38 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 TRUE_PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
 if not os.path.exists(os.path.join(TRUE_PROJECT_ROOT, "auth.html")):
     logger.warning(f"Static root may be invalid: {TRUE_PROJECT_ROOT}")
+
+# ════════════════════════════════════════════════════════════════
+# Admin Metrics 端点（W3 Observability）
+# ════════════════════════════════════════════════════════════════
+
+@app.get("/admin/metrics")
+async def admin_metrics(hours: float = 24):
+    """返回最近 N 小时的 metrics 摘要 (JSON)"""
+    try:
+        from observability.metrics import metrics
+        return metrics.summary(since_hours=hours)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/admin/metrics/llm")
+async def admin_llm_metrics(hours: float = 24):
+    """LLM 调用的详细 metrics"""
+    try:
+        from observability.metrics import metrics
+        return {
+            "calls": metrics.query_counter_sum("llm_calls_total", hours),
+            "calls_by_model": metrics.query_counter_by_label("llm_calls_total", "model", hours),
+            "calls_by_node": metrics.query_counter_by_label("llm_calls_total", "node", hours),
+            "tokens": metrics.query_histogram_percentiles("llm_total_tokens", [50, 95, 99], hours),
+            "cost_cny": metrics.query_histogram_percentiles("llm_cost_cny", [50, 95, 99], hours),
+            "prompt_tokens": metrics.query_histogram_percentiles("llm_prompt_tokens", [50, 95], hours),
+            "completion_tokens": metrics.query_histogram_percentiles("llm_completion_tokens", [50, 95], hours),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 
 # 静态文件挂载在最后，不会覆盖 /docs /redoc /api 等已注册路由
 # 注意：FastAPI 路由优先于 mount，但 html=True 的 "/" mount 会拦截 /docs
