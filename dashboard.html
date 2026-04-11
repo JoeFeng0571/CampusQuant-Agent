@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="assets/css/components.css">
     <link rel="stylesheet" href="assets/css/animations.css">
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js" defer></script>
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.8/dist/lottie-player.js"></script>
     <style>
         /* ═══════════════════════════════════════════════════
            Dashboard v2 — Linear/Vercel style
@@ -549,12 +550,18 @@
 
         <!-- RIGHT COLUMN: 财商学长 chat -->
         <div class="panel chat-panel">
-            <div class="panel-header">
-                <div class="panel-title">
-                    <i data-lucide="message-circle"></i>
-                    财商学长 AI
+            <div class="panel-header" style="flex-direction:column; align-items:center; gap:0; padding-bottom:12px;">
+                <lottie-player
+                    src="assets/lottie/mentor.json"
+                    background="transparent" speed="1" style="width:100px;height:100px;" loop autoplay
+                ></lottie-player>
+                <div style="display:flex; align-items:center; gap:8px; width:100%; justify-content:space-between;">
+                    <div class="panel-title" style="font-size:15px;">
+                        <i data-lucide="message-circle"></i>
+                        财商学长 AI
+                    </div>
+                    <button class="panel-action" onclick="clearChat()">清空对话</button>
                 </div>
-                <button class="panel-action" onclick="clearChat()">清空对话</button>
             </div>
             <div class="quick-prompts">
                 <button class="qp-btn" onclick="quickAsk('什么是ETF定投？')">ETF定投</button>
