@@ -117,13 +117,13 @@
             gap: 10px;
         }
         .cq-footer-title {
-            font-size: 11px;
+            font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 0.06em;
             color: var(--text-dim, rgba(255,255,255,.40));
             font-weight: 600;
             margin-bottom: 4px;
-            font-family: var(--font-mono, monospace);
+            font-family: var(--font-sans);
         }
 
         .cq-footer-col a {

@@ -82,7 +82,7 @@
         .cq-settings-body { flex: 1; overflow-y: auto; padding: 12px 24px 20px; }
         .cq-settings-section { margin-top: 20px; }
         .cq-settings-section-title {
-            font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+            font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;
             color: rgba(255,255,255,.38); font-weight: 700; margin-bottom: 8px;
             font-family: var(--font-mono, monospace);
         }
