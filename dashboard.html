@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的控制台 - CampusQuant · 校园财商智能平台</title>
+    <meta name="description" content="CampusQuant 个人控制台：查看您的模拟投资组合、分析记录与学习进度，AI 驱动的校园财商智能平台专为大学生打造。">
+    <meta name="keywords" content="CampusQuant,校园财商,AI投资,模拟交易,大学生理财,投资控制台,个人中心,投资组合">
+    <meta property="og:title" content="我的控制台 - CampusQuant 校园财商智能平台">
+    <meta property="og:description" content="CampusQuant 个人控制台：查看您的模拟投资组合、分析记录与学习进度，AI 驱动的校园财商智能平台专为大学生打造。">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://campusquant.store/dashboard.html">
+    <meta property="og:site_name" content="CampusQuant 校园财商">
     <!-- Shared design system -->
     <link rel="stylesheet" href="assets/css/tokens.css">
     <link rel="stylesheet" href="assets/css/base.css">
@@ -569,7 +576,7 @@
                 <input type="text" class="chat-input" id="chat-input"
                     placeholder="问学长任何财商问题…" maxlength="300"
                     onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}" />
-                <button class="chat-send" id="chat-send-btn" onclick="sendChat()" title="发送">
+                <button class="chat-send" id="chat-send-btn" data-track="chat_send" onclick="sendChat()" title="发送">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 </button>
             </div>
@@ -588,6 +595,7 @@
 </footer>
 
 <script src="assets/js/common.js?v=20260411"></script>
+<script src="assets/js/analytics.js"></script>
 <script src="assets/js/motion.js"></script>
 <script src="assets/js/ui-kit.js"></script>
 <script src="assets/js/command-palette.js"></script>
@@ -604,6 +612,7 @@ const CHAT_SK = 'cq_chat_history_v2';
 const escHtml = window.cqEsc;
 
 // 覆写 common.js 的基础版本：dashboard 还需要更新欢迎语
+<script src="assets/js/analytics.js"></script>
 window.cqRenderAuthWidget = function () {
     const token = localStorage.getItem('cq_token');
     const name  = localStorage.getItem('cq_username') || '用户';

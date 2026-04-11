@@ -257,6 +257,7 @@ async def startup_event():
 class AnalyzeRequest(BaseModel):
     symbol: str = Field(..., description="交易标的代码 (如 AAPL / 600519.SH)")
     days:   int = Field(default=180, ge=30, le=365, description="历史数据天数")
+    force_refresh: bool = Field(default=False, description="强制刷新，忽略缓存")
 
 
 class HealthResponse(BaseModel):
@@ -353,6 +354,27 @@ _NODE_START_DESC = {
     "risk_node":        "风控官正在审核：ATR波动率检查、仓位上限检查、单次亏损上限反算、置信度惩罚...",
     "trade_executor":   "正在生成最终交易指令，计算止损止盈价位，撰写完整投资研报...",
 }
+
+
+async def _stream_cached_report(
+    symbol: str, cached: dict, thread_id: str,
+) -> AsyncGenerator[str, None]:
+    """从缓存快速回放 SSE 事件（<1秒完成）"""
+    seq = 0
+    seq += 1
+    yield _make_sse_event("start", "system", f"加载 {symbol} 缓存分析结果...", {"symbol": symbol, "cached": True}, seq)
+    await asyncio.sleep(0.05)
+
+    # 模拟节点完成
+    for node in ["data_node", "fundamental_node", "technical_node", "sentiment_node", "rag_node", "portfolio_node", "risk_node", "trade_executor"]:
+        seq += 1
+        yield _make_sse_event("node_complete", node, f"{node} (缓存)", {}, seq)
+        await asyncio.sleep(0.02)
+
+    # 发送完整结果
+    seq += 1
+    yield _make_sse_event("complete", "system", "分析完成（来自缓存）", cached, seq)
+    logger.info(f"[Cache] {symbol} 缓存回放完成 ({seq} events)")
 
 
 async def _stream_graph_events(
@@ -1007,20 +1029,27 @@ async def _stream_graph_events(
             "revenue_composition": key_metrics.get("revenue_composition", {}),
             "performance_trend":   key_metrics.get("performance_trend", {}),
         }
-        yield _make_sse_event(
-            event="complete",
-            node="system",
-            message=f"✅ 分析完成: {symbol} → {final_order.get('action', 'N/A')} "
-                    f"(仓位 {float(final_order.get('quantity_pct') or 0):.0f}%)",
-            data={
+        _complete_data = {
                 "symbol":                symbol,
                 "trade_order":           final_order,
                 "status":                "completed",
                 "final_markdown_report": markdown_report or "> 研报生成失败，请重试。",
                 "financial_chart_data":  _chart_payload,
-            },
+        }
+        yield _make_sse_event(
+            event="complete",
+            node="system",
+            message=f"✅ 分析完成: {symbol} → {final_order.get('action', 'N/A')} "
+                    f"(仓位 {float(final_order.get('quantity_pct') or 0):.0f}%)",
+            data=_complete_data,
             seq=seq,
         )
+        # 写入磁盘缓存
+        try:
+            from utils.report_cache import report_cache
+            report_cache.set(symbol, _complete_data)
+        except Exception as _cache_err:
+            logger.warning(f"[Cache] 写入失败: {_cache_err}")
     except Exception as _complete_err:
         logger.error(
             f"[stream] complete 事件构建失败: {type(_complete_err).__name__}: {_complete_err}",
@@ -1064,6 +1093,17 @@ async def analyze_symbol(request: AnalyzeRequest, raw_request: Request = None):
     thread_id = str(uuid.uuid4())
 
     logger.info(f"[API] 收到分析请求: 原始='{raw_symbol}' → 标准='{symbol}' | thread_id={thread_id}")
+
+    # 研报缓存检查
+    from utils.report_cache import report_cache
+    cached = report_cache.get(symbol)
+    if cached and not request.force_refresh:
+        logger.info(f"[API] 命中研报缓存: {symbol}")
+        return StreamingResponse(
+            _stream_cached_report(symbol, cached, thread_id),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "X-Thread-Id": thread_id, "X-Cache": "HIT"},
+        )
 
     return StreamingResponse(
         _stream_graph_events(symbol, thread_id),
@@ -2782,6 +2822,53 @@ async def get_order_book(symbol: str, depth: int = 5):
 async def get_trades_v2(symbol: str = "", limit: int = 50):
     engine = _get_matching_engine()
     return engine.get_trades(symbol, limit)
+
+
+# ════════════════════════════════════════════════════════════════
+# Analytics — 用户行为埋点
+# ════════════════════════════════════════════════════════════════
+
+_ANALYTICS_DB = Path(TRUE_PROJECT_ROOT) / "data" / "analytics.db"
+
+@app.post("/api/v1/analytics/track", include_in_schema=False)
+async def analytics_track(request: Request):
+    """接收前端埋点数据，存入 SQLite"""
+    try:
+        body = await request.json()
+        import sqlite3
+        conn = sqlite3.connect(str(_ANALYTICS_DB))
+        conn.execute("""CREATE TABLE IF NOT EXISTS events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event TEXT, page TEXT, session TEXT, user TEXT,
+            action TEXT, label TEXT, ts TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )""")
+        conn.execute(
+            "INSERT INTO events (event, page, session, user, action, label, ts) VALUES (?,?,?,?,?,?,?)",
+            (body.get("event"), body.get("page"), body.get("session"),
+             body.get("user"), body.get("action"), body.get("label"), body.get("ts")),
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass  # 埋点不能影响主业务
+    return {"ok": True}
+
+
+@app.get("/admin/analytics", summary="用户行为统计")
+async def admin_analytics(hours: float = 24):
+    """返回最近 N 小时的行为统计"""
+    try:
+        import sqlite3
+        conn = sqlite3.connect(str(_ANALYTICS_DB))
+        cutoff = (datetime.now() - timedelta(hours=hours)).isoformat()
+        pv = conn.execute("SELECT page, COUNT(*) FROM events WHERE event='page_view' AND ts>? GROUP BY page ORDER BY COUNT(*) DESC", (cutoff,)).fetchall()
+        clicks = conn.execute("SELECT action, COUNT(*) FROM events WHERE event='click' AND ts>? GROUP BY action ORDER BY COUNT(*) DESC", (cutoff,)).fetchall()
+        sessions = conn.execute("SELECT COUNT(DISTINCT session) FROM events WHERE ts>?", (cutoff,)).fetchone()[0]
+        users = conn.execute("SELECT COUNT(DISTINCT user) FROM events WHERE user!='anonymous' AND ts>?", (cutoff,)).fetchone()[0]
+        conn.close()
+        return {"page_views": dict(pv), "clicks": dict(clicks), "sessions": sessions, "unique_users": users, "hours": hours}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @app.get("/admin/metrics")

@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>个股深度分析 · CampusQuant 校园财商</title>
+    <meta name="description" content="CampusQuant 个股深度分析：AI 多维度解读基本面、技术面与情绪面，覆盖 A 股、港股、美股，助力大学生做出更明智的投资决策。">
+    <meta name="keywords" content="CampusQuant,校园财商,AI投资,模拟交易,大学生理财,个股分析,股票研究,基本面,技术面,情绪分析">
+    <meta property="og:title" content="个股深度分析 · CampusQuant 校园财商">
+    <meta property="og:description" content="CampusQuant 个股深度分析：AI 多维度解读基本面、技术面与情绪面，覆盖 A 股、港股、美股，助力大学生做出更明智的投资决策。">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://campusquant.store/analysis.html">
+    <meta property="og:site_name" content="CampusQuant 校园财商">
     <!-- ECharts 5 + Marked.js（Markdown 渲染） -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -608,7 +615,7 @@
             </div>
         </div>
 
-        <button class="analyze-btn" id="analyze-btn" onclick="startAnalysis()">
+        <button class="analyze-btn" id="analyze-btn" data-track="analyze_start" onclick="startAnalysis()">
             ▶ 开始 AI 分析
         </button>
 
@@ -1409,7 +1416,9 @@
 </script>
 
 <!-- sidebar + auth widget 由 common.js 统一处理 -->
+<script src="assets/js/analytics.js"></script>
 <script src="assets/js/common.js?v=20260411"></script>
+<script src="assets/js/analytics.js"></script>
 <script src="assets/js/motion.js"></script>
 <script src="assets/js/ui-kit.js"></script>
 <script src="assets/js/command-palette.js"></script>

@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>持仓体检 · CampusQuant 校园财商</title>
+    <meta name="description" content="CampusQuant 持仓体检：输入您的持仓，AI 智能评估风险敞口、集中度与健康评分，为大学生量身定制投资组合优化建议。">
+    <meta name="keywords" content="CampusQuant,校园财商,AI投资,模拟交易,大学生理财,持仓体检,投资组合,风险评估,风控">
+    <meta property="og:title" content="持仓体检 · CampusQuant 校园财商">
+    <meta property="og:description" content="CampusQuant 持仓体检：输入您的持仓，AI 智能评估风险敞口、集中度与健康评分，为大学生量身定制投资组合优化建议。">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://campusquant.store/platforms.html">
+    <meta property="og:site_name" content="CampusQuant 校园财商">
     <!-- Shared design system -->
     <link rel="stylesheet" href="assets/css/tokens.css">
     <link rel="stylesheet" href="assets/css/base.css">
@@ -582,7 +589,7 @@
             <button class="add-pos-btn" onclick="addPosition()">+ 添加持仓</button>
             <button class="add-pos-btn" onclick="autoFillPositions()" style="border-color:var(--primary); color:var(--primary);">📥 导入模拟持仓</button>
 
-            <button class="check-btn" id="check-btn" onclick="startHealthCheck()">
+            <button class="check-btn" id="check-btn" data-track="health_check" onclick="startHealthCheck()">
                 🩺 开始体检
             </button>
         </div>
@@ -843,7 +850,9 @@
 </style>
 
 <!-- sidebar 切换 + auth widget 由 common.js 处理 -->
+<script src="assets/js/analytics.js"></script>
 <script src="assets/js/common.js?v=20260411"></script>
+<script src="assets/js/analytics.js"></script>
 <script src="assets/js/motion.js"></script>
 <script src="assets/js/ui-kit.js"></script>
 <script src="assets/js/command-palette.js"></script>
