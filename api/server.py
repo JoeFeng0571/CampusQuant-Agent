@@ -1050,6 +1050,12 @@ async def _stream_graph_events(
             report_cache.set(symbol, _complete_data)
         except Exception as _cache_err:
             logger.warning(f"[Cache] 写入失败: {_cache_err}")
+        # 写入历史记录
+        try:
+            from utils.analysis_history import save_analysis
+            save_analysis(symbol, _complete_data)
+        except Exception as _hist_err:
+            logger.warning(f"[History] 写入失败: {_hist_err}")
     except Exception as _complete_err:
         logger.error(
             f"[stream] complete 事件构建失败: {type(_complete_err).__name__}: {_complete_err}",
@@ -2822,6 +2828,26 @@ async def get_order_book(symbol: str, depth: int = 5):
 async def get_trades_v2(symbol: str = "", limit: int = 50):
     engine = _get_matching_engine()
     return engine.get_trades(symbol, limit)
+
+
+# ════════════════════════════════════════════════════════════════
+# Analysis History — 分析历史记录
+# ════════════════════════════════════════════════════════════════
+
+@app.get("/api/v1/analysis/history", summary="分析历史记录")
+async def analysis_history(limit: int = 20, offset: int = 0):
+    from utils.analysis_history import get_history
+    records = get_history(limit=limit, offset=offset)
+    return {"records": records, "count": len(records)}
+
+
+@app.get("/api/v1/analysis/history/{record_id}", summary="历史研报详情")
+async def analysis_history_detail(record_id: int):
+    from utils.analysis_history import get_report
+    report = get_report(record_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="记录不存在")
+    return report
 
 
 # ════════════════════════════════════════════════════════════════
