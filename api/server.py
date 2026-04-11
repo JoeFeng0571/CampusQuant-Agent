@@ -2854,7 +2854,8 @@ async def analysis_history_detail(record_id: int):
 # Analytics — 用户行为埋点
 # ════════════════════════════════════════════════════════════════
 
-_ANALYTICS_DB = Path(TRUE_PROJECT_ROOT) / "data" / "analytics.db"
+from pathlib import Path as _Path
+_ANALYTICS_DB = _Path(TRUE_PROJECT_ROOT) / "data" / "analytics.db"
 
 @app.post("/api/v1/analytics/track", include_in_schema=False)
 async def analytics_track(request: Request):
