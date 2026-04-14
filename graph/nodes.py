@@ -372,6 +372,202 @@ def _increment_tool_count(state_counts: dict, node_name: str) -> dict:
 
 
 # ════════════════════════════════════════════════════════════════
+# 【v2.2 P0-A】Evidence citations — 代码生成结构化引文
+# ════════════════════════════════════════════════════════════════
+# 设计原则（吸收 EMNLP 2025 论文方法 + 外部审阅建议）:
+#   - 基本面和技术面本来就是结构化数据(PE/PB/ROE/MA/MACD/...),
+#     让 LLM 复述这些数字既烧 token 又有幻觉风险。
+#   - 正确做法: 代码直接从数据字典拼装引文, LLM 只负责在 reasoning 里做解释。
+#   - 只有 sentiment(新闻/RAG)是非结构化文本,需要 LLM 抽取 + 子串校验。
+
+def build_fundamental_citations(data: dict | None) -> list[str]:
+    """
+    从基本面数据字典代码生成 2-4 条结构化引文(零 LLM,零幻觉)。
+
+    Args:
+        data: fundamental_data_dict,通常含 pe / pb / roe / eps / revenue_yoy / net_profit_yoy 等
+
+    Returns:
+        2-4 条字符串引文,格式化为"字段名=值(单位/注释)"便于下游直接展示
+    """
+    if not data or not isinstance(data, dict):
+        return []
+
+    cites: list[str] = []
+
+    pe = data.get("pe") or data.get("PE")
+    if pe is not None:
+        try:
+            pe_f = float(pe)
+            industry_pe = data.get("industry_pe") or data.get("行业PE")
+            if industry_pe is not None:
+                cites.append(f"PE={pe_f:.1f}（行业中位数约 {float(industry_pe):.1f}）")
+            else:
+                cites.append(f"PE={pe_f:.1f}")
+        except (TypeError, ValueError):
+            pass
+
+    pb = data.get("pb") or data.get("PB")
+    if pb is not None:
+        try:
+            cites.append(f"PB={float(pb):.2f}")
+        except (TypeError, ValueError):
+            pass
+
+    roe = data.get("roe") or data.get("ROE")
+    if roe is not None:
+        try:
+            cites.append(f"ROE={float(roe):.1f}%")
+        except (TypeError, ValueError):
+            pass
+
+    rev_yoy = data.get("revenue_yoy") or data.get("营收同比")
+    if rev_yoy is not None:
+        try:
+            cites.append(f"营收同比 {float(rev_yoy):+.1f}%")
+        except (TypeError, ValueError):
+            pass
+
+    profit_yoy = data.get("net_profit_yoy") or data.get("净利润同比")
+    if profit_yoy is not None:
+        try:
+            cites.append(f"净利润同比 {float(profit_yoy):+.1f}%")
+        except (TypeError, ValueError):
+            pass
+
+    eps = data.get("eps") or data.get("EPS")
+    if eps is not None and len(cites) < 4:
+        try:
+            cites.append(f"EPS={float(eps):.2f}")
+        except (TypeError, ValueError):
+            pass
+
+    return cites[:4]
+
+
+def build_technical_citations(indicators: dict | None) -> list[str]:
+    """
+    从技术指标字典代码生成 2-4 条结构化引文(零 LLM,零幻觉)。
+
+    输入:
+      indicators: 来自 _calc_indicators_from_ohlcv 的 "indicators" 子字典
+      必须含 MA5/MA20/MA60/RSI14/MACD/MACD_signal/BOLL_pct_B/ATR_pct 等
+      (依赖 P1-A 升级后的字段)
+    """
+    if not indicators or not isinstance(indicators, dict):
+        return []
+
+    cites: list[str] = []
+
+    ma5 = indicators.get("MA5")
+    ma20 = indicators.get("MA20")
+    ma60 = indicators.get("MA60")
+    alignment = indicators.get("ma_alignment", "")
+    if ma5 is not None and ma20 is not None and ma60 is not None:
+        cites.append(
+            f"MA5={ma5:.2f} / MA20={ma20:.2f} / MA60={ma60:.2f}"
+            f"（{alignment or '排列方式待定'}）"
+        )
+
+    rsi = indicators.get("RSI14")
+    if rsi is not None:
+        if rsi > 70:
+            state = "超买"
+        elif rsi < 30:
+            state = "超卖"
+        else:
+            state = "中性"
+        cites.append(f"RSI14={rsi:.1f}（{state}）")
+
+    macd = indicators.get("MACD")
+    sig = indicators.get("MACD_signal")
+    if macd is not None and sig is not None:
+        cross = "金叉" if indicators.get("MACD_golden_cross") else (
+            "多头" if macd > sig else "空头"
+        )
+        cites.append(f"MACD={macd:.3f} / Signal={sig:.3f}（{cross}）")
+
+    boll_b = indicators.get("BOLL_pct_B")
+    if boll_b is not None and len(cites) < 4:
+        if boll_b > 0.85:
+            pos = "近上轨"
+        elif boll_b < 0.15:
+            pos = "近下轨"
+        else:
+            pos = "通道中位"
+        cites.append(f"BOLL_%B={boll_b:.2f}（{pos}）")
+
+    atr_pct = indicators.get("ATR_pct")
+    atr_pct_pct = indicators.get("ATR_percentile_90d")
+    if atr_pct is not None and len(cites) < 4:
+        if atr_pct_pct is not None:
+            tier = "高波动" if atr_pct_pct > 0.8 else "低波动" if atr_pct_pct < 0.2 else "常态"
+            cites.append(
+                f"ATR%={atr_pct:.1f}%（90 日分位 {atr_pct_pct*100:.0f}%，{tier}）"
+            )
+        else:
+            cites.append(f"ATR%={atr_pct:.1f}%（14 日波动率）")
+
+    vol_ratio = indicators.get("volume_ratio")
+    if vol_ratio is not None and len(cites) < 4:
+        tag = "放量" if vol_ratio >= 1.5 else "缩量" if vol_ratio < 0.7 else "平量"
+        cites.append(f"量比={vol_ratio:.2f}（{tag}）")
+
+    return cites[:4]
+
+
+def _validate_llm_citations(
+    citations: list[str] | None,
+    source_text: str,
+    min_ratio: float = 0.6,
+    max_keep: int = 2,
+) -> list[str]:
+    """
+    sentiment_node 专用: 只保留 LLM 输出的引文中, 至少 min_ratio 字符能在 source_text 中找到的条目。
+
+    为什么只对 sentiment 做校验:
+      - fundamental/technical 的引文由 build_*_citations 代码生成, 无需校验
+      - sentiment 的 news_text 和 rag_context 是非结构化文本, LLM 可能编造引文
+
+    Args:
+        citations: LLM 输出的 evidence_citations 列表
+        source_text: 源文本(新闻 + RAG 拼接后的字符串)
+        min_ratio: 引文需要在 source_text 中找到的最小字符比例 (默认 60%)
+        max_keep: 最多保留条数 (默认 2)
+
+    Returns:
+        通过校验的引文列表,最多 max_keep 条
+    """
+    if not citations or not source_text:
+        return []
+
+    valid: list[str] = []
+    src_lower = source_text.lower()
+
+    for c in citations:
+        if not isinstance(c, str) or len(c) < 10:
+            continue
+        c_clean = c.strip()
+        if len(c_clean) < 10:
+            continue
+        c_lower = c_clean.lower()
+
+        # 策略 1: 全串直接包含(最严格)
+        if c_lower in src_lower:
+            valid.append(c_clean)
+            continue
+
+        # 策略 2: 前 N 个字符 或 后 N 个字符 能在 source 中找到
+        window = max(10, int(len(c_clean) * min_ratio))
+        prefix_ok = c_lower[:window] in src_lower
+        suffix_ok = c_lower[-window:] in src_lower
+        if prefix_ok or suffix_ok:
+            valid.append(c_clean)
+
+    return valid[:max_keep]
+
+
+# ════════════════════════════════════════════════════════════════
 # 置信度惩罚函数（P0 修复：原文档描述的函数在代码中缺失）
 # ════════════════════════════════════════════════════════════════
 
@@ -1000,6 +1196,8 @@ price_target 使用绝对价格数值。
         # 将 key_metrics 注入 fundamental_report，确保 server.py 能提取 financial_chart_data
         # （无论成功还是降级路径，前端 ECharts 都能获得 revenue_history / profit_history）
         report_dict["key_metrics"] = fundamental_data_dict if fundamental_data_dict else {}
+        # 【v2.2 P0-A】代码生成结构化引文,覆盖 LLM 可能填的值,零幻觉
+        report_dict["evidence_citations"] = build_fundamental_citations(fundamental_data_dict)
         return {
             "fundamental_report": report_dict,
             "fundamental_data":   fundamental_data_dict if fundamental_data_dict else None,
@@ -1022,6 +1220,8 @@ price_target 使用绝对价格数值。
             "price_target": None, "signal_strength": "WEAK",
             # 抢救已获取的财务数据，确保 server.py 能提取 financial_chart_data
             "key_metrics": fundamental_data_dict if fundamental_data_dict else {},
+            # 【v2.2 P0-A】降级路径也尝试生成引文
+            "evidence_citations": build_fundamental_citations(fundamental_data_dict),
         }
         return {
             "fundamental_report": fallback,
@@ -1135,6 +1335,8 @@ async def technical_node(state: TradingGraphState) -> dict:
         _track_llm_response(report, config.DASHSCOPE_MODEL, "technical_node")
 
         report_dict = report.model_dump(mode='json')
+        # 【v2.2 P0-A】代码生成结构化引文,覆盖 LLM 可能填的值,零幻觉
+        report_dict["evidence_citations"] = build_technical_citations(indicators)
         log_msg = _log_entry(
             "technical_node",
             f"技术分析: {report.recommendation} | 置信度: {report.confidence:.2f} | "
@@ -1162,6 +1364,8 @@ async def technical_node(state: TradingGraphState) -> dict:
             "reasoning": f"技术分析异常降级，系统信号={sig}: {str(e)}",
             "key_factors": [f"系统信号: {sig}"], "risk_factors": [],
             "price_target": None, "signal_strength": "WEAK",
+            # 【v2.2 P0-A】降级路径也生成引文
+            "evidence_citations": build_technical_citations(indicators),
         }
         return {
             "technical_report": fallback,
@@ -1264,6 +1468,11 @@ async def sentiment_node(state: TradingGraphState) -> dict:
 
 请优先基于真实新闻事件分析市场情绪，结合量价动量特征，给出 BUY/SELL/HOLD 建议。
 若无新闻数据，请明确说明分析仅基于量价推断，并相应降低置信度（≤0.50）。
+
+【v2.2 P0-A 证据引文要求】
+请在输出的 evidence_citations 字段中填入 1-2 条**逐字复制**自上方"最新新闻资讯"或"研报知识库"
+的原文片段，每条 ≤100 字。严禁改写、总结、拼接、翻译。用于下游基金经理独立审核原始证据，
+不是给你总结用的。如果两个源都为空则留空列表。
 """
 
     try:
@@ -1278,11 +1487,36 @@ async def sentiment_node(state: TradingGraphState) -> dict:
         _track_llm_response(report, config.DASHSCOPE_MODEL, "sentiment_node")
 
         report_dict = report.model_dump(mode='json')
+        # 【v2.2 P0-A】子串校验: 只对 sentiment 的 LLM 抽取引文做校验
+        # 源文本 = 新闻 + RAG 拼接
+        src_text_for_validation = f"{news_text}\n{sent_rag_context or ''}"
+        raw_cites = report_dict.get("evidence_citations") or []
+        valid_cites = _validate_llm_citations(
+            raw_cites, src_text_for_validation,
+            min_ratio=0.6, max_keep=2,
+        )
+        n_rejected = len(raw_cites) - len(valid_cites)
+        if n_rejected > 0:
+            logger.warning(
+                f"[sentiment_node] LLM 引文幻觉过滤: {n_rejected}/{len(raw_cites)} 条被剔除"
+            )
+            try:
+                from observability.metrics import metrics
+                metrics.counter(
+                    "evidence_citation_rejection_total",
+                    value=n_rejected,
+                    node="sentiment_node",
+                )
+            except Exception:
+                pass  # observability 不可用不影响主路径
+        report_dict["evidence_citations"] = valid_cites
+
         has_real_news = "新闻获取失败" not in news_text and "获取失败" not in news_text and "暂无" not in news_text
         log_msg = _log_entry(
             "sentiment_node",
             f"舆情分析: {report.recommendation} | 置信度: {report.confidence:.2f} | "
-            f"真实新闻: {'有' if has_real_news else '无'}"
+            f"真实新闻: {'有' if has_real_news else '无'} | "
+            f"引文: {len(valid_cites)}/{len(raw_cites)} 条通过校验"
         )
         logger.info(log_msg)
 
@@ -1306,6 +1540,8 @@ async def sentiment_node(state: TradingGraphState) -> dict:
             "reasoning": f"舆情分析异常: {str(e)}",
             "key_factors": [], "risk_factors": [],
             "price_target": None, "signal_strength": "WEAK",
+            # 【v2.2 P0-A】降级路径无引文(因为没有 LLM 输出)
+            "evidence_citations": [],
         }
         return {
             "sentiment_report": fallback,
@@ -1332,8 +1568,80 @@ _MARKET_WEIGHTS = {
     "US_STOCK": {"fundamental": 0.50, "technical": 0.25, "sentiment": 0.25},
 }
 
-# 信号评分映射（用于数学预加权）
-_REC_SCORE = {"BUY": 1.0, "HOLD": 0.5, "SELL": 0.0}
+# 【v2.2 P1-B】连续冲突分数阈值: score >= 此值触发辩论
+_CONFLICT_SCORE_THRESHOLD = 0.60
+
+
+def _conflict_score(
+    recs: list[str],
+    confs: list[float],
+) -> dict:
+    """
+    【v2.2 P1-B】计算三方观点的冲突强度,返回 0~1 的连续分数。
+
+    替代原 has_conflict 的二元 flag。
+
+    输入:
+        recs: [fund_rec, tech_rec, sent_rec] 三方 recommendation
+        confs: 同序的 3 个 confidence 值
+
+    返回:
+        {
+            "score": float,          # 0~1,冲突强度
+            "dir_std": float,        # 0~0.816,方向分散度
+            "max_conflict": float,   # 0~1,最自信但最矛盾一对的 min(conf)
+            "should_debate": bool,   # score >= 0.60
+        }
+
+    计算规则:
+      1. dir_std: 把 BUY/HOLD/SELL 映射到 {+1, 0, -1},算总体标准差
+         全同方向 → 0, 极端分散 [+1,0,-1] → 0.816
+      2. max_conflict: 遍历三对,找"方向相反"的一对,取双方置信度的最小值
+         (因为若一方置信度很低,这个矛盾并不可怕)
+      3. 综合分 = 0.6 * dir_std_normalized + 0.4 * max_conflict
+         dir_std_normalized = dir_std / 0.816
+      4. should_debate = score >= 0.60
+    """
+    import statistics as _stat
+
+    DIR = {"BUY": 1, "HOLD": 0, "SELL": -1}
+    try:
+        dirs = [DIR[r] for r in recs]
+    except KeyError:
+        return {"score": 0.0, "dir_std": 0.0, "max_conflict": 0.0, "should_debate": False}
+
+    # 方向分散度
+    dir_std = _stat.pstdev(dirs)
+
+    # 最自信但最矛盾的一对
+    max_conflict = 0.0
+    for i, j in [(0, 1), (0, 2), (1, 2)]:
+        if dirs[i] * dirs[j] < 0:  # 一正一负,真矛盾
+            pair_min_conf = min(confs[i], confs[j])
+            max_conflict = max(max_conflict, pair_min_conf)
+
+    # 综合冲突分
+    dir_std_normalized = dir_std / 0.816 if dir_std > 0 else 0.0
+    score = 0.6 * dir_std_normalized + 0.4 * max_conflict
+    score = max(0.0, min(1.0, score))
+
+    return {
+        "score":        round(score, 3),
+        "dir_std":      round(dir_std, 3),
+        "max_conflict": round(max_conflict, 3),
+        "should_debate": score >= _CONFLICT_SCORE_THRESHOLD,
+    }
+
+
+# 【v2.2 P0-B】信号方向分 - 对称映射(替代非对称的 {BUY=1, HOLD=0.5, SELL=0})
+# 新: BUY=+1, HOLD=0, SELL=-1,让 HOLD 真正意味着"中性"而不是"看多 0.5 分"
+_DIR_SCORE = {"BUY": 1.0, "HOLD": 0.0, "SELL": -1.0}
+
+# 置信度下限:避免 0 分析师(conf=0)完全不贡献信号(至少贡献 0.3 的权重)
+_CONF_FLOOR_FOR_SCORING = 0.3
+
+# 对称的 BUY/SELL 阈值(替代原 0.52/0.40 不对称多头偏见)
+_SCORE_THRESHOLD = 0.20
 
 
 def _compute_weighted_score(
@@ -1341,60 +1649,108 @@ def _compute_weighted_score(
     weights: dict, market_type: str,
 ) -> dict:
     """
-    【审计修复 P1-2】在 LLM 调用前完成数学预加权计算。
-    将三份报告的建议和置信度转化为数值评分，计算加权结果。
-    此结果作为"锚点"注入 portfolio_node 的 Prompt，
-    防止 LLM 主观加权偏离预定权重。
+    【v2.2 P0-B 重写】决策聚合数学重写。
+
+    相对 v2.1 的 4 个关键修复:
+
+    1. 方向分重构 {-1, 0, +1} 替代 {0, 0.5, 1}
+       问题: 原方案下 "HOLD × conf=1.0 = 0.5" 与 "BUY × conf=0.5 = 0.5" 不可区分
+       修复: DIR={-1, 0, +1} 后 HOLD 对应 0,置信度再强也不会被误读为弱 BUY
+
+    2. 对称阈值 ±0.20 替代 0.52 / 0.40
+       问题: v2.1 注释自己说"降低 BUY 门槛 0.60→0.52",主动引入多头偏见
+       修复: ±0.20 对称阈值,BUY 和 SELL 触发条件完全一致,消除偏见
+
+    3. 分歧惩罚 disagreement_penalty = 1 - 0.4 * dir_std
+       问题: 三方方向分散时加权分应该向 0 靠拢(代表"不确定"),v2.1 没有这机制
+       修复: 方向标准差越大,penalty 越低,最低 0.67(保留部分信号)
+
+    4. 多数投票阈值从 0.50 提到 0.65
+       问题: 0.50 恰好是 fallback 下限,任何时候多数票都会覆盖加权分
+       修复: 提到 0.65 才算"真有信心的多数",给权重配置留余地
+
+    输入: 三份 AnalystReport 的 recommendation + confidence
+    输出: dict 含 weighted_score / pre_signal / disagreement_penalty / breakdown
     """
+    import statistics as _stat
+
     fw = weights.get("fundamental", 0.35)
     tw = weights.get("technical",   0.40)
     sw = weights.get("sentiment",   0.25)
 
-    f_rec  = fundamental.get("recommendation", "HOLD")
-    t_rec  = technical.get("recommendation", "HOLD")
-    s_rec  = sentiment.get("recommendation", "HOLD")
-    f_conf = float(fundamental.get("confidence", 0.5))
-    t_conf = float(technical.get("confidence", 0.5))
-    s_conf = float(sentiment.get("confidence", 0.5))
+    f_rec = fundamental.get("recommendation", "HOLD")
+    t_rec = technical.get("recommendation", "HOLD")
+    s_rec = sentiment.get("recommendation", "HOLD")
 
-    # 加权信号评分（1.0=买，0.5=持，0.0=卖）× 置信度
-    f_score = _REC_SCORE.get(f_rec, 0.5) * f_conf
-    t_score = _REC_SCORE.get(t_rec, 0.5) * t_conf
-    s_score = _REC_SCORE.get(s_rec, 0.5) * s_conf
+    # 置信度下限保护,避免某路报告因 fallback 给 0 分完全失声
+    def _clip(c: float) -> float:
+        try:
+            return max(_CONF_FLOOR_FOR_SCORING, float(c))
+        except (TypeError, ValueError):
+            return _CONF_FLOOR_FOR_SCORING
 
-    weighted_score = fw * f_score + tw * t_score + sw * s_score
-    avg_confidence = fw * f_conf + tw * t_conf + sw * s_conf
+    f_conf = _clip(fundamental.get("confidence", 0.5))
+    t_conf = _clip(technical.get("confidence", 0.5))
+    s_conf = _clip(sentiment.get("confidence", 0.5))
 
-    # ── 方向判定（双重机制防 HOLD 偏差）──────────────────────
-    # 机制1: 加权阈值（降低 BUY 门槛 0.60→0.52）
-    if weighted_score >= 0.52:
+    # ── 方向分(-1 / 0 / +1) × 置信度 × 权重 ───────────────────
+    f_dir = _DIR_SCORE.get(f_rec, 0.0)
+    t_dir = _DIR_SCORE.get(t_rec, 0.0)
+    s_dir = _DIR_SCORE.get(s_rec, 0.0)
+
+    f_contrib = fw * f_dir * f_conf
+    t_contrib = tw * t_dir * t_conf
+    s_contrib = sw * s_dir * s_conf
+    raw_score = f_contrib + t_contrib + s_contrib  # 范围 -1.0 ~ +1.0
+
+    # ── 分歧惩罚: 方向标准差越大 → 加权分向 0 靠拢 ─────────────
+    # dir_std 范围 0(全同方向) ~ 0.816(极端分散, 如 [+1, 0, -1])
+    # disagreement_penalty 范围 1.0 ~ 0.67
+    dir_std = _stat.pstdev([f_dir, t_dir, s_dir])
+    disagreement_penalty = max(0.67, 1.0 - 0.4 * dir_std)
+    adjusted_score = raw_score * disagreement_penalty
+
+    # ── 方向判定: 对称阈值 ±0.20 ─────────────────────────────
+    if adjusted_score >= _SCORE_THRESHOLD:
         pre_signal = "BUY"
-    elif weighted_score <= 0.40:
+    elif adjusted_score <= -_SCORE_THRESHOLD:
         pre_signal = "SELL"
     else:
         pre_signal = "HOLD"
 
-    # 机制2: 多数投票覆盖
-    # 如果 2/3 分析师方向一致且各自 confidence > 0.50，覆盖加权结果
-    recs = [f_rec, t_rec, s_rec]
-    confs = [f_conf, t_conf, s_conf]
-    buy_votes  = sum(1 for r, c in zip(recs, confs) if r == "BUY"  and c > 0.50)
-    sell_votes = sum(1 for r, c in zip(recs, confs) if r == "SELL" and c > 0.50)
+    # ── 多数投票覆盖: 提到 0.65 置信度阈值 ─────────────────────
+    # 只有 2/3 同方向且同方向平均 conf ≥ 0.65 才能翻越加权分数
+    recs = [(f_rec, f_conf), (t_rec, t_conf), (s_rec, s_conf)]
+    buy_confs = [c for r, c in recs if r == "BUY"]
+    sell_confs = [c for r, c in recs if r == "SELL"]
 
-    if buy_votes >= 2 and pre_signal != "BUY":
+    if len(buy_confs) >= 2 and _stat.mean(buy_confs) >= 0.65:
         pre_signal = "BUY"
-    elif sell_votes >= 2 and pre_signal != "SELL":
+    elif len(sell_confs) >= 2 and _stat.mean(sell_confs) >= 0.65:
         pre_signal = "SELL"
 
+    # ── 综合置信度: 加权平均后也被分歧惩罚拉低 ────────────────
+    avg_confidence = fw * f_conf + tw * t_conf + sw * s_conf
+    final_confidence = avg_confidence * disagreement_penalty
+
     return {
-        "weighted_score":  round(weighted_score, 3),
-        "avg_confidence":  round(avg_confidence, 3),
-        "pre_signal":      pre_signal,
-        "majority_vote":   f"BUY×{buy_votes} SELL×{sell_votes} (≥2票覆盖)",
+        "weighted_score":       round(adjusted_score, 3),         # -1 ~ +1 范围
+        "raw_score":            round(raw_score, 3),
+        "avg_confidence":       round(final_confidence, 3),
+        "disagreement_penalty": round(disagreement_penalty, 3),
+        "dir_std":              round(dir_std, 3),
+        "pre_signal":           pre_signal,
+        "majority_vote":        (
+            f"BUY×{len(buy_confs)} SELL×{len(sell_confs)}"
+            + (" (覆盖触发)" if pre_signal in ("BUY", "SELL")
+               and ((len(buy_confs) >= 2 and _stat.mean(buy_confs) >= 0.65)
+                    or (len(sell_confs) >= 2 and _stat.mean(sell_confs) >= 0.65))
+               else "")
+        ),
         "breakdown": {
-            f"基本面({fw:.0%})": f"{f_rec}×{f_conf:.2f}={fw*f_score:.3f}",
-            f"技术面({tw:.0%})": f"{t_rec}×{t_conf:.2f}={tw*t_score:.3f}",
-            f"舆情({sw:.0%})":   f"{s_rec}×{s_conf:.2f}={sw*s_score:.3f}",
+            f"基本面({fw:.0%})": f"{f_rec}({f_dir:+.0f})×{f_conf:.2f}→{f_contrib:+.3f}",
+            f"技术面({tw:.0%})": f"{t_rec}({t_dir:+.0f})×{t_conf:.2f}→{t_contrib:+.3f}",
+            f"舆情({sw:.0%})":   f"{s_rec}({s_dir:+.0f})×{s_conf:.2f}→{s_contrib:+.3f}",
         },
     }
 
@@ -1424,30 +1780,26 @@ async def portfolio_node(state: TradingGraphState) -> dict:
     fund_rec    = fundamental.get("recommendation", "HOLD")
     tech_rec    = technical.get("recommendation", "HOLD")
     sent_rec    = sentiment.get("recommendation", "HOLD")
-    sent_conf   = sentiment.get("confidence", 0.0)
+    fund_conf   = float(fundamental.get("confidence", 0.5) or 0.5)
+    tech_conf   = float(technical.get("confidence", 0.5) or 0.5)
+    sent_conf   = float(sentiment.get("confidence", 0.5) or 0.5)
 
-    # 冲突检测：基本面 vs 技术面直接矛盾
-    fund_tech_conflict = (
-        fund_rec in ("BUY", "SELL")
-        and tech_rec in ("BUY", "SELL")
-        and fund_rec != tech_rec
+    # 【v2.2 P1-B】连续冲突分数(替代原二元 has_conflict 检测)
+    # 原设计只检测两种硬模式:"基本面 vs 技术面方向相反" 和 "情绪以 conf≥0.8 强烈反对"
+    # 遗漏:"两方 HOLD + 一方强 BUY/SELL"、"三方分散 + 中等置信度"等场景
+    conflict_info = _conflict_score(
+        [fund_rec, tech_rec, sent_rec],
+        [fund_conf, tech_conf, sent_conf],
     )
-
-    # 冲突检测：基本面+技术面一致，但舆情以高置信度强烈反对
-    sentiment_dissent = False
-    if (
-        fund_rec == tech_rec
-        and fund_rec in ("BUY", "SELL")
-        and sent_rec in ("BUY", "SELL")
-        and sent_rec != fund_rec
-        and sent_conf >= 0.8
-    ):
-        sentiment_dissent = True
-
     has_conflict = (
         not is_revision
         and debate_outcome is None
-        and (fund_tech_conflict or sentiment_dissent)
+        and conflict_info["should_debate"]
+    )
+    logger.info(
+        f"[portfolio_node] conflict_score={conflict_info['score']:.2f} "
+        f"(dir_std={conflict_info['dir_std']:.2f}, max_conflict={conflict_info['max_conflict']:.2f}) "
+        f"→ has_conflict={has_conflict}"
     )
 
     weights = _MARKET_WEIGHTS.get(market_type, _MARKET_WEIGHTS["US_STOCK"])
@@ -1531,26 +1883,50 @@ async def portfolio_node(state: TradingGraphState) -> dict:
 - risk_factors 至少2条
 - investment_thesis 必填，1-2句话"""
 
+    # 【v2.2 P0-A】证据化改造: 提取三方的 evidence_citations,构造证据块
+    # 按 EMNLP 2025 论文《What Should LLM Agents Share?》的 policyEvidence 方式,
+    # 证据优先于结论,结论放到 prompt 底部加"仅供参考"前缀削弱锚定效应。
+    def _cite_block(citations: list[str]) -> str:
+        if not citations:
+            return "  （暂无引文）"
+        return "\n".join(f"  • {c}" for c in citations)
+
+    fund_cites = fundamental.get("evidence_citations", []) or []
+    tech_cites = technical.get("evidence_citations", []) or []
+    sent_cites = sentiment.get("evidence_citations", []) or []
+
     user_prompt = f"""
-请综合以下研究报告，对 **{symbol}** 做出投资决策。
+请综合以下三位分析师提交的**原始证据与分析**，对 **{symbol}** 做出独立投资决策。
 
-【基本面报告】
-- 建议: {fund_rec} | 置信度: {fundamental.get('confidence', 0):.2f}
-- 核心逻辑: {fundamental.get('reasoning', 'N/A')[:200]}
-- 关键因素: {', '.join(fundamental.get('key_factors', [])[:3])}
+【一、基本面证据（结构化引文，由基本面节点从真实财务数据代码生成，零幻觉）】
+{_cite_block(fund_cites)}
+分析推理: {fundamental.get('reasoning', 'N/A')[:180]}
 
-【技术面报告】
-- 建议: {tech_rec} | 置信度: {technical.get('confidence', 0):.2f}
-- 核心逻辑: {technical.get('reasoning', 'N/A')[:200]}
+【二、技术面证据（结构化引文，由技术面节点从 OHLCV 指标代码生成，零幻觉）】
+{_cite_block(tech_cites)}
+分析推理: {technical.get('reasoning', 'N/A')[:180]}
 
-【舆情报告】
-- 建议: {sentiment.get('recommendation', 'HOLD')} | 置信度: {sentiment.get('confidence', 0):.2f}
-- 核心逻辑: {sentiment.get('reasoning', 'N/A')[:200]}
+【三、舆情证据（由舆情节点从原始新闻/研报逐字抽取，已通过子串校验）】
+{_cite_block(sent_cites)}
+分析推理: {sentiment.get('reasoning', 'N/A')[:180]}
 
 【宏观知识参考】
-{rag_context[:600] if rag_context else '暂无'}
+{rag_context[:500] if rag_context else '暂无'}
 
-请给出最终的综合投资建议（BUY/SELL/HOLD），包含详细推理。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【各分析师的结论仅供参考，勿轻易锚定】
+基本面建议: {fund_rec}（置信度 {fundamental.get('confidence', 0):.2f}）
+技术面建议: {tech_rec}（置信度 {technical.get('confidence', 0):.2f}）
+舆情建议:   {sent_rec}（置信度 {sent_conf:.2f}）
+
+【量化预加权参考锚点】（数学聚合结果，非结论，供参照）
+{pre_signal_text}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+**重要指令**:
+请优先从上方三方的**原始证据引文**出发独立推理,再参考结论和预加权锚点。
+如果你的判断与多数分析师不一致,必须在 reasoning 中明确指出你更相信的
+具体证据引文(引用字段名或片段)。证据本身比结论更可信。
 """
 
     try:
@@ -1727,31 +2103,48 @@ async def debate_node(state: TradingGraphState) -> dict:
 
 注意: confidence_after_debate 是 0.0~1.0 的数字，不是字符串。resolved_recommendation 只能是 BUY、SELL 或 HOLD。"""
 
-    # 论点摘要（LLM 生成，非真实多轮对话日志）
+    # 【v2.2 P0-A】辩论节点证据化改造
+    # 让裁判 LLM 看到的是**结构化证据对峙**(真实数字 + 状态标签),而非两个自信的结论。
+    # 这样符合 EMNLP 论文 policyEvidence 的思路,减少裁判的锚定偏差。
+    fund_cites = fundamental.get("evidence_citations", []) or []
+    tech_cites = technical.get("evidence_citations", []) or []
+
+    def _cite_block(citations: list[str]) -> str:
+        if not citations:
+            return "    (暂无结构化引文)"
+        return "\n".join(f"    • {c}" for c in citations)
+
     bull_argument = (
-        f"【第{debate_rounds + 1}轮多头论点】\n"
-        f"立场: {fund_rec} | 置信度: {fundamental.get('confidence', 0.5):.2f}\n"
-        f"论据: {fund_logic}\n"
-        f"关键因素: {', '.join(fundamental.get('key_factors', [])[:3])}"
+        f"【第{debate_rounds + 1}轮 · 多头方证据(基本面分析师,结构化引文,代码生成)】\n"
+        f"{_cite_block(fund_cites)}\n"
+        f"【多头方核心论点】{fund_logic}"
     )
     bear_argument = (
-        f"【第{debate_rounds + 1}轮空头论点】\n"
-        f"立场: {tech_rec} | 置信度: {technical.get('confidence', 0.5):.2f}\n"
-        f"论据: {tech_logic}\n"
-        f"关键因素: {', '.join(technical.get('key_factors', [])[:3])}"
+        f"【第{debate_rounds + 1}轮 · 空头方证据(技术面分析师,结构化引文,代码生成)】\n"
+        f"{_cite_block(tech_cites)}\n"
+        f"【空头方核心论点】{tech_logic}"
     )
 
-    user_prompt = f"""【辩论议题】{symbol} 当前应该 BUY 还是 SELL？
+    user_prompt = f"""【辩论议题】{symbol} 当前应该 BUY 还是 SELL?
 
 {bull_argument}
 
 {bear_argument}
 
-【外部研报与宏观事实（作为裁判裁决依据）】
+【外部研报与宏观事实(作为裁判裁决依据)】
 {debate_rag_context if debate_rag_context else '暂无外部研报参考'}
 
-请主持本次辩论，总结双方核心论点，分析根本分歧，并给出裁决。
-严格按照 system prompt 中规定的 8 个字段名输出 JSON，不得添加、删除或重命名任何字段。"""
+请基于**双方的原始数据证据**(而不是他们的结论强度)主持本次辩论,
+总结双方核心论点、分析根本分歧、给出裁决。
+
+指令:
+- 优先看引文块里的真实数字而不是论点摘要
+- 如果基本面证据(PE/ROE/营收)强,优先倾向多头
+- 如果技术面证据(MA 空头排列/MACD 死叉/高 ATR)强,优先倾向空头
+- 两侧证据强度相当时,按 CampusQuant 保守原则 HOLD
+- 裁决后 confidence 应适度降低(通常 0.1-0.2)体现辩论后的不确定性
+
+严格按照 system prompt 中规定的 8 个字段名输出 JSON,不得添加、删除或重命名任何字段。"""
 
     messages = [
         SystemMessage(content=system_prompt),
@@ -1986,6 +2379,28 @@ async def risk_node(state: TradingGraphState) -> dict:
             decision_dict["stop_loss_pct"] = 5.0
             decision_dict.setdefault("conditions", []).append("止损比例已由系统修正为5%（最低有效止损）")
 
+        # ── 【v2.2 P1-D 部分】ATR 动态止损 ────────────────────────────
+        # 高波动股票需要更宽的止损,否则会被正常波动扫出。
+        # 规则: stop_loss_pct = max(LLM 给的, 2 × ATR%, 5%)
+        # 注意: P1-D 的 Kelly 仓位校准版依赖 decisions 表的 90d outcome 数据,
+        #       推迟到 Phase 13 再做,本阶段只启用止损这一半。
+        try:
+            atr_pct_f = float(atr_pct) if atr_pct is not None else 0.0
+        except (TypeError, ValueError):
+            atr_pct_f = 0.0
+        atr_based_stop = 2.0 * atr_pct_f
+        llm_stop = decision_dict["stop_loss_pct"]
+        dynamic_stop = max(llm_stop, atr_based_stop, 5.0)
+        if dynamic_stop > llm_stop + 0.5:  # 加 0.5 pct 缓冲,避免 log 刷屏
+            logger.info(
+                f"[risk_node] ATR 动态止损生效: LLM={llm_stop:.1f}% → "
+                f"max(LLM, 2×ATR={atr_based_stop:.1f}%, 5%) = {dynamic_stop:.1f}%"
+            )
+            decision_dict.setdefault("conditions", []).append(
+                f"止损按 2×ATR 动态调整: {llm_stop:.1f}% → {dynamic_stop:.1f}%"
+            )
+        decision_dict["stop_loss_pct"] = dynamic_stop
+
         # ── ATR 硬阻断（P1 修复：代码层强制执行，非 Prompt 约束）────────
         new_status, new_pct, atr_block_reason = _apply_atr_hard_block(
             decision_dict["approval_status"],
@@ -2039,11 +2454,20 @@ async def risk_node(state: TradingGraphState) -> dict:
 
     except Exception as e:
         _log_node_error("risk_node", e)
+        # 【v2.2 P1-D】fallback 路径也启用 ATR 动态止损,避免高波动股硬编码 7% 被扫
+        try:
+            atr_pct_f = float(atr_pct) if atr_pct is not None else 0.0
+        except (TypeError, ValueError):
+            atr_pct_f = 0.0
+        dynamic_stop = max(7.0, 2.0 * atr_pct_f)
         fallback_decision = {
             "approval_status": "REJECTED", "risk_level": "HIGH",
-            "position_pct": 5.0, "stop_loss_pct": 7.0, "take_profit_pct": 15.0,
+            "position_pct": 5.0, "stop_loss_pct": dynamic_stop, "take_profit_pct": 15.0,
             "rejection_reason": f"风控评估异常，安全降级拒绝: {str(e)[:100]}",
-            "conditions": ["风控评估异常，安全降级拒绝"],
+            "conditions": [
+                "风控评估异常，安全降级拒绝",
+                f"ATR 动态止损: max(7%, 2×{atr_pct_f:.1f}%) = {dynamic_stop:.1f}%",
+            ],
             "max_loss_amount": None,
         }
         return {

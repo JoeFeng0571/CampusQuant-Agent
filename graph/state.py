@@ -82,6 +82,18 @@ class AnalystReport(BaseModel):
         description="信号强度"
     )
 
+    # ── 【v2.2 P0-A】证据化引文字段 ──────────────────────────────
+    # 基本面/技术面节点：由 build_fundamental_citations / build_technical_citations 代码直接生成
+    #                    (纯字符串拼接，零 LLM 调用，零数字幻觉)
+    # 舆情节点：LLM 从 news_text / rag_context 中逐字抽取，经 _validate_llm_citations 子串校验
+    # 消费方：portfolio_node / debate_node 在 user_prompt 中优先展示证据,而非结论
+    evidence_citations: List[str] = Field(
+        default_factory=list,
+        description="2~4 条结构化引文。基本面/技术面由代码从数据字典生成，"
+                    "sentiment 由 LLM 抽取逐字片段。每条 ≤120 字。",
+        max_length=5,
+    )
+
     # ── 研报增强字段（v2.0）──────────────────────────────────────
     # 主要由 fundamental_node 填充；technical/sentiment 节点保持默认空值
     investment_thesis: str = Field(

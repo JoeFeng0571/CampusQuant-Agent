@@ -549,6 +549,18 @@ def _build_market_payload(symbol: str, market_type: MarketType, ohlcv: pd.DataFr
 
 
 def _calc_indicators_from_ohlcv(ohlcv: pd.DataFrame) -> dict[str, Any]:
+    """
+    计算技术指标(v2.2 P1-A 升级版)。
+
+    相对 v2.1 的新增:
+      1. BOLL_pct_B: prompt 早就在读该字段,但之前一直是 None。现在正确计算。
+      2. MA60: 补齐 60 日均线,配合多头/空头排列判定。
+      3. 5 信号共振打分: tech_signal 从二元 bullish/bearish 升级为 5 档
+         (strong_bullish / bullish / neutral / bearish / strong_bearish),
+         综合 MA / MACD 金叉 / RSI 中性 / BOLL 中位 / 量比 5 个维度。
+         细节在 tech_signal_detail dict 里。
+      4. ATR_percentile_90d: ATR 历史分位数(近 90 日),解决"4.5% ATR 到底是高是低"的参考系问题。
+    """
     df = ohlcv.copy()
     close = pd.to_numeric(df["close"], errors="coerce")
     high = pd.to_numeric(df["high"], errors="coerce")
@@ -558,6 +570,7 @@ def _calc_indicators_from_ohlcv(ohlcv: pd.DataFrame) -> dict[str, Any]:
     ma5 = close.rolling(5).mean()
     ma10 = close.rolling(10).mean()
     ma20 = close.rolling(20).mean()
+    ma60 = close.rolling(60).mean()
 
     delta = close.diff()
     gain = delta.clip(lower=0).rolling(14).mean()
@@ -575,6 +588,9 @@ def _calc_indicators_from_ohlcv(ohlcv: pd.DataFrame) -> dict[str, Any]:
     std = close.rolling(20).std()
     upper = mid + 2 * std
     lower = mid - 2 * std
+    # 【P1-A 修复】BOLL_pct_B: prompt 一直在读但从未计算过。(close - lower)/(upper - lower)
+    boll_range = (upper - lower).replace(0, pd.NA)
+    boll_pct_b = (close - lower) / boll_range
 
     prev_close = close.shift(1)
     tr = pd.concat([(high - low), (high - prev_close).abs(), (low - prev_close).abs()], axis=1).max(axis=1)
@@ -584,12 +600,90 @@ def _calc_indicators_from_ohlcv(ohlcv: pd.DataFrame) -> dict[str, Any]:
     avg_volume_20 = volume.tail(20).mean()
     volume_ratio = float(volume.iloc[-1] / avg_volume_20) if avg_volume_20 else None
 
-    tech_signal = "neutral"
-    if pd.notna(ma5.iloc[-1]) and pd.notna(ma20.iloc[-1]):
-        if ma5.iloc[-1] > ma20.iloc[-1] and pd.notna(rsi14.iloc[-1]) and rsi14.iloc[-1] < 70:
-            tech_signal = "bullish"
-        elif ma5.iloc[-1] < ma20.iloc[-1] and pd.notna(rsi14.iloc[-1]) and rsi14.iloc[-1] > 30:
-            tech_signal = "bearish"
+    # ── 提取末值(pd.NA safe)────────────────────────────────────
+    def _last(s: pd.Series) -> float | None:
+        v = s.iloc[-1] if len(s) else None
+        return float(v) if v is not None and pd.notna(v) else None
+
+    ma5_v, ma20_v, ma60_v = _last(ma5), _last(ma20), _last(ma60)
+    rsi14_v = _last(rsi14)
+    macd_v, sig_v = _last(macd), _last(signal)
+    # MACD 金叉: 前一日 macd <= signal, 当日 macd > signal
+    macd_prev = float(macd.iloc[-2]) if len(macd) >= 2 and pd.notna(macd.iloc[-2]) else None
+    sig_prev = float(signal.iloc[-2]) if len(signal) >= 2 and pd.notna(signal.iloc[-2]) else None
+    boll_pct_b_v = _last(boll_pct_b)
+    atr14_v = _last(atr14)
+
+    # ── ATR 历史分位数(近 90 日)────────────────────────────────
+    atr_percentile_90d = None
+    if atr14_v is not None:
+        recent_atr = atr14.dropna().tail(90)
+        if len(recent_atr) >= 20:  # 至少 20 个有效值才算分位数
+            atr_percentile_90d = float((recent_atr <= atr14_v).mean())
+
+    # ── 5 信号共振打分(【P1-A 升级】替代原二元判定)─────────────
+    sig_ma_bullish = (
+        ma5_v is not None and ma20_v is not None and ma60_v is not None
+        and ma5_v > ma20_v > ma60_v
+    )
+    sig_macd_golden = (
+        macd_v is not None and sig_v is not None
+        and macd_prev is not None and sig_prev is not None
+        and macd_prev <= sig_prev and macd_v > sig_v
+    )
+    sig_rsi_moderate = (
+        rsi14_v is not None and 30 < rsi14_v < 70
+    )
+    sig_boll_middle = (
+        boll_pct_b_v is not None and 0.2 < boll_pct_b_v < 0.8
+    )
+    sig_volume_surge = bool(volume_ratio is not None and volume_ratio >= 1.5)
+
+    signals_detail = {
+        "ma_bullish":    bool(sig_ma_bullish),
+        "macd_golden":   bool(sig_macd_golden),
+        "rsi_moderate":  bool(sig_rsi_moderate),
+        "boll_middle":   bool(sig_boll_middle),
+        "volume_surge":  bool(sig_volume_surge),
+    }
+    bull_score = sum(signals_detail.values())  # 0~5
+
+    # 同时检测空头特征(用于区分 strong_bearish vs neutral)
+    sig_ma_bearish = (
+        ma5_v is not None and ma20_v is not None and ma60_v is not None
+        and ma5_v < ma20_v < ma60_v
+    )
+    sig_macd_dead = (
+        macd_v is not None and sig_v is not None
+        and macd_prev is not None and sig_prev is not None
+        and macd_prev >= sig_prev and macd_v < sig_v
+    )
+    sig_rsi_overbought = rsi14_v is not None and rsi14_v >= 70
+    sig_rsi_oversold = rsi14_v is not None and rsi14_v <= 30
+    bear_score = sum([
+        sig_ma_bearish,
+        sig_macd_dead,
+        sig_rsi_overbought,  # 超买 = 看空信号
+    ])
+
+    if bull_score >= 4:
+        tech_signal = "strong_bullish"
+    elif bull_score == 3:
+        tech_signal = "bullish"
+    elif bear_score >= 2:
+        tech_signal = "strong_bearish"
+    elif bear_score == 1 and bull_score <= 1:
+        tech_signal = "bearish"
+    else:
+        tech_signal = "neutral"
+
+    # MA 排列判定(供 build_technical_citations 使用)
+    if sig_ma_bullish:
+        ma_alignment = "多头排列"
+    elif sig_ma_bearish:
+        ma_alignment = "空头排列"
+    else:
+        ma_alignment = "震荡排列"
 
     return {
         "status": "success",
@@ -597,18 +691,29 @@ def _calc_indicators_from_ohlcv(ohlcv: pd.DataFrame) -> dict[str, Any]:
             "MA5": round(float(ma5.iloc[-1]), 4) if pd.notna(ma5.iloc[-1]) else None,
             "MA10": round(float(ma10.iloc[-1]), 4) if pd.notna(ma10.iloc[-1]) else None,
             "MA20": round(float(ma20.iloc[-1]), 4) if pd.notna(ma20.iloc[-1]) else None,
+            "MA60": round(float(ma60.iloc[-1]), 4) if pd.notna(ma60.iloc[-1]) else None,
+            "ma_alignment": ma_alignment,
             "RSI14": round(float(rsi14.iloc[-1]), 4) if pd.notna(rsi14.iloc[-1]) else None,
             "MACD": round(float(macd.iloc[-1]), 4) if pd.notna(macd.iloc[-1]) else None,
             "MACD_signal": round(float(signal.iloc[-1]), 4) if pd.notna(signal.iloc[-1]) else None,
             "MACD_hist": round(float(hist.iloc[-1]), 4) if pd.notna(hist.iloc[-1]) else None,
+            "MACD_golden_cross": bool(sig_macd_golden),
             "BOLL_mid": round(float(mid.iloc[-1]), 4) if pd.notna(mid.iloc[-1]) else None,
             "BOLL_upper": round(float(upper.iloc[-1]), 4) if pd.notna(upper.iloc[-1]) else None,
             "BOLL_lower": round(float(lower.iloc[-1]), 4) if pd.notna(lower.iloc[-1]) else None,
+            # 【P1-A】BOLL_pct_B 首次真正被计算
+            "BOLL_pct_B": round(float(boll_pct_b.iloc[-1]), 4) if pd.notna(boll_pct_b.iloc[-1]) else None,
             "ATR14": round(float(atr14.iloc[-1]), 4) if pd.notna(atr14.iloc[-1]) else None,
             "ATR_pct": round(float(atr14.iloc[-1] / last_close * 100), 4) if pd.notna(atr14.iloc[-1]) and last_close else None,
+            # 【P1-A】ATR 历史分位数
+            "ATR_percentile_90d": round(atr_percentile_90d, 3) if atr_percentile_90d is not None else None,
             "volume_ratio": round(float(volume_ratio), 4) if volume_ratio is not None else None,
             "high_volume": bool(volume_ratio and volume_ratio >= 1.5),
+            # 【P1-A】5 档 tech_signal + 明细
             "tech_signal": tech_signal,
+            "tech_signal_detail": signals_detail,
+            "bull_score": bull_score,
+            "bear_score": bear_score,
         },
     }
 
