@@ -1,0 +1,160 @@
+# bench/backtest/universe.yaml
+# v2.2 A/B 回测股票池 —— 20 支 (A10 + HK5 + US5)
+#
+# 选股原则:
+#   1. 跨市场覆盖 A/HK/US, 跨风格覆盖价值/成长/主题/金融/消费/科技
+#   2. 2023-2025 期间流动性充足、数据完整
+#   3. 故意纳入部分高波动/回撤标的(寒武纪/阳光电源等)避免幸存者偏差
+#   4. 金山办公在 v2.1 被换为中信证券,纳入 A 股券商板块代表
+#
+# 时间范围: 2023-01-01 → 2025-12-31 (36 个月)
+# 成本估算(Qwen3.5-Plus ≤128K 档): 20 支 × 36 月 × 2 组(A/B) × ¥0.065 = ¥94
+# 数据大小: 20 支 × ~750 行 × 7 列 × 8B ≈ 0.9 MB 原始,parquet 压缩后 ~2 MB
+
+metadata:
+  version: "v2.2"
+  period_start: "2023-01-01"
+  period_end:   "2025-12-31"
+  total_count:  20
+  prompt_versions:
+    - "v1_baseline"  # 当前生产 prompt (hypothesis + rationale 共享)
+    - "v2_esc"       # v2.2 evidence_citations 改造后 (policyEvidence)
+
+groups:
+  a_stock:
+    count: 10
+    stocks:
+      # ── 大盘蓝筹 + 金融(6) ─────────────────────────────
+      - symbol: "600519"
+        name: "贵州茅台"
+        sector: "消费"
+        style: "蓝筹"
+        notes: "白酒龙头,A 股核心价值配置"
+      - symbol: "300750"
+        name: "宁德时代"
+        sector: "新能源"
+        style: "蓝筹"
+        notes: "动力电池全球龙头,新能源代表"
+      - symbol: "600036"
+        name: "招商银行"
+        sector: "银行"
+        style: "蓝筹"
+        notes: "零售银行之王"
+      - symbol: "601318"
+        name: "中国平安"
+        sector: "保险"
+        style: "蓝筹"
+        notes: "综合金融龙头"
+      - symbol: "002594"
+        name: "比亚迪"
+        sector: "汽车"
+        style: "蓝筹"
+        notes: "新能源汽车主力"
+      - symbol: "600030"
+        name: "中信证券"
+        sector: "券商"
+        style: "蓝筹"
+        notes: "券商龙头 (v2.2 替换金山办公纳入券商板块代表)"
+
+      # ── 中盘成长(2) ─────────────────────────────────────
+      - symbol: "688981"
+        name: "中芯国际"
+        sector: "半导体"
+        style: "成长"
+        notes: "国产晶圆代工龙头"
+      - symbol: "603501"
+        name: "韦尔股份"
+        sector: "半导体"
+        style: "成长"
+        notes: "CIS 芯片设计龙头"
+
+      # ── 主题/题材(2) ────────────────────────────────────
+      - symbol: "688256"
+        name: "寒武纪"
+        sector: "AI 算力"
+        style: "主题"
+        notes: "国产 AI 芯片,2023-2024 高波动主题股"
+      - symbol: "300274"
+        name: "阳光电源"
+        sector: "新能源"
+        style: "主题"
+        notes: "光伏逆变器 + 储能代表"
+
+  hk_stock:
+    count: 5
+    stocks:
+      # ── 恒生科技(3) ─────────────────────────────────────
+      - symbol: "00700.HK"
+        name: "腾讯控股"
+        sector: "互联网"
+        style: "科技蓝筹"
+        notes: "港股互联网主力"
+      - symbol: "09988.HK"
+        name: "阿里巴巴-SW"
+        sector: "互联网"
+        style: "科技蓝筹"
+        notes: "电商 + 云 + AI"
+      - symbol: "03690.HK"
+        name: "美团-W"
+        sector: "本地生活"
+        style: "科技蓝筹"
+        notes: "本地服务龙头"
+
+      # ── 港股蓝筹(2) ─────────────────────────────────────
+      - symbol: "00005.HK"
+        name: "汇丰控股"
+        sector: "银行"
+        style: "蓝筹"
+        notes: "跨境金融代表"
+      - symbol: "01299.HK"
+        name: "友邦保险"
+        sector: "保险"
+        style: "蓝筹"
+        notes: "亚太保险龙头"
+
+  us_stock:
+    count: 5
+    stocks:
+      # ── 美股科技(3) ─────────────────────────────────────
+      - symbol: "AAPL"
+        name: "Apple Inc"
+        sector: "Tech"
+        style: "Mega Cap"
+        notes: "全球市值最大科技公司"
+      - symbol: "MSFT"
+        name: "Microsoft"
+        sector: "Tech"
+        style: "Mega Cap"
+        notes: "云 + AI (OpenAI 战略合作)"
+      - symbol: "NVDA"
+        name: "NVIDIA"
+        sector: "Tech"
+        style: "Mega Cap"
+        notes: "AI 算力基础设施龙头"
+
+      # ── 美股其他(2) ─────────────────────────────────────
+      - symbol: "AMZN"
+        name: "Amazon"
+        sector: "Consumer"
+        style: "Mega Cap"
+        notes: "电商 + AWS"
+      - symbol: "JPM"
+        name: "JPMorgan Chase"
+        sector: "Financial"
+        style: "蓝筹"
+        notes: "美国最大银行"
+
+# ── 风格分布(便于回测时分组评估)────────────────────────────
+style_distribution:
+  蓝筹:        10  # 6 A + 2 HK + 2 US
+  科技蓝筹:     3  # 3 HK (恒生科技)
+  成长:        2  # 2 A (半导体)
+  主题:        2  # 2 A (AI / 新能源)
+  Mega Cap:   3  # 3 US (科技)
+
+# ── 说明:v2.1 → v2.2 变更 ──────────────────────────────
+v2_2_changelog:
+  - "金山办公(688111) 删除"
+  - "中信证券(600030) 新增,作为 A 股券商板块代表"
+  - "股票池总数从 30 收到 20,适配 ¥100 LLM 预算"
+  - "A/HK/US 分布从 15/8/7 收到 10/5/5"
