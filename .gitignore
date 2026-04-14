@@ -62,3 +62,7 @@ cache/
 .coverage
 htmlcov/
 paper/
+
+# ==================== 本地文档/基准结果(不入库) ====================
+TECH_STACK.md
+bench/results/
