@@ -66,3 +66,7 @@ paper/
 # ==================== 本地文档/基准结果(不入库) ====================
 TECH_STACK.md
 bench/results/
+# 【v2.2】本地回测数据 (parquet, 可通过 scripts/download_universe_history.py 重建)
+bench/data/ohlcv/
+bench/data/*.parquet
+bench/data/*_errors.log

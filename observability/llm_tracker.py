@@ -32,6 +32,7 @@ observability/llm_tracker.py — LLM 调用 token 和成本跟踪
 from __future__ import annotations
 
 import asyncio
+import contextvars
 
 from loguru import logger
 
@@ -203,3 +204,41 @@ class CostTracker:
         """重置累计(仅用于测试,生产禁用)。"""
         self._total_cny = 0.0
         self._n_calls = 0
+
+
+# ════════════════════════════════════════════════════════════════
+# 全局 ContextVar - 让 LangGraph 节点无须改签名就能读到当前 tracker
+# ════════════════════════════════════════════════════════════════
+#
+# 为什么用 ContextVar 而不是 LangGraph config:
+#   1. LangGraph 的 config 需要通过节点签名传递 (async def node(state, config)),
+#      改 10+ 个节点签名的范围太大,且回滚风险高。
+#   2. ContextVar 在 asyncio.create_task() 时会自动继承到子任务,
+#      并行节点(fundamental/technical/sentiment/rag)能正确读到。
+#   3. 生产请求不设置 tracker 时 get() 返回 None,不影响现有行为。
+#
+# 用法:
+#   # 回测脚本里,调 graph.ainvoke 前:
+#   tracker = CostTracker("ab_baseline", hard_stop_cny=47.0)
+#   set_current_tracker(tracker)
+#   await graph.ainvoke(state, config=...)
+#   set_current_tracker(None)  # 清理
+#
+#   # 节点内(通常在 _invoke_structured_with_fallback 成功后):
+#   t = get_current_tracker()
+#   if t:
+#       await t.record(model=..., prompt_tokens=..., completion_tokens=...)
+
+_current_tracker: contextvars.ContextVar[CostTracker | None] = contextvars.ContextVar(
+    "cost_tracker", default=None,
+)
+
+
+def set_current_tracker(tracker: CostTracker | None) -> None:
+    """设置当前异步上下文的 CostTracker 实例。传 None 清理。"""
+    _current_tracker.set(tracker)
+
+
+def get_current_tracker() -> CostTracker | None:
+    """读取当前异步上下文的 CostTracker 实例。没有则返回 None。"""
+    return _current_tracker.get()

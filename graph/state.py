@@ -412,8 +412,19 @@ class TradingGraphState(TypedDict, total=False):
     # ── 最新新闻资讯（由 sentiment_node 调用 get_stock_news 填充）
     news_data: Optional[str]   # JSON 字符串，含新闻标题列表
 
-    # ── RAG 检索到的外部知识（由 rag_node 并行填充）──────────
-    rag_context: str           # 宏观政策 / 财报片段的检索结果
+    # ── RAG 检索到的外部知识（由 rag_node 并行填充，v2.2 P0-C 起已弃用）──────────
+    # 兼容保留字段,但 v2.2 起不再写入;消费方应改读 rag_evidence_pool
+    rag_context: str           # 【已弃用】宏观政策 / 财报片段的检索结果
+
+    # ── 【v2.2 P0-C】RAG 共享池（由 data_node 末尾一次性预取，按主题分 4 个 bucket）──
+    # 取代 v2.1 的 5 次独立 RAG 调用(rag_node + fund/tech/sent + debate),
+    # 降到 1 次宽口径预取 + 代码层启发式主题分类
+    # buckets 结构:
+    #   - fundamental: 命中财务/估值关键词的片段 (PE/ROE/营收/净利润/EPS)
+    #   - technical:   命中技术面关键词的片段 (K线/MA/MACD/成交量/趋势)
+    #   - sentiment:   命中新闻/政策关键词的片段 (政策/监管/热点/公告/利好)
+    #   - shared:      跨主题或无主题片段 (所有节点都可读作兜底)
+    rag_evidence_pool: Optional[Dict[str, List[str]]]
 
     # ── 三大分析师独立研判报告（并行填充，各写不同字段）──────
     fundamental_report: Optional[Dict[str, Any]]

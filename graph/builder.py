@@ -48,7 +48,7 @@ from graph.nodes import (
     debate_node,
     fundamental_node,
     portfolio_node,
-    rag_node,
+    # 【v2.2 P0-C】rag_node 已删除,RAG 预取合并到 data_node 末尾
     risk_node,
     route_after_portfolio,
     route_after_risk,
@@ -84,7 +84,7 @@ def build_graph(checkpointer=None):
     graph.add_node("fundamental_node", fundamental_node)
     graph.add_node("technical_node",   technical_node)
     graph.add_node("sentiment_node",   sentiment_node)
-    graph.add_node("rag_node",         rag_node)
+    # 【v2.2 P0-C】rag_node 已删除, RAG 预取合并到 data_node 末尾的 rag_evidence_pool
     graph.add_node("portfolio_node",   portfolio_node)
     graph.add_node("debate_node",      debate_node)
     graph.add_node("risk_node",        risk_node)
@@ -105,14 +105,14 @@ def build_graph(checkpointer=None):
     graph.add_edge("data_node", "fundamental_node")
     graph.add_edge("data_node", "technical_node")
     graph.add_edge("data_node", "sentiment_node")
-    graph.add_edge("data_node", "rag_node")
+    # 【v2.2 P0-C】删除 data_node → rag_node 边, RAG 已整合入 data_node
 
-    # ── 并行汇聚：四个分析节点 → portfolio_node（等待全部完成）
+    # ── 并行汇聚：三个分析节点 → portfolio_node（等待全部完成）
     # LangGraph 会等待所有指向 portfolio_node 的边完成后才执行它
     graph.add_edge("fundamental_node", "portfolio_node")
     graph.add_edge("technical_node",   "portfolio_node")
     graph.add_edge("sentiment_node",   "portfolio_node")
-    graph.add_edge("rag_node",         "portfolio_node")
+    # 【v2.2 P0-C】删除 rag_node → portfolio_node 边
 
     # ── 条件边 1：portfolio_node → debate_node 或 risk_node ──
     graph.add_conditional_edges(
@@ -261,6 +261,7 @@ def make_initial_state(symbol: str) -> TradingGraphState:
         fundamental_data=None,
         news_data=None,
         rag_context="",
+        rag_evidence_pool=None,
         fundamental_report=None,
         technical_report=None,
         sentiment_report=None,
@@ -332,6 +333,7 @@ def make_health_initial_state(
         fundamental_data=None,
         news_data=None,
         rag_context="",
+        rag_evidence_pool=None,
         fundamental_report=None,
         technical_report=None,
         sentiment_report=None,

@@ -448,43 +448,44 @@ class TestSearchKnowledgeBaseMaxLength:
         result = long_text[:max_length] if max_length > 0 else long_text
         assert len(result) == 2000
 
-    def test_fundamental_node_rag_uses_max_length_1200(self):
-        """验证 fundamental_node 的 RAG 调用使用 max_length=1200"""
-        import ast
+    def test_fundamental_node_reads_rag_pool_with_max_chars(self):
+        """【v2.2 P0-C】fundamental_node 从 rag_evidence_pool 读,带 max_chars=1200 截断"""
         import inspect
         import graph.nodes as nodes_module
 
         source = inspect.getsource(nodes_module.fundamental_node)
-        # 检查 search_knowledge_base.invoke 调用中含有 max_length=1200
-        assert "max_length" in source and "1200" in source, \
-            "fundamental_node 应调用 search_knowledge_base 且 max_length=1200"
+        assert "_read_pool" in source, \
+            "fundamental_node 应通过 _read_pool 读 rag_evidence_pool"
+        assert "max_chars=1200" in source or 'max_chars = 1200' in source, \
+            "fundamental_node 应传 max_chars=1200 给 _read_pool"
 
-    def test_technical_node_rag_uses_max_length_1000(self):
-        """验证 technical_node 的 RAG 调用使用 max_length=1000"""
+    def test_technical_node_reads_rag_pool_with_max_chars(self):
+        """【v2.2 P0-C】technical_node 从 rag_evidence_pool 读,带 max_chars=1000 截断"""
         import inspect
         import graph.nodes as nodes_module
 
         source = inspect.getsource(nodes_module.technical_node)
-        assert "max_length" in source and "1000" in source, \
-            "technical_node 应调用 search_knowledge_base 且 max_length=1000"
+        assert "_read_pool" in source
+        assert "max_chars=1000" in source or 'max_chars = 1000' in source
 
-    def test_sentiment_node_rag_uses_max_length_1000(self):
-        """验证 sentiment_node 的 RAG 调用使用 max_length=1000"""
+    def test_sentiment_node_reads_rag_pool_with_max_chars(self):
+        """【v2.2 P0-C】sentiment_node 从 rag_evidence_pool 读,带 max_chars=1000 截断"""
         import inspect
         import graph.nodes as nodes_module
 
         source = inspect.getsource(nodes_module.sentiment_node)
-        assert "max_length" in source and "1000" in source, \
-            "sentiment_node 应调用 search_knowledge_base 且 max_length=1000"
+        assert "_read_pool" in source
+        assert "max_chars=1000" in source or 'max_chars = 1000' in source
 
-    def test_debate_node_rag_uses_max_length_1200(self):
-        """验证 debate_node 的 RAG 调用使用 max_length=1200"""
+    def test_debate_node_reads_rag_pool_shared_bucket(self):
+        """【v2.2 P0-C】debate_node 读 shared bucket,带 max_chars=1200 截断"""
         import inspect
         import graph.nodes as nodes_module
 
         source = inspect.getsource(nodes_module.debate_node)
-        assert "max_length" in source and "1200" in source, \
-            "debate_node 应调用 search_knowledge_base 且 max_length=1200"
+        assert "_read_pool" in source
+        assert '"shared"' in source or "'shared'" in source
+        assert "max_chars=1200" in source or 'max_chars = 1200' in source
 
     def test_search_knowledge_base_truncation_logic(self):
         """直接测试截断逻辑: result[:max_length] if max_length > 0 else result"""
@@ -496,59 +497,104 @@ class TestSearchKnowledgeBaseMaxLength:
 
 
 # ══════════════════════════════════════════════════════════════════
-# TC-11: debate_node 注入 RAG 后，user_prompt 包含"外部研报"标记
+# TC-11: 【v2.2 P0-C】 RAG 共享池架构
 # ══════════════════════════════════════════════════════════════════
 
-class TestDebateNodeRAGInjection:
-    """TC-11: debate_node 的 user_prompt 注入 RAG 后包含"外部研报与宏观事实"标记"""
+class TestRagEvidencePoolArchitecture:
+    """TC-11: v2.2 P0-C RAG 共享池替代原 Per-Node RAG 模式"""
 
-    def test_debate_node_source_contains_external_research_label(self):
-        """检查 debate_node 源码中存在'外部研报与宏观事实'标签"""
+    def test_data_node_calls_build_rag_evidence_pool(self):
+        """data_node 成功路径应调用 build_rag_evidence_pool"""
         import inspect
         import graph.nodes as nodes_module
 
-        source = inspect.getsource(nodes_module.debate_node)
-        assert "外部研报与宏观事实" in source, \
-            "debate_node 的 user_prompt 应包含【外部研报与宏观事实】标签"
+        source = inspect.getsource(nodes_module.data_node)
+        assert "build_rag_evidence_pool" in source, \
+            "data_node 应在数据获取成功后调用 build_rag_evidence_pool"
+        assert "rag_evidence_pool" in source, \
+            "data_node 应在返回 dict 里含 rag_evidence_pool key"
 
-    def test_debate_node_query_targets_industry_risk(self):
-        """检查 debate_node RAG 查询包含行业核心风险点关键词"""
+    def test_rag_node_removed(self):
+        """rag_node 应已从模块中删除"""
+        import graph.nodes as nodes_module
+        assert not hasattr(nodes_module, "rag_node"), \
+            "v2.2 P0-C 已删除 rag_node 独立节点"
+
+    def test_graph_has_no_rag_node(self):
+        """build_graph() 的编译图不应再含 rag_node"""
+        from graph.builder import build_graph
+        graph = build_graph()
+        assert "rag_node" not in graph.nodes, \
+            "v2.2 P0-C 后图里不应有 rag_node"
+
+    def test_read_pool_bucket_routing(self):
+        """_read_pool 读取指定 bucket + shared 拼接"""
+        from graph.nodes import _read_pool
+
+        fake_state = {
+            "rag_evidence_pool": {
+                "fundamental": ["PE=30 行业中位 25", "ROE 20%"],
+                "technical":   ["MA5 多头排列"],
+                "sentiment":   ["央行降息 0.25%"],
+                "shared":      ["2024 整体估值中枢回升"],
+            }
+        }
+
+        # fund bucket + shared
+        fund_text = _read_pool(fake_state, "fundamental", include_shared=True, max_chars=500)
+        assert "PE" in fund_text
+        assert "估值中枢" in fund_text  # shared 附加
+        assert "央行" not in fund_text
+
+        # sentiment bucket without shared
+        sent_text = _read_pool(fake_state, "sentiment", include_shared=False, max_chars=500)
+        assert "央行" in sent_text
+        assert "估值中枢" not in sent_text
+
+    def test_classify_rag_snippet_fundamental(self):
+        """分类函数:含 PE/ROE 关键词 → fundamental bucket"""
+        from graph.nodes import _classify_rag_snippet
+        assert _classify_rag_snippet("PE=30 ROE=20% 净利润增长") == ["fundamental"]
+
+    def test_classify_rag_snippet_technical(self):
+        """分类函数:含 MA/MACD/量比 关键词 → technical bucket"""
+        from graph.nodes import _classify_rag_snippet
+        assert _classify_rag_snippet("MA20 多头排列 MACD 金叉 量比 1.8") == ["technical"]
+
+    def test_classify_rag_snippet_sentiment(self):
+        """分类函数:含 政策/新闻 关键词 → sentiment bucket"""
+        from graph.nodes import _classify_rag_snippet
+        assert _classify_rag_snippet("央行降息 0.25% 利好政策") == ["sentiment"]
+
+    def test_classify_rag_snippet_cross_topic_goes_to_shared(self):
+        """分类函数:多主题命中 → shared bucket (避免主题误分)"""
+        from graph.nodes import _classify_rag_snippet
+        result = _classify_rag_snippet("公司 PE 30 倍,技术面 MA20 多头,利好政策推出")
+        assert result == ["shared"]
+
+    def test_classify_rag_snippet_no_topic_goes_to_shared(self):
+        """分类函数:无主题命中 → shared bucket (兜底)"""
+        from graph.nodes import _classify_rag_snippet
+        assert _classify_rag_snippet("某条没有任何领域关键词的普通段落") == ["shared"]
+
+    def test_analysts_dont_call_search_knowledge_base_directly(self):
+        """【v2.2 P0-C 核心】三个分析师节点不再直接调 search_knowledge_base"""
         import inspect
         import graph.nodes as nodes_module
 
-        source = inspect.getsource(nodes_module.debate_node)
-        assert "行业核心风险点" in source, \
-            "debate_node 的 RAG query 应包含'行业核心风险点'"
-        assert "护城河" in source, \
-            "debate_node 的 RAG query 应包含'护城河'"
-
-    def test_debate_rag_context_injected_into_prompt(self):
-        """验证 debate_node 中 debate_rag_context 被注入 user_prompt"""
-        import inspect
-        import graph.nodes as nodes_module
-
-        source = inspect.getsource(nodes_module.debate_node)
-        # 检查 debate_rag_context 变量存在且被注入
-        assert "debate_rag_context" in source
-        # 检查注入语句
-        assert "debate_rag_context if debate_rag_context else" in source
-
-    def test_all_four_nodes_have_per_node_rag(self):
-        """验证四个分析节点均有 Per-Node RAG 调用"""
-        import inspect
-        import graph.nodes as nodes_module
-
-        for node_fn, expected_keyword in [
-            (nodes_module.fundamental_node, "财务报表"),
-            (nodes_module.technical_node, "近期资金面"),
-            (nodes_module.sentiment_node, "最新宏观政策"),
-            (nodes_module.debate_node, "行业核心风险点"),
-        ]:
+        for node_fn in (
+            nodes_module.fundamental_node,
+            nodes_module.technical_node,
+            nodes_module.sentiment_node,
+            nodes_module.debate_node,
+        ):
             source = inspect.getsource(node_fn)
-            assert "search_knowledge_base" in source, \
-                f"{node_fn.__name__} 应调用 search_knowledge_base"
-            assert expected_keyword in source, \
-                f"{node_fn.__name__} 的 RAG query 应含关键词 '{expected_keyword}'"
+            # search_knowledge_base.invoke 只能在 build_rag_evidence_pool 里出现,
+            # 不应在这四个节点里直接调用
+            assert "search_knowledge_base.invoke" not in source, \
+                f"{node_fn.__name__} 不应直接调用 search_knowledge_base.invoke"
+            assert "_read_pool" in source, \
+                f"{node_fn.__name__} 应通过 _read_pool 读 rag_evidence_pool"
 
 
 # ══════════════════════════════════════════════════════════════════

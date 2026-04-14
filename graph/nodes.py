@@ -191,25 +191,89 @@ def _sanitize_symbol(s: str) -> str:
 # 3-Layer Structured Output Fallback（可复用 helper）
 # ════════════════════════════════════════════════════════════════
 
+async def _record_cost_from_metadata(raw_resp: Any, node_name: str) -> None:
+    """
+    【v2.2 Phase 5.5】从 AIMessage 的 usage_metadata 提取 token 数,
+    调用 contextvar 里的 CostTracker 记账。
+
+    无 tracker(生产环境)时完全 no-op,不影响主路径。
+    tracker 抛 CostExceeded 时向上透传,中断 graph 执行。
+    """
+    try:
+        from observability.llm_tracker import get_current_tracker
+    except Exception:
+        return
+
+    tracker = get_current_tracker()
+    if tracker is None:
+        return
+
+    usage = {}
+    if hasattr(raw_resp, "usage_metadata"):
+        usage = raw_resp.usage_metadata or {}
+    elif hasattr(raw_resp, "response_metadata"):
+        usage = raw_resp.response_metadata.get("token_usage", {})
+
+    prompt_tokens = usage.get("input_tokens") or usage.get("prompt_tokens") or 0
+    completion_tokens = usage.get("output_tokens") or usage.get("completion_tokens") or 0
+
+    if prompt_tokens == 0 and completion_tokens == 0:
+        # metadata 缺失: 不记账, 只记 warning
+        logger.debug(f"[{node_name}] token usage metadata missing, skipping CostTracker")
+        return
+
+    # 这里 record() 可能抛 CostExceeded,要向上透传中断 graph
+    await tracker.record(
+        model=config.DASHSCOPE_MODEL,
+        prompt_tokens=int(prompt_tokens),
+        completion_tokens=int(completion_tokens),
+    )
+
+
 async def _invoke_structured_with_fallback(
     llm, messages: list, pydantic_model, node_name: str, timeout: float = 300.0
 ):
     """
     三层解析兜底，任何节点都可调用：
-      层1: with_structured_output（Function Calling 路径）
+      层1: with_structured_output（include_raw=True 拿到原始响应以记 token usage）
       层2: 原始 LLM 调用 + regex JSON 提取 + Pydantic 构建
       层3: 安全默认值（HOLD + 低置信度）
     返回 Pydantic model instance。
+
+    【v2.2 Phase 5.5】层 1/层 2 成功后自动调用 CostTracker.record()
+    (通过 contextvar 读取),支持按实验隔离的 ¥95 硬停。
     """
     import re as _re_fb
 
-    # 层1: with_structured_output
+    # 层1: with_structured_output(include_raw=True)
+    # include_raw=True 让 LangChain 返回 {"raw": AIMessage, "parsed": Model, "parsing_error": ...}
+    # 这样同时拿到 parsed 结果和原始响应(含 token usage metadata),二者得兼。
     try:
-        structured_llm = llm.with_structured_output(pydantic_model)
-        result = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=timeout)
-        logger.info(f"[{node_name}] ✅ 层1 structured_output 解析成功")
-        return result
+        structured_llm = llm.with_structured_output(pydantic_model, include_raw=True)
+        wrapped = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=timeout)
+        if isinstance(wrapped, dict):
+            parsed = wrapped.get("parsed")
+            raw_msg = wrapped.get("raw")
+            parsing_error = wrapped.get("parsing_error")
+            if parsed is not None and parsing_error is None:
+                logger.info(f"[{node_name}] ✅ 层1 structured_output 解析成功")
+                # 记账 (可能抛 CostExceeded 向上透传)
+                if raw_msg is not None:
+                    await _record_cost_from_metadata(raw_msg, node_name)
+                return parsed
+            else:
+                raise RuntimeError(
+                    f"include_raw 返回 parsing_error: {parsing_error}"
+                )
+        else:
+            # 某些老版本 LangChain include_raw 不生效,wrapped 直接是 parsed model
+            logger.info(f"[{node_name}] ✅ 层1 structured_output 解析成功 (无 raw)")
+            return wrapped
     except Exception as e1:
+        # CostExceeded 要透传,不吞
+        from observability.llm_tracker import CostExceeded
+        if isinstance(e1, CostExceeded):
+            raise
         logger.warning(f"[{node_name}] 层1 失败 ({type(e1).__name__}), 降级至层2")
 
     # 层2: 原始调用 + regex JSON
@@ -223,10 +287,15 @@ async def _invoke_structured_with_fallback(
             raw_dict = json.loads(m.group())
             result = pydantic_model(**raw_dict)
             logger.info(f"[{node_name}] ✅ 层2 regex+JSON 解析成功")
+            # 记账 (层 2 raw_resp 是 AIMessage 天然带 metadata)
+            await _record_cost_from_metadata(raw_resp, node_name)
             return result
         else:
             raise ValueError("未找到 JSON 对象")
     except Exception as e2:
+        from observability.llm_tracker import CostExceeded
+        if isinstance(e2, CostExceeded):
+            raise
         logger.warning(f"[{node_name}] 层2 失败 ({type(e2).__name__}), 降级至层3 安全默认值")
 
     # 层3: 安全默认值
@@ -565,6 +634,137 @@ def _validate_llm_citations(
             valid.append(c_clean)
 
     return valid[:max_keep]
+
+
+# ════════════════════════════════════════════════════════════════
+# 【v2.2 P0-C】RAG 共享池分类与预取
+# ════════════════════════════════════════════════════════════════
+# 设计: 取代 v2.1 的 5 次独立 RAG 调用(rag_node + fund/tech/sent + debate),
+# 改为 data_node 末尾一次宽口径预取,代码启发式分类到 4 个 bucket,
+# 所有下游节点按需读取,降 RAG 调用次数 60-80%。
+
+# 领域关键词 —— 用于把 RAG 片段分类到不同 bucket
+_RAG_KEYWORDS_FUND = [
+    "PE", "PB", "ROE", "EPS", "毛利率", "净利润", "营收", "营业收入",
+    "财报", "估值", "净资产", "现金流", "自由现金流", "分红", "股息",
+    "应收账款", "负债率", "商誉",
+]
+_RAG_KEYWORDS_TECH = [
+    "K线", "MA5", "MA10", "MA20", "MA60", "均线", "MACD", "RSI",
+    "BOLL", "布林", "金叉", "死叉", "量比", "换手率", "突破", "回调",
+    "支撑", "阻力", "形态", "趋势", "震荡", "箱体",
+]
+_RAG_KEYWORDS_SENT = [
+    "政策", "监管", "央行", "美联储", "降息", "加息", "利好", "利空",
+    "热点", "新闻", "公告", "事件", "传闻", "情绪", "估值情绪",
+    "机构持仓", "北向资金", "南向资金", "游资",
+]
+
+
+def _classify_rag_snippet(text: str) -> list[str]:
+    """
+    启发式分类:把 RAG 片段分到 fundamental/technical/sentiment 中的一个或多个 bucket。
+    跨主题(2+ 命中)或零主题(0 命中)的片段都进 shared bucket。
+
+    返回 ≥1 个 bucket 名: 某个专项 bucket,或 "shared"。
+    """
+    if not text:
+        return ["shared"]
+
+    hits: list[str] = []
+    if any(k in text for k in _RAG_KEYWORDS_FUND):
+        hits.append("fundamental")
+    if any(k in text for k in _RAG_KEYWORDS_TECH):
+        hits.append("technical")
+    if any(k in text for k in _RAG_KEYWORDS_SENT):
+        hits.append("sentiment")
+
+    if len(hits) == 1:
+        return hits  # 单一主题 → 进专项 bucket
+    return ["shared"]  # 0 或 ≥2 主题都进 shared
+
+
+def build_rag_evidence_pool(symbol: str, market_type: str) -> dict[str, list[str]]:
+    """
+    【v2.2 P0-C】data_node 末尾调用: 一次宽口径 RAG 预取 + 代码层主题分类。
+
+    返回 4 个 bucket:
+      - fundamental: 财务/估值相关片段
+      - technical:   技术面相关片段
+      - sentiment:   政策/新闻/情绪相关片段
+      - shared:      跨主题或无主题片段 (所有节点都读作兜底)
+
+    失败时返回空 bucket dict,不抛异常(RAG 失败不能阻断主流程)。
+    """
+    pool: dict[str, list[str]] = {
+        "fundamental": [],
+        "technical":   [],
+        "sentiment":   [],
+        "shared":      [],
+    }
+
+    try:
+        from tools.knowledge_base import search_knowledge_base
+
+        # 宽口径 query 覆盖所有主题
+        query = (
+            f"{symbol} {market_type} 财务估值 盈利增长 "
+            f"技术形态 趋势动量 "
+            f"行业政策 宏观新闻 市场情绪"
+        )
+        raw = search_knowledge_base.invoke({
+            "query":       query,
+            "market_type": market_type,
+            "max_length":  2500,
+        })
+
+        if not raw or not isinstance(raw, str):
+            return pool
+
+        # 按段落分(RAG 结果通常是多段 "\n\n" 分隔)
+        # 每段做分类,单段可进 2+ bucket(仅 shared 情况)
+        segments = [s.strip() for s in raw.split("\n\n") if len(s.strip()) >= 30]
+
+        for seg in segments:
+            for bucket in _classify_rag_snippet(seg):
+                if len(pool[bucket]) < 5:  # 每 bucket 最多 5 条,避免 prompt 膨胀
+                    pool[bucket].append(seg)
+
+        logger.info(
+            f"[build_rag_evidence_pool] {symbol}: "
+            f"fund={len(pool['fundamental'])} tech={len(pool['technical'])} "
+            f"sent={len(pool['sentiment'])} shared={len(pool['shared'])}"
+        )
+    except Exception as exc:
+        logger.warning(f"[build_rag_evidence_pool] {symbol} RAG 预取失败(降级为空): {exc}")
+
+    return pool
+
+
+def _read_pool(state: dict, bucket: str, include_shared: bool = True, max_chars: int = 1200) -> str:
+    """
+    从 state.rag_evidence_pool 读取指定 bucket + shared bucket,拼成文本喂给 prompt。
+
+    Args:
+        state: TradingGraphState
+        bucket: "fundamental" | "technical" | "sentiment"
+        include_shared: 是否附加 shared bucket(默认 True)
+        max_chars: 最大字符数,超出截断
+
+    Returns:
+        拼接后的 RAG 上下文文本(空字符串表示 pool 不可用)
+    """
+    pool = state.get("rag_evidence_pool") or {}
+    if not pool:
+        return ""
+    snippets: list[str] = []
+    snippets.extend(pool.get(bucket, []))
+    if include_shared:
+        snippets.extend(pool.get("shared", []))
+    if not snippets:
+        return ""
+    text = "\n\n".join(snippets)
+    return text[:max_chars] if max_chars > 0 else text
 
 
 # ════════════════════════════════════════════════════════════════
@@ -941,16 +1141,26 @@ async def data_node(state: TradingGraphState) -> dict:
             except Exception as _oe:
                 logger.warning(f"[data_node] recent_ohlcv 提取失败（非致命）: {_oe}")
 
+        # 【v2.2 P0-C】RAG 共享池预取:一次宽口径检索 + 代码层主题分类
+        # 取代 v2.1 的 5 次独立 RAG 调用(rag_node + fund/tech/sent + debate)
+        market_type_for_rag = raw_data.get("market_type", "UNKNOWN")
+        rag_evidence_pool = build_rag_evidence_pool(symbol, market_type_for_rag)
+
         log_msg = _log_entry(
             "data_node",
             f"数据获取成功 | {symbol} | 最新价: {raw_data.get('latest_price')} "
-            f"| 技术信号: {tech_data.get('indicators', {}).get('tech_signal', 'N/A')}"
+            f"| 技术信号: {tech_data.get('indicators', {}).get('tech_signal', 'N/A')} "
+            f"| RAG pool: fund={len(rag_evidence_pool['fundamental'])} "
+            f"tech={len(rag_evidence_pool['technical'])} "
+            f"sent={len(rag_evidence_pool['sentiment'])} "
+            f"shared={len(rag_evidence_pool['shared'])}"
         )
 
         return {
             "market_data":        market_data,
             "market_type":        raw_data.get("market_type", "UNKNOWN"),
             "data_fetch_failed":  False,   # 【审计修复 P0-3】明确标记数据正常
+            "rag_evidence_pool":  rag_evidence_pool,  # 【v2.2 P0-C】
             "tool_call_counts":   {"data_node": counts.get("data_node", 0)},
             "current_node":       "data_node",
             "execution_log":      [log_msg],
@@ -991,55 +1201,14 @@ async def data_node(state: TradingGraphState) -> dict:
 
 
 # ════════════════════════════════════════════════════════════════
-# NODE 2 — rag_node（与分析师节点并行）
+# NODE 2 — [v2.2 P0-C] rag_node 已删除
 # ════════════════════════════════════════════════════════════════
-
-async def rag_node(state: TradingGraphState) -> dict:
-    """
-    RAG 知识检索节点:
-      - 根据 symbol + market_type 构建检索 query
-      - 调用 search_knowledge_base @tool
-      - 将检索结果写入 state.rag_context，作为分析师的 RAG 上下文
-    """
-    symbol      = state.get("symbol") or state.get("stock_code", "UNKNOWN")
-    market_type = state.get("market_type", "ALL")
-    market_data = state.get("market_data", {})
-    indicators  = market_data.get("indicators", {})
-    tech_signal = indicators.get("tech_signal", "HOLD")
-
-    # 【审计修复 P0-3】数据获取失败时早退，不调用工具
-    if state.get("data_fetch_failed"):
-        logger.warning(f"[rag_node] 数据获取失败，跳过 RAG 检索")
-        return {
-            "rag_context":   "",
-            "execution_log": [_log_entry("rag_node", "⏭️ 数据失败，RAG 跳过")],
-            "messages": [AIMessage(content="数据获取失败，RAG 检索已跳过", name="rag_node")],
-        }
-
-    query = (
-        f"{symbol} {market_type} 市场政策 行业景气度 宏观经济"
-        f" 技术信号{tech_signal} 投资分析"
-    )
-
-    logger.info(f"[rag_node] 检索知识库: {query[:60]}...")
-
-    try:
-        rag_text = search_knowledge_base.invoke({"query": query, "market_type": market_type})
-        return {
-            "rag_context":   rag_text,
-            "execution_log": [_log_entry("rag_node", f"RAG 检索完成，返回 {len(rag_text)} 字符")],
-            "messages": [AIMessage(
-                content=f"RAG 知识检索完成: {len(rag_text)} 字符上下文已准备",
-                name="rag_node",
-            )],
-        }
-    except Exception as e:
-        _log_node_error("rag_node", e)
-        return {
-            "rag_context":   "",
-            "execution_log": [_log_entry("rag_node", f"⚠️ RAG 检索失败（降级为空）: {e}")],
-            "messages": [AIMessage(content=f"RAG 检索失败: {e}", name="rag_node")],
-        }
+# v2.1: rag_node 与三个分析师并行, 独立跑一次 search_knowledge_base,
+#       再加三个分析师和 debate_node 各自跑一次,总共 5 次 RAG 调用
+# v2.2: 合并到 data_node 末尾的 build_rag_evidence_pool() 一次预取,
+#       按主题分类到 4 个 bucket (fundamental / technical / sentiment / shared),
+#       分析师/portfolio/debate 通过 _read_pool(state, bucket) 按需读取。
+#       RAG 调用次数 5 → 1, 延迟降低 60-80%。
 
 
 # ════════════════════════════════════════════════════════════════
@@ -1134,17 +1303,10 @@ async def fundamental_node(state: TradingGraphState) -> dict:
         fundamental_data_dict.setdefault("revenue_composition", {})
         fundamental_data_dict.setdefault("performance_trend", {})
 
-    # 【Per-Node RAG】基本面专项检索：财报数据、盈利质量、机构评级
-    fund_rag_context = ""
-    try:
-        fund_rag_context = search_knowledge_base.invoke({
-            "query":       f"{symbol} 财务报表 基本面 盈利 机构评级",
-            "market_type": market_type,
-            "max_length":  1200,
-        })
-        logger.info(f"[fundamental_node] 专项 RAG 检索完成: {len(fund_rag_context)} 字符")
-    except Exception as _re:
-        logger.warning(f"[fundamental_node] 专项 RAG 检索失败（降级为空）: {_re}")
+    # 【v2.2 P0-C】从 state.rag_evidence_pool 读取 fundamental bucket + shared
+    # (替代 v2.1 的独立 search_knowledge_base 调用)
+    fund_rag_context = _read_pool(state, "fundamental", include_shared=True, max_chars=1200)
+    logger.info(f"[fundamental_node] 读 RAG pool: {len(fund_rag_context)} 字符")
 
     # 从 Prompt 字典取 System Prompt（外化管理）
     system_prompt = _PROMPTS["fundamental"].get(
@@ -1264,17 +1426,9 @@ async def technical_node(state: TradingGraphState) -> dict:
 
     logger.info(f"[technical_node] 开始技术分析: {symbol}")
 
-    # 【Per-Node RAG】技术面专项检索：资金面、行业技术利好利空
-    tech_rag_context = ""
-    try:
-        tech_rag_context = search_knowledge_base.invoke({
-            "query":       f"{symbol} 近期资金面 行业技术利好利空",
-            "market_type": market_type,
-            "max_length":  1000,
-        })
-        logger.info(f"[technical_node] 专项 RAG 检索完成: {len(tech_rag_context)} 字符")
-    except Exception as _re:
-        logger.warning(f"[technical_node] 专项 RAG 检索失败（降级为空）: {_re}")
+    # 【v2.2 P0-C】从 state.rag_evidence_pool 读取 technical bucket + shared
+    tech_rag_context = _read_pool(state, "technical", include_shared=True, max_chars=1000)
+    logger.info(f"[technical_node] 读 RAG pool: {len(tech_rag_context)} 字符")
 
     system_prompt = _PROMPTS["technical"]["DEFAULT"]
 
@@ -1436,17 +1590,9 @@ async def sentiment_node(state: TradingGraphState) -> dict:
     except Exception as _e:
         logger.warning(f"[sentiment_node] 新闻获取异常: {_e}")
 
-    # 【Per-Node RAG】舆情专项检索：最新宏观政策、行业动态、突发新闻
-    sent_rag_context = ""
-    try:
-        sent_rag_context = search_knowledge_base.invoke({
-            "query":       f"{symbol} 最新宏观政策 行业动态 突发新闻",
-            "market_type": market_type,
-            "max_length":  1000,
-        })
-        logger.info(f"[sentiment_node] 专项 RAG 检索完成: {len(sent_rag_context)} 字符")
-    except Exception as _re:
-        logger.warning(f"[sentiment_node] 专项 RAG 检索失败（降级为空）: {_re}")
+    # 【v2.2 P0-C】从 state.rag_evidence_pool 读取 sentiment bucket + shared
+    sent_rag_context = _read_pool(state, "sentiment", include_shared=True, max_chars=1000)
+    logger.info(f"[sentiment_node] 读 RAG pool: {len(sent_rag_context)} 字符")
 
     system_prompt = _PROMPTS["sentiment"]["DEFAULT"]
 
@@ -1772,7 +1918,8 @@ async def portfolio_node(state: TradingGraphState) -> dict:
     debate_outcome       = state.get("debate_outcome")
     risk_decision        = state.get("risk_decision")
     risk_rejection_count = state.get("risk_rejection_count", 0)
-    rag_context          = state.get("rag_context", "")
+    # 【v2.2 P0-C】portfolio_node 读 shared bucket(不再依赖 state.rag_context 字段)
+    rag_context          = _read_pool(state, "shared", include_shared=False, max_chars=600)
 
     logger.info(f"[portfolio_node] 综合决策: {symbol} | 风控拒绝次数={risk_rejection_count}")
 
@@ -2066,17 +2213,10 @@ async def debate_node(state: TradingGraphState) -> dict:
 
     market_type = state.get("market_type", "ALL")
 
-    # 【Per-Node RAG】辩论专项检索：行业核心风险点、前景、护城河
-    debate_rag_context = ""
-    try:
-        debate_rag_context = search_knowledge_base.invoke({
-            "query":       f"{symbol} 行业核心风险点 前景 护城河",
-            "market_type": market_type,
-            "max_length":  1200,
-        })
-        logger.info(f"[debate_node] 专项 RAG 检索完成: {len(debate_rag_context)} 字符")
-    except Exception as _re:
-        logger.warning(f"[debate_node] 专项 RAG 检索失败（降级为空）: {_re}")
+    # 【v2.2 P0-C】辩论节点从 shared bucket 读共享研报证据
+    # (跨主题的宏观/行业分析通常进 shared 兜底, 契合辩论的"跨维度权衡"语境)
+    debate_rag_context = _read_pool(state, "shared", include_shared=False, max_chars=1200)
+    logger.info(f"[debate_node] 读 RAG pool(shared): {len(debate_rag_context)} 字符")
 
     # ── Task 1: 在 Prompt 中显式列出全部 8 个字段名，杜绝 LLM 自造键名 ──
     system_prompt = """你是一位权威的投资决策委员会主席，负责主持并裁决多空方的投资辩论。
