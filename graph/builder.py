@@ -282,6 +282,11 @@ def make_initial_state(symbol: str) -> TradingGraphState:
         status="running",
         error_message=None,
         error_type=None,
+        # 【v2.2】回测时点驱动: None = 生产路径(NOW),否则 ISO 日期字符串
+        rebalance_date=None,
+        # 【v2.2】A/B 回测 prompt 版本: None = v2_esc (默认证据优先),
+        # "v1_baseline" = 回到结论优先的旧风格做对比
+        prompt_version=None,
     )
 
 
@@ -352,4 +357,9 @@ def make_health_initial_state(
         status="running",
         error_message=None,
         error_type=None,
+        # 【v2.2】回测时点驱动: None = 生产路径(NOW),否则 ISO 日期字符串
+        rebalance_date=None,
+        # 【v2.2】A/B 回测 prompt 版本: None = v2_esc (默认证据优先),
+        # "v1_baseline" = 回到结论优先的旧风格做对比
+        prompt_version=None,
     )

@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable
 
 import pandas as pd
@@ -1270,3 +1271,169 @@ def get_deep_financial_data(symbol: str) -> dict[str, Any]:
             "performance_trend": {},
         }
     return {"symbol": symbol, "revenue_composition": {}, "performance_trend": {}}
+
+
+# ════════════════════════════════════════════════════════════════
+# 【v2.2】时点驱动市场数据 — 用于 A/B 回测
+# ════════════════════════════════════════════════════════════════
+#
+# 背景: 原 get_market_data 调 akshare/yfinance 拉 "此刻最新" 数据,
+# 用于线上生产路径。但 A/B 回测需要 "2023-05-02 做 rebalance 决策" 时
+# 使用 "2023-05-02 当天及之前" 的数据 — 否则有 look-ahead bias。
+#
+# 解决方案: 从 bench/data/ohlcv/ 读预下载的 parquet, 按 rebalance_date 切片。
+# parquet 由 scripts/download_universe_history.py 一次性下载,覆盖 2023-01 → 2025-12。
+#
+# 使用方式: data_node 检测 state['rebalance_date'] 存在时走这条路径,
+# 不存在时走原 get_market_data (生产路径完全不变)。
+
+from functools import lru_cache
+
+_BENCH_OHLCV_DIR = Path(__file__).parent.parent / "bench" / "data" / "ohlcv"
+
+# parquet 文件名格式: bench/data/ohlcv/{market}/{symbol}.parquet
+# symbol 里的 "." 替换为 "_" (e.g. "00700.HK" → "00700_HK.parquet")
+
+def _symbol_to_parquet_path(symbol: str) -> tuple[Path, str]:
+    """
+    根据 symbol 推断 parquet 路径 + 市场类型。
+    返回 (path, market_type_name)。
+    """
+    sym = symbol.upper().strip()
+
+    # 港股: 含 .HK 或以 0 开头的 5 位数
+    if ".HK" in sym or (len(sym) == 5 and sym.isdigit() and sym[0] == "0"):
+        market = "hk"
+        pure = sym.replace(".", "_")
+        return _BENCH_OHLCV_DIR / market / f"{pure}.parquet", "HK_STOCK"
+
+    # A 股: 6 位数字(含 .SH/.SZ 后缀)
+    if sym[:6].isdigit() and len(sym[:6]) == 6:
+        market = "a"
+        pure = sym[:6]  # 去掉 .SH / .SZ 后缀
+        return _BENCH_OHLCV_DIR / market / f"{pure}.parquet", "A_STOCK"
+
+    # 美股: 纯字母
+    if sym.replace(".", "").isalpha():
+        market = "us"
+        return _BENCH_OHLCV_DIR / market / f"{sym}.parquet", "US_STOCK"
+
+    raise ValueError(f"无法从 symbol 推断市场类型: {symbol}")
+
+
+@lru_cache(maxsize=32)
+def _load_parquet_cached(path_str: str) -> pd.DataFrame:
+    """
+    缓存已加载的 parquet DataFrame,避免同一 symbol 在一次 A/B 里被多次读盘。
+    lru_cache 上限 32,对 20 支股票足够。
+    """
+    path = Path(path_str)
+    df = pd.read_parquet(path)
+    # 标准化 date 列为 pd.Timestamp
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date").reset_index(drop=True)
+    return df
+
+
+def get_market_data_at(symbol: str, rebalance_date: str, lookback_days: int = 180) -> dict[str, Any]:
+    """
+    【v2.2 时点驱动】从本地 parquet 读截止 rebalance_date 之前 lookback_days 日的 OHLCV。
+
+    不调 akshare/yfinance,纯磁盘读取,零 look-ahead bias。
+
+    Args:
+        symbol: 股票代码 (e.g. "600519" / "600519.SH" / "00700.HK" / "AAPL")
+        rebalance_date: 回测决策日期 (ISO 格式 "2023-05-02")
+        lookback_days: 从 rebalance_date 往前看多少个自然日 (默认 180,保证有足够
+                       60 日 MA 的样本)
+
+    Returns:
+        dict,格式与 get_market_data 返回的 JSON 解析后完全一致:
+            {
+                "status": "success",
+                "symbol": str,
+                "market_type": "A_STOCK" | "HK_STOCK" | "US_STOCK",
+                "source": "bench_parquet_at",
+                "count": int,
+                "data": list[dict],        # OHLCV 记录
+                "latest_price": float,     # rebalance_date 当日收盘价
+                "change": float,           # 相对前一交易日涨跌额
+                "change_pct": float,       # 涨跌幅 %
+                "_ohlcv_json": str,        # JSON 序列化的 OHLCV
+                "rebalance_date": str,     # 【新增】明确标记时点
+            }
+        失败返回 {"status": "error", ...}
+    """
+    try:
+        path, market_type_name = _symbol_to_parquet_path(symbol)
+        if not path.exists():
+            return {
+                "status": "error",
+                "symbol": symbol,
+                "error": f"parquet 不存在: {path}",
+                "rebalance_date": rebalance_date,
+            }
+
+        df_full = _load_parquet_cached(str(path))
+        target_ts = pd.to_datetime(rebalance_date)
+
+        # 截取 rebalance_date 当日及之前(含 rebalance_date 本身)
+        df_until = df_full[df_full["date"] <= target_ts]
+        if df_until.empty:
+            return {
+                "status": "error",
+                "symbol": symbol,
+                "error": f"parquet 中无 {rebalance_date} 之前的数据",
+                "rebalance_date": rebalance_date,
+            }
+
+        # 往前取 lookback_days 个自然日 (约 120 个交易日)
+        lookback_start = target_ts - pd.Timedelta(days=lookback_days)
+        df_window = df_until[df_until["date"] >= lookback_start].copy()
+        if len(df_window) < 30:
+            # 至少需要 30 个交易日才能算 MA20/MACD
+            return {
+                "status": "error",
+                "symbol": symbol,
+                "error": f"{rebalance_date} 前的有效交易日数不足 ({len(df_window)}<30)",
+                "rebalance_date": rebalance_date,
+            }
+
+        # 转成记录格式,同时 date 转字符串
+        df_window["date"] = df_window["date"].dt.strftime("%Y-%m-%d")
+        # 补充 timestamp 字段 (跟 _build_market_payload 对齐)
+        if "timestamp" not in df_window.columns:
+            df_window["timestamp"] = df_window["date"]
+        records = df_window.to_dict(orient="records")
+
+        # 转成纯 Python 数字,避免 numpy.int64 序列化问题
+        for r in records:
+            for k in ("open", "high", "low", "close", "volume"):
+                if k in r and r[k] is not None:
+                    r[k] = float(r[k])
+
+        latest = records[-1]
+        prev_close = float(records[-2]["close"]) if len(records) >= 2 else float(latest["close"])
+        change, change_pct = _calc_change(float(latest["close"]), prev_close)
+
+        return {
+            "status": "success",
+            "symbol": symbol,
+            "market_type": market_type_name,
+            "source": "bench_parquet_at",
+            "count": len(records),
+            "data": records,
+            "latest_price": round(float(latest["close"]), 4),
+            "change": round(change, 4) if change is not None else None,
+            "change_pct": round(change_pct, 4) if change_pct is not None else None,
+            "_ohlcv_json": json.dumps(records, ensure_ascii=False, default=str),
+            "rebalance_date": rebalance_date,
+        }
+    except Exception as exc:
+        logger.exception(f"[market_data] get_market_data_at 失败: {symbol} @ {rebalance_date}")
+        return {
+            "status": "error",
+            "symbol": symbol,
+            "error": str(exc),
+            "rebalance_date": rebalance_date,
+        }

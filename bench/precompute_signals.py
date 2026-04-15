@@ -137,9 +137,11 @@ async def _run_one(
     async with sem:
         try:
             state = make_initial_state(symbol)
-            # TODO(§5.4): 让 data_node 支持 state["rebalance_date"] 拉历史时点数据
-            # 目前 data_node 拉的是 NOW 的市场数据,本脚本仅搭框架
+            # 【v2.2 回测】时点驱动: data_node 走 get_market_data_at()
             state["rebalance_date"] = rebalance_date.isoformat()
+            # 【v2.2 A/B】prompt 版本切换:v1_baseline = 结论优先旧风格,
+            # v2_esc = 证据优先新风格(唯一变量,严格对照实验)
+            state["prompt_version"] = version
 
             config = {
                 "configurable": {

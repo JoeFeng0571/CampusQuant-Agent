@@ -1100,14 +1100,22 @@ _PROMPTS: Dict[str, Dict[str, str]] = {
 async def data_node(state: TradingGraphState) -> dict:
     """
     数据情报员节点:
-      - 调用 get_market_data @tool 获取 OHLCV 行情
-      - 调用 calculate_technical_indicators @tool 预计算所有技术指标
-      - 将结果写入 state.market_data，供后续并行节点使用
+      - 生产路径: 调用 get_market_data @tool 拉"最新" OHLCV
+      - 【v2.2 回测路径】state['rebalance_date'] 存在时走 get_market_data_at() 从
+        bench/data/ohlcv/ 读时点切片,消除 look-ahead bias
+      - 调用 calculate_technical_indicators 预计算技术指标
+      - RAG 共享池预取 (P0-C)
 
     Anti-Loop: 使用 _check_tool_limit() 防止工具调用死循环
     """
     symbol = _sanitize_symbol(state.get("symbol") or state.get("stock_code", "UNKNOWN"))
-    logger.info(f"[data_node] 开始获取市场数据: {symbol}")
+    rebalance_date = state.get("rebalance_date")  # 【v2.2】回测时点标志
+    is_backtest = bool(rebalance_date)
+
+    if is_backtest:
+        logger.info(f"[data_node] 【回测模式】获取 {symbol} @ {rebalance_date} 的历史时点数据")
+    else:
+        logger.info(f"[data_node] 开始获取市场数据: {symbol}")
 
     # 工具调用计数器初始化（首次进入此节点）
     counts = state.get("tool_call_counts") or {}
@@ -1117,7 +1125,19 @@ async def data_node(state: TradingGraphState) -> dict:
         _check_tool_limit(state, "data_node")
         counts = _increment_tool_count(counts, "data_node")
 
-        raw_json  = get_market_data.invoke({"symbol": symbol, "days": 180})
+        # ── 【v2.2 回测路径】时点驱动 vs 生产路径(NOW) ──
+        if is_backtest:
+            from tools.market_data import get_market_data_at
+            raw_data_dict = get_market_data_at(symbol, rebalance_date, lookback_days=180)
+            if raw_data_dict.get("status") != "success":
+                # 回测时点数据不可用,直接抛出让 except 分支处理
+                raise RuntimeError(
+                    f"时点数据获取失败 {symbol}@{rebalance_date}: "
+                    f"{raw_data_dict.get('error', 'unknown')}"
+                )
+            raw_json = json.dumps(raw_data_dict, ensure_ascii=False, default=str)
+        else:
+            raw_json = get_market_data.invoke({"symbol": symbol, "days": 180})
 
         _check_tool_limit({**state, "tool_call_counts": counts}, "data_node")
         counts = _increment_tool_count(counts, "data_node")
@@ -1247,61 +1267,84 @@ async def fundamental_node(state: TradingGraphState) -> dict:
 
     logger.info(f"[fundamental_node] 开始基本面分析: {symbol}")
 
+    # 【v2.2 回测模式】检测是否是时点回测,如果是则跳过当日快照类指标
+    # (PE/PB/ROE 的东财 spot 接口只能拿"最新",无法历史回溯)
+    is_backtest = bool(state.get("rebalance_date"))
+
     # 【审计修复 P0-1】获取真实基本面数据
     fund_data_text = "（基本面数据获取失败，仅凭价格与教育资料分析）"
     fundamental_data_dict = {}
-    try:
-        _check_tool_limit(state, "fundamental_node")
-        counts = _increment_tool_count(counts, "fundamental_node")
 
-        fund_json = get_fundamental_data.invoke({"symbol": symbol})
-        fund_parsed = json.loads(fund_json)
+    if is_backtest:
+        # 回测路径: 跳过 get_fundamental_data (避免 look-ahead),
+        # 只能用 OHLCV 推断的弱基本面信号(价格走势 / 波动率)
+        rebalance_date = state.get("rebalance_date")
+        fund_data_text = (
+            f"（【回测模式 @ {rebalance_date}】基本面当日快照指标(PE/PB/ROE)"
+            "不可历史回溯,仅根据价格走势与技术指标推断趋势方向）"
+        )
+        logger.info(f"[fundamental_node] 回测模式,跳过 get_fundamental_data")
+    else:
+        # 生产路径: 原有逻辑不变
+        try:
+            _check_tool_limit(state, "fundamental_node")
+            counts = _increment_tool_count(counts, "fundamental_node")
 
-        if fund_parsed.get("status") == "success":
-            data = fund_parsed.get("data", {})
-            fundamental_data_dict = data
-            # 格式化为可读文本注入 Prompt（最多 10 个字段，单值截 80 字符）
-            fund_lines = [
-                f"  {k}: {str(v)[:80]}" for k, v in data.items()
-                if v is not None
-            ]
-            fund_data_text = "\n".join(fund_lines[:10]) if fund_lines else "（无有效字段）"
-            # 极严厉截断：800 字符上限，确保 LLM 快速处理
-            fund_data_text = fund_data_text[:800]
-            logger.info(f"[fundamental_node] 基本面数据获取成功: {len(fund_lines)} 字段")
-        elif fund_parsed.get("status") == "partial":
-            fund_data_text = f"（{fund_parsed.get('message', '部分数据')}）"
-        else:
-            fund_data_text = f"（获取失败: {fund_parsed.get('error', '未知错误')[:60]}）"
-    except _ToolLimitExceeded:
-        logger.warning("[fundamental_node] 工具调用上限，跳过基本面数据获取")
-    except Exception as _e:
-        logger.warning(f"[fundamental_node] 基本面数据获取异常: {_e}")
+            fund_json = get_fundamental_data.invoke({"symbol": symbol})
+            fund_parsed = json.loads(fund_json)
+
+            if fund_parsed.get("status") == "success":
+                data = fund_parsed.get("data", {})
+                fundamental_data_dict = data
+                # 格式化为可读文本注入 Prompt（最多 10 个字段，单值截 80 字符）
+                fund_lines = [
+                    f"  {k}: {str(v)[:80]}" for k, v in data.items()
+                    if v is not None
+                ]
+                fund_data_text = "\n".join(fund_lines[:10]) if fund_lines else "（无有效字段）"
+                # 极严厉截断：800 字符上限，确保 LLM 快速处理
+                fund_data_text = fund_data_text[:800]
+                logger.info(f"[fundamental_node] 基本面数据获取成功: {len(fund_lines)} 字段")
+            elif fund_parsed.get("status") == "partial":
+                fund_data_text = f"（{fund_parsed.get('message', '部分数据')}）"
+            else:
+                fund_data_text = f"（获取失败: {fund_parsed.get('error', '未知错误')[:60]}）"
+        except _ToolLimitExceeded:
+            logger.warning("[fundamental_node] 工具调用上限，跳过基本面数据获取")
+        except Exception as _e:
+            logger.warning(f"[fundamental_node] 基本面数据获取异常: {_e}")
 
     # 【深度财务数据】获取主营构成 + 多维业绩趋势，注入 key_metrics 供前端 ECharts 渲染
     # 深度财务数据仅供前端图表，不注入 LLM prompt，故不受截断约束
-    try:
-        deep = await asyncio.get_event_loop().run_in_executor(
-            None, get_deep_financial_data_via_relay, symbol
-        )
-        fundamental_data_dict["revenue_composition"] = deep.get("revenue_composition", {})
-        fundamental_data_dict["performance_trend"]   = deep.get("performance_trend", {})
-        # 历年营收/净利润（供前端 ECharts 柱状图）
-        if deep.get("years"):
-            fundamental_data_dict["years"] = deep["years"]
-            fundamental_data_dict["revenue_history"] = deep.get("revenue_history", [])
-            fundamental_data_dict["profit_history"] = deep.get("profit_history", [])
-            fundamental_data_dict["revenue_label"] = deep.get("revenue_label", "营业收入（亿元）")
-            fundamental_data_dict["profit_label"] = deep.get("profit_label", "净利润（亿元）")
-        logger.info(
-            f"[fundamental_node] 深度财务注入完成: "
-            f"历年数据={len(deep.get('years', []))}年 "
-            f"构成产品={len(deep.get('revenue_composition', {}).get('product', []))}项"
-        )
-    except Exception as _de:
-        logger.warning(f"[fundamental_node] 深度财务数据获取失败（非致命）: {_de}")
+    # 【v2.2 回测模式】跳过(实时数据不能做时点回测)
+    deep: dict | None = None
+    if is_backtest:
         fundamental_data_dict.setdefault("revenue_composition", {})
         fundamental_data_dict.setdefault("performance_trend", {})
+        logger.info(f"[fundamental_node] 回测模式,跳过 get_deep_financial_data_via_relay")
+    else:
+        try:
+            deep = await asyncio.get_event_loop().run_in_executor(
+                None, get_deep_financial_data_via_relay, symbol
+            )
+            fundamental_data_dict["revenue_composition"] = deep.get("revenue_composition", {})
+            fundamental_data_dict["performance_trend"]   = deep.get("performance_trend", {})
+            # 历年营收/净利润（供前端 ECharts 柱状图）
+            if deep.get("years"):
+                fundamental_data_dict["years"] = deep["years"]
+                fundamental_data_dict["revenue_history"] = deep.get("revenue_history", [])
+                fundamental_data_dict["profit_history"] = deep.get("profit_history", [])
+                fundamental_data_dict["revenue_label"] = deep.get("revenue_label", "营业收入（亿元）")
+                fundamental_data_dict["profit_label"] = deep.get("profit_label", "净利润（亿元）")
+            logger.info(
+                f"[fundamental_node] 深度财务注入完成: "
+                f"历年数据={len(deep.get('years', []))}年 "
+                f"构成产品={len(deep.get('revenue_composition', {}).get('product', []))}项"
+            )
+        except Exception as _de:
+            logger.warning(f"[fundamental_node] 深度财务数据获取失败（非致命）: {_de}")
+            fundamental_data_dict.setdefault("revenue_composition", {})
+            fundamental_data_dict.setdefault("performance_trend", {})
 
     # 【v2.2 P0-C】从 state.rag_evidence_pool 读取 fundamental bucket + shared
     # (替代 v2.1 的独立 search_knowledge_base 调用)
@@ -1564,31 +1607,43 @@ async def sentiment_node(state: TradingGraphState) -> dict:
 
     logger.info(f"[sentiment_node] 开始舆情分析: {symbol}")
 
+    # 【v2.2 回测模式】历史新闻无法时点获取,回测时直接置空
+    is_backtest = bool(state.get("rebalance_date"))
+
     # 【审计修复 P0-2】获取真实新闻资讯
     news_text = "（新闻数据获取失败，仅凭量价指标分析动量）"
     news_data_str = None
-    try:
-        _check_tool_limit(state, "sentiment_node")
-        counts = _increment_tool_count(counts, "sentiment_node")
 
-        news_json   = get_stock_news.invoke({"symbol": symbol, "limit": 5})
-        news_parsed = json.loads(news_json)
+    if is_backtest:
+        rebalance_date = state.get("rebalance_date")
+        news_text = (
+            f"（【回测模式 @ {rebalance_date}】历史新闻不可时点回溯,"
+            "本次情绪分析仅基于量价指标推断,置信度自动降低至 ≤0.50）"
+        )
+        logger.info(f"[sentiment_node] 回测模式,跳过 get_stock_news")
+    else:
+        try:
+            _check_tool_limit(state, "sentiment_node")
+            counts = _increment_tool_count(counts, "sentiment_node")
 
-        if news_parsed.get("status") == "success" and news_parsed.get("news"):
-            news_items = news_parsed["news"][:3]   # 最多 3 条，进一步减负
-            lines = [f"  [{i+1}] {n.get('time','')[:10]} {n.get('title','')[:80]}"
-                     for i, n in enumerate(news_items)]
-            news_text     = "\n".join(lines)[:600]  # 强制截断 600 字符
-            news_data_str = news_json
-            logger.info(f"[sentiment_node] 新闻获取成功: {len(news_items)} 条")
-        elif news_parsed.get("status") == "partial":
-            news_text = f"（{news_parsed.get('message', '暂无新闻数据')}）"
-        else:
-            news_text = f"（新闻获取失败: {news_parsed.get('error', '')[:60]}）"
-    except _ToolLimitExceeded:
-        logger.warning("[sentiment_node] 工具调用上限，跳过新闻获取")
-    except Exception as _e:
-        logger.warning(f"[sentiment_node] 新闻获取异常: {_e}")
+            news_json   = get_stock_news.invoke({"symbol": symbol, "limit": 5})
+            news_parsed = json.loads(news_json)
+
+            if news_parsed.get("status") == "success" and news_parsed.get("news"):
+                news_items = news_parsed["news"][:3]   # 最多 3 条，进一步减负
+                lines = [f"  [{i+1}] {n.get('time','')[:10]} {n.get('title','')[:80]}"
+                         for i, n in enumerate(news_items)]
+                news_text     = "\n".join(lines)[:600]  # 强制截断 600 字符
+                news_data_str = news_json
+                logger.info(f"[sentiment_node] 新闻获取成功: {len(news_items)} 条")
+            elif news_parsed.get("status") == "partial":
+                news_text = f"（{news_parsed.get('message', '暂无新闻数据')}）"
+            else:
+                news_text = f"（新闻获取失败: {news_parsed.get('error', '')[:60]}）"
+        except _ToolLimitExceeded:
+            logger.warning("[sentiment_node] 工具调用上限，跳过新闻获取")
+        except Exception as _e:
+            logger.warning(f"[sentiment_node] 新闻获取异常: {_e}")
 
     # 【v2.2 P0-C】从 state.rag_evidence_pool 读取 sentiment bucket + shared
     sent_rag_context = _read_pool(state, "sentiment", include_shared=True, max_chars=1000)
@@ -2042,7 +2097,39 @@ async def portfolio_node(state: TradingGraphState) -> dict:
     tech_cites = technical.get("evidence_citations", []) or []
     sent_cites = sentiment.get("evidence_citations", []) or []
 
-    user_prompt = f"""
+    # ── 【v2.2 A/B 回测】根据 prompt_version 切换 user_prompt 风格 ──
+    prompt_version = state.get("prompt_version") or "v2_esc"
+
+    if prompt_version == "v1_baseline":
+        # policyHypothesis + policyRationale 混合(v2.2 之前的旧风格):
+        # 结论优先,无证据引文块,接收方(基金经理 LLM)只看到"立场+置信度+推理摘要"
+        user_prompt = f"""
+请综合以下研究报告，对 **{symbol}** 做出投资决策。
+
+【基本面报告】
+- 建议: {fund_rec} | 置信度: {fundamental.get('confidence', 0):.2f}
+- 核心逻辑: {fundamental.get('reasoning', 'N/A')[:200]}
+- 关键因素: {', '.join(fundamental.get('key_factors', [])[:3])}
+
+【技术面报告】
+- 建议: {tech_rec} | 置信度: {technical.get('confidence', 0):.2f}
+- 核心逻辑: {technical.get('reasoning', 'N/A')[:200]}
+
+【舆情报告】
+- 建议: {sent_rec} | 置信度: {sent_conf:.2f}
+- 核心逻辑: {sentiment.get('reasoning', 'N/A')[:200]}
+
+【宏观知识参考】
+{rag_context[:600] if rag_context else '暂无'}
+
+【量化预加权参考锚点】
+{pre_signal_text}
+
+请给出最终的综合投资建议（BUY/SELL/HOLD），包含详细推理。
+"""
+    else:
+        # v2_esc: 证据优先,结论置底(默认分支)
+        user_prompt = f"""
 请综合以下三位分析师提交的**原始证据与分析**，对 **{symbol}** 做出独立投资决策。
 
 【一、基本面证据（结构化引文，由基本面节点从真实财务数据代码生成，零幻觉）】
@@ -2254,16 +2341,35 @@ async def debate_node(state: TradingGraphState) -> dict:
             return "    (暂无结构化引文)"
         return "\n".join(f"    • {c}" for c in citations)
 
-    bull_argument = (
-        f"【第{debate_rounds + 1}轮 · 多头方证据(基本面分析师,结构化引文,代码生成)】\n"
-        f"{_cite_block(fund_cites)}\n"
-        f"【多头方核心论点】{fund_logic}"
-    )
-    bear_argument = (
-        f"【第{debate_rounds + 1}轮 · 空头方证据(技术面分析师,结构化引文,代码生成)】\n"
-        f"{_cite_block(tech_cites)}\n"
-        f"【空头方核心论点】{tech_logic}"
-    )
+    # ── 【v2.2 A/B】根据 prompt_version 切换 debate 论点构造风格 ──
+    debate_prompt_version = state.get("prompt_version") or "v2_esc"
+
+    if debate_prompt_version == "v1_baseline":
+        # 旧风格:立场+置信度+reasoning,裁判看到的是结论强度对峙,而非证据对峙
+        bull_argument = (
+            f"【第{debate_rounds + 1}轮多头论点】\n"
+            f"立场: {fund_rec} | 置信度: {fundamental.get('confidence', 0.5):.2f}\n"
+            f"论据: {fund_logic}\n"
+            f"关键因素: {', '.join(fundamental.get('key_factors', [])[:3])}"
+        )
+        bear_argument = (
+            f"【第{debate_rounds + 1}轮空头论点】\n"
+            f"立场: {tech_rec} | 置信度: {technical.get('confidence', 0.5):.2f}\n"
+            f"论据: {tech_logic}\n"
+            f"关键因素: {', '.join(technical.get('key_factors', [])[:3])}"
+        )
+    else:
+        # v2_esc: 结构化证据对峙
+        bull_argument = (
+            f"【第{debate_rounds + 1}轮 · 多头方证据(基本面分析师,结构化引文,代码生成)】\n"
+            f"{_cite_block(fund_cites)}\n"
+            f"【多头方核心论点】{fund_logic}"
+        )
+        bear_argument = (
+            f"【第{debate_rounds + 1}轮 · 空头方证据(技术面分析师,结构化引文,代码生成)】\n"
+            f"{_cite_block(tech_cites)}\n"
+            f"【空头方核心论点】{tech_logic}"
+        )
 
     user_prompt = f"""【辩论议题】{symbol} 当前应该 BUY 还是 SELL?
 

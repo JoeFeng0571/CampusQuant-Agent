@@ -462,6 +462,25 @@ class TradingGraphState(TypedDict, total=False):
     # ── 错误分类（细粒度归因，便于前端 SSE 展示具体提示）──────
     error_type: Optional[str] # "data_error"|"llm_error"|"rate_limit"|"timeout"|None
 
+    # ── 【v2.2】回测时点驱动 ──────────────────────────────────
+    # 生产路径: None (走实时数据)
+    # 回测路径: ISO 日期字符串 "YYYY-MM-DD", data_node 会切换到
+    #           get_market_data_at() 从 bench/data/ohlcv/*.parquet 读时点切片,
+    #           fundamental_node / sentiment_node 也会跳过当日快照指标和实时新闻,
+    #           彻底消除 look-ahead bias
+    rebalance_date: Optional[str]
+
+    # ── 【v2.2】A/B 回测 Prompt 版本切换 ──────────────────────
+    # 用于区分 EMNLP 论文 policyHypothesis (v1_baseline) vs policyEvidence (v2_esc)
+    # - "v1_baseline": portfolio_node/debate_node 使用 v2.2 之前的结论优先风格
+    #                  (不读 evidence_citations,按"建议+置信度+reasoning"展示三方观点)
+    # - "v2_esc" 或 None: 使用 v2.2 证据优先风格
+    #                     (证据引文在前,结论置底,附"仅供参考,勿轻易锚定"指令)
+    # 注意: 其他节点 (fundamental/technical/sentiment/risk/trade) 两组完全一致,
+    #       唯一变量是 portfolio 和 debate 的 user_prompt 构造,严格对应论文
+    #       "什么内容被 agent 共享"的单一变量对比。
+    prompt_version: Optional[str]
+
 
 # ── 全局常量 ────────────────────────────────────────────────
 MAX_DEBATE_ROUNDS = 2    # 最多辩论2轮
