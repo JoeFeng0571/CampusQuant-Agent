@@ -217,9 +217,14 @@ async def startup_event():
         logger.error(f"❌ 数据库初始化失败: {e}")
 
     # 1. 初始化 FAISS 知识库
+    # 注意: init_knowledge_base() 内部调用 chromadb.PersistentClient(),
+    # 后者启动 Rust tokio/sqlx 连接池。若直接在 uvicorn 的 asyncio 主
+    # 事件循环里同步调用,会出现 PoolTimedOut panic(rust 绑定的 sqlx
+    # pool 默认 30s 超时,始终拿不到连接)。用 asyncio.to_thread() 放到
+    # 独立线程执行,绕开 event loop 冲突。
     try:
         from tools.knowledge_base import init_knowledge_base
-        ok = init_knowledge_base()
+        ok = await asyncio.to_thread(init_knowledge_base)
         logger.info(f"{'✅' if ok else '⚠️'} FAISS 知识库初始化: {'成功' if ok else '降级模式'}")
     except Exception as e:
         logger.error(f"❌ 知识库初始化失败: {e}")
