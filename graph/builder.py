@@ -268,6 +268,8 @@ def make_initial_state(symbol: str) -> TradingGraphState:
         has_conflict=False,
         debate_outcome=None,
         debate_rounds=0,
+        debate_confidence_history=[],
+        debate_converged=None,
         risk_decision=None,
         risk_rejection_count=0,
         trade_order=None,
@@ -284,8 +286,8 @@ def make_initial_state(symbol: str) -> TradingGraphState:
         error_type=None,
         # 【v2.2】回测时点驱动: None = 生产路径(NOW),否则 ISO 日期字符串
         rebalance_date=None,
-        # 【v2.2】A/B 回测 prompt 版本: None = v2_esc (默认证据优先),
-        # "v1_baseline" = 回到结论优先的旧风格做对比
+        # 【v2.2】回测 prompt 版本: None = 默认证据优先,
+        # "v1_baseline" = 回到结论优先的旧风格
         prompt_version=None,
     )
 
@@ -345,6 +347,8 @@ def make_health_initial_state(
         has_conflict=False,
         debate_outcome=None,
         debate_rounds=0,
+        debate_confidence_history=[],
+        debate_converged=None,
         risk_decision=None,
         risk_rejection_count=0,
         trade_order=None,
@@ -359,7 +363,7 @@ def make_health_initial_state(
         error_type=None,
         # 【v2.2】回测时点驱动: None = 生产路径(NOW),否则 ISO 日期字符串
         rebalance_date=None,
-        # 【v2.2】A/B 回测 prompt 版本: None = v2_esc (默认证据优先),
-        # "v1_baseline" = 回到结论优先的旧风格做对比
+        # 【v2.2】回测 prompt 版本: None = 默认证据优先,
+        # "v1_baseline" = 回到结论优先的旧风格
         prompt_version=None,
     )

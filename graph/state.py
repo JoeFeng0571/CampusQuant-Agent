@@ -435,6 +435,10 @@ class TradingGraphState(TypedDict, total=False):
     has_conflict: bool                        # 基本面 vs 技术面意见截然相反
     debate_outcome: Optional[Dict[str, Any]]  # DebateOutcome.model_dump()
     debate_rounds: int                        # 已辩论轮次（循环保护上限: MAX_DEBATE_ROUNDS）
+    # 【v2.3】收敛检测: 每轮 confidence_after_debate 历史 + 最终是否收敛
+    # 未收敛(推荐翻转 或 置信度差 ≥ 0.05) → portfolio_node 对自身 confidence 乘 0.7 惩罚
+    debate_confidence_history: List[float]
+    debate_converged: Optional[bool]          # None=辩论未完成/未发生; True/False=最后一轮判定结果
 
     # ── 风控状态 ────────────────────────────────────────────
     risk_decision: Optional[Dict[str, Any]]   # RiskDecision.model_dump()
@@ -470,15 +474,14 @@ class TradingGraphState(TypedDict, total=False):
     #           彻底消除 look-ahead bias
     rebalance_date: Optional[str]
 
-    # ── 【v2.2】A/B 回测 Prompt 版本切换 ──────────────────────
-    # 用于区分 EMNLP 论文 policyHypothesis (v1_baseline) vs policyEvidence (v2_esc)
-    # - "v1_baseline": portfolio_node/debate_node 使用 v2.2 之前的结论优先风格
-    #                  (不读 evidence_citations,按"建议+置信度+reasoning"展示三方观点)
-    # - "v2_esc" 或 None: 使用 v2.2 证据优先风格
-    #                     (证据引文在前,结论置底,附"仅供参考,勿轻易锚定"指令)
-    # 注意: 其他节点 (fundamental/technical/sentiment/risk/trade) 两组完全一致,
-    #       唯一变量是 portfolio 和 debate 的 user_prompt 构造,严格对应论文
-    #       "什么内容被 agent 共享"的单一变量对比。
+    # ── 【v2.2】回测 Prompt 版本切换 ──────────────────────
+    # 用于在回测中切换 portfolio_node / debate_node 的两种 prompt 风格:
+    # - "v1_baseline": 结论优先风格 —— 不读 evidence_citations,按
+    #                  "建议+置信度+reasoning"展示三方观点
+    # - "v2_alt" 或 None: 证据优先风格 —— 证据引文在前,结论置底,
+    #                     附"仅供参考,勿轻易锚定"指令
+    # 其他节点 (fundamental/technical/sentiment/risk/trade) 两种风格完全一致,
+    # 唯一变量是 portfolio 和 debate 的 user_prompt 构造。
     prompt_version: Optional[str]
 
 

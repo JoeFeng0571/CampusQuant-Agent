@@ -53,7 +53,7 @@ import json
 import os
 import re as _re_top
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from loguru import logger
@@ -443,11 +443,13 @@ def _increment_tool_count(state_counts: dict, node_name: str) -> dict:
 # ════════════════════════════════════════════════════════════════
 # 【v2.2 P0-A】Evidence citations — 代码生成结构化引文
 # ════════════════════════════════════════════════════════════════
-# 设计原则（吸收 EMNLP 2025 论文方法 + 外部审阅建议）:
+# 设计原则:
 #   - 基本面和技术面本来就是结构化数据(PE/PB/ROE/MA/MACD/...),
 #     让 LLM 复述这些数字既烧 token 又有幻觉风险。
 #   - 正确做法: 代码直接从数据字典拼装引文, LLM 只负责在 reasoning 里做解释。
 #   - 只有 sentiment(新闻/RAG)是非结构化文本,需要 LLM 抽取 + 子串校验。
+#   - 下游 portfolio/debate 节点优先看这些证据,结论摘要置底,
+#     减少对"自信的错误结论"的锚定效应。
 
 def build_fundamental_citations(data: dict | None) -> list[str]:
     """
@@ -1377,6 +1379,11 @@ async def fundamental_node(state: TradingGraphState) -> dict:
 该标的的基本面状况，给出 BUY/SELL/HOLD 建议。
 注意：若基本面数据缺失，请明确在 reasoning 中说明分析局限性，并降低置信度。
 price_target 使用绝对价格数值。
+
+【v2.3 证据引文要求】
+可额外从【研报知识库】中**逐字复制** 1-2 条与你观点最相关的原句到 evidence_citations 字段，
+每条 ≤120 字。严禁改写、总结、拼接、翻译。代码层会自动合并结构化数字引文和你的文本引文；
+若研报无相关内容则 evidence_citations 留空列表即可。
 """
 
     try:
@@ -1401,8 +1408,28 @@ price_target 使用绝对价格数值。
         # 将 key_metrics 注入 fundamental_report，确保 server.py 能提取 financial_chart_data
         # （无论成功还是降级路径，前端 ECharts 都能获得 revenue_history / profit_history）
         report_dict["key_metrics"] = fundamental_data_dict if fundamental_data_dict else {}
-        # 【v2.2 P0-A】代码生成结构化引文,覆盖 LLM 可能填的值,零幻觉
-        report_dict["evidence_citations"] = build_fundamental_citations(fundamental_data_dict)
+        # 【v2.3】引文合并: 代码生成的数字引文 + LLM 抽取的文本引文(经子串校验)
+        raw_cites = report_dict.get("evidence_citations") or []
+        validated_text_cites = _validate_llm_citations(
+            raw_cites, fund_rag_context or "",
+            min_ratio=0.6, max_keep=2,
+        )
+        n_rejected = len(raw_cites) - len(validated_text_cites)
+        if n_rejected > 0:
+            logger.warning(
+                f"[fundamental_node] LLM 引文幻觉过滤: {n_rejected}/{len(raw_cites)} 条被剔除"
+            )
+            try:
+                from observability.metrics import metrics
+                metrics.counter(
+                    "evidence_citation_rejection_total",
+                    value=n_rejected,
+                    node="fundamental_node",
+                )
+            except Exception:
+                pass
+        numeric_cites = build_fundamental_citations(fundamental_data_dict)
+        report_dict["evidence_citations"] = numeric_cites + validated_text_cites
         return {
             "fundamental_report": report_dict,
             "fundamental_data":   fundamental_data_dict if fundamental_data_dict else None,
@@ -1694,7 +1721,7 @@ async def sentiment_node(state: TradingGraphState) -> dict:
         raw_cites = report_dict.get("evidence_citations") or []
         valid_cites = _validate_llm_citations(
             raw_cites, src_text_for_validation,
-            min_ratio=0.6, max_keep=2,
+            min_ratio=0.6, max_keep=5,
         )
         n_rejected = len(raw_cites) - len(valid_cites)
         if n_rejected > 0:
@@ -1971,6 +1998,7 @@ async def portfolio_node(state: TradingGraphState) -> dict:
     technical            = state.get("technical_report", {})   or {}
     sentiment            = state.get("sentiment_report", {})   or {}
     debate_outcome       = state.get("debate_outcome")
+    debate_converged     = state.get("debate_converged")  # None | True | False
     risk_decision        = state.get("risk_decision")
     risk_rejection_count = state.get("risk_rejection_count", 0)
     # 【v2.2 P0-C】portfolio_node 读 shared bucket(不再依赖 state.rag_context 字段)
@@ -2026,11 +2054,17 @@ async def portfolio_node(state: TradingGraphState) -> dict:
 
     debate_instruction = ""
     if debate_outcome:
+        converged_note = ""
+        if debate_converged is False:
+            converged_note = (
+                "\n⚠️ 辩论未达成共识：多空双方分歧持续至最终轮（推荐翻转或置信度波动 ≥ 0.05），"
+                "请谨慎对待此分歧，倾向保守决策、降低仓位。"
+            )
         debate_instruction = f"""
 【辩论结果参考】
 辩论共识建议: {debate_outcome.get('resolved_recommendation')}
 决定性因素: {debate_outcome.get('deciding_factor')}
-辩论摘要: {debate_outcome.get('debate_summary', '')[:200]}
+辩论摘要: {debate_outcome.get('debate_summary', '')[:200]}{converged_note}
 """
 
     system_prompt = f"""你是拥有20年经验的基金经理，负责整合多路研究报告，做出最终投资决策。
@@ -2086,7 +2120,6 @@ async def portfolio_node(state: TradingGraphState) -> dict:
 - investment_thesis 必填，1-2句话"""
 
     # 【v2.2 P0-A】证据化改造: 提取三方的 evidence_citations,构造证据块
-    # 按 EMNLP 2025 论文《What Should LLM Agents Share?》的 policyEvidence 方式,
     # 证据优先于结论,结论放到 prompt 底部加"仅供参考"前缀削弱锚定效应。
     def _cite_block(citations: list[str]) -> str:
         if not citations:
@@ -2098,11 +2131,11 @@ async def portfolio_node(state: TradingGraphState) -> dict:
     sent_cites = sentiment.get("evidence_citations", []) or []
 
     # ── 【v2.2 A/B 回测】根据 prompt_version 切换 user_prompt 风格 ──
-    prompt_version = state.get("prompt_version") or "v2_esc"
+    prompt_version = state.get("prompt_version") or "v2_alt"
 
     if prompt_version == "v1_baseline":
-        # policyHypothesis + policyRationale 混合(v2.2 之前的旧风格):
-        # 结论优先,无证据引文块,接收方(基金经理 LLM)只看到"立场+置信度+推理摘要"
+        # 结论优先风格(v2.2 之前的旧写法):
+        # 接收方(基金经理 LLM)只看到"立场+置信度+推理摘要",没有结构化证据引文
         user_prompt = f"""
 请综合以下研究报告，对 **{symbol}** 做出投资决策。
 
@@ -2128,7 +2161,7 @@ async def portfolio_node(state: TradingGraphState) -> dict:
 请给出最终的综合投资建议（BUY/SELL/HOLD），包含详细推理。
 """
     else:
-        # v2_esc: 证据优先,结论置底(默认分支)
+        # v2_alt: 证据优先,结论置底(默认分支)
         user_prompt = f"""
 请综合以下三位分析师提交的**原始证据与分析**，对 **{symbol}** 做出独立投资决策。
 
@@ -2184,6 +2217,16 @@ async def portfolio_node(state: TradingGraphState) -> dict:
 
         portfolio_decision = decision.model_dump(mode='json')
 
+        # 【v2.3】辩论未收敛 → 置信度惩罚 ×0.7，下游 risk_node 感知到低置信会收紧仓位
+        if debate_converged is False:
+            original_conf = float(portfolio_decision.get("confidence", 0.5) or 0.5)
+            penalized     = round(original_conf * 0.7, 2)
+            portfolio_decision["confidence"] = penalized
+            logger.warning(
+                f"[portfolio_node] 辩论未收敛 → 置信度惩罚: "
+                f"{original_conf:.2f} → {penalized:.2f}"
+            )
+
         return {
             "fundamental_report": {**fundamental, "_portfolio_decision": portfolio_decision},
             "has_conflict":       has_conflict,
@@ -2191,8 +2234,9 @@ async def portfolio_node(state: TradingGraphState) -> dict:
             "execution_log":      [log_msg],
             "messages": [AIMessage(
                 content=f"基金经理决策: {decision.recommendation} "
-                        f"(置信度 {decision.confidence:.0%})"
-                        + (f" ⚡ 冲突检测触发辩论" if has_conflict else ""),
+                        f"(置信度 {portfolio_decision['confidence']:.0%})"
+                        + (f" ⚡ 冲突检测触发辩论" if has_conflict else "")
+                        + (" ⚠️ 辩论未收敛,置信度已惩罚" if debate_converged is False else ""),
                 name="portfolio_node",
             )],
         }
@@ -2331,8 +2375,8 @@ async def debate_node(state: TradingGraphState) -> dict:
 注意: confidence_after_debate 是 0.0~1.0 的数字，不是字符串。resolved_recommendation 只能是 BUY、SELL 或 HOLD。"""
 
     # 【v2.2 P0-A】辩论节点证据化改造
-    # 让裁判 LLM 看到的是**结构化证据对峙**(真实数字 + 状态标签),而非两个自信的结论。
-    # 这样符合 EMNLP 论文 policyEvidence 的思路,减少裁判的锚定偏差。
+    # 让裁判 LLM 看到的是**结构化证据对峙**(真实数字 + 状态标签),而非两个自信的结论,
+    # 减少裁判的锚定偏差。
     fund_cites = fundamental.get("evidence_citations", []) or []
     tech_cites = technical.get("evidence_citations", []) or []
 
@@ -2342,7 +2386,7 @@ async def debate_node(state: TradingGraphState) -> dict:
         return "\n".join(f"    • {c}" for c in citations)
 
     # ── 【v2.2 A/B】根据 prompt_version 切换 debate 论点构造风格 ──
-    debate_prompt_version = state.get("prompt_version") or "v2_esc"
+    debate_prompt_version = state.get("prompt_version") or "v2_alt"
 
     if debate_prompt_version == "v1_baseline":
         # 旧风格:立场+置信度+reasoning,裁判看到的是结论强度对峙,而非证据对峙
@@ -2359,7 +2403,7 @@ async def debate_node(state: TradingGraphState) -> dict:
             f"关键因素: {', '.join(technical.get('key_factors', [])[:3])}"
         )
     else:
-        # v2_esc: 结构化证据对峙
+        # v2_alt: 结构化证据对峙
         bull_argument = (
             f"【第{debate_rounds + 1}轮 · 多头方证据(基本面分析师,结构化引文,代码生成)】\n"
             f"{_cite_block(fund_cites)}\n"
@@ -2462,6 +2506,27 @@ async def debate_node(state: TradingGraphState) -> dict:
 
         outcome_dict = outcome.model_dump(mode='json')
         new_rounds   = debate_rounds + 1
+
+        # 【v2.3】收敛检测: 到最后一轮时比较推荐+置信度变化
+        prev_history = state.get("debate_confidence_history") or []
+        new_history  = prev_history + [float(outcome.confidence_after_debate)]
+        debate_converged: Optional[bool] = None  # None = 还不是最后一轮
+        if new_rounds >= MAX_DEBATE_ROUNDS:
+            prev_outcome = state.get("debate_outcome") or {}
+            prev_rec     = prev_outcome.get("resolved_recommendation")
+            this_rec     = outcome.resolved_recommendation
+            if len(new_history) >= 2 and prev_rec == this_rec:
+                conf_diff        = abs(new_history[-1] - new_history[-2])
+                debate_converged = conf_diff < 0.05
+            else:
+                # 推荐翻转 或 首轮没有历史比较 → 未收敛
+                debate_converged = False
+            logger.info(
+                f"[debate_node] 收敛性判定: {'✅ 收敛' if debate_converged else '⚠️ 未收敛'} "
+                f"| 置信度轨迹={[f'{c:.2f}' for c in new_history]} "
+                f"| 推荐: {prev_rec} → {this_rec}"
+            )
+
         log_msg = _log_entry(
             "debate_node",
             f"辩论第{new_rounds}轮完成 | 裁决: {outcome.resolved_recommendation} "
@@ -2471,11 +2536,13 @@ async def debate_node(state: TradingGraphState) -> dict:
         logger.info(log_msg)
 
         return {
-            "debate_outcome": outcome_dict,
-            "debate_rounds":  new_rounds,
-            "has_conflict":   False,
-            "current_node":   "debate_node",
-            "execution_log":  [log_msg],
+            "debate_outcome":             outcome_dict,
+            "debate_rounds":              new_rounds,
+            "debate_confidence_history":  new_history,
+            "debate_converged":           debate_converged,
+            "has_conflict":               False,
+            "current_node":               "debate_node",
+            "execution_log":              [log_msg],
             "messages": [AIMessage(
                 content=f"⚖️ 辩论裁决（第{new_rounds}轮）: {outcome.resolved_recommendation} "
                         f"(置信度 {outcome.confidence_after_debate:.0%}) — "
