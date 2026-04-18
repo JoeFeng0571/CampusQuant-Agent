@@ -41,6 +41,7 @@ from __future__ import annotations
 import asyncio
 import json
 import secrets
+import smtplib
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import AsyncGenerator, Optional
@@ -1416,7 +1417,32 @@ async def send_auth_code(request: SendCodeRequest, db=Depends(_get_db_dep)):
             raise HTTPException(status_code=429, detail="验证码发送过于频繁，请稍后再试")
 
     code = _make_verification_code()
-    await run_in_threadpool(send_verification_email, email, code, request.purpose)
+    try:
+        await run_in_threadpool(send_verification_email, email, code, request.purpose)
+    except smtplib.SMTPAuthenticationError as e:
+        logger.error(f"[send-code] SMTP 认证失败: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="邮件服务认证失败，请联系管理员（SMTP 授权码可能已失效）",
+        )
+    except (smtplib.SMTPServerDisconnected, smtplib.SMTPConnectError, OSError) as e:
+        logger.error(f"[send-code] SMTP 连接异常: {type(e).__name__}: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="邮件服务暂时不可用，请稍后再试",
+        )
+    except smtplib.SMTPException as e:
+        logger.error(f"[send-code] SMTP 通用异常: {type(e).__name__}: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"邮件发送失败（{type(e).__name__}），请稍后再试",
+        )
+    except Exception as e:
+        logger.exception(f"[send-code] 未知异常: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="邮件发送失败，请联系管理员",
+        )
     await upsert_email_verification_code(
         db, email, request.purpose, code, now + timedelta(minutes=_CODE_TTL_MINUTES)
     )
