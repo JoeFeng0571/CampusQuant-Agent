@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>财商问答 · CampusQuant</title>
+<meta name="description" content="基于研报知识库和实时搜索的财商问答，支持中文自然语言提问。">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/nav.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/animations.css">
+<script src="/assets/vendor/lucide.min.js" defer></script>
+<style>
+main { flex:1; margin-top:80px; padding:32px 48px 80px; max-width:1000px; margin-left:auto; margin-right:auto; width:100%; }
+
+.ask-hero { text-align:center; margin-bottom:36px; }
+.ask-hero h1 {
+    font-family: var(--font-display);
+    font-size: 44px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(180deg, #fff 0%, rgba(255,255,255,.7) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
+}
+.ask-hero p { color: var(--text-sub); font-size: 15px; max-width: 60ch; margin: 0 auto; }
+
+.ask-form {
+    display: flex; gap: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 6px;
+    margin-bottom: 14px;
+    transition: border 0.2s;
+}
+.ask-form:focus-within { border-color: rgba(45,212,191,0.6); }
+.ask-input {
+    flex: 1; border: none; background: transparent;
+    color: var(--text); font-size: 15px;
+    padding: 14px 16px;
+    outline: none;
+    font-family: inherit;
+}
+.ask-submit {
+    border: none; padding: 0 22px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary, #2dd4bf), var(--secondary, #8b5cf6));
+    color: #0b0f19; font-weight: 700; cursor: pointer;
+    transition: opacity 0.2s;
+}
+.ask-submit:hover { opacity: 0.85; }
+.ask-submit[disabled] { opacity: 0.5; cursor: wait; }
+
+.market-chips {
+    display:flex; gap:8px; flex-wrap:wrap;
+    margin-bottom:24px;
+}
+.market-chip {
+    padding:6px 14px; border-radius:999px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--text-sub);
+    font-size: 12px; cursor: pointer;
+    transition: all 0.2s;
+}
+.market-chip:hover { color: var(--primary); border-color: rgba(45,212,191,0.4); }
+.market-chip.active {
+    background: rgba(45,212,191,0.12);
+    color: var(--primary);
+    border-color: rgba(45,212,191,0.5);
+}
+
+.sample-questions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+    margin-bottom: 32px;
+}
+.sample-q {
+    padding: 12px 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-sub); font-size: 13px;
+    cursor: pointer; transition: all 0.2s;
+}
+.sample-q:hover {
+    color: var(--text); border-color: rgba(45,212,191,0.35);
+    transform: translateY(-2px);
+}
+
+.answer-section { display: none; }
+.answer-section.visible { display: block; animation: fade-in 0.3s var(--ease-out); }
+@keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.answer-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-bottom: 16px;
+}
+.answer-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px; padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.answer-title { font-size: 16px; font-weight: 700; color: var(--primary); }
+.answer-meta { font-size: 11px; color: var(--text-dim); }
+.answer-body {
+    white-space: pre-wrap; font-size: 13px; line-height: 1.8;
+    color: var(--text); max-height: 600px; overflow-y: auto;
+}
+
+.citations-grid {
+    display: grid; gap: 10px; margin-top: 12px;
+}
+.citation-card {
+    background: rgba(139, 92, 246, 0.06);
+    border-left: 3px solid rgba(139, 92, 246, 0.5);
+    padding: 10px 14px; border-radius: 6px;
+    font-size: 12px;
+}
+.citation-src { font-weight: 600; color: var(--secondary, #c084fc); margin-bottom: 4px; font-size: 11px; }
+.citation-body { color: var(--text-sub); line-height: 1.6; }
+
+.suggested-modules {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px;
+}
+.sugg-chip {
+    padding: 6px 12px; border-radius: 8px;
+    background: rgba(45,212,191,0.1);
+    color: var(--primary);
+    text-decoration: none;
+    font-size: 12px; font-weight: 600;
+    transition: all 0.2s;
+}
+.sugg-chip:hover { background: rgba(45,212,191,0.2); }
+
+.err-box {
+    padding: 14px 18px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 10px;
+    color: #fca5a5; font-size: 13px;
+}
+
+footer { padding: 18px; text-align: center; background: rgba(0,0,0,0.3);
+        border-top: 1px solid var(--border); color: var(--text-dim); font-size: 13px; margin-top: 24px; }
+
+@media (max-width: 768px) {
+    main { padding: 16px; margin-top: 60px; }
+    .ask-hero h1 { font-size: 28px; }
+    .ask-hero p { font-size: 13px; }
+}
+</style>
+</head>
+<body data-bg-mode="off">
+
+<header>
+    <a href="dashboard.html" class="logo">
+        <span class="logo-text">CampusQuant</span>
+        <span class="logo-sub">校园财商</span>
+    </a>
+    <nav>
+        <a href="dashboard.html">控制台</a>
+        <a href="market.html">市场快讯</a>
+        <a href="analysis.html">个股分析</a>
+        <a href="trade.html">模拟演练</a>
+        <a href="community.html">投教社区</a>
+        <a href="ask.html" class="active">财商问答</a>
+        <div id="auth-widget" style="display:flex;align-items:center;gap:8px;margin-left:8px;"></div>
+    </nav>
+</header>
+
+<main>
+    <section class="ask-hero">
+        <h1>财商问答</h1>
+        <p>中文自然语言提问，检索研报知识库 + 实时搜索，答案附引文来源。不提供投资建议，只讲概念和事实。</p>
+    </section>
+
+    <form class="ask-form" id="ask-form" onsubmit="return false;">
+        <input id="ask-input" class="ask-input" type="text" autofocus
+               placeholder="例如：PE 和 PB 的区别是什么？">
+        <button class="ask-submit" id="ask-submit" type="submit">提问</button>
+    </form>
+
+    <div class="market-chips" id="market-chips">
+        <div class="market-chip active" data-market="ALL">全部市场</div>
+        <div class="market-chip" data-market="A_STOCK">A 股</div>
+        <div class="market-chip" data-market="HK_STOCK">港股</div>
+        <div class="market-chip" data-market="US_STOCK">美股</div>
+    </div>
+
+    <div class="sample-questions" id="sample-questions">
+        <div class="sample-q">PE 和 PB 有什么区别？什么情况用哪个？</div>
+        <div class="sample-q">什么是安全边际？新手如何用？</div>
+        <div class="sample-q">A 股的 T+1 制度有什么影响？</div>
+        <div class="sample-q">定投和一次性买入哪个更适合新手？</div>
+        <div class="sample-q">怎么看一家公司的经营现金流是否健康？</div>
+        <div class="sample-q">ROE 连续 5 年超过 15% 意味着什么？</div>
+    </div>
+
+    <section class="answer-section" id="answer-section">
+        <div class="answer-card">
+            <div class="answer-header">
+                <div class="answer-title" id="answer-question">—</div>
+                <div class="answer-meta" id="answer-meta">—</div>
+            </div>
+            <div class="answer-body" id="answer-body">—</div>
+            <div class="citations-grid" id="citations-grid"></div>
+            <div class="suggested-modules" id="suggested-modules"></div>
+        </div>
+    </section>
+</main>
+
+<footer>
+    &copy; 2026 CampusQuant 校园财商 · 问答 · <a href="resources.html" style="color:var(--primary);">学习资源库</a>
+</footer>
+
+<script>
+'use strict';
+const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://127.0.0.1:8000' : location.origin;
+
+const MODULE_TITLES = {
+    basics: '财商入门', financials: '财报阅读', valuation: '估值方法',
+    strategies: '投资策略', discipline: '交易纪律', behavior: '行为金融',
+    macro: '宏观框架', antifraud: '风险与防骗',
+};
+const MODULE_PAGES = {
+    basics: 'learn_basics.html', strategies: 'learn_strategies.html',
+    antifraud: 'learn_antifraud.html',
+    financials: 'resources.html#financials', valuation: 'resources.html#valuation',
+    discipline: 'learn_discipline.html', behavior: 'learn_behavior.html',
+    macro: 'learn_macro.html',
+};
+
+let currentMarket = 'ALL';
+
+document.querySelectorAll('.market-chip').forEach(el => {
+    el.addEventListener('click', () => {
+        document.querySelectorAll('.market-chip').forEach(e => e.classList.remove('active'));
+        el.classList.add('active');
+        currentMarket = el.dataset.market;
+    });
+});
+
+document.querySelectorAll('.sample-q').forEach(el => {
+    el.addEventListener('click', () => {
+        document.getElementById('ask-input').value = el.textContent.trim();
+        submitQuestion();
+    });
+});
+
+document.getElementById('ask-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    submitQuestion();
+});
+
+async function submitQuestion() {
+    const q = document.getElementById('ask-input').value.trim();
+    if (q.length < 2) return;
+
+    const btn = document.getElementById('ask-submit');
+    const section = document.getElementById('answer-section');
+    btn.disabled = true; btn.textContent = '思考中…';
+
+    try {
+        const resp = await fetch(`${API_BASE}/api/v1/knowledge/ask`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                question: q,
+                market_type: currentMarket,
+                max_length: 2000,
+            }),
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.detail || `HTTP ${resp.status}`);
+        }
+        const data = await resp.json();
+
+        document.getElementById('answer-question').textContent = data.question;
+        document.getElementById('answer-meta').textContent =
+            `${data.citations?.length || 0} 条引文 · 市场: ${currentMarket}`;
+        document.getElementById('answer-body').textContent = data.answer || '（未返回内容）';
+
+        const citGrid = document.getElementById('citations-grid');
+        citGrid.innerHTML = (data.citations || []).map(c => `
+            <div class="citation-card">
+                <div class="citation-src">[${c.index}] ${escapeHtml(c.source)}</div>
+                <div class="citation-body">${escapeHtml(c.snippet)}</div>
+            </div>
+        `).join('');
+
+        const sugg = document.getElementById('suggested-modules');
+        sugg.innerHTML = (data.suggested_modules || []).map(m =>
+            `<a class="sugg-chip" href="${MODULE_PAGES[m] || '#'}">📚 ${MODULE_TITLES[m] || m}</a>`
+        ).join('');
+
+        section.classList.add('visible');
+
+        // 术语跳转装饰
+        if (window.CampusQuantTerms) {
+            window.CampusQuantTerms.decorate(document.getElementById('answer-body'));
+        }
+    } catch (err) {
+        const section = document.getElementById('answer-section');
+        section.classList.add('visible');
+        document.getElementById('answer-question').textContent = q;
+        document.getElementById('answer-meta').textContent = '出错';
+        document.getElementById('answer-body').innerHTML =
+            `<div class="err-box">加载失败：${escapeHtml(err.message)}。请稍后再试，或换个问法。</div>`;
+        document.getElementById('citations-grid').innerHTML = '';
+        document.getElementById('suggested-modules').innerHTML = '';
+    } finally {
+        btn.disabled = false; btn.textContent = '提问';
+    }
+}
+
+function escapeHtml(s) {
+    return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+</script>
+<script src="assets/js/common.js?v=20260411"></script>
+<script src="assets/js/term-tooltip.js" defer></script>
+</body>
+</html>

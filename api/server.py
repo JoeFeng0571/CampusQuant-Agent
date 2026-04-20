@@ -2205,6 +2205,84 @@ async def optimize_portfolio(req: PortfolioOptimizeRequest):
 
 
 # ════════════════════════════════════════════════════════════════
+# 知识问答（RAG 前端化）
+# ════════════════════════════════════════════════════════════════
+
+class KnowledgeAskRequest(BaseModel):
+    """POST /api/v1/knowledge/ask 的请求体。"""
+    question:    str = Field(..., min_length=2, max_length=500)
+    market_type: Literal["A_STOCK", "HK_STOCK", "US_STOCK", "ALL"] = "ALL"
+    max_length:  int = Field(1800, ge=500, le=5000,
+                              description="返回原文上下文最大字符数")
+
+
+@app.post("/api/v1/knowledge/ask", summary="财商知识问答（RAG 混合检索）")
+async def knowledge_ask(req: KnowledgeAskRequest):
+    """对接 tools.knowledge_base.search_knowledge_base (Chroma + BM25)。
+
+    返回：
+        answer: 拼接后的上下文原文（可直接展示）
+        citations: 按 [n] 解析出的条目，每条含 source / snippet
+        suggested_modules: 简单关键词命中的学习模块推荐
+    """
+    import asyncio
+    import re
+    import json
+    from pathlib import Path
+
+    loop = asyncio.get_running_loop()
+    try:
+        # 底层是同步 IO (Chroma/HTTP)，丢给线程池
+        from tools.knowledge_base import search_knowledge_base
+        answer = await loop.run_in_executor(
+            None,
+            lambda: search_knowledge_base(
+                req.question, market_type=req.market_type, max_length=req.max_length,
+            ),
+        )
+    except Exception as e:
+        logger.error(f"[knowledge/ask] search failed: {e}")
+        raise HTTPException(status_code=502, detail=f"知识库检索失败：{e}")
+
+    # 解析 [n] 源: xxx 格式的引文
+    citations = []
+    # 匹配形如 "[1] 来源: filename.pdf  p.3" + 下一行内容
+    pattern = re.compile(r"\[(\d+)\]\s*来源[:：]\s*([^\n]+)\n\s*([^\[]+?)(?=\n\s*\[\d+\]|\n\s*【|\Z)",
+                          re.DOTALL)
+    for m in pattern.finditer(answer):
+        citations.append({
+            "index":   int(m.group(1)),
+            "source":  m.group(2).strip(),
+            "snippet": m.group(3).strip()[:400],
+        })
+
+    # 简单关键词 → 学习模块推荐
+    mod_keywords = {
+        "basics":     ["复利", "通胀", "开户", "ETF", "指数", "风险收益"],
+        "financials": ["财报", "三张表", "ROE", "毛利率", "现金流", "杜邦"],
+        "valuation":  ["PE", "PB", "估值", "安全边际", "分位", "PEG"],
+        "strategies": ["定投", "价值投资", "趋势", "均值回归", "对冲", "资产配置"],
+        "discipline": ["止损", "止盈", "仓位", "回撤", "复盘", "凯利"],
+        "behavior":   ["情绪", "锚定", "过度自信", "FOMO", "追涨", "割肉"],
+        "macro":      ["CPI", "PMI", "利率", "降息", "货币", "LPR", "社融"],
+        "antifraud":  ["骗局", "荐股", "配资", "内幕", "校园贷", "AI 量化"],
+    }
+    suggested = []
+    for mod_id, keys in mod_keywords.items():
+        if any(k in req.question for k in keys):
+            suggested.append(mod_id)
+
+    return {
+        "question":           req.question,
+        "answer":             answer,
+        "citations":          citations,
+        "suggested_modules":  suggested,
+        "has_local_results":  "【本地知识库" in answer,
+        "has_web_results":    "【实时联网" in answer,
+    }
+
+
+# ════════════════════════════════════════════════════════════════
 # 学习进度 & 徽章端点
 # ════════════════════════════════════════════════════════════════
 

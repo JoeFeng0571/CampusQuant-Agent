@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>财商计算器 · CampusQuant</title>
+<meta name="description" content="复利计算、定投收益、仓位管理、最大回撤模拟——大学生财商四件套。">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/nav.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/animations.css">
+<style>
+main { flex:1; margin-top:80px; padding:32px 24px 80px; max-width:1100px; margin-left:auto; margin-right:auto; width:100%; }
+
+.calc-hero { text-align:center; margin-bottom:36px; }
+.calc-hero h1 {
+    font-family: var(--font-display);
+    font-size: 38px; font-weight: 800;
+    background: linear-gradient(180deg, #fff 0%, rgba(255,255,255,.75) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+}
+.calc-hero p { color: var(--text-sub); font-size: 14px; }
+
+.tool-tabs {
+    display: flex; gap: 6px; margin-bottom: 24px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 4px;
+}
+.tool-tab {
+    flex: 1; text-align: center; padding: 10px 8px;
+    font-size: 13px; font-weight: 600;
+    border-radius: 10px; cursor: pointer;
+    color: var(--text-sub); transition: all 0.2s;
+}
+.tool-tab:hover { color: var(--text); }
+.tool-tab.active {
+    background: linear-gradient(135deg, rgba(45,212,191,0.18), rgba(139,92,246,0.18));
+    color: var(--primary);
+}
+
+.panel { display: none; }
+.panel.active { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 24px; }
+@media (max-width: 768px) { .panel.active { grid-template-columns: 1fr; } }
+
+.input-card, .result-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px;
+}
+
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 12px; color: var(--text-sub); margin-bottom: 6px; font-weight: 600; }
+.field input {
+    width: 100%; padding: 10px 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text); font-size: 14px;
+    font-family: var(--font-mono, 'Menlo', monospace);
+    outline: none; transition: border 0.15s;
+}
+.field input:focus { border-color: rgba(45,212,191,0.5); }
+.field .hint { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+.kpi-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }
+.kpi {
+    padding: 12px 14px; border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+}
+.kpi-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+.kpi-value {
+    font-size: 22px; font-weight: 800;
+    font-family: var(--font-mono, monospace);
+    color: var(--primary);
+}
+.kpi-value.pos { color: #5eead4; }
+.kpi-value.neg { color: #fb923c; }
+
+.chart-wrap {
+    height: 220px; background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 8px; padding: 8px;
+    position: relative;
+}
+canvas { width: 100% !important; height: 100% !important; }
+
+.insight {
+    margin-top: 16px;
+    padding: 12px 14px;
+    background: rgba(45,212,191,0.08);
+    border-left: 3px solid var(--primary);
+    border-radius: 4px;
+    font-size: 13px; color: var(--text);
+    line-height: 1.6;
+}
+
+footer { padding: 18px; text-align: center; background: rgba(0,0,0,0.3);
+        border-top: 1px solid var(--border); color: var(--text-dim); font-size: 13px; margin-top: 24px; }
+</style>
+</head>
+<body data-bg-mode="off">
+
+<header>
+    <a href="dashboard.html" class="logo">
+        <span class="logo-text">CampusQuant</span>
+        <span class="logo-sub">校园财商</span>
+    </a>
+    <nav>
+        <a href="dashboard.html">控制台</a>
+        <a href="market.html">市场快讯</a>
+        <a href="analysis.html">个股分析</a>
+        <a href="trade.html">模拟演练</a>
+        <a href="calculator.html" class="active">计算器</a>
+        <a href="ask.html">问答</a>
+        <div id="auth-widget" style="display:flex;align-items:center;gap:8px;margin-left:8px;"></div>
+    </nav>
+</header>
+
+<main>
+    <section class="calc-hero">
+        <h1>财商计算器</h1>
+        <p>四款最常用的工具 · 结果即时计算 · 所有数据仅在浏览器本地运算，不上传服务器</p>
+    </section>
+
+    <div class="tool-tabs">
+        <div class="tool-tab active" data-tool="compound">复利计算器</div>
+        <div class="tool-tab" data-tool="dca">定投收益</div>
+        <div class="tool-tab" data-tool="position">仓位管理</div>
+        <div class="tool-tab" data-tool="mdd">最大回撤模拟</div>
+    </div>
+
+    <!-- 1. 复利 -->
+    <section class="panel active" id="panel-compound">
+        <div class="input-card">
+            <div class="field">
+                <label>初始本金（元）</label>
+                <input id="c-principal" type="number" value="10000" min="0">
+            </div>
+            <div class="field">
+                <label>年化收益率 (%)</label>
+                <input id="c-rate" type="number" value="8" step="0.5" min="-20" max="50">
+                <div class="hint">股票长期 7-10%，债券 3-5%，余额宝 2%</div>
+            </div>
+            <div class="field">
+                <label>投资年限</label>
+                <input id="c-years" type="number" value="30" min="1" max="60">
+            </div>
+            <div class="field">
+                <label>每年追加投入（元，可为 0）</label>
+                <input id="c-annual" type="number" value="12000" min="0">
+                <div class="hint">每月 1000 元 × 12 = 12000</div>
+            </div>
+        </div>
+        <div class="result-card">
+            <div class="kpi-row">
+                <div class="kpi"><div class="kpi-label">终值</div>
+                    <div class="kpi-value pos" id="c-final">—</div></div>
+                <div class="kpi"><div class="kpi-label">总投入</div>
+                    <div class="kpi-value" id="c-invested">—</div></div>
+                <div class="kpi"><div class="kpi-label">总收益</div>
+                    <div class="kpi-value pos" id="c-profit">—</div></div>
+                <div class="kpi"><div class="kpi-label">收益倍数</div>
+                    <div class="kpi-value pos" id="c-multiple">—</div></div>
+            </div>
+            <div class="chart-wrap"><canvas id="c-chart"></canvas></div>
+            <div class="insight" id="c-insight">—</div>
+        </div>
+    </section>
+
+    <!-- 2. 定投 -->
+    <section class="panel" id="panel-dca">
+        <div class="input-card">
+            <div class="field">
+                <label>每月定投金额（元）</label>
+                <input id="d-monthly" type="number" value="1000" min="100">
+            </div>
+            <div class="field">
+                <label>预期年化收益率 (%)</label>
+                <input id="d-rate" type="number" value="8" step="0.5" min="-10" max="30">
+            </div>
+            <div class="field">
+                <label>投资年限</label>
+                <input id="d-years" type="number" value="10" min="1" max="40">
+            </div>
+        </div>
+        <div class="result-card">
+            <div class="kpi-row">
+                <div class="kpi"><div class="kpi-label">终值</div>
+                    <div class="kpi-value pos" id="d-final">—</div></div>
+                <div class="kpi"><div class="kpi-label">总投入</div>
+                    <div class="kpi-value" id="d-invested">—</div></div>
+                <div class="kpi"><div class="kpi-label">总收益</div>
+                    <div class="kpi-value pos" id="d-profit">—</div></div>
+                <div class="kpi"><div class="kpi-label">年化 IRR</div>
+                    <div class="kpi-value pos" id="d-irr">—</div></div>
+            </div>
+            <div class="chart-wrap"><canvas id="d-chart"></canvas></div>
+            <div class="insight">
+                定投的核心价值是<strong>用机械执行替代情绪决策</strong>——你不再需要判断牛熊，
+                坚持每月买入就行。缺点是在单边牛市跑不赢一次性买入。
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. 仓位 -->
+    <section class="panel" id="panel-position">
+        <div class="input-card">
+            <div class="field">
+                <label>账户总资产（元）</label>
+                <input id="p-total" type="number" value="50000" min="1000">
+            </div>
+            <div class="field">
+                <label>愿意承担的单笔风险 (%)</label>
+                <input id="p-risk" type="number" value="2" step="0.5" min="0.5" max="10">
+                <div class="hint">新手建议 1-2%，激进 3-5%，> 5% 风险过高</div>
+            </div>
+            <div class="field">
+                <label>止损距离 (%)</label>
+                <input id="p-stop" type="number" value="8" step="0.5" min="1" max="30">
+                <div class="hint">入场价到止损价的百分比距离</div>
+            </div>
+            <div class="field">
+                <label>单股价格（元）</label>
+                <input id="p-price" type="number" value="100" min="0.01">
+            </div>
+        </div>
+        <div class="result-card">
+            <div class="kpi-row">
+                <div class="kpi"><div class="kpi-label">建议仓位</div>
+                    <div class="kpi-value" id="p-pos-pct">—</div></div>
+                <div class="kpi"><div class="kpi-label">建议金额</div>
+                    <div class="kpi-value" id="p-amount">—</div></div>
+                <div class="kpi"><div class="kpi-label">建议数量</div>
+                    <div class="kpi-value" id="p-qty">—</div></div>
+                <div class="kpi"><div class="kpi-label">最大亏损</div>
+                    <div class="kpi-value neg" id="p-max-loss">—</div></div>
+            </div>
+            <div class="insight" id="p-insight">—</div>
+        </div>
+    </section>
+
+    <!-- 4. 回撤 -->
+    <section class="panel" id="panel-mdd">
+        <div class="input-card">
+            <div class="field">
+                <label>当前回撤 (%)</label>
+                <input id="m-drawdown" type="number" value="30" step="1" min="1" max="95">
+                <div class="hint">账户从高点跌了多少</div>
+            </div>
+            <div class="field">
+                <label>假设年化收益率 (%)</label>
+                <input id="m-rate" type="number" value="8" step="0.5" min="1" max="30">
+            </div>
+            <div class="field" style="color:var(--text-dim);font-size:12px;margin-top:12px;">
+                输入当前回撤，看要多少时间 + 多少涨幅才能回本。
+            </div>
+        </div>
+        <div class="result-card">
+            <div class="kpi-row">
+                <div class="kpi"><div class="kpi-label">回本所需涨幅</div>
+                    <div class="kpi-value neg" id="m-recover-pct">—</div></div>
+                <div class="kpi"><div class="kpi-label">按年化估算年数</div>
+                    <div class="kpi-value neg" id="m-years">—</div></div>
+            </div>
+            <div class="chart-wrap"><canvas id="m-chart"></canvas></div>
+            <div class="insight">
+                回撤的不对称性：50% 回撤需要 100% 涨幅才能回本；70% 回撤需要 233%。
+                这就是为什么<strong>控制回撤比追求收益更重要</strong>。
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer>&copy; 2026 CampusQuant 校园财商 · 财商计算器</footer>
+
+<script>
+'use strict';
+
+// ── Tab 切换 ────────────────────────────────────────────
+document.querySelectorAll('.tool-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tool-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.tool).classList.add('active');
+    });
+});
+
+const fmt = (n) => {
+    if (!isFinite(n)) return '—';
+    return n.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+};
+
+// ── 1. 复利 ────────────────────────────────────────────
+function updateCompound() {
+    const P = +document.getElementById('c-principal').value || 0;
+    const r = (+document.getElementById('c-rate').value || 0) / 100;
+    const n = +document.getElementById('c-years').value || 0;
+    const A = +document.getElementById('c-annual').value || 0;
+
+    // 每年末追加，n 年末的终值
+    // FV = P*(1+r)^n + A * [(1+r)^n - 1] / r
+    const pow = Math.pow(1 + r, n);
+    const final = r === 0 ? P + A * n : P * pow + A * (pow - 1) / r;
+    const invested = P + A * n;
+    const profit = final - invested;
+
+    document.getElementById('c-final').textContent    = fmt(final);
+    document.getElementById('c-invested').textContent = fmt(invested);
+    document.getElementById('c-profit').textContent   = fmt(profit);
+    document.getElementById('c-multiple').textContent = invested > 0 ? (final / invested).toFixed(2) + 'x' : '—';
+
+    // Chart: 每年终值 vs 本金累计
+    const years = [...Array(n + 1).keys()];
+    const fvSeries = years.map(k => {
+        const p = Math.pow(1 + r, k);
+        return r === 0 ? P + A * k : P * p + A * (p - 1) / r;
+    });
+    const investedSeries = years.map(k => P + A * k);
+    drawLineChart('c-chart', years, fvSeries, investedSeries, '终值', '本金');
+
+    // Insight
+    const tip = document.getElementById('c-insight');
+    if (n >= 20 && r >= 0.05) {
+        tip.innerHTML = `大学生最大的资产是时间——年化 ${(r * 100).toFixed(1)}% 连续 ${n} 年，
+            ${invested.toFixed(0)} 元本金能变 ${final.toFixed(0)} 元。<strong>越早开始越值钱</strong>。`;
+    } else if (r < 0.03) {
+        tip.innerHTML = `年化 ${(r * 100).toFixed(1)}% 跑不赢长期通胀（约 3%）。
+            考虑适度配置权益类资产。`;
+    } else {
+        tip.innerHTML = `试着把年限延长，或年化略提高，你会发现复利的非线性效果。`;
+    }
+}
+
+// ── 2. 定投 ────────────────────────────────────────────
+function updateDCA() {
+    const m = +document.getElementById('d-monthly').value || 0;
+    const r = (+document.getElementById('d-rate').value || 0) / 100;
+    const y = +document.getElementById('d-years').value || 0;
+
+    const months = y * 12;
+    const rm = r / 12;
+    // FV = m * [(1+rm)^months - 1] / rm * (1+rm)  (期末 vs 期初简化)
+    const pow = Math.pow(1 + rm, months);
+    const final = rm === 0 ? m * months : m * (pow - 1) / rm;
+    const invested = m * months;
+    const profit = final - invested;
+    // 近似年化 IRR = r (因为我们假设 r 已经是目标收益)
+    const irrPct = (r * 100).toFixed(2);
+
+    document.getElementById('d-final').textContent    = fmt(final);
+    document.getElementById('d-invested').textContent = fmt(invested);
+    document.getElementById('d-profit').textContent   = fmt(profit);
+    document.getElementById('d-irr').textContent      = irrPct + '%';
+
+    const xs = [...Array(y + 1).keys()];
+    const fvSeries = xs.map(k => {
+        const p = Math.pow(1 + rm, k * 12);
+        return rm === 0 ? m * k * 12 : m * (p - 1) / rm;
+    });
+    const investedSeries = xs.map(k => m * k * 12);
+    drawLineChart('d-chart', xs, fvSeries, investedSeries, '账户价值', '累计投入');
+}
+
+// ── 3. 仓位 ────────────────────────────────────────────
+function updatePosition() {
+    const total = +document.getElementById('p-total').value || 0;
+    const riskPct = (+document.getElementById('p-risk').value || 0) / 100;
+    const stopPct = (+document.getElementById('p-stop').value || 0) / 100;
+    const price = +document.getElementById('p-price').value || 1;
+
+    // 仓位管理公式：建议仓位 = (风险金额) / (止损距离比例) / 总资产
+    // 风险金额 = total × riskPct
+    // 仓位金额 = 风险金额 / stopPct
+    // 仓位比例 = 仓位金额 / total = riskPct / stopPct
+    const posPct = stopPct > 0 ? riskPct / stopPct : 0;
+    const posAmount = total * Math.min(posPct, 1);
+    const maxLoss = total * riskPct;
+    const qty = Math.floor(posAmount / price);
+
+    document.getElementById('p-pos-pct').textContent  = (posPct * 100).toFixed(1) + '%';
+    document.getElementById('p-amount').textContent   = '¥ ' + fmt(posAmount);
+    document.getElementById('p-qty').textContent      = qty.toLocaleString('zh-CN') + ' 股';
+    document.getElementById('p-max-loss').textContent = '¥ ' + fmt(maxLoss);
+
+    const tip = document.getElementById('p-insight');
+    if (posPct > 0.5) {
+        tip.innerHTML = `⚠ 仓位 > 50% 过于集中。考虑降低单笔风险 (<2%) 或放宽止损。`;
+    } else if (posPct < 0.05) {
+        tip.innerHTML = `仓位 < 5% 偏小，实际效果接近"心理防护"而非真实风险管理。`;
+    } else {
+        tip.innerHTML = `合理仓位。这笔交易的最大损失上限是 <strong>¥${fmt(maxLoss)}</strong>，
+            占账户 ${(riskPct * 100).toFixed(1)}%。`;
+    }
+}
+
+// ── 4. 回撤 ────────────────────────────────────────────
+function updateMDD() {
+    const dd = (+document.getElementById('m-drawdown').value || 0) / 100;
+    const r = (+document.getElementById('m-rate').value || 0) / 100;
+
+    const recoverPct = dd < 1 ? (1 / (1 - dd) - 1) : Infinity;
+    const years = (r > 0 && recoverPct < Infinity)
+        ? Math.log(1 / (1 - dd)) / Math.log(1 + r)
+        : Infinity;
+
+    document.getElementById('m-recover-pct').textContent =
+        recoverPct === Infinity ? '∞' : (recoverPct * 100).toFixed(1) + '%';
+    document.getElementById('m-years').textContent =
+        years === Infinity ? '∞' : years.toFixed(1) + ' 年';
+
+    // 画一条回撤 vs 回本涨幅的曲线
+    const xs = [];
+    const ys = [];
+    for (let d = 1; d <= 90; d += 1) {
+        xs.push(d);
+        ys.push((1 / (1 - d / 100) - 1) * 100);
+    }
+    drawLineChart('m-chart', xs, ys, null, '回本涨幅 (%)', null);
+}
+
+// ── 简单折线图（canvas 2D，无依赖） ─────────────────────
+function drawLineChart(canvasId, xs, ys1, ys2, label1, label2) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    canvas.width  = rect.width  * devicePixelRatio;
+    canvas.height = rect.height * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+    const W = rect.width, H = rect.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const all = [...ys1, ...(ys2 || [])];
+    const ymax = Math.max(...all) * 1.05;
+    const ymin = Math.min(...all, 0);
+    const yrange = ymax - ymin || 1;
+    const xmax = xs[xs.length - 1];
+
+    function px(x) { return (x / xmax) * (W - 50) + 40; }
+    function py(y) { return H - 22 - ((y - ymin) / yrange) * (H - 40); }
+
+    // axis
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(40, H - 22); ctx.lineTo(W - 10, H - 22); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(40, 8); ctx.lineTo(40, H - 22); ctx.stroke();
+
+    // ys2 baseline
+    if (ys2) {
+        ctx.strokeStyle = 'rgba(139, 92, 246, 0.55)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ys2.forEach((y, i) => {
+            const X = px(xs[i]), Y = py(y);
+            if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+        });
+        ctx.stroke();
+    }
+
+    // ys1
+    ctx.strokeStyle = '#2dd4bf';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ys1.forEach((y, i) => {
+        const X = px(xs[i]), Y = py(y);
+        if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+    });
+    ctx.stroke();
+
+    // legend
+    ctx.fillStyle = '#a7f3d0';
+    ctx.font = '10px sans-serif';
+    ctx.fillText(label1, W - 80, 16);
+    if (label2) {
+        ctx.fillStyle = '#c084fc';
+        ctx.fillText(label2, W - 80, 30);
+    }
+}
+
+// ── 绑定实时更新 ────────────────────────────────────────
+function bindRealtime(ids, fn) {
+    ids.forEach(id => document.getElementById(id).addEventListener('input', fn));
+    fn();
+}
+bindRealtime(['c-principal', 'c-rate', 'c-years', 'c-annual'], updateCompound);
+bindRealtime(['d-monthly', 'd-rate', 'd-years'], updateDCA);
+bindRealtime(['p-total', 'p-risk', 'p-stop', 'p-price'], updatePosition);
+bindRealtime(['m-drawdown', 'm-rate'], updateMDD);
+</script>
+<script src="assets/js/common.js?v=20260411"></script>
+</body>
+</html>
