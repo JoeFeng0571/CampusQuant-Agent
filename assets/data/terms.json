@@ -1,0 +1,270 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "anchor_base": "/resources.html",
+    "note": "key 是匹配的术语字面量；value 含 definition + anchor。按最长优先匹配以避免短串误中。"
+  },
+  "PE": {
+    "full_name": "市盈率 Price-to-Earnings Ratio",
+    "definition": "股价 ÷ 每股收益。衡量投资者愿为每 1 元利润付多少股价。低 PE 可能是价值洼地，也可能是价值陷阱。",
+    "anchor": "#valuation",
+    "level": "beginner",
+    "category": "valuation"
+  },
+  "PB": {
+    "full_name": "市净率 Price-to-Book Ratio",
+    "definition": "股价 ÷ 每股净资产。适合银行、地产等重资产行业；轻资产公司 PB 高是常态。",
+    "anchor": "#valuation",
+    "level": "beginner",
+    "category": "valuation"
+  },
+  "PS": {
+    "full_name": "市销率 Price-to-Sales Ratio",
+    "definition": "股价 ÷ 每股营收。在公司亏损、PE 失效时仍可用。",
+    "anchor": "#valuation",
+    "level": "beginner",
+    "category": "valuation"
+  },
+  "PEG": {
+    "full_name": "市盈增长比 PE / Growth",
+    "definition": "PE ÷ 年化盈利增速。PEG=1 被视为合理估值；<1 相对低估，>2 需警惕。",
+    "anchor": "#valuation",
+    "level": "intermediate",
+    "category": "valuation"
+  },
+  "DCF": {
+    "full_name": "现金流折现 Discounted Cash Flow",
+    "definition": "把未来现金流折回今天算内在价值。对折现率和增速假设极敏感，需结合多情景。",
+    "anchor": "#valuation",
+    "level": "advanced",
+    "category": "valuation"
+  },
+  "股息率": {
+    "full_name": "Dividend Yield",
+    "definition": "过去 12 个月分红总额 ÷ 当前股价。高股息率常伴随稳定现金流的成熟企业。",
+    "anchor": "#valuation",
+    "level": "beginner",
+    "category": "valuation"
+  },
+  "历史分位": {
+    "full_name": "Historical Percentile",
+    "definition": "当前 PE/PB 在过去 N 年分布中的排名。<30% 相对低估，>70% 相对高估；前提是基本面稳定。",
+    "anchor": "#valuation",
+    "level": "beginner",
+    "category": "valuation"
+  },
+  "安全边际": {
+    "full_name": "Margin of Safety",
+    "definition": "格雷厄姆：买入价要显著低于估算的内在价值，为判断错误留缓冲。合理价 × 70% 才是买点。",
+    "anchor": "#valuation",
+    "level": "intermediate",
+    "category": "valuation"
+  },
+
+  "ROE": {
+    "full_name": "净资产收益率 Return on Equity",
+    "definition": "净利润 ÷ 净资产。巴菲特偏爱连续 10 年 > 15% 的公司。可拆解为 净利率 × 周转率 × 权益乘数（杜邦）。",
+    "anchor": "#financials",
+    "level": "beginner",
+    "category": "financials"
+  },
+  "ROIC": {
+    "full_name": "投入资本回报率 Return on Invested Capital",
+    "definition": "NOPAT ÷ 投入资本。比 ROE 更严格——排除财务杠杆影响，反映运营资本的真实回报。",
+    "anchor": "#financials",
+    "level": "advanced",
+    "category": "financials"
+  },
+  "ROA": {
+    "full_name": "总资产收益率 Return on Assets",
+    "definition": "净利润 ÷ 总资产。反映每 1 元资产创造多少利润。银行地产 ROA 天然低。",
+    "anchor": "#financials",
+    "level": "beginner",
+    "category": "financials"
+  },
+  "毛利率": {
+    "full_name": "Gross Margin",
+    "definition": "（营收 - 成本）÷ 营收。反映产品定价权。消费龙头通常 >40%，制造业 15-25%。",
+    "anchor": "#financials",
+    "level": "beginner",
+    "category": "financials"
+  },
+  "净利率": {
+    "full_name": "Net Profit Margin",
+    "definition": "净利润 ÷ 营收。反映最终盈利能力。>10% 为优秀。",
+    "anchor": "#financials",
+    "level": "beginner",
+    "category": "financials"
+  },
+  "经营现金流": {
+    "full_name": "Operating Cash Flow",
+    "definition": "主营业务产生的真实现金。经营现金流 / 净利润 > 1 才是真赚钱；< 0.8 要警惕应收账款堆积。",
+    "anchor": "#financials",
+    "level": "intermediate",
+    "category": "financials"
+  },
+  "资产负债率": {
+    "full_name": "Debt-to-Asset Ratio",
+    "definition": "总负债 ÷ 总资产。<60% 较安全（银行地产除外，因其业务性质高杠杆）。",
+    "anchor": "#financials",
+    "level": "beginner",
+    "category": "financials"
+  },
+  "杜邦分析": {
+    "full_name": "DuPont Analysis",
+    "definition": "把 ROE 拆成 净利率 × 资产周转率 × 权益乘数，判断收益来自盈利能力、运营效率还是加杠杆。",
+    "anchor": "#financials",
+    "level": "intermediate",
+    "category": "financials"
+  },
+  "商誉": {
+    "full_name": "Goodwill",
+    "definition": "溢价收购形成的无形资产。商誉 / 总资产 > 20% 需警惕，一旦减值会大幅侵蚀利润。",
+    "anchor": "#financials",
+    "level": "intermediate",
+    "category": "financials"
+  },
+
+  "MA60": {
+    "full_name": "60 日均线 60-Day Moving Average",
+    "definition": "近 60 个交易日收盘价的平均。常被看作中期趋势基准，价格站上为多头格局。",
+    "anchor": "#technical",
+    "level": "beginner",
+    "category": "technical"
+  },
+  "MA20": {
+    "full_name": "20 日均线",
+    "definition": "近 20 日收盘价均值，反映月度级别趋势。",
+    "anchor": "#technical",
+    "level": "beginner",
+    "category": "technical"
+  },
+  "MA200": {
+    "full_name": "200 日均线",
+    "definition": "长期趋势分水岭，巴菲特级时间维度。价格稳定站上是长牛标志。",
+    "anchor": "#technical",
+    "level": "beginner",
+    "category": "technical"
+  },
+  "MACD": {
+    "full_name": "指数平滑异同移动平均",
+    "definition": "两条不同周期 EMA 的差（DIF）及其 9 日均线（DEA）。DIF 上穿 DEA 为金叉，反之死叉。",
+    "anchor": "#technical",
+    "level": "intermediate",
+    "category": "technical"
+  },
+  "RSI": {
+    "full_name": "相对强弱指标 Relative Strength Index",
+    "definition": "[0, 100] 区间。>70 被视为超买，<30 超卖。单独用易骗线，建议结合趋势。",
+    "anchor": "#technical",
+    "level": "intermediate",
+    "category": "technical"
+  },
+  "布林带": {
+    "full_name": "Bollinger Bands",
+    "definition": "20 日均线 ± 2 倍标准差。价格触及上轨常回落，下轨常反弹；带宽收窄预示方向选择。",
+    "anchor": "#technical",
+    "level": "intermediate",
+    "category": "technical"
+  },
+  "金叉": {
+    "full_name": "Golden Cross",
+    "definition": "短期均线上穿长期均线。经典多头信号，但对横盘震荡市容易骗线。",
+    "anchor": "#technical",
+    "level": "beginner",
+    "category": "technical"
+  },
+  "死叉": {
+    "full_name": "Death Cross",
+    "definition": "短期均线下穿长期均线。空头信号，配合成交量放大更可靠。",
+    "anchor": "#technical",
+    "level": "beginner",
+    "category": "technical"
+  },
+  "成交量背离": {
+    "full_name": "Volume Divergence",
+    "definition": "价格新高但成交量不配合，或价格破位但成交量萎缩。常是趋势反转前兆。",
+    "anchor": "#technical",
+    "level": "intermediate",
+    "category": "technical"
+  },
+
+  "止损位": {
+    "full_name": "Stop Loss",
+    "definition": "预设的亏损退出价。没有止损的交易等于把亏损上限交给市场。",
+    "anchor": "#risk",
+    "level": "beginner",
+    "category": "risk"
+  },
+  "止盈位": {
+    "full_name": "Take Profit",
+    "definition": "预设的盈利兑现价。和止损配套使用，盈亏比（止盈幅度 / 止损幅度）应 > 1.5。",
+    "anchor": "#risk",
+    "level": "beginner",
+    "category": "risk"
+  },
+  "最大回撤": {
+    "full_name": "Maximum Drawdown (MDD)",
+    "definition": "账户从历史最高点跌下来的最大幅度。50% 回撤需 100% 涨幅才能回本。",
+    "anchor": "#risk",
+    "level": "beginner",
+    "category": "risk"
+  },
+  "夏普比率": {
+    "full_name": "Sharpe Ratio",
+    "definition": "（组合收益 - 无风险利率）÷ 组合波动率。衡量单位波动带来多少超额收益，>1 良好，>2 优秀。",
+    "anchor": "#risk",
+    "level": "intermediate",
+    "category": "risk"
+  },
+  "凯利公式": {
+    "full_name": "Kelly Criterion",
+    "definition": "最优仓位 = 胜率 - 败率/盈亏比。业界通常用半凯利（Kelly × 0.5）以避免过度波动。",
+    "anchor": "#risk",
+    "level": "advanced",
+    "category": "risk"
+  },
+  "波动率": {
+    "full_name": "Volatility",
+    "definition": "收益率的标准差，衡量价格波动剧烈程度。低波动股票往往长期跑赢高波动股票（低波异象）。",
+    "anchor": "#risk",
+    "level": "intermediate",
+    "category": "risk"
+  },
+  "盈亏比": {
+    "full_name": "Profit-Loss Ratio",
+    "definition": "平均盈利 / 平均亏损。盈亏比 3 + 胜率 50% = 长期稳定复利。",
+    "anchor": "#risk",
+    "level": "intermediate",
+    "category": "risk"
+  },
+
+  "CPI": {
+    "full_name": "消费者物价指数 Consumer Price Index",
+    "definition": "通胀核心指标。过低（<1%）暗示需求疲软，过高（>3%）压迫货币政策。",
+    "anchor": "#macro",
+    "level": "beginner",
+    "category": "macro"
+  },
+  "PMI": {
+    "full_name": "采购经理人指数 Purchasing Managers' Index",
+    "definition": "[0, 100] 区间。>50 扩张，<50 收缩。官方和财新 PMI 常被同时参考。",
+    "anchor": "#macro",
+    "level": "beginner",
+    "category": "macro"
+  },
+  "社融": {
+    "full_name": "社会融资规模",
+    "definition": "实体经济从金融系统获得的全部资金。社融增速回落常预示经济放缓。",
+    "anchor": "#macro",
+    "level": "intermediate",
+    "category": "macro"
+  },
+  "LPR": {
+    "full_name": "贷款市场报价利率 Loan Prime Rate",
+    "definition": "央行引导的基准贷款利率。LPR 下调常提振 A 股，尤其利好地产/金融。",
+    "anchor": "#macro",
+    "level": "intermediate",
+    "category": "macro"
+  }
+}

@@ -1071,6 +1071,10 @@
             // fallback：纯文本
             pane.innerHTML = `<pre style="white-space:pre-wrap;font-size:13px">${markdown}</pre>`;
         }
+        // 术语跳转：渲染完再装饰（幂等，重复调用安全）
+        if (window.CampusQuantTerms) {
+            window.CampusQuantTerms.decorate(pane);
+        }
     }
 
     function setSymbol(sym) {
@@ -1429,6 +1433,7 @@
 <script src="assets/js/pixel-sand.js"></script>
 <script src="assets/js/view-transitions.js"></script>
 <script src="assets/js/magnet-cursor.js"></script>
+<script src="assets/js/term-tooltip.js" defer></script>
 <script src="shell-bridge.js"></script>
 </body>
 </html>
