@@ -270,6 +270,48 @@ class OptimizedPortfolio(BaseModel):
     )
 
 
+class CalibrationReport(BaseModel):
+    """
+    置信度校准评估报告（由 eval.calibration.summarize_calibration 产出）
+
+    用途:
+      - 周期性回测 Agent confidence 的校准质量
+      - 把 calibration 指标暴露给前端，展示模型"自知之明"
+
+    典型工作流:
+      1. 收集历史 (predicted_confidence, actual_outcome) 对
+      2. 计算 Brier / ECE / MCE
+      3. ECE > 0.10 时触发再校准（Platt/Isotonic），更新 AnalystReport.confidence_calibrated
+    """
+
+    n_samples: int = Field(description="评估样本数")
+    base_rate: float = Field(
+        ge=0.0, le=1.0,
+        description="实际命中率（y=1 的比例），理想预测的平均概率应与之接近"
+    )
+    mean_prob: float = Field(
+        ge=0.0, le=1.0,
+        description="预测概率的均值。若与 base_rate 差距大，说明整体系统性偏差"
+    )
+    brier: float = Field(
+        ge=0.0, le=1.0,
+        description="Brier Score，越小越好（0=完美，0.25=随机）"
+    )
+    ece: float = Field(
+        ge=0.0, le=1.0,
+        description="Expected Calibration Error。< 0.05 良好，> 0.10 需再校准"
+    )
+    mce: float = Field(
+        ge=0.0, le=1.0,
+        description="Maximum Calibration Error，最坏分箱的偏差"
+    )
+    calibrator_used: Optional[str] = Field(
+        default=None,
+        description="若已应用校准，记录方法名: platt/isotonic/histogram; None 表示原始未校准"
+    )
+    n_bins: int = Field(default=10, ge=2, le=50, description="可靠性图分箱数")
+
+
 class DebateOutcome(BaseModel):
     """
     多空辩论结构化输出（由 Debate 节点产出）
