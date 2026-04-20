@@ -643,7 +643,7 @@
                         <circle class="countdown-circle-bg" cx="22" cy="22" r="20"/>
                         <circle class="countdown-circle" id="countdown-circle" cx="22" cy="22" r="20"/>
                     </svg>
-                    <div class="countdown-text" id="countdown-text">3:00</div>
+                    <div class="countdown-text" id="countdown-text">8:00</div>
                 </div>
             </div>
             <div id="node-progress"></div>
@@ -1108,12 +1108,15 @@
 
     // ══ 倒计时 ═══════════════════════════════════════════════════
     let _cdTimer = null;
-    const CD_TOTAL = 300; // 5 minutes
+    // 真实分析耗时: 基础 3-4min, 触发辩论 +1-2min, 风控重试 +1min
+    // 上限按"最坏情况 + 缓冲"设计, 避免用户以为卡死
+    const CD_TOTAL = 480; // 8 minutes
     function startCountdown() {
         stopCountdown();
         let remaining = CD_TOTAL;
         const wrapEl  = document.getElementById('countdown-wrap');
         const textEl  = document.getElementById('countdown-text');
+        const labelEl = wrapEl.querySelector('.countdown-label');
         const circEl  = document.getElementById('countdown-circle');
         const pbEl    = document.getElementById('progress-bar');
         const pbWrap  = document.getElementById('progress-bar-wrap');
@@ -1122,20 +1125,33 @@
         const circumference = 2 * Math.PI * 20; // 125.66
 
         function tick() {
-            const m = Math.floor(remaining / 60);
-            const s = remaining % 60;
-            textEl.textContent = m + ':' + String(s).padStart(2,'0');
-            const progress = (CD_TOTAL - remaining) / CD_TOTAL;
-            circEl.style.strokeDashoffset = circumference * (1 - (remaining / CD_TOTAL));
-            pbEl.style.width = (progress * 100).toFixed(1) + '%';
-            if (remaining <= 30) {
-                circEl.className = 'countdown-circle crit';
-            } else if (remaining <= 60) {
-                circEl.className = 'countdown-circle warn';
+            if (remaining > 0) {
+                const m = Math.floor(remaining / 60);
+                const s = remaining % 60;
+                textEl.textContent = m + ':' + String(s).padStart(2,'0');
+                const progress = (CD_TOTAL - remaining) / CD_TOTAL;
+                circEl.style.strokeDashoffset = circumference * (1 - (remaining / CD_TOTAL));
+                pbEl.style.width = (progress * 100).toFixed(1) + '%';
+                if (remaining <= 30) {
+                    circEl.className = 'countdown-circle crit';
+                } else if (remaining <= 60) {
+                    circEl.className = 'countdown-circle warn';
+                } else {
+                    circEl.className = 'countdown-circle';
+                }
+                remaining--;
             } else {
-                circEl.className = 'countdown-circle';
+                // 超出预估仍在跑 - 显示"仍在分析"+ 已超时秒数, 不做假进度
+                const over = -remaining;
+                const m = Math.floor(over / 60);
+                const s = over % 60;
+                textEl.textContent = '+' + m + ':' + String(s).padStart(2,'0');
+                circEl.className = 'countdown-circle crit';
+                circEl.style.strokeDashoffset = 0;
+                if (labelEl) labelEl.textContent = '仍在分析';
+                pbEl.style.width = '98%';
+                remaining--;
             }
-            if (remaining > 0) remaining--;
         }
         tick();
         _cdTimer = setInterval(tick, 1000);

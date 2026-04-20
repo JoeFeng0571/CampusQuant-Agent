@@ -30,6 +30,15 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
         if path.startswith("/assets/") or path.endswith((".html", ".js", ".css", ".svg", ".png")):
             return await call_next(request)
 
+        # 【关键】跳过 SSE 长流式端点 - BaseHTTPMiddleware 包装 StreamingResponse
+        # 是 Starlette 已知问题: 长时间运行的 SSE 会被 anyio 内部任务组意外取消
+        # https://github.com/encode/starlette/issues/1438
+        # 这些端点动辄 5-10 分钟, 让它们直接走底层, 不进埋点
+        SSE_PATHS = ("/api/v1/analyze", "/api/v1/analyze/", "/api/v1/health-check",
+                      "/api/v1/health-check/")
+        if any(path.startswith(p) for p in SSE_PATHS):
+            return await call_next(request)
+
         metrics.counter("http_requests_total", method=method, path=path)
 
         t0 = time.perf_counter()
