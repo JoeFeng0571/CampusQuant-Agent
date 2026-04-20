@@ -234,6 +234,42 @@ class TradeOrder(BaseModel):
         return self
 
 
+class OptimizedPortfolio(BaseModel):
+    """
+    组合优化结果（由 portfolio.optimizer 三种方法之一产出）
+
+    用途:
+      - 独立端点 /api/v1/portfolio/optimize 直接返回
+      - 未来可接入 portfolio_optimizer_node，在多标的分析流程中做权重分配
+
+    支持方法:
+      - markowitz_utility / markowitz_min_variance / markowitz_max_sharpe
+      - risk_parity (等风险贡献)
+      - black_litterman (Agent 观点合成先验)
+    """
+
+    symbols: List[str] = Field(description="资产代码列表，与 weights 顺序对齐")
+    weights: List[float] = Field(
+        description="优化后权重向量，sum≈1，每个元素 ∈ [lb, ub]"
+    )
+    method: str = Field(
+        description="使用的优化方法: markowitz_utility/markowitz_min_variance/"
+                    "markowitz_max_sharpe/risk_parity/black_litterman"
+    )
+    expected_return: float = Field(description="年化期望收益")
+    volatility: float = Field(ge=0.0, description="年化波动率")
+    sharpe: float = Field(description="夏普比率（risk_free_rate 默认 0）")
+    risk_contributions: List[float] = Field(
+        description="各资产风险贡献度 RC_i，sum≈volatility"
+    )
+    converged: bool = Field(description="优化器是否收敛到可行解")
+    message: str = Field(default="", description="求解器返回的状态消息")
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="方法特定的附加信息（如 BL 的先验/后验收益）"
+    )
+
+
 class DebateOutcome(BaseModel):
     """
     多空辩论结构化输出（由 Debate 节点产出）

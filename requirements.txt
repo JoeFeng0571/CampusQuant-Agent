@@ -6,6 +6,7 @@
 # Core Data Science
 pandas
 numpy
+scipy
 
 # Market Data Sources
 akshare

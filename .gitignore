@@ -70,3 +70,9 @@ bench/results/
 bench/data/ohlcv/
 bench/data/*.parquet
 bench/data/*_errors.log
+
+# ==================== 竞赛提交文件(不入库) ====================
+submission/
+
+# ==================== 本地恢复点备份(不入库) ====================
+.backup/

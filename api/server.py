@@ -44,7 +44,7 @@ import secrets
 import smtplib
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import AsyncGenerator, Optional
+from typing import Any, AsyncGenerator, Dict, List, Literal, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -2013,6 +2013,194 @@ async def get_portfolio_summary(
         "today_pnl":     round(today_pnl, 2),
         "order_count":   order_count,
         "timestamp":     datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# ════════════════════════════════════════════════════════════════
+# 组合优化端点 (Markowitz / Risk Parity / Black-Litterman)
+# ════════════════════════════════════════════════════════════════
+
+class PortfolioOptimizeRequest(BaseModel):
+    """
+    /api/v1/portfolio/optimize 的请求体。
+
+    支持两种输入模式：
+      A. 显式模式: 传 expected_returns 和 cov_matrix
+      B. 历史模式: 传 historical_returns (T×n 的日收益率矩阵)，
+         服务端用 Ledoit-Wolf 收缩估协方差，期望收益用样本均值 × 年化系数
+
+    method:
+      - "markowitz_utility"       (需要 expected_returns)
+      - "markowitz_min_variance"  (仅需 cov_matrix)
+      - "markowitz_max_sharpe"    (需要 expected_returns)
+      - "risk_parity"             (仅需 cov_matrix)
+      - "black_litterman"         (需要 market_cap_weights + agent_signals)
+
+    agent_signals 格式 (仅 Black-Litterman 使用):
+      [{"symbol": "600519.SH", "recommendation": "BUY", "confidence": 0.78}, ...]
+    """
+    symbols: List[str] = Field(..., min_length=1, max_length=50)
+    method: Literal[
+        "markowitz_utility",
+        "markowitz_min_variance",
+        "markowitz_max_sharpe",
+        "risk_parity",
+        "black_litterman",
+    ] = "markowitz_utility"
+
+    expected_returns: Optional[List[float]] = None
+    cov_matrix:       Optional[List[List[float]]] = None
+    historical_returns: Optional[List[List[float]]] = Field(
+        None,
+        description="T×n 日收益率矩阵。提供此项则自动推导 expected_returns + cov_matrix"
+    )
+
+    market_cap_weights: Optional[List[float]] = Field(
+        None, description="Black-Litterman 先验市场权重，sum=1"
+    )
+    agent_signals: Optional[List[Dict[str, Any]]] = Field(
+        None,
+        description="Black-Litterman 的观点来源。每项 {symbol, recommendation, confidence}"
+    )
+    view_magnitude: float = Field(
+        0.10, description="BL 的观点强度：BUY=+mag, SELL=-mag，默认 ±10%"
+    )
+
+    risk_aversion: float = Field(2.0, ge=0.0, le=20.0)
+    risk_free_rate: float = Field(0.0, ge=-0.05, le=0.20)
+
+    # 约束
+    weight_lower: float = Field(0.0, ge=0.0, le=1.0)
+    weight_upper: float = Field(0.5, ge=0.0, le=1.0)
+    min_weight:   float = Field(0.0, ge=0.0, le=0.5,
+                                 description="小于此阈值的仓位后处理置零")
+
+    annualize: int = Field(252, ge=1, le=365,
+                            description="协方差/收益年化系数: 日=252, 周=52, 月=12")
+
+
+@app.post(
+    "/api/v1/portfolio/optimize",
+    summary="组合优化 (Markowitz/Risk Parity/Black-Litterman)",
+)
+async def optimize_portfolio(req: PortfolioOptimizeRequest):
+    import numpy as np
+    from portfolio import (
+        markowitz_optimize,
+        risk_parity_optimize,
+        black_litterman_optimize,
+        estimate_covariance,
+        agent_views_to_bl_inputs,
+        PortfolioConstraints,
+    )
+    from portfolio.optimizer import agent_views_to_bl_inputs  # noqa: F401 (re-export)
+
+    n = len(req.symbols)
+
+    # ── 1. 构造 expected_returns / cov_matrix ───────────────────
+    if req.historical_returns is not None:
+        hist = np.asarray(req.historical_returns, dtype=float)
+        if hist.ndim != 2 or hist.shape[1] != n:
+            raise HTTPException(
+                status_code=400,
+                detail=f"historical_returns 形状应为 (T, {n})，实际 {hist.shape}",
+            )
+        cov = estimate_covariance(hist, shrinkage=0.1, annualize=req.annualize)
+        mu  = hist.mean(axis=0) * req.annualize
+    else:
+        if req.cov_matrix is None:
+            raise HTTPException(
+                status_code=400,
+                detail="必须提供 cov_matrix 或 historical_returns 之一",
+            )
+        cov = np.asarray(req.cov_matrix, dtype=float)
+        if cov.shape != (n, n):
+            raise HTTPException(
+                status_code=400,
+                detail=f"cov_matrix 形状应为 ({n}, {n})，实际 {cov.shape}",
+            )
+        if req.expected_returns is not None:
+            mu = np.asarray(req.expected_returns, dtype=float)
+            if mu.shape != (n,):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"expected_returns 长度应为 {n}",
+                )
+        else:
+            mu = np.zeros(n)   # 最小方差/风险平价可不需要
+
+    # ── 2. 组装约束 ──────────────────────────────────────────────
+    if req.weight_upper * n < 1.0 - 1e-9:
+        raise HTTPException(
+            status_code=400,
+            detail=f"weight_upper({req.weight_upper}) × n({n}) < 1，约束不可行。"
+                   f"请提高 weight_upper 至 ≥ {1.0/n:.3f}",
+        )
+    constraints = PortfolioConstraints(
+        weight_bounds=(req.weight_lower, req.weight_upper),
+        min_weight=req.min_weight,
+    )
+
+    # ── 3. 分派到对应求解器 ─────────────────────────────────────
+    try:
+        if req.method == "markowitz_min_variance":
+            result = markowitz_optimize(
+                mu, cov, objective="min_variance",
+                constraints=constraints, risk_free_rate=req.risk_free_rate,
+            )
+        elif req.method == "markowitz_max_sharpe":
+            result = markowitz_optimize(
+                mu, cov, objective="max_sharpe",
+                constraints=constraints, risk_free_rate=req.risk_free_rate,
+            )
+        elif req.method == "markowitz_utility":
+            result = markowitz_optimize(
+                mu, cov, risk_aversion=req.risk_aversion, objective="utility",
+                constraints=constraints, risk_free_rate=req.risk_free_rate,
+            )
+        elif req.method == "risk_parity":
+            result = risk_parity_optimize(
+                cov, constraints=constraints,
+                expected_returns=mu, risk_free_rate=req.risk_free_rate,
+            )
+        elif req.method == "black_litterman":
+            if req.market_cap_weights is None or len(req.market_cap_weights) != n:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"black_litterman 需要 market_cap_weights (长度 {n})",
+                )
+            if not req.agent_signals:
+                raise HTTPException(
+                    status_code=400,
+                    detail="black_litterman 需要 agent_signals (至少 1 条 BUY/SELL 观点)",
+                )
+            w_mkt = np.asarray(req.market_cap_weights, dtype=float)
+            mag_map = {s: req.view_magnitude for s in req.symbols}
+            P, Q, view_confidences = agent_views_to_bl_inputs(
+                req.symbols, req.agent_signals, expected_return_magnitudes=mag_map,
+            )
+            if P.shape[0] == 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="agent_signals 中没有 BUY/SELL 方向性观点（全为 HOLD）",
+                )
+            result = black_litterman_optimize(
+                market_cap_weights=w_mkt,
+                cov_matrix=cov,
+                P=P, Q=Q, view_confidences=view_confidences,
+                risk_aversion=req.risk_aversion,
+                constraints=constraints,
+                risk_free_rate=req.risk_free_rate,
+            )
+        else:
+            raise HTTPException(status_code=400, detail=f"unknown method: {req.method}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # ── 4. 返回 OptimizedPortfolio 结构 ─────────────────────────
+    return {
+        "symbols": req.symbols,
+        **result.to_dict(),
     }
 
 
