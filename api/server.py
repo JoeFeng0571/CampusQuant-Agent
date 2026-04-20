@@ -429,12 +429,31 @@ async def _stream_graph_events(
     last_state:     dict     = {}
     _graph_error:   str | None = None  # 记录图执行异常，用于降级研报
 
+    # ── 心跳机制：长时间无事件时发 SSE 注释，防止 Cloudflare/nginx 100s 断开 ──
+    # Cloudflare 免费版对长连接有约 100s 空闲超时；portfolio_node 的 LLM 调用
+    # 常需 60-120s，中间无 node 事件会被误判为 idle。方案: 15s 无真实事件就发
+    # 一行 ": keep-alive\n\n" SSE 注释（客户端会忽略），维持 TCP 活跃。
+    HEARTBEAT_INTERVAL = 15.0
     try:
-        async for event in _compiled_graph.astream_events(
+        stream = _compiled_graph.astream_events(
             initial_state,
             config=config,
             version="v2",            # 使用 LangGraph astream_events v2
-        ):
+        )
+        aiter = stream.__aiter__()
+        while True:
+            try:
+                event = await asyncio.wait_for(
+                    aiter.__anext__(), timeout=HEARTBEAT_INTERVAL,
+                )
+            except asyncio.TimeoutError:
+                # SSE comment (colon-prefixed line) 是协议允许的 keep-alive
+                yield ": keep-alive\n\n"
+                continue
+            except StopAsyncIteration:
+                break
+
+            # ── 以下原 for 循环体（缩进保持在 while 一层下）────
             kind      = event.get("event", "")
             node_name = event.get("name", "")
             run_id    = event.get("run_id", "")
