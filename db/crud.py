@@ -22,7 +22,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import (
     ChatMessage, ChatSession,
     CommunityComment, CommunityPost, PostLike,
-    EmailVerificationCode, NewsCache, Order, Position, User, VirtualAccount,
+    EmailVerificationCode, LearningBadge, LearningProgress,
+    NewsCache, Order, Position, User, VirtualAccount,
 )
 
 # ── 密码哈希 ───────────────────────────────────────────────────
@@ -551,3 +552,92 @@ async def get_news_cache(db: AsyncSession) -> list[NewsCache]:
         select(NewsCache).order_by(NewsCache.source, NewsCache.rank)
     )
     return list(result.scalars().all())
+
+
+# ════════════════════════════════════════════════════════════════
+# 学习进度 & 徽章
+# ════════════════════════════════════════════════════════════════
+
+async def get_user_progress(
+    db: AsyncSession, user_id: int,
+) -> list[LearningProgress]:
+    """查询用户全部学习进度记录。"""
+    result = await db.execute(
+        select(LearningProgress)
+        .where(LearningProgress.user_id == user_id)
+        .order_by(desc(LearningProgress.updated_at))
+    )
+    return list(result.scalars().all())
+
+
+async def upsert_progress(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    module_id: str,
+    section_id: str,
+    status: str,
+    quiz_score: Optional[int] = None,
+) -> LearningProgress:
+    """插入或更新单条章节进度。status='done' 时自动填 completed_at。"""
+    # 先查
+    result = await db.execute(
+        select(LearningProgress).where(
+            LearningProgress.user_id == user_id,
+            LearningProgress.module_id == module_id,
+            LearningProgress.section_id == section_id,
+        )
+    )
+    row = result.scalar_one_or_none()
+    now = datetime.now(timezone.utc)
+
+    if row is None:
+        row = LearningProgress(
+            user_id=user_id,
+            module_id=module_id,
+            section_id=section_id,
+            status=status,
+            quiz_score=quiz_score,
+            completed_at=(now if status == "done" else None),
+            updated_at=now,
+        )
+        db.add(row)
+    else:
+        row.status = status
+        if quiz_score is not None:
+            row.quiz_score = quiz_score
+        if status == "done" and row.completed_at is None:
+            row.completed_at = now
+        row.updated_at = now
+
+    await db.flush()
+    return row
+
+
+async def get_user_badges(
+    db: AsyncSession, user_id: int,
+) -> list[LearningBadge]:
+    result = await db.execute(
+        select(LearningBadge)
+        .where(LearningBadge.user_id == user_id)
+        .order_by(desc(LearningBadge.earned_at))
+    )
+    return list(result.scalars().all())
+
+
+async def award_badge(
+    db: AsyncSession, *, user_id: int, badge_id: str,
+) -> Optional[LearningBadge]:
+    """颁发徽章。已有则返回 None。"""
+    result = await db.execute(
+        select(LearningBadge).where(
+            LearningBadge.user_id == user_id,
+            LearningBadge.badge_id == badge_id,
+        )
+    )
+    if result.scalar_one_or_none() is not None:
+        return None
+    badge = LearningBadge(user_id=user_id, badge_id=badge_id)
+    db.add(badge)
+    await db.flush()
+    return badge

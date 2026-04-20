@@ -1,0 +1,134 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "note": "模块/章节元数据。section_id 在 module_id 内唯一；前端用此生成侧边栏/进度图谱。"
+  },
+  "modules": [
+    {
+      "id": "basics",
+      "title": "财商入门",
+      "level": "beginner",
+      "prerequisites": [],
+      "page": "learn_basics.html",
+      "sections": [
+        {"id": "compound-interest",  "title": "复利：时间的力量"},
+        {"id": "inflation",          "title": "通胀：钱会变毛"},
+        {"id": "risk-return",        "title": "风险与收益：永远是一对"},
+        {"id": "account-planning",   "title": "账户规划：三盆水哲学"},
+        {"id": "stock-basics",       "title": "股票到底是什么"},
+        {"id": "etf-intro",          "title": "ETF 与指数基金入门"},
+        {"id": "a-share-rules",      "title": "A 股交易规则入门"}
+      ]
+    },
+    {
+      "id": "financials",
+      "title": "财报阅读",
+      "level": "intermediate",
+      "prerequisites": ["basics"],
+      "page": "resources.html#financials",
+      "sections": [
+        {"id": "three-statements",    "title": "三张表各自回答什么问题"},
+        {"id": "sequential-reading",  "title": "顺序阅读法"},
+        {"id": "key-ratios",          "title": "关键比率速查表"},
+        {"id": "financial-traps",     "title": "识别财报陷阱"},
+        {"id": "where-to-find",       "title": "财报哪里看 / 怎么看"}
+      ]
+    },
+    {
+      "id": "valuation",
+      "title": "估值方法",
+      "level": "intermediate",
+      "prerequisites": ["basics", "financials"],
+      "page": "resources.html#valuation",
+      "sections": [
+        {"id": "valuation-essence",   "title": "估值的本质"},
+        {"id": "pe-pb-ps-peg",        "title": "四大估值指标对比"},
+        {"id": "historical-percentile","title": "历史分位估值法"},
+        {"id": "industry-ranges",     "title": "不同行业合理估值区间"},
+        {"id": "margin-of-safety",    "title": "安全边际"}
+      ]
+    },
+    {
+      "id": "strategies",
+      "title": "投资策略",
+      "level": "intermediate",
+      "prerequisites": ["basics"],
+      "page": "learn_strategies.html",
+      "sections": [
+        {"id": "index-dca",        "title": "指数定投"},
+        {"id": "value-investing",  "title": "价值投资"},
+        {"id": "trend-following",  "title": "趋势跟随"},
+        {"id": "mean-reversion",   "title": "均值回归"},
+        {"id": "asset-allocation", "title": "资产配置"},
+        {"id": "hedging-basics",   "title": "对冲基础"}
+      ]
+    },
+    {
+      "id": "behavior",
+      "title": "行为金融",
+      "level": "intermediate",
+      "prerequisites": ["basics"],
+      "page": "learn_behavior.html",
+      "sections": [
+        {"id": "anchoring",         "title": "锚定效应"},
+        {"id": "loss-aversion",     "title": "损失厌恶"},
+        {"id": "overconfidence",    "title": "过度自信"},
+        {"id": "fomo-herd",         "title": "从众与 FOMO"},
+        {"id": "countermeasures",   "title": "反制清单"}
+      ]
+    },
+    {
+      "id": "macro",
+      "title": "宏观框架",
+      "level": "intermediate",
+      "prerequisites": ["basics"],
+      "page": "learn_macro.html",
+      "sections": [
+        {"id": "interest-rates",   "title": "利率如何影响股市"},
+        {"id": "fx-flows",         "title": "汇率与外资流动"},
+        {"id": "monetary-tools",   "title": "货币政策工具"},
+        {"id": "key-data",         "title": "CPI / PMI / 社融"},
+        {"id": "policy-cycle",     "title": "政策周期速读"}
+      ]
+    },
+    {
+      "id": "discipline",
+      "title": "交易纪律与复盘",
+      "level": "advanced",
+      "prerequisites": ["basics", "strategies"],
+      "page": "learn_discipline.html",
+      "sections": [
+        {"id": "position-sizing",    "title": "仓位管理三种流派"},
+        {"id": "stop-loss-rules",    "title": "止损规则"},
+        {"id": "take-profit-rules",  "title": "止盈规则"},
+        {"id": "drawdown-control",   "title": "最大回撤控制"},
+        {"id": "trading-journal",    "title": "交易日志与周度复盘"}
+      ]
+    },
+    {
+      "id": "antifraud",
+      "title": "风险与防骗",
+      "level": "beginner",
+      "prerequisites": [],
+      "page": "learn_antifraud.html",
+      "sections": [
+        {"id": "tip-groups",     "title": "荐股群与带单老师"},
+        {"id": "insider-trading","title": "内幕消息诈骗"},
+        {"id": "fake-broker",    "title": "假冒券商 App"},
+        {"id": "leverage-scam",  "title": "场外杠杆配资"},
+        {"id": "binary-options", "title": "虚假交易平台 / 二元期权"},
+        {"id": "campus-loans",   "title": "校园贷 / 套路贷"},
+        {"id": "click-fraud",    "title": "刷单诈骗"},
+        {"id": "ai-quant-scam",  "title": "'AI 量化' 跟单骗局"}
+      ]
+    }
+  ],
+  "badges": [
+    {"id": "basics_complete",    "title": "财商入门通关",    "criteria": "完成 basics 模块全部章节"},
+    {"id": "financials_master",  "title": "财报阅读能手",    "criteria": "完成 financials 模块且每章 quiz ≥ 80"},
+    {"id": "first_quiz",         "title": "小试牛刀",        "criteria": "完成第一次章节小测"},
+    {"id": "quiz_streak_7",      "title": "连学七日",        "criteria": "连续 7 天有学习记录"},
+    {"id": "risk_aware",         "title": "风控意识",        "criteria": "完成 discipline 全部章节"},
+    {"id": "scam_spotter",       "title": "骗局识破者",      "criteria": "完成 antifraud 全部章节"}
+  ]
+}

@@ -455,36 +455,16 @@
                 </a>
             </div>
 
-            <!-- 学习进度 -->
+            <!-- 学习进度（接真实 API） -->
             <div class="progress-card">
                 <div class="section-header">
                     <div class="section-title">学习进度</div>
+                    <a id="learning-next" href="resources.html" style="font-size:11px;color:var(--text-dim);">下一步 →</a>
                 </div>
-                <div class="progress-list">
-                    <div class="prog-item">
-                        <div class="prog-icon">✅</div>
-                        <div class="prog-label">A股市场基础</div>
-                        <span class="prog-status status-done">已完成</span>
-                    </div>
-                    <div class="prog-item">
-                        <div class="prog-icon">📖</div>
-                        <div class="prog-label">财务报表解读</div>
-                        <span class="prog-status status-wip">进行中</span>
-                    </div>
-                    <div class="prog-item">
+                <div class="progress-list" id="learning-progress-list">
+                    <div class="prog-item" style="color:var(--text-sub);">
                         <div class="prog-icon">⏳</div>
-                        <div class="prog-label">PE/PB 估值入门</div>
-                        <span class="prog-status status-todo">未开始</span>
-                    </div>
-                    <div class="prog-item">
-                        <div class="prog-icon">⏳</div>
-                        <div class="prog-label">技术分析基础</div>
-                        <span class="prog-status status-todo">未开始</span>
-                    </div>
-                    <div class="prog-item">
-                        <div class="prog-icon">⏳</div>
-                        <div class="prog-label">仓位管理与止损</div>
-                        <span class="prog-status status-todo">未开始</span>
+                        <div class="prog-label">加载中…</div>
                     </div>
                 </div>
             </div>
@@ -598,6 +578,71 @@
     }
 
     document.addEventListener('DOMContentLoaded', loadPortfolioSummary);
+
+    // ── 学习进度：接真实 API ───────────────────────────────────
+    async function loadLearningProgress() {
+        const list = document.getElementById('learning-progress-list');
+        const nextLink = document.getElementById('learning-next');
+        try {
+            // 1. 拉 curriculum 作为模块/章节的 "全貌"
+            const currResp = await fetch('/assets/data/curriculum.json');
+            const curr = currResp.ok ? await currResp.json() : { modules: [] };
+
+            // 2. 拉用户进度（登录才有）
+            let progressRows = [];
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                const resp = await fetch(`${API_BASE}/api/v1/learning/progress`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    progressRows = data.progress || [];
+                }
+            }
+            const progMap = new Map();
+            progressRows.forEach(r => progMap.set(`${r.module_id}/${r.section_id}`, r));
+
+            // 3. 渲染：每个模块一行（聚合章节完成数）
+            const frag = curr.modules.slice(0, 6).map(mod => {
+                const total = mod.sections?.length || 0;
+                const done = mod.sections?.filter(s =>
+                    progMap.get(`${mod.id}/${s.id}`)?.status === 'done'
+                ).length || 0;
+                let icon, badgeCls, badgeText;
+                if (done === 0) { icon = '⏳'; badgeCls = 'status-todo'; badgeText = '未开始'; }
+                else if (done < total) { icon = '📖'; badgeCls = 'status-wip'; badgeText = `${done}/${total}`; }
+                else { icon = '✅'; badgeCls = 'status-done'; badgeText = '已完成'; }
+                return `
+                    <div class="prog-item">
+                        <div class="prog-icon">${icon}</div>
+                        <div class="prog-label">${mod.title}</div>
+                        <span class="prog-status ${badgeCls}">${badgeText}</span>
+                    </div>
+                `;
+            }).join('');
+            list.innerHTML = frag || '<div class="prog-item" style="color:var(--text-sub);">暂无课程数据</div>';
+
+            // 4. 下一步推荐
+            if (token) {
+                const rResp = await fetch(`${API_BASE}/api/v1/learning/recommendation`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (rResp.ok) {
+                    const rec = await rResp.json();
+                    if (rec.page && nextLink) {
+                        nextLink.href = rec.page;
+                        if (rec.title) nextLink.textContent = `${rec.title} →`;
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn('[home] 学习进度加载失败:', err);
+            list.innerHTML = '<div class="prog-item" style="color:#ff6b6b;">加载失败</div>';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadLearningProgress);
 
     // sidebar + auth widget 由 common.js 统一处理
 <script src="assets/js/analytics.js"></script>

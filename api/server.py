@@ -2205,6 +2205,226 @@ async def optimize_portfolio(req: PortfolioOptimizeRequest):
 
 
 # ════════════════════════════════════════════════════════════════
+# 学习进度 & 徽章端点
+# ════════════════════════════════════════════════════════════════
+
+class LearningProgressRequest(BaseModel):
+    """PUT/POST /api/v1/learning/progress 的请求体。"""
+    module_id:  str   = Field(..., min_length=1, max_length=64)
+    section_id: str   = Field(..., min_length=1, max_length=64)
+    status:     Literal["reading", "done"] = "reading"
+    quiz_score: Optional[int] = Field(None, ge=0, le=100)
+
+
+class QuizSubmitRequest(BaseModel):
+    """POST /api/v1/learning/quiz/submit 的请求体。"""
+    module_id:  str   = Field(..., min_length=1, max_length=64)
+    section_id: str   = Field(..., min_length=1, max_length=64)
+    answers:    List[int] = Field(..., description="每题选中的 option index")
+
+
+@app.get("/api/v1/learning/progress", summary="获取当前用户学习进度")
+async def get_learning_progress(
+    current_user=Depends(_get_current_user),
+    db=Depends(_get_db_dep),
+):
+    from db.crud import get_user_progress
+    rows = await get_user_progress(db, current_user.id)
+    return {
+        "user_id": current_user.id,
+        "progress": [
+            {
+                "module_id":    r.module_id,
+                "section_id":   r.section_id,
+                "status":       r.status,
+                "quiz_score":   r.quiz_score,
+                "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+                "updated_at":   r.updated_at.isoformat(),
+            }
+            for r in rows
+        ],
+    }
+
+
+@app.post("/api/v1/learning/progress", summary="标记章节已读/完成")
+async def set_learning_progress(
+    req: LearningProgressRequest,
+    current_user=Depends(_get_current_user),
+    db=Depends(_get_db_dep),
+):
+    from db.crud import upsert_progress, award_badge
+    row = await upsert_progress(
+        db, user_id=current_user.id,
+        module_id=req.module_id, section_id=req.section_id,
+        status=req.status, quiz_score=req.quiz_score,
+    )
+    # 小惊喜: 第一次完成任何章节颁发「小试牛刀」
+    if row.status == "done" and row.quiz_score is not None:
+        await award_badge(db, user_id=current_user.id, badge_id="first_quiz")
+    await db.commit()
+    return {
+        "ok": True,
+        "progress": {
+            "module_id": row.module_id,
+            "section_id": row.section_id,
+            "status": row.status,
+            "quiz_score": row.quiz_score,
+            "completed_at": row.completed_at.isoformat() if row.completed_at else None,
+        },
+    }
+
+
+@app.post("/api/v1/learning/quiz/submit", summary="提交章节小测")
+async def submit_quiz(
+    req: QuizSubmitRequest,
+    current_user=Depends(_get_current_user),
+    db=Depends(_get_db_dep),
+):
+    """服务端校对答案：从 assets/data/quizzes.json 加载题目，返回得分 + 逐题对错。"""
+    import json
+    from pathlib import Path
+    from db.crud import upsert_progress, award_badge
+
+    quiz_key = f"{req.module_id}/{req.section_id}"
+    quizzes_path = Path(__file__).resolve().parent.parent / "assets" / "data" / "quizzes.json"
+    try:
+        with open(quizzes_path, "r", encoding="utf-8") as f:
+            quizzes = json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"quizzes.json 读取失败: {e}")
+
+    questions = quizzes.get("quizzes", {}).get(quiz_key)
+    if not questions:
+        raise HTTPException(status_code=404, detail=f"未找到章节测验: {quiz_key}")
+
+    if len(req.answers) != len(questions):
+        raise HTTPException(
+            status_code=400,
+            detail=f"答题数量 {len(req.answers)} ≠ 题数 {len(questions)}",
+        )
+
+    per_q = []
+    correct_count = 0
+    for q, ans in zip(questions, req.answers):
+        is_right = ans == q["correct"]
+        if is_right:
+            correct_count += 1
+        per_q.append({
+            "is_correct": is_right,
+            "correct_index": q["correct"],
+            "user_index": ans,
+            "explain": q.get("explain", ""),
+        })
+
+    score = int(round(100 * correct_count / len(questions)))
+    threshold = quizzes.get("_meta", {}).get("pass_threshold", 60)
+    passed = score >= threshold
+
+    row = await upsert_progress(
+        db, user_id=current_user.id,
+        module_id=req.module_id, section_id=req.section_id,
+        status="done" if passed else "reading",
+        quiz_score=score,
+    )
+    if passed:
+        await award_badge(db, user_id=current_user.id, badge_id="first_quiz")
+    await db.commit()
+
+    return {
+        "score":     score,
+        "passed":    passed,
+        "threshold": threshold,
+        "per_question": per_q,
+        "status":    row.status,
+    }
+
+
+@app.get("/api/v1/learning/badges", summary="获取当前用户徽章列表")
+async def get_learning_badges(
+    current_user=Depends(_get_current_user),
+    db=Depends(_get_db_dep),
+):
+    from db.crud import get_user_badges
+    badges = await get_user_badges(db, current_user.id)
+    return {
+        "badges": [
+            {"badge_id": b.badge_id, "earned_at": b.earned_at.isoformat()}
+            for b in badges
+        ],
+    }
+
+
+@app.get("/api/v1/learning/recommendation", summary="推荐下一步该学什么")
+async def get_learning_recommendation(
+    current_user=Depends(_get_optional_user),
+    db=Depends(_get_db_dep),
+):
+    """简单启发：找出进行中章节，否则推荐还没开始的第一个模块首章节。"""
+    import json
+    from pathlib import Path
+    curriculum_path = Path(__file__).resolve().parent.parent / "assets" / "data" / "curriculum.json"
+    try:
+        with open(curriculum_path, "r", encoding="utf-8") as f:
+            curr = json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"curriculum.json 读取失败: {e}")
+
+    modules = curr.get("modules", [])
+
+    # 未登录 → 返回第一个模块首章节
+    if current_user is None:
+        first_mod = modules[0] if modules else None
+        if first_mod and first_mod.get("sections"):
+            first_sec = first_mod["sections"][0]
+            return {
+                "module_id": first_mod["id"],
+                "section_id": first_sec["id"],
+                "title": first_sec["title"],
+                "page": first_mod.get("page", ""),
+                "reason": "开始你的财商之旅",
+            }
+        return {"module_id": None, "section_id": None, "reason": "暂无推荐"}
+
+    # 登录：读进度 → 找 reading 或下一个未完成
+    from db.crud import get_user_progress
+    rows = await get_user_progress(db, current_user.id)
+    done_set = {(r.module_id, r.section_id) for r in rows if r.status == "done"}
+
+    # 优先：进行中
+    reading = [r for r in rows if r.status == "reading"]
+    if reading:
+        r = reading[0]
+        sec_title = r.section_id
+        for mod in modules:
+            if mod["id"] == r.module_id:
+                for sec in mod["sections"]:
+                    if sec["id"] == r.section_id:
+                        sec_title = sec["title"]
+                        break
+                return {
+                    "module_id": r.module_id,
+                    "section_id": r.section_id,
+                    "title": sec_title,
+                    "page": mod.get("page", ""),
+                    "reason": "继续进行中的章节",
+                }
+
+    # 否则：找第一个未完成章节
+    for mod in modules:
+        for sec in mod["sections"]:
+            if (mod["id"], sec["id"]) not in done_set:
+                return {
+                    "module_id": mod["id"],
+                    "section_id": sec["id"],
+                    "title": sec["title"],
+                    "page": mod.get("page", ""),
+                    "reason": "继续探索新章节",
+                }
+
+    return {"module_id": None, "section_id": None, "reason": "🎉 已完成全部章节"}
+
+
+# ════════════════════════════════════════════════════════════════
 # 大盘指数 & 市场快讯端点
 # ════════════════════════════════════════════════════════════════
 

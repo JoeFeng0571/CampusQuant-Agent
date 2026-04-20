@@ -216,6 +216,47 @@ class PostLike(Base):
 # V1.2 热榜缓存（后端定时刷新，无外键，全局共享）
 # ════════════════════════════════════════════════════════════════
 
+class LearningProgress(Base):
+    """
+    用户学习章节的进度记录（按 module + section 唯一）。
+
+    status 流转: reading → done
+    quiz_score: 0-100，null 表示该章节没有或未做小测
+    """
+    __tablename__ = "learning_progress"
+    __table_args__ = (
+        UniqueConstraint("user_id", "module_id", "section_id", name="uq_progress_usr_mod_sec"),
+    )
+
+    id:           Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id:      Mapped[int]      = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"),
+                                                     nullable=False, index=True)
+    module_id:    Mapped[str]      = mapped_column(String(64), nullable=False)
+    section_id:   Mapped[str]      = mapped_column(String(64), nullable=False)
+    status:       Mapped[str]      = mapped_column(String(16), default="reading")  # reading|done
+    quiz_score:   Mapped[Optional[int]] = mapped_column(Integer, default=None)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=None)
+    updated_at:   Mapped[datetime] = mapped_column(DateTime(timezone=True),
+                                                     default=_now, onupdate=_now)
+
+
+class LearningBadge(Base):
+    """
+    徽章记录（例如 'basics_complete' / 'quiz_streak_7' / 'first_a_share_analysis'）。
+    同一 user+badge 只能获得一次（UniqueConstraint）。
+    """
+    __tablename__ = "learning_badges"
+    __table_args__ = (
+        UniqueConstraint("user_id", "badge_id", name="uq_badge_usr_badge"),
+    )
+
+    id:        Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id:   Mapped[int]      = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"),
+                                                  nullable=False, index=True)
+    badge_id:  Mapped[str]      = mapped_column(String(64), nullable=False)
+    earned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class NewsCache(Base):
     """
     多平台热榜聚合缓存。
