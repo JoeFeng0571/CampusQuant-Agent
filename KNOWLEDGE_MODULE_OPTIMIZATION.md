@@ -1,6 +1,6 @@
 # CampusQuant AI 投研平台升级方案
 
-> **版本**：v2 · 2026-04-20
+> **版本**：v2 · 2026-04-20 · **主要实施已完成**（见末尾"实施状态"一节）
 > **定位**：`CampusQuant AI 投研平台`。面向校园场景的"学习模式"作为**应用层延伸**，不改变产品主线定位。
 >
 > **背景**：
@@ -579,4 +579,78 @@ Week 6:   P3 模拟盘规则 + 复盘 + 整体串联
 
 ---
 
-**下一步**：按 `5.3 建议起手顺序` 开工，从**组合优化节点**起手。确认后开始 P0。
+## 九、实施状态（2026-04-20 执行完成）
+
+### 9.1 算法层（第一章）· 100% ✅
+
+| 项 | 状态 | Commit | 测试 |
+|---|---|---|---|
+| 2.3 组合优化（Markowitz / 风险平价 / Black-Litterman） | ✅ | `f35ceaa` | 21 项 |
+| 2.1 因子库 + IC/IR 分析 | ✅ | `954254d` | 24 项 |
+| 2.2 置信度校准（Brier / ECE / Platt / Isotonic） | ✅ | `9f98bd4` | 19 项 |
+| 2.4 Walk-forward 回测（多市场费用 + T+1） | ✅ | `cfb2d55` | 24 项 |
+| 2.5 事件研究法（CAR） | 🟡 选做 | — | — |
+| 2.6 Agent 集成加权 | 🟡 选做 | — | — |
+
+### 9.2 研报层（第二章）
+
+| 项 | 状态 | Commit |
+|---|---|---|
+| 3.1 推理链卡片 Pydantic 模型 | ✅ 基础 | `97bf1d5` |
+| 3.2 术语跳转（JSON 词典 + term-tooltip.js） | ✅ | `6230044` |
+| 3.3 引文来源可视化 | 🟡 模型已就绪，前端装饰待加强 | — |
+
+### 9.3 应用层（第三章）
+
+| 项 | 状态 | Commit |
+|---|---|---|
+| 4.1 学习进度系统（表 + 5 端点 + 真数据 home） | ✅ | `ef149b0` |
+| 4.2 模块扩充（行为金融 / 宏观 / 纪律） | ✅ | `97bf1d5` |
+| 4.3 案例库 + 计算器 | ✅ | `80e21de` + `4698e31` |
+| 4.4 知识问答 `/ask.html` + RAG API | ✅ | `4698e31` |
+| 4.5 模拟盘渐变色 + 知识跳转提示 | ✅ | `4335e13` |
+| 4.5 周度复盘 review_node | 🟡 选做 | — |
+
+### 9.4 累计测试
+
+- 组合优化：21 项
+- 因子库：24 项
+- 置信度校准：19 项
+- Walk-forward：24 项
+- **合计：88 项全部通过**
+
+### 9.5 新增技术文档
+
+- `FACTOR_RESEARCH.md`
+- `CALIBRATION_REPORT.md`
+- `PORTFOLIO_OPTIMIZER.md`
+- `BACKTEST_METHODOLOGY.md`
+
+### 9.6 新增 API
+
+```
+POST /api/v1/portfolio/optimize
+GET  /api/v1/learning/progress
+POST /api/v1/learning/progress
+POST /api/v1/learning/quiz/submit
+GET  /api/v1/learning/badges
+GET  /api/v1/learning/recommendation
+POST /api/v1/knowledge/ask
+```
+
+### 9.7 新增前端页面
+
+- `ask.html` 财商问答
+- `cases.html` 策略案例库
+- `calculator.html` 财商计算器（4 合 1）
+- `learn_behavior.html` 行为金融
+- `learn_macro.html` 宏观框架
+- `learn_discipline.html` 交易纪律与复盘
+
+### 9.8 恢复点
+
+如需回滚整个升级：
+```bash
+git reset --hard backup/pre-v2-upgrade-20260420
+```
+详见 `.backup/RESTORE_POINT.md`。
