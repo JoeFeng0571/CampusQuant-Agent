@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>策略案例库 · CampusQuant</title>
+<meta name="description" content="用经典投资策略解读真实股票：价值投资看招行、趋势跟随看宁德、均值回归看煤炭。理论落地到具体标的。">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/nav.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/animations.css">
+<style>
+main { flex:1; margin-top:80px; padding:32px 24px 80px; max-width:1200px; margin-left:auto; margin-right:auto; width:100%; }
+
+.cases-hero { text-align:center; margin-bottom:40px; }
+.cases-hero h1 {
+    font-family: var(--font-display); font-size: 40px; font-weight: 800;
+    background: linear-gradient(180deg, #fff, rgba(255,255,255,0.7));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
+}
+.cases-hero p { color: var(--text-sub); font-size: 15px; max-width: 70ch; margin: 0 auto 6px; }
+
+.cases-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 18px; margin-bottom: 40px;
+}
+.case-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px;
+    cursor: pointer; transition: all 0.25s;
+    display: flex; flex-direction: column; gap: 10px;
+    min-height: 200px;
+}
+.case-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(45,212,191,0.4);
+    box-shadow: 0 16px 36px rgba(0,0,0,0.3);
+}
+.case-card.active {
+    border-color: rgba(45,212,191,0.7);
+    background: linear-gradient(145deg, rgba(45,212,191,0.10), rgba(139,92,246,0.05));
+}
+.case-head { display: flex; justify-content: space-between; align-items: flex-start; }
+.case-strategy-tag {
+    padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600;
+    background: rgba(45,212,191,0.12); color: var(--primary);
+    letter-spacing: 0.03em; flex-shrink: 0;
+}
+.case-symbol {
+    font-size: 13px; font-family: var(--font-mono, monospace); color: var(--text-dim);
+}
+.case-title {
+    font-size: 18px; font-weight: 700; color: var(--text);
+    line-height: 1.4;
+}
+.case-sub {
+    font-size: 13px; color: var(--text-sub); line-height: 1.6;
+}
+.case-meta {
+    font-size: 11px; color: var(--text-dim); margin-top: auto;
+    display: flex; gap: 10px; align-items: center; padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.case-detail {
+    display: none;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 18px; padding: 32px 36px;
+    margin-bottom: 40px;
+}
+.case-detail.active { display: block; animation: fade-in 0.3s var(--ease-out) both; }
+@keyframes fade-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+.detail-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 20px; padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.detail-title { font-size: 26px; font-weight: 800; line-height: 1.3; }
+.detail-strategy {
+    padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 700;
+    background: linear-gradient(135deg, rgba(45,212,191,0.2), rgba(139,92,246,0.2));
+    color: var(--primary);
+}
+
+.reasoning-chain {
+    display: grid; gap: 12px; margin: 20px 0;
+}
+.chain-step {
+    display: grid; grid-template-columns: 36px 1fr; gap: 14px;
+    padding: 14px 16px; border-radius: 10px;
+    background: rgba(255,255,255,0.02);
+    border-left: 3px solid;
+}
+.chain-step.type-data      { border-color: #5eead4; }
+.chain-step.type-concept   { border-color: #c084fc; }
+.chain-step.type-judgment  { border-color: #fbbf24; }
+.chain-step.type-conclusion{ border-color: #f87171; background: rgba(248,113,113,0.06); }
+.step-no {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 14px; color: var(--text);
+}
+.step-body {
+    font-size: 14px; line-height: 1.7; color: var(--text);
+}
+.step-type {
+    display: inline-block; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-dim); margin-bottom: 2px; font-weight: 700;
+}
+
+.detail-section {
+    margin: 20px 0;
+}
+.detail-section h3 {
+    font-size: 16px; margin-bottom: 10px; color: var(--primary);
+    display: flex; align-items: center; gap: 8px;
+}
+.detail-section p, .detail-section li {
+    font-size: 14px; line-height: 1.75; color: var(--text);
+}
+
+.kpi-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px; margin: 12px 0;
+}
+.kpi-box {
+    padding: 10px 12px; background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border); border-radius: 8px;
+}
+.kpi-k { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+.kpi-v { font-size: 16px; font-weight: 800; font-family: var(--font-mono, monospace); }
+.kpi-v.good { color: #5eead4; }
+.kpi-v.bad  { color: #fb923c; }
+
+.cta-row {
+    display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px;
+    padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.05);
+}
+.cta-btn {
+    padding: 10px 18px; border-radius: 10px;
+    text-decoration: none; font-size: 13px; font-weight: 700;
+    transition: all 0.2s;
+}
+.cta-primary {
+    background: linear-gradient(135deg, var(--primary), var(--secondary, #8b5cf6));
+    color: #0b0f19;
+}
+.cta-primary:hover { opacity: 0.88; }
+.cta-ghost {
+    border: 1px solid var(--border); background: rgba(255,255,255,0.02);
+    color: var(--text);
+}
+.cta-ghost:hover { border-color: rgba(45,212,191,0.4); }
+
+.disclaimer {
+    margin-top: 40px; padding: 14px 18px;
+    font-size: 12px; color: var(--text-dim);
+    background: rgba(255,255,255,0.02);
+    border-radius: 10px; line-height: 1.7;
+}
+
+footer { padding:18px; text-align:center; background:rgba(0,0,0,0.3);
+         border-top:1px solid var(--border); color:var(--text-dim); font-size:13px; margin-top:24px; }
+</style>
+</head>
+<body data-bg-mode="off">
+
+<header>
+    <a href="dashboard.html" class="logo">
+        <span class="logo-text">CampusQuant</span>
+        <span class="logo-sub">校园财商</span>
+    </a>
+    <nav>
+        <a href="dashboard.html">控制台</a>
+        <a href="market.html">市场快讯</a>
+        <a href="analysis.html">个股分析</a>
+        <a href="trade.html">模拟演练</a>
+        <a href="cases.html" class="active">案例库</a>
+        <a href="ask.html">问答</a>
+        <div id="auth-widget" style="display:flex;align-items:center;gap:8px;margin-left:8px;"></div>
+    </nav>
+</header>
+
+<main>
+    <section class="cases-hero">
+        <h1>策略案例库</h1>
+        <p>每周一篇"用策略 X 解读股票 Y"。读理论容易，落到具体标的才是真学。</p>
+        <p style="font-size:12px;color:var(--text-dim);">⚠ 所有案例为历史复盘分析，<strong>不构成投资建议</strong>。</p>
+    </section>
+
+    <div class="cases-grid" id="cases-grid"></div>
+
+    <section class="case-detail" id="case-detail"></section>
+
+    <div class="disclaimer">
+        案例选择原则：覆盖不同策略、不同市场、不同结局（既有成功也有失败）。
+        所有引用的财务数据、股价范围都是历史信息，仅用于教学。请永远记住：
+        <strong>历史不会重复，但会押韵</strong>——学模式，不是抄作业。
+    </div>
+</main>
+
+<footer>&copy; 2026 CampusQuant · 策略案例库</footer>
+
+<script>
+'use strict';
+
+/**
+ * 案例数据：每个案例含策略标签、标的、四步推理链、KPI 表、结局描述。
+ */
+const CASES = [
+  {
+    id: 'cmb-value',
+    strategy: '价值投资',
+    symbol: '600036.SH',
+    name: '招商银行',
+    title: '用价值投资看招商银行：低 PB + 高 ROE + 稳定股息',
+    sub: '银行股是价值投资最教科书的样本：PB 低 ≠ 便宜，要结合 ROE、坏账率看"质感"。',
+    horizon: '复盘期 2023-2025',
+    kpis: [
+      { k: 'PB', v: '0.9-1.1x', good: true },
+      { k: 'ROE', v: '15-17%', good: true },
+      { k: '股息率', v: '5-6%', good: true },
+      { k: '不良率', v: '0.9-1.0%', good: true },
+    ],
+    chain: [
+      { type: 'data', title: '数据层',
+        body: '2023-2024 年期间，招行 PB 长期在 0.9-1.1x 震荡，ROE 维持在 15-17%，股息率 5-6%，不良贷款率低于 1%。对标国有大行 PB 约 0.5-0.7x、ROE 约 10-12%，招行是"零售银行之王"的估值。' },
+      { type: 'concept', title: '概念锚',
+        body: '价值投资三张底牌：低 PB（相对账面便宜）、高 ROE（资本使用效率高）、高股息率（真金白银回报）。银行股特殊之处：杠杆高，ROE 拆解后必须看<strong>不良率</strong>——赚的再多也会被坏账反噬。' },
+      { type: 'judgment', title: '推理判断',
+        body: '招行的高 ROE 不是靠加杠杆（权益乘数约 8-9x，行业中位数），而是靠高息差零售业务 + 财富管理手续费。同时不良率 < 1% 证明资产质量经得起放大镜。PB 1.0 附近意味着"按账面价买，附赠品牌、团队、客户粘性"。' },
+      { type: 'conclusion', title: '结论',
+        body: '价值投资者视角，招行属于"<strong>ROE 显著高于同业 + 估值仅略高于同业</strong>"的典型。风险在宏观——经济下行时银行整体坏账抬升、息差被压窄。适合定投或右侧买入。' },
+    ],
+    takeaway: '低估值 + 高盈利质量 + 主营业务可解释 = 价值投资的三位一体。不要只看 PB，一定要拆到 ROE 和资产质量。',
+    reading_refs: [
+      { title: '估值方法 · 四大指标', href: 'resources.html#valuation' },
+      { title: '财报阅读 · 杜邦分析', href: 'resources.html#financials' },
+    ],
+  },
+  {
+    id: 'catl-trend',
+    strategy: '趋势跟随',
+    symbol: '300750.SZ',
+    name: '宁德时代',
+    title: '用趋势跟随看宁德：均线多头排列 vs 顶背离识别',
+    sub: '趋势跟随不猜顶也不抄底，只做正在上涨的东西。宁德在 2022-2023 的顶背离是经典一课。',
+    horizon: '复盘期 2022-2023',
+    kpis: [
+      { k: '2022 高点', v: '692 元', bad: true },
+      { k: '2023 低点', v: '160 元', bad: true },
+      { k: '最大回撤', v: '−77%', bad: true },
+      { k: 'MA200 破位', v: '2022 年底', bad: true },
+    ],
+    chain: [
+      { type: 'data', title: '数据层',
+        body: '2020-2021 宁德时代股价从 80 元涨到 692 元，20 日、60 日、200 日均线多头排列。2022 年初股价创新高但 MACD 顶背离（价格新高、动量不跟随）。2022 年底跌破 MA200，确认趋势反转。' },
+      { type: 'concept', title: '概念锚',
+        body: '趋势跟随的两个核心工具：<strong>均线系统</strong>（MA20/60/200 多头排列 = 上升趋势）和 <strong>动量背离</strong>（价格新高但 MACD/RSI 不创新高 = 动力衰竭）。反转信号不是单点，而是多个共振：破位 + 成交量放大 + 板块轮动。' },
+      { type: 'judgment', title: '推理判断',
+        body: '2022 年初的顶背离其实给了警告：新能源板块整体利好透支（全球渗透率加速、碳中和政策热度），但产能开始过剩。严格的趋势跟随者应该在"MA200 破位"发生时清仓（约 450-500 元区间），这比"看基本面觉得还行"要机械、也要安全得多。' },
+      { type: 'conclusion', title: '结论',
+        body: '趋势跟随的精髓是<strong>放弃"最高点"和"最低点"</strong>，用纪律换稳定。宁德最大的教训不是"早看空"，而是"趋势走完后依然持有"。看好基本面 ≠ 股价一定继续涨，两者节奏可能差半年到一年。' },
+    ],
+    takeaway: '趋势的终结几乎总是"悄悄的"：先是动量背离，再是关键均线破位。严格的机械交易者能避开 50% 的回撤。',
+    reading_refs: [
+      { title: '投资策略 · 趋势跟随', href: 'learn_strategies.html#trend-following' },
+      { title: '术语 · MACD 背离', href: 'resources.html#technical' },
+    ],
+  },
+  {
+    id: 'coal-mean-reversion',
+    strategy: '均值回归',
+    symbol: '煤炭板块',
+    name: '煤炭 ETF (515220)',
+    title: '用均值回归看煤炭：极端低估值分位的反转机会',
+    sub: '均值回归不是简单抄底，而是在估值/情绪达到极端时反向操作。煤炭 2020 年的"历史最低 PE 分位"就是一次。',
+    horizon: '复盘期 2020-2022',
+    kpis: [
+      { k: '2020 PE 分位', v: '< 5%', good: true },
+      { k: '股息率', v: '8-12%', good: true },
+      { k: '2020-2022 涨幅', v: '+150%', good: true },
+      { k: '触发条件', v: '极端低估 + 能源紧缺', good: true },
+    ],
+    chain: [
+      { type: 'data', title: '数据层',
+        body: '2020 年上半年，煤炭板块 PE 处于近 10 年历史 5% 分位以下，部分龙头 PE 仅 4-6 倍，股息率高达 8-12%。板块市值占 A 股比重降到 2% 以下，被视为"夕阳行业"。同时 2021 年出现全球能源紧缺，煤价开启两年连涨。' },
+      { type: 'concept', title: '概念锚',
+        body: '均值回归的本质：<strong>价格会回归合理中枢</strong>。但"抄底"不等于"跌了就买"——需要明确的<strong>估值锚</strong>（历史分位、行业均值、全球同类对比）和<strong>催化剂</strong>（业绩拐点、政策转向、供需错配）。' },
+      { type: 'judgment', title: '推理判断',
+        body: '煤炭当时同时具备两个条件：① 估值极端低（5% 分位以下是典型抛售过度信号）；② 催化剂清晰（能源紧缺推动煤价大涨）。低估值本身只是必要条件；没有催化剂的低估值会变成"价值陷阱"（比如某些长期衰退的零售股）。' },
+      { type: 'conclusion', title: '结论',
+        body: '均值回归策略在 2020-2022 煤炭行情中完美兑现：PE 分位 < 5% 入场，到 2022 年分位重回 50% 以上时至少减仓。收益约 +150%。但注意：这种机会 5 年才出现一次，不能被当作常态。' },
+    ],
+    takeaway: '均值回归的成功要素 = 估值极端 + 明确催化剂 + 敢逆人性。没有后两者，低估值会继续低下去。',
+    reading_refs: [
+      { title: '投资策略 · 均值回归', href: 'learn_strategies.html#mean-reversion' },
+      { title: '估值方法 · 历史分位', href: 'resources.html#valuation' },
+    ],
+  },
+];
+
+// ── 渲染卡片列表 ────────────────────────────────────────
+function renderCaseGrid() {
+    const grid = document.getElementById('cases-grid');
+    grid.innerHTML = CASES.map(c => `
+        <div class="case-card" data-id="${c.id}">
+            <div class="case-head">
+                <span class="case-strategy-tag">${c.strategy}</span>
+                <span class="case-symbol">${c.symbol}</span>
+            </div>
+            <div class="case-title">${c.title}</div>
+            <div class="case-sub">${c.sub}</div>
+            <div class="case-meta">
+                <span>📅 ${c.horizon}</span>
+                <span style="margin-left:auto;color:var(--primary);font-weight:600;">查看 →</span>
+            </div>
+        </div>
+    `).join('');
+
+    grid.querySelectorAll('.case-card').forEach(el => {
+        el.addEventListener('click', () => showCase(el.dataset.id));
+    });
+}
+
+function showCase(caseId) {
+    const c = CASES.find(x => x.id === caseId);
+    if (!c) return;
+
+    document.querySelectorAll('.case-card').forEach(x =>
+        x.classList.toggle('active', x.dataset.id === caseId));
+
+    const detail = document.getElementById('case-detail');
+    detail.innerHTML = `
+        <div class="detail-header">
+            <div>
+                <div class="detail-title">${c.title}</div>
+                <div style="font-size:13px;color:var(--text-sub);margin-top:6px;">
+                    ${c.symbol} · ${c.name} · ${c.horizon}
+                </div>
+            </div>
+            <div class="detail-strategy">${c.strategy}</div>
+        </div>
+
+        <div class="kpi-grid">
+            ${c.kpis.map(k => `
+                <div class="kpi-box">
+                    <div class="kpi-k">${k.k}</div>
+                    <div class="kpi-v ${k.good ? 'good' : (k.bad ? 'bad' : '')}">${k.v}</div>
+                </div>
+            `).join('')}
+        </div>
+
+        <div class="reasoning-chain">
+            ${c.chain.map((step, i) => `
+                <div class="chain-step type-${step.type}">
+                    <div class="step-no">${i + 1}</div>
+                    <div class="step-body">
+                        <div class="step-type">${
+                            step.type === 'data' ? '数据' :
+                            step.type === 'concept' ? '概念' :
+                            step.type === 'judgment' ? '判断' : '结论'
+                        } · ${step.title}</div>
+                        ${step.body}
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+
+        <div class="detail-section">
+            <h3>💡 核心启示</h3>
+            <p>${c.takeaway}</p>
+        </div>
+
+        <div class="detail-section">
+            <h3>📖 延伸阅读</h3>
+            <ul style="padding-left:20px;">
+                ${c.reading_refs.map(r => `
+                    <li><a href="${r.href}" style="color:var(--primary);">${r.title}</a></li>
+                `).join('')}
+            </ul>
+        </div>
+
+        <div class="cta-row">
+            <a class="cta-btn cta-primary" href="analysis.html?sym=${encodeURIComponent(c.symbol)}">
+                🤖 AI 分析这只标的
+            </a>
+            <a class="cta-btn cta-ghost" href="trade.html?sym=${encodeURIComponent(c.symbol)}">
+                🎮 在模拟盘买入
+            </a>
+            <a class="cta-btn cta-ghost" href="ask.html">
+                💬 还有疑问? 去问答
+            </a>
+        </div>
+    `;
+    detail.classList.add('active');
+    detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // 术语跳转装饰
+    if (window.CampusQuantTerms) {
+        window.CampusQuantTerms.decorate(detail);
+    }
+}
+
+renderCaseGrid();
+</script>
+<script src="assets/js/common.js?v=20260411"></script>
+<script src="assets/js/term-tooltip.js" defer></script>
+</body>
+</html>
