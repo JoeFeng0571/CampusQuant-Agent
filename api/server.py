@@ -2233,13 +2233,18 @@ async def knowledge_ask(req: KnowledgeAskRequest):
     loop = asyncio.get_running_loop()
     try:
         # 底层是同步 IO (Chroma/HTTP)，丢给线程池
+        # search_knowledge_base 被 LangChain @tool 装饰, 需 .invoke() 调用
         from tools.knowledge_base import search_knowledge_base
-        answer = await loop.run_in_executor(
-            None,
-            lambda: search_knowledge_base(
-                req.question, market_type=req.market_type, max_length=req.max_length,
-            ),
-        )
+        kb_tool = search_knowledge_base
+        tool_args = {
+            "query": req.question,
+            "market_type": req.market_type,
+            "max_length": req.max_length,
+        }
+        if hasattr(kb_tool, "invoke"):
+            answer = await loop.run_in_executor(None, lambda: kb_tool.invoke(tool_args))
+        else:
+            answer = await loop.run_in_executor(None, lambda: kb_tool(**tool_args))
     except Exception as e:
         logger.error(f"[knowledge/ask] search failed: {e}")
         raise HTTPException(status_code=502, detail=f"知识库检索失败：{e}")
