@@ -638,6 +638,44 @@
                 <span class="est-label" id="est-label">预估买入金额</span>
                 <span class="est-value" id="est-value">--</span>
             </div>
+
+            <!-- ══ 仓位渐变色指示条（提示不拦截）══ -->
+            <div class="pos-gauge-wrap" id="pos-gauge-wrap" style="margin-top:10px;margin-bottom:10px;display:none;">
+                <div class="pos-gauge" style="position:relative;height:8px;border-radius:4px;
+                     background: linear-gradient(90deg, #5eead4 0%, #a7f3d0 15%, #fbbf24 30%, #fb923c 45%, #ef4444 70%);
+                     overflow:visible;">
+                    <div id="pos-gauge-marker" style="position:absolute;top:-4px;width:2px;height:16px;
+                         background:#fff;box-shadow:0 0 6px rgba(255,255,255,0.6);
+                         transform:translateX(-1px);left:0%;transition:left 0.2s;"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:var(--text-dim);">
+                    <span>0%</span><span>15%</span><span>30%</span><span>50%+</span>
+                </div>
+                <div id="pos-gauge-text" style="margin-top:4px;font-size:11px;font-weight:600;color:var(--text-sub);">—</div>
+            </div>
+
+            <!-- 风险选填项（建议不强制） -->
+            <details style="margin-bottom:8px;font-size:12px;color:var(--text-sub);">
+                <summary style="cursor:pointer;padding:4px 0;user-select:none;">🛡 风控建议（选填，不强制）</summary>
+                <div style="padding:8px 4px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <div>
+                        <label style="font-size:10px;color:var(--text-dim);">止损比例 (%)</label>
+                        <input class="form-input" id="risk-stop-loss" type="number" step="0.5" min="0" max="50"
+                               placeholder="如 8" oninput="updateEstimate()"
+                               style="font-size:12px;padding:6px 8px;">
+                    </div>
+                    <div>
+                        <label style="font-size:10px;color:var(--text-dim);">止盈比例 (%)</label>
+                        <input class="form-input" id="risk-take-profit" type="number" step="0.5" min="0" max="500"
+                               placeholder="如 20" oninput="updateEstimate()"
+                               style="font-size:12px;padding:6px 8px;">
+                    </div>
+                </div>
+            </details>
+
+            <!-- 知识跳转提示卡片（可关闭，不拦截下单） -->
+            <div id="risk-advice-cards" style="display:none;margin-bottom:10px;"></div>
+
             <button class="btn-order buy" id="btn-order" data-track="order_submit" onclick="submitOrder()">买入委托（模拟）</button>
             <div id="order-result"></div>
         </div>
@@ -1011,6 +1049,98 @@ function updateEstimate() {
     } else {
         estEl.textContent = pfx + ' --';
     }
+
+    // 更新仓位渐变指示条（提示不拦截）
+    updatePositionGauge(total);
+}
+
+/**
+ * 按 total 占账户可用资金的百分比更新渐变色指示。
+ * 非拦截性 —— 只展示提示与知识跳转卡片。
+ */
+function updatePositionGauge(totalNotional) {
+    const wrap = document.getElementById('pos-gauge-wrap');
+    const marker = document.getElementById('pos-gauge-marker');
+    const text = document.getElementById('pos-gauge-text');
+    const adviceBox = document.getElementById('risk-advice-cards');
+
+    if (!_acctData || totalNotional <= 0 || currentSide !== 'BUY') {
+        wrap.style.display = 'none';
+        if (adviceBox) adviceBox.style.display = 'none';
+        return;
+    }
+    let cash = 0;
+    if (_curMkt === 'A')  cash = (_acctData.cash_cnh ?? _acctData.cash ?? 0);
+    if (_curMkt === 'HK') cash = (_acctData.cash_hkd ?? 0);
+    if (_curMkt === 'US') cash = (_acctData.cash_usd ?? 0);
+
+    // 账户总资产≈cash + 当前市场持仓市值；为简化，用 cash+total（近似）
+    const accountTotal = cash + (_acctData.total_market || 0);
+    if (accountTotal <= 0) { wrap.style.display = 'none'; return; }
+
+    const posPct = Math.min(1.2, totalNotional / accountTotal);
+    wrap.style.display = 'block';
+    // marker 最大显示到 100%（超 100% 时也停在最右）
+    marker.style.left = (Math.min(posPct, 1) * 100) + '%';
+
+    let label, color;
+    if (posPct <= 0.15)      { label = '稳健 · 适度持仓';             color = '#5eead4'; }
+    else if (posPct <= 0.30) { label = '中等 · 单标的建议 ≤ 30%';      color = '#a7f3d0'; }
+    else if (posPct <= 0.50) { label = '偏高 · 注意分散';             color = '#fbbf24'; }
+    else                     { label = '过度集中 · 建议再评估';        color = '#ef4444'; }
+
+    text.innerHTML = `<span style="color:${color};">${label}</span> · 当前约 ${(posPct*100).toFixed(1)}%`;
+
+    // 知识跳转提示卡（仅展示，不拦截下单）
+    if (adviceBox) showRiskAdviceCards(posPct);
+}
+
+function showRiskAdviceCards(posPct) {
+    const box = document.getElementById('risk-advice-cards');
+    if (!box) return;
+    const sl = parseFloat(document.getElementById('risk-stop-loss')?.value);
+    const tp = parseFloat(document.getElementById('risk-take-profit')?.value);
+    const cards = [];
+
+    if (posPct > 0.30) {
+        cards.push({
+            text: '单标的仓位超过 30%，波动对账户冲击放大。建议拆分到多只或降低入场手数。',
+            anchor: 'learn_discipline.html#position-sizing',
+            label: '仓位管理',
+        });
+    }
+    if (!sl || sl === 0) {
+        cards.push({
+            text: '未填止损。没有止损等于把亏损上限交给市场——可以随时回来补上。',
+            anchor: 'learn_discipline.html#stop-loss-rules',
+            label: '止损规则',
+        });
+    }
+    if (sl && tp && tp < sl) {
+        cards.push({
+            text: `盈亏比 ${(tp/sl).toFixed(2)} < 1，长期需要 > 50% 胜率才能不亏。考虑放大止盈或缩小止损。`,
+            anchor: 'learn_discipline.html#take-profit-rules',
+            label: '盈亏比',
+        });
+    }
+    if (cards.length === 0) {
+        box.style.display = 'none';
+        return;
+    }
+    box.style.display = 'block';
+    box.innerHTML = cards.map(c => `
+        <div style="background:rgba(251,191,36,0.08);border-left:3px solid #fbbf24;
+                    padding:10px 12px;border-radius:4px;margin-bottom:6px;font-size:12px;
+                    color:var(--text);line-height:1.5;position:relative;">
+            <button onclick="this.parentElement.style.display='none'"
+                    style="position:absolute;right:6px;top:4px;background:transparent;border:none;
+                           color:var(--text-dim);cursor:pointer;font-size:14px;">×</button>
+            ${c.text}
+            <a href="${c.anchor}" target="_blank" rel="noopener"
+               style="display:inline-block;margin-top:4px;color:var(--primary);
+                      font-weight:600;text-decoration:none;">📖 ${c.label} →</a>
+        </div>
+    `).join('');
 }
 
 // ══ Submit order ══════════════════════════════════════════════
