@@ -1069,18 +1069,34 @@ async def _stream_graph_events(
             data=_complete_data,
             seq=seq,
         )
-        # 写入磁盘缓存
-        try:
-            from utils.report_cache import report_cache
-            report_cache.set(symbol, _complete_data)
-        except Exception as _cache_err:
-            logger.warning(f"[Cache] 写入失败: {_cache_err}")
-        # 写入历史记录
-        try:
-            from utils.analysis_history import save_analysis
-            save_analysis(symbol, _complete_data)
-        except Exception as _hist_err:
-            logger.warning(f"[History] 写入失败: {_hist_err}")
+
+        # ── 只有在 trade_order 完整且有效时才写缓存/历史 ─────────────
+        # 防止: 若中途 CancelledError / 节点降级, final_order 可能为 {} 或字段 None,
+        # 被 24h TTL 缓存后污染后续请求（用户会反复看到 "N/A 0%"）
+        _order_action = (final_order or {}).get("action") if isinstance(final_order, dict) else None
+        _order_valid = (
+            isinstance(final_order, dict)
+            and _order_action in ("BUY", "SELL", "HOLD")
+            and final_order.get("confidence") is not None
+        )
+        if not _order_valid:
+            logger.warning(
+                f"[Cache] 跳过写入: trade_order 不完整 "
+                f"(action={_order_action}, graph_error={_graph_error}) — 不缓存降级结果"
+            )
+        else:
+            # 写入磁盘缓存
+            try:
+                from utils.report_cache import report_cache
+                report_cache.set(symbol, _complete_data)
+            except Exception as _cache_err:
+                logger.warning(f"[Cache] 写入失败: {_cache_err}")
+            # 写入历史记录
+            try:
+                from utils.analysis_history import save_analysis
+                save_analysis(symbol, _complete_data)
+            except Exception as _hist_err:
+                logger.warning(f"[History] 写入失败: {_hist_err}")
     except Exception as _complete_err:
         logger.error(
             f"[stream] complete 事件构建失败: {type(_complete_err).__name__}: {_complete_err}",
