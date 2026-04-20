@@ -1242,10 +1242,15 @@
         document.getElementById('res-action').className = 'result-value ' + action.toLowerCase();
         document.getElementById('res-symbol').textContent = order.symbol || '';
         document.getElementById('res-confidence').textContent = ((order.confidence||0)*100).toFixed(0) + '%';
+        // 风险等级: 优先 risk_decision, 降级到 trade_order.risk_level, 再降级到 "--"
         const riskLevel = risk?.risk_level || order.risk_level || '--';
         document.getElementById('res-risk').textContent = riskLevel;
-        const posPct = risk?.position_pct;
-        document.getElementById('res-pos').textContent = posPct != null ? `建议仓位：${posPct.toFixed(0)}%` : '建议仓位：--';
+        // 仓位: 优先 risk.position_pct, 降级到 order.quantity_pct (trade_executor 对齐后的量纲)
+        const posPct = (risk?.position_pct != null) ? risk.position_pct
+                       : (order.quantity_pct != null ? order.quantity_pct : null);
+        document.getElementById('res-pos').textContent = (posPct != null)
+            ? `建议仓位：${Number(posPct).toFixed(1)}%`
+            : '建议仓位：--';
         // 执行价与价格来源
         const execPrice = order.execution_price;
         const isSpot    = order.is_spot_price;
@@ -1381,7 +1386,7 @@
                 break;
             // backend emits 'complete' (not 'analysis_complete')
             case 'complete': {
-                if (inner.trade_order) showResult(inner.trade_order, null);
+                if (inner.trade_order) showResult(inner.trade_order, inner.risk_decision || null);
                 // ── 渲染深度研报 ──────────────────────────────────────
                 const mdText = inner.final_markdown_report || '> 研报数据暂未返回，请重试。';
                 renderReport(mdText);

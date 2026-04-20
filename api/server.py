@@ -1057,6 +1057,7 @@ async def _stream_graph_events(
         _complete_data = {
                 "symbol":                symbol,
                 "trade_order":           final_order,
+                "risk_decision":         risk,
                 "status":                "completed",
                 "final_markdown_report": markdown_report or "> 研报生成失败，请重试。",
                 "financial_chart_data":  _chart_payload,
