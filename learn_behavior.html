@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>行为金融 · CampusQuant</title>
+<meta name="description" content="理解自己的情绪陷阱：锚定效应、损失厌恶、过度自信、FOMO，大学生最需要的财商课之一。">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/nav.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/animations.css">
+<style>
+main { flex:1; margin-top:80px; padding:32px 24px 80px; max-width:900px; margin-left:auto; margin-right:auto; width:100%; }
+h1 { font-family: var(--font-display); font-size: 38px; font-weight: 800;
+     background: linear-gradient(180deg, #fff, rgba(255,255,255,0.7));
+     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+     margin-bottom: 14px; }
+.lead { color: var(--text-sub); font-size: 15px; line-height: 1.75; margin-bottom: 28px; }
+.topic { margin: 36px 0 24px; padding: 24px 28px; background: var(--card);
+         border: 1px solid var(--border); border-radius: 16px; }
+.topic h2 { font-size: 22px; margin-bottom: 6px; }
+.topic-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; font-style: italic; }
+.topic h3 { font-size: 15px; margin: 16px 0 8px; color: var(--primary); }
+.topic p, .topic li { font-size: 14px; line-height: 1.8; color: var(--text); }
+.topic ul, .topic ol { padding-left: 20px; margin: 10px 0; }
+.topic strong { color: var(--primary); }
+.callout { padding: 12px 16px; border-radius: 8px; background: rgba(251,191,36,0.08);
+           border-left: 3px solid #fbbf24; font-size: 13px; margin: 12px 0; line-height: 1.7; }
+.callout.tip { background: rgba(45,212,191,0.08); border-color: var(--primary); }
+.quiz-box { margin-top: 16px; padding: 16px; background: rgba(139,92,246,0.06);
+            border-radius: 10px; font-size: 13px; color: var(--text-sub);
+            border: 1px dashed rgba(139,92,246,0.3); }
+.quiz-box strong { color: var(--secondary, #c084fc); }
+footer { padding:18px; text-align:center; background:rgba(0,0,0,0.3);
+         border-top:1px solid var(--border); color:var(--text-dim); font-size:13px; margin-top:24px; }
+</style>
+</head>
+<body data-bg-mode="off">
+
+<header>
+    <a href="dashboard.html" class="logo">
+        <span class="logo-text">CampusQuant</span>
+        <span class="logo-sub">校园财商</span>
+    </a>
+    <nav>
+        <a href="dashboard.html">控制台</a>
+        <a href="resources.html">资源库</a>
+        <a href="learn_basics.html">基础</a>
+        <a href="learn_behavior.html" class="active">行为金融</a>
+        <a href="learn_discipline.html">纪律</a>
+        <a href="ask.html">问答</a>
+    </nav>
+</header>
+
+<main>
+
+<h1>行为金融：和自己的情绪做朋友</h1>
+<p class="lead">市场的敌人往往不是别人，而是自己的大脑。大学生投资最容易吃亏的三种情绪——
+    锚定、损失厌恶、过度自信，一生都要反复训练。</p>
+
+<section class="topic" id="anchoring">
+  <h2>1. 锚定效应</h2>
+  <div class="topic-sub">为什么你总想等"回本"再卖</div>
+  <h3>现象</h3>
+  <p>你 15 元买进一只股票，现在跌到 10 元。你心里会想："等它涨回 15 再卖。"
+     但 15 元这个数字，<strong>对市场毫无意义</strong>——这是你的买入价，不是这公司的合理价值。</p>
+  <h3>本质</h3>
+  <p>大脑遇到决策时会抓一个容易记的数字作为"锚"，之后所有判断都围绕这个锚做增减。
+     自己的成本价、前高、整数关口（如 100 元），都是最常见的锚。</p>
+  <h3>反制</h3>
+  <ul>
+    <li>做决策时问自己："如果我今天第一次看到这只股，我会买吗？"如果不会，和成本价无关，就该卖</li>
+    <li>买入前就设定<strong>止损位</strong>和<strong>目标价</strong>，写下来，把未来决策的锚提前固定</li>
+    <li>看价格时多看"相对估值分位"而非"绝对价格"</li>
+  </ul>
+  <div class="callout">成本价不是锚，内在价值才是锚。</div>
+</section>
+
+<section class="topic" id="loss-aversion">
+  <h2>2. 损失厌恶</h2>
+  <div class="topic-sub">亏 100 的痛感 = 赚 200 的快感</div>
+  <h3>实验背景</h3>
+  <p>诺贝尔经济学奖得主 Kahneman 发现：人对等额亏损的痛感，约为等额盈利快感的 <strong>2-2.5 倍</strong>。
+     这直接解释了为什么：</p>
+  <ul>
+    <li>盈利时你急着兑现（怕煮熟的鸭子飞了）</li>
+    <li>亏损时你死扛不卖（不愿意承认判断错了）</li>
+    <li>结果：<strong>截短利润，放大亏损</strong>——和成功交易完全相反</li>
+  </ul>
+  <h3>反制</h3>
+  <ul>
+    <li>把决策和结果分开：判断对错由事前逻辑决定，不由事后涨跌决定</li>
+    <li>使用<strong>机械止损</strong>（到位就卖，不讨价还价）</li>
+    <li>限制"查账频率"。研究证明查账越勤，越容易被损失厌恶牵着走</li>
+  </ul>
+  <div class="callout tip">如果一笔亏损让你睡不着觉，仓位就一定是过重了。</div>
+</section>
+
+<section class="topic" id="overconfidence">
+  <h2>3. 过度自信</h2>
+  <div class="topic-sub">涨了说自己判断对，跌了说市场错</div>
+  <h3>现象</h3>
+  <p>自我归因偏误是过度自信的温床：</p>
+  <ul>
+    <li><strong>赢了</strong>：我的分析厉害、我的判断准</li>
+    <li><strong>输了</strong>：大盘不好、政策突变、股神也有看走眼的时候</li>
+  </ul>
+  <p>几次偶然正确后，仓位会越加越大、止损越放越宽，直到一次重大错误把前面的利润全吐回去。</p>
+  <h3>反制</h3>
+  <ul>
+    <li>写<strong>交易日志</strong>：每笔交易记录事前判断、事后结果，每月复盘胜率是否真的高于平均</li>
+    <li>承认运气的贡献：连续 5 次对也可能是运气。<strong>样本量 &lt; 30 次</strong>时不要相信自己的"胜率"</li>
+    <li>仓位管理用<strong>固定比例</strong>或<strong>半凯利</strong>，避免"这次一定对"式的加码</li>
+  </ul>
+</section>
+
+<section class="topic" id="fomo-herd">
+  <h2>4. 从众与 FOMO</h2>
+  <div class="topic-sub">为什么热点来的时候你总是最后一个</div>
+  <h3>现象</h3>
+  <p>"害怕错过"（Fear of Missing Out）是最凶残的情绪。特征：</p>
+  <ul>
+    <li>一只股突然每天涨停，朋友群里都在讨论</li>
+    <li>你开始打开行情软件的频率越来越高</li>
+    <li>某一天终于忍不住买入——而这天往往是阶段顶</li>
+  </ul>
+  <h3>底层机制</h3>
+  <p>进化上，孤立意味着被抛弃——所以大脑对"别人都在做的事情"有天然跟随倾向。
+     但金融市场里，<strong>最后一批跟风的人通常是接盘的</strong>。</p>
+  <h3>反制</h3>
+  <ul>
+    <li><strong>48 小时冷却期</strong>：想追涨的时候，强制自己等两天。如果两天后还想买，再讨论仓位</li>
+    <li>建立"<strong>关注清单</strong>"而非"<strong>追逐清单</strong>"——你关注的是公司，不是股价走势</li>
+    <li>关掉各种群和微博行情推送。信号越多，越容易被情绪驱动</li>
+  </ul>
+</section>
+
+<section class="topic" id="countermeasures">
+  <h2>5. 反制清单（可打印贴在电脑前）</h2>
+  <ol>
+    <li>🧾 <strong>交易日志</strong>：每笔交易 3 句话（买入逻辑 / 止损位 / 卖出条件），一月一复盘</li>
+    <li>⏳ <strong>冷却期</strong>：想追涨/割肉先强制 24 小时不操作</li>
+    <li>🎯 <strong>机械止损止盈</strong>：入场前就写下，不因为"再等等"动摇</li>
+    <li>📊 <strong>固定仓位</strong>：单只不超 X% 是铁律，不因为"这次感觉对"加码</li>
+    <li>🧘 <strong>周查而非日查</strong>：每日查账的人，回撤感受比周查的人强 2 倍</li>
+    <li>📓 <strong>每月写一次"我错在哪"</strong>：只写错误，不写正确。复利在你的反思里</li>
+  </ol>
+  <div class="callout tip">每个反制措施都是对一类情绪的免疫。逐条内化成习惯，你就完成了 80% 的风控。</div>
+</section>
+
+<div class="quiz-box">
+  <strong>💡 准备好测一下了吗？</strong><br>
+  前往 <a href="resources.html#quiz" style="color:var(--primary);">章节小测</a>
+  完成行为金融模块的自测，答对 60% 即可拿到徽章。
+</div>
+
+</main>
+
+<footer>&copy; 2026 CampusQuant · 行为金融</footer>
+
+<script src="assets/js/common.js?v=20260411"></script>
+<script src="assets/js/term-tooltip.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>宏观框架 · CampusQuant</title>
+<meta name="description" content="利率、汇率、CPI、PMI、社融、LPR 看起来枯燥，但学会它们你才读得懂市场快讯里的一切暗号。">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/nav.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/animations.css">
+<style>
+main { flex:1; margin-top:80px; padding:32px 24px 80px; max-width:900px; margin-left:auto; margin-right:auto; width:100%; }
+h1 { font-family: var(--font-display); font-size: 38px; font-weight: 800;
+     background: linear-gradient(180deg, #fff, rgba(255,255,255,0.7));
+     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+     margin-bottom: 14px; }
+.lead { color: var(--text-sub); font-size: 15px; line-height: 1.75; margin-bottom: 28px; }
+.topic { margin: 36px 0 24px; padding: 24px 28px; background: var(--card);
+         border: 1px solid var(--border); border-radius: 16px; }
+.topic h2 { font-size: 22px; margin-bottom: 6px; }
+.topic-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; font-style: italic; }
+.topic h3 { font-size: 15px; margin: 16px 0 8px; color: var(--primary); }
+.topic p, .topic li { font-size: 14px; line-height: 1.8; color: var(--text); }
+.topic ul, .topic ol { padding-left: 20px; margin: 10px 0; }
+.topic table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px;
+               border-radius: 8px; overflow: hidden; }
+.topic th, .topic td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06);
+                       text-align: left; }
+.topic th { background: rgba(255,255,255,0.04); color: var(--primary); font-weight: 700; }
+.topic strong { color: var(--primary); }
+.callout { padding: 12px 16px; border-radius: 8px; background: rgba(251,191,36,0.08);
+           border-left: 3px solid #fbbf24; font-size: 13px; margin: 12px 0; line-height: 1.7; }
+.callout.tip { background: rgba(45,212,191,0.08); border-color: var(--primary); }
+footer { padding:18px; text-align:center; background:rgba(0,0,0,0.3);
+         border-top:1px solid var(--border); color:var(--text-dim); font-size:13px; margin-top:24px; }
+</style>
+</head>
+<body data-bg-mode="off">
+
+<header>
+    <a href="dashboard.html" class="logo">
+        <span class="logo-text">CampusQuant</span>
+        <span class="logo-sub">校园财商</span>
+    </a>
+    <nav>
+        <a href="dashboard.html">控制台</a>
+        <a href="resources.html">资源库</a>
+        <a href="learn_basics.html">基础</a>
+        <a href="learn_macro.html" class="active">宏观</a>
+        <a href="market.html">快讯</a>
+        <a href="ask.html">问答</a>
+    </nav>
+</header>
+
+<main>
+
+<h1>宏观框架：让市场快讯对你不再是天书</h1>
+<p class="lead">"美联储今晚议息"、"LPR 调降"、"社融同比回落"、"PMI 跌破枯荣线"——这些词如果你一看就懂，
+    市场快讯对你就是免费的投资情报。不懂的话，就只是噪音。</p>
+
+<section class="topic" id="interest-rates">
+  <h2>1. 利率如何影响股市</h2>
+  <div class="topic-sub">货币是万物之价</div>
+  <h3>核心链条</h3>
+  <p>利率 → 贴现率 → 资产定价。利率下降 → 未来现金流折现值提高 → 资产估值走高。
+     同样的公司，在 2% 利率环境下值 30PE，在 5% 利率环境下只值 15PE。</p>
+  <h3>两种周期的股市特征</h3>
+  <table>
+    <tr><th>周期</th><th>利率方向</th><th>受益板块</th><th>受压板块</th></tr>
+    <tr><td>降息周期</td><td>↓</td><td>成长股 / 科技 / 地产 / 高股息</td><td>银行 (息差收窄)</td></tr>
+    <tr><td>加息周期</td><td>↑</td><td>银行 / 保险 / 价值股</td><td>成长股 / 地产 / 新兴市场</td></tr>
+  </table>
+  <div class="callout tip">记住"降息利好成长，加息利好价值"这个大方向，市场分析 60% 的框架已经搭好。</div>
+</section>
+
+<section class="topic" id="fx-flows">
+  <h2>2. 汇率与外资流动</h2>
+  <div class="topic-sub">看懂北向资金为什么流出</div>
+  <h3>基本原理</h3>
+  <p>外资买 A 股需要先把外币换成人民币。人民币走强 → 换算回外币收益更高 → 外资流入更积极；
+     人民币走弱时反之。</p>
+  <h3>观察窗口</h3>
+  <ul>
+    <li><strong>USDCNY 汇率</strong>：升破某心理关口（如 7.3、7.5）时常伴随北向资金净流出</li>
+    <li><strong>北向资金日度净流入</strong>：沪深港通数据，可在东财、雪球直接查</li>
+    <li><strong>中美利差</strong>：10Y 中债 - 10Y 美债，利差收窄时外资撤离压力大</li>
+  </ul>
+</section>
+
+<section class="topic" id="monetary-tools">
+  <h2>3. 央行的货币政策工具</h2>
+  <table>
+    <tr><th>工具</th><th>作用</th><th>影响板块</th></tr>
+    <tr><td><strong>LPR</strong>（贷款市场报价利率）</td><td>引导企业和个人贷款利率</td><td>地产 / 金融 / 所有高负债行业</td></tr>
+    <tr><td><strong>MLF</strong>（中期借贷便利）</td><td>央行给银行的批发利率</td><td>银行间流动性</td></tr>
+    <tr><td><strong>RRR</strong>（存款准备金率）</td><td>调节银行可贷资金</td><td>信贷扩张速度</td></tr>
+    <tr><td><strong>逆回购</strong></td><td>短期流动性投放</td><td>A 股短期波动</td></tr>
+    <tr><td><strong>PSL</strong>（抵押补充贷款）</td><td>定向注入房地产等</td><td>房地产板块</td></tr>
+  </table>
+</section>
+
+<section class="topic" id="key-data">
+  <h2>4. 三个最关键的宏观数据</h2>
+  <h3>CPI（消费者物价指数）</h3>
+  <p>过低（<1%）暗示需求疲软、通缩风险；过高（>3%）压迫货币政策收紧。
+     <strong>CPI 破 2% 上行</strong>是国内货币政策可能转紧的信号。</p>
+  <h3>PMI（采购经理人指数）</h3>
+  <p>[0, 100] 区间。>50 扩张，<50 收缩。<strong>跌破 50</strong>常被称作"跌破枯荣线"。
+     官方 PMI 和财新 PMI 常被同时参考（前者偏大中型国企，后者偏中小民企）。</p>
+  <h3>社融（社会融资规模）</h3>
+  <p>实体经济从金融系统获得的全部资金。<strong>社融同比增速回落</strong>常预示经济放缓，
+     因为企业不再愿意借钱扩张。</p>
+  <div class="callout">三个数据看一眼就够 3 分钟：CPI 看通胀、PMI 看景气、社融看扩张意愿。</div>
+</section>
+
+<section class="topic" id="policy-cycle">
+  <h2>5. 政策周期速读</h2>
+  <h3>关键会议时间表</h3>
+  <table>
+    <tr><th>时间</th><th>会议</th><th>主要议题</th></tr>
+    <tr><td>每年 3 月</td><td>两会 (全国人大+政协)</td><td>政府工作报告 / GDP 目标 / 财政预算</td></tr>
+    <tr><td>每月中下旬</td><td>LPR 报价</td><td>贷款利率</td></tr>
+    <tr><td>每季末</td><td>人民银行例行发布会</td><td>货币政策回顾与展望</td></tr>
+    <tr><td>每年 12 月</td><td>中央经济工作会议</td><td>下一年度经济工作定调</td></tr>
+    <tr><td>每年 7/10 月</td><td>政治局经济会议</td><td>半年/秋季政策微调</td></tr>
+    <tr><td>每月</td><td>美联储议息 (隔月开会)</td><td>美国利率政策，全球外溢</td></tr>
+  </table>
+  <h3>政策"暗号"解读</h3>
+  <ul>
+    <li>"<strong>稳中求进</strong>" → 政策偏稳健，不搞大刺激</li>
+    <li>"<strong>逆周期调节</strong>" → 经济压力大，货币财政要发力</li>
+    <li>"<strong>房住不炒</strong>" → 地产相关紧缩信号持续</li>
+    <li>"<strong>稳预期、稳增长、稳就业</strong>" → 全面宽松前奏</li>
+  </ul>
+</section>
+
+</main>
+<footer>&copy; 2026 CampusQuant · 宏观框架</footer>
+
+<script src="assets/js/common.js?v=20260411"></script>
+<script src="assets/js/term-tooltip.js" defer></script>
+</body>
+</html>

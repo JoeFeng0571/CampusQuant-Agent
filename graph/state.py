@@ -125,6 +125,14 @@ class AnalystReport(BaseModel):
         description="悲观情景描述，需量化下跌空间和具体触发条件"
     )
 
+    # ── 【第二章 3.1】推理链卡片（可选字段，向后兼容）────────
+    # 由 portfolio_node / 各分析节点按需填充。为空时前端仍显示原 reasoning。
+    reasoning_chain: List[dict] = Field(
+        default_factory=list,
+        description="结构化推理链，每项是 ReasoningStep.model_dump() 后的 dict。"
+                    "前端按 type 颜色分段渲染可折叠卡片。",
+    )
+
     # 【Fix】LLM 有时返回空字符串 "" 而不是空列表 []，导致 Pydantic 验证失败
     # sentiment_node 频繁因此崩溃。用 validator 自动修正。
     @model_validator(mode="before")
@@ -267,6 +275,37 @@ class OptimizedPortfolio(BaseModel):
     metadata: Dict[str, Any] = Field(
         default_factory=dict,
         description="方法特定的附加信息（如 BL 的先验/后验收益）"
+    )
+
+
+class ReasoningStep(BaseModel):
+    """
+    推理链单步（第二章 3.1）
+
+    把 Agent 输出从"纯文本结论"升级为结构化四步链：
+        1. data       — 事实数据（营收 / PE / 新闻原话等）
+        2. concept    — 应用的财务/技术概念（估值回归、均线金叉等）
+        3. judgment   — 把数据映射到概念产生的具体判断
+        4. conclusion — 综合上述的可执行结论
+
+    前端在研报区渲染为可折叠卡片，每步不同颜色高亮。
+    """
+
+    step: int = Field(ge=1, le=10, description="步骤序号（1 起）")
+    type: Literal["data", "concept", "judgment", "conclusion"] = Field(
+        description="推理步骤类型"
+    )
+    content: str = Field(
+        description="该步骤的表述内容（30-300 字）"
+    )
+    source: Optional[str] = Field(
+        default=None,
+        description="数据来源（仅 type=data 时有意义，如 'akshare::stock_financial_abstract'）"
+    )
+    term_refs: List[str] = Field(
+        default_factory=list,
+        description="本步涉及的财商术语列表（与 assets/data/terms.json key 对齐），"
+                    "前端用于术语跳转加链"
     )
 
 

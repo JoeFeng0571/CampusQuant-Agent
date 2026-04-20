@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>交易纪律与复盘 · CampusQuant</title>
+<meta name="description" content="止盈、止损、仓位管理、最大回撤、交易日志——比选股更重要的基础设施。">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/nav.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/animations.css">
+<style>
+main { flex:1; margin-top:80px; padding:32px 24px 80px; max-width:900px; margin-left:auto; margin-right:auto; width:100%; }
+h1 { font-family: var(--font-display); font-size: 38px; font-weight: 800;
+     background: linear-gradient(180deg, #fff, rgba(255,255,255,0.7));
+     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+     margin-bottom: 14px; }
+.lead { color: var(--text-sub); font-size: 15px; line-height: 1.75; margin-bottom: 28px; }
+.topic { margin: 36px 0 24px; padding: 24px 28px; background: var(--card);
+         border: 1px solid var(--border); border-radius: 16px; }
+.topic h2 { font-size: 22px; margin-bottom: 6px; }
+.topic-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; font-style: italic; }
+.topic h3 { font-size: 15px; margin: 16px 0 8px; color: var(--primary); }
+.topic p, .topic li { font-size: 14px; line-height: 1.8; color: var(--text); }
+.topic ul, .topic ol { padding-left: 20px; margin: 10px 0; }
+.topic table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px;
+               border-radius: 8px; overflow: hidden; }
+.topic th, .topic td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06);
+                       text-align: left; }
+.topic th { background: rgba(255,255,255,0.04); color: var(--primary); font-weight: 700; }
+.topic strong { color: var(--primary); }
+.callout { padding: 12px 16px; border-radius: 8px; background: rgba(251,191,36,0.08);
+           border-left: 3px solid #fbbf24; font-size: 13px; margin: 12px 0; line-height: 1.7; }
+.callout.tip { background: rgba(45,212,191,0.08); border-color: var(--primary); }
+.callout.danger { background: rgba(248,113,113,0.10); border-color: #f87171; }
+.formula { display: block; padding: 10px; background: rgba(255,255,255,0.04);
+           border-radius: 6px; font-family: var(--font-mono, monospace);
+           font-size: 13px; margin: 10px 0; }
+footer { padding:18px; text-align:center; background:rgba(0,0,0,0.3);
+         border-top:1px solid var(--border); color:var(--text-dim); font-size:13px; margin-top:24px; }
+</style>
+</head>
+<body data-bg-mode="off">
+
+<header>
+    <a href="dashboard.html" class="logo">
+        <span class="logo-text">CampusQuant</span>
+        <span class="logo-sub">校园财商</span>
+    </a>
+    <nav>
+        <a href="dashboard.html">控制台</a>
+        <a href="resources.html">资源库</a>
+        <a href="learn_basics.html">基础</a>
+        <a href="learn_behavior.html">行为</a>
+        <a href="learn_discipline.html" class="active">纪律</a>
+        <a href="calculator.html">计算器</a>
+    </nav>
+</header>
+
+<main>
+
+<h1>交易纪律与复盘</h1>
+<p class="lead">选股靠认知，生存靠纪律。一套完整的纪律系统包含四件事：
+    <strong>仓位管理</strong>、<strong>止损止盈</strong>、<strong>回撤控制</strong>、<strong>定期复盘</strong>。
+    一个也不能少。</p>
+
+<section class="topic" id="position-sizing">
+  <h2>1. 仓位管理三种流派</h2>
+  <div class="topic-sub">"买多少"比"买什么"更决定命运</div>
+
+  <h3>流派 A：等权分仓（最稳健）</h3>
+  <p>账户总资金 ÷ N = 单只仓位上限。新手首选。</p>
+  <span class="formula">单只仓位 ≤ 1 / N，N 为最大持仓数（通常 5-10）</span>
+
+  <h3>流派 B：波动率加权（Risk Parity 思路）</h3>
+  <p>高波动的少买，低波动的多买——让每只股贡献差不多的组合波动。</p>
+  <span class="formula">单只仓位 ∝ 1 / σ_i，再归一化</span>
+
+  <h3>流派 C：凯利公式（半凯利版）</h3>
+  <p>根据胜率和盈亏比计算"理论最优仓位"，实战用 0.5 倍。</p>
+  <span class="formula">Kelly = 胜率 − 败率/盈亏比
+半凯利 = Kelly × 0.5</span>
+  <div class="callout">推荐新手从<strong>等权分仓</strong>起步。凯利公式需要你对自己的胜率有可靠估计，而这通常要 50 次以上交易样本。</div>
+</section>
+
+<section class="topic" id="stop-loss-rules">
+  <h2>2. 止损规则</h2>
+  <div class="topic-sub">没有止损的交易等于把亏损上限交给市场</div>
+
+  <h3>类型 1：固定比例止损</h3>
+  <p>入场价下跌 X% 立刻卖。X 通常 5-10%（A 股常用 8%）。</p>
+
+  <h3>类型 2：移动止损（Trailing Stop）</h3>
+  <p>跟随最新高点，止损价 = 高点 × (1 − X%)。</p>
+  <p>适合趋势交易——只要趋势没破坏，止损价一直上移。趋势反转时自动退出。</p>
+
+  <h3>类型 3：ATR 止损</h3>
+  <p>止损距离 = 入场价 − N × ATR（一般 N=2 或 3）。自适应波动率，高波动股票给更大空间。</p>
+
+  <h3>选型建议</h3>
+  <table>
+    <tr><th>场景</th><th>推荐止损</th></tr>
+    <tr><td>长期持股</td><td>无 / 宽比例（-30%）/ 基本面止损</td></tr>
+    <tr><td>趋势跟随</td><td>移动止损 或 跌破关键均线</td></tr>
+    <tr><td>短线 / 波段</td><td>固定比例 5-8%</td></tr>
+    <tr><td>高波动题材</td><td>ATR 止损 2-3 倍</td></tr>
+  </table>
+  <div class="callout danger">止损规则必须在<strong>入场前</strong>写下。不要盘中临时"感觉还行，再等等"。</div>
+</section>
+
+<section class="topic" id="take-profit-rules">
+  <h2>3. 止盈规则</h2>
+  <div class="topic-sub">盈亏比 ≥ 1.5 才能长期稳定</div>
+
+  <h3>原则：盈亏比先行</h3>
+  <p>入场前先算：如果按止损位卖，我亏多少？按目标价卖，我赚多少？</p>
+  <span class="formula">盈亏比 = 止盈距离 / 止损距离</span>
+  <p>盈亏比 ≥ 1.5 才值得交易。盈亏比 &lt; 1 时，你需要 &gt; 50% 胜率才能不亏——而散户平均胜率低于 40%。</p>
+
+  <h3>止盈类型</h3>
+  <ul>
+    <li><strong>目标价止盈</strong>：到合理估值卖</li>
+    <li><strong>分批止盈</strong>：涨 50% 卖 1/3，涨 100% 再卖 1/3，剩下裸奔</li>
+    <li><strong>跟踪止盈</strong>：同移动止损，让利润奔跑</li>
+    <li><strong>基本面止盈</strong>：逻辑兑现（如业绩达标）就走</li>
+  </ul>
+</section>
+
+<section class="topic" id="drawdown-control">
+  <h2>4. 最大回撤控制</h2>
+  <div class="topic-sub">回撤的不对称性比你想的可怕</div>
+
+  <h3>回本涨幅表</h3>
+  <table>
+    <tr><th>回撤</th><th>需要涨幅回本</th></tr>
+    <tr><td>-10%</td><td>+11.1%</td></tr>
+    <tr><td>-20%</td><td>+25.0%</td></tr>
+    <tr><td>-30%</td><td>+42.9%</td></tr>
+    <tr><td>-50%</td><td><strong>+100.0%</strong></td></tr>
+    <tr><td>-70%</td><td><strong>+233.3%</strong></td></tr>
+  </table>
+
+  <h3>三级熔断建议</h3>
+  <ul>
+    <li><strong>单笔熔断</strong>：任何一笔亏损不超过账户 2-3%</li>
+    <li><strong>月度熔断</strong>：月累计亏损达到 10% 暂停新开仓，只管理已有仓位</li>
+    <li><strong>年度熔断</strong>：年累计亏损 20% 强制清仓休息 1 月，复盘再决定</li>
+  </ul>
+  <div class="callout tip">控制回撤不是为了跑不赢别人，是为了不被市场"踢出局"。活下去是复利的前提。</div>
+</section>
+
+<section class="topic" id="trading-journal">
+  <h2>5. 交易日志 + 周度复盘模板</h2>
+
+  <h3>每笔交易 3 句话</h3>
+  <span class="formula">买入逻辑: （1-2 句，为什么买）
+止损位: （具体价格 / 相对比例）
+卖出条件: （达到何时卖 / 基本面变化何时卖）</span>
+
+  <h3>每周复盘 5 问</h3>
+  <ol>
+    <li>本周交易胜率多少？盈亏比多少？</li>
+    <li>有没有违反自己写下的规则？（仓位、止损、频率）</li>
+    <li>有没有 FOMO 驱动的交易？当时是什么触发？</li>
+    <li>本周最大盈利和最大亏损的原因是什么？</li>
+    <li>下周计划做什么，不做什么？</li>
+  </ol>
+
+  <h3>每月统计 5 指标</h3>
+  <ul>
+    <li>胜率 = 盈利笔数 / 总笔数</li>
+    <li>盈亏比 = 平均盈利 / 平均亏损</li>
+    <li>期望值 = 胜率 × 平均盈利 − 败率 × 平均亏损</li>
+    <li>最大回撤</li>
+    <li>累计收益 vs 基准（沪深 300 / 标普 500）</li>
+  </ul>
+  <div class="callout tip">3 个月的交易日志比 300 小时的选股课更能让你成长。因为它照出的是你真实的习惯。</div>
+</section>
+
+</main>
+<footer>&copy; 2026 CampusQuant · 交易纪律与复盘</footer>
+
+<script src="assets/js/common.js?v=20260411"></script>
+<script src="assets/js/term-tooltip.js" defer></script>
+</body>
+</html>
