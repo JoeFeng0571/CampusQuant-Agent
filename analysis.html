@@ -1350,9 +1350,11 @@
             // backend emits 'node_complete' (not 'node_done')
             case 'node_complete':
                 setNodeStatus(ev.node, 'done');
-                appendText('\n' + ev.message);
-                // Show one-line agent summary
-                if (ev.message && ev.node) {
+                // 缓存回放场景: 后端把 data.cached=true + 空 message, 前端只亮进度不写日志
+                // (否则会出现顶部按钮条和下方日志都列一遍节点的重复展示)
+                if (!inner?.cached && ev.message) {
+                    appendText('\n' + ev.message);
+                    // Show one-line agent summary
                     const sumBox = document.getElementById('agent-summaries');
                     sumBox.style.display = 'block';
                     const label = NODE_LABELS[ev.node] || ev.node;

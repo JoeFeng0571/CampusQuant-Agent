@@ -365,16 +365,24 @@ _NODE_START_DESC = {
 async def _stream_cached_report(
     symbol: str, cached: dict, thread_id: str,
 ) -> AsyncGenerator[str, None]:
-    """从缓存快速回放 SSE 事件（<1秒完成）"""
+    """从缓存快速回放 SSE 事件（<1秒完成）
+
+    仅让节点进度条"批量亮起"，不向日志区写入"xxx (缓存)"这种无信息量条目。
+    前端通过 data.cached=True 标志识别缓存回放事件, 只更新进度不 appendText。
+    """
     seq = 0
     seq += 1
-    yield _make_sse_event("start", "system", f"加载 {symbol} 缓存分析结果...", {"symbol": symbol, "cached": True}, seq)
+    yield _make_sse_event("start", "system", f"加载 {symbol} 缓存分析结果...",
+                           {"symbol": symbol, "cached": True}, seq)
     await asyncio.sleep(0.05)
 
-    # 模拟节点完成
-    for node in ["data_node", "fundamental_node", "technical_node", "sentiment_node", "rag_node", "portfolio_node", "risk_node", "trade_executor"]:
+    # 节点进度条亮起（前端按 data.cached 区分, 不写日志）
+    for node in ["data_node", "fundamental_node", "technical_node",
+                 "sentiment_node", "rag_node", "portfolio_node",
+                 "risk_node", "trade_executor"]:
         seq += 1
-        yield _make_sse_event("node_complete", node, f"{node} (缓存)", {}, seq)
+        yield _make_sse_event("node_complete", node, "",
+                               {"cached": True}, seq)
         await asyncio.sleep(0.02)
 
     # 发送完整结果
@@ -751,34 +759,55 @@ async def _stream_graph_events(
         if not _total_cap and _fund_data.get("total_market_cap"):
             _total_cap = _fund_data["total_market_cap"]
 
-        # 路径4: yfinance fallback（港股/美股的最后手段）
-        if not _pe or not _eps:
+        # 路径4: yfinance fallback（A/港/美三市场都跑，最后一道保底）
+        # 关键: 把 CampusQuant 内部 symbol 转成 yfinance 的标准格式
+        #   - 600519.SH → 600519.SS  (yfinance 沪市用 .SS 不是 .SH)
+        #   - 000858.SZ → 000858.SZ  (深市一致)
+        #   - 00700.HK  → 0700.HK    (港股 4 位数字, 旧代码 .lstrip('0') 会变成 700.HK 错误)
+        #   - AAPL      → AAPL
+        if (not _pe) or (not _eps) or (not _total_cap) or (not _pb) or (not _roe):
             try:
-                _mkt = last_state.get("market_type", "")
-                if _mkt in ("HK_STOCK", "US_STOCK") or not symbol.endswith(('.SH', '.SZ')):
-                    import yfinance as yf
-                    _yf_sym = symbol
-                    if '.HK' in symbol:
-                        # 03690.HK → 3690.HK (yfinance format)
-                        _yf_sym = symbol.replace('.HK', '').lstrip('0') + '.HK'
-                    _info = yf.Ticker(_yf_sym).info or {}
-                    if not _pe:
-                        _pe = _info.get("trailingPE") or _info.get("forwardPE")
-                    if not _pb:
-                        _pb = _info.get("priceToBook")
-                    if not _eps:
-                        _eps = _info.get("trailingEps")
-                    if not _roe:
-                        _roe_raw = _info.get("returnOnEquity")
-                        if _roe_raw:
-                            _roe = round(_roe_raw * 100, 2)  # 0.24 → 24.0
-                    if not _total_cap:
-                        _mc = _info.get("marketCap")
-                        if _mc:
-                            _total_cap = f"{_mc / 1e8:.0f}亿"
-                    logger.info(f"[stream] yfinance 补充指标: {symbol} pe={_pe} pb={_pb} roe={_roe} eps={_eps}")
+                s = symbol.strip().upper()
+                if s.endswith('.SH'):
+                    _yf_sym = s[:-3] + '.SS'
+                elif s.endswith('.HK'):
+                    _core = s[:-3].lstrip('0')
+                    if len(_core) < 4:
+                        _core = _core.zfill(4)
+                    _yf_sym = _core + '.HK'
+                elif s.endswith('.SZ'):
+                    _yf_sym = s
+                else:
+                    _yf_sym = s   # 美股 / 其他
+
+                import yfinance as yf
+                _info = yf.Ticker(_yf_sym).info or {}
+                if not _pe:
+                    _pe = _info.get("trailingPE") or _info.get("forwardPE")
+                if not _pb:
+                    _pb = _info.get("priceToBook")
+                if not _eps:
+                    _eps = _info.get("trailingEps") or _info.get("forwardEps")
+                if not _roe:
+                    _roe_raw = _info.get("returnOnEquity")
+                    if _roe_raw:
+                        _roe = round(_roe_raw * 100, 2)  # 0.24 → 24.0
+                if not _total_cap:
+                    _mc = _info.get("marketCap")
+                    if _mc:
+                        # A/港股以"亿"为单位，美股以"亿USD"为单位（统一数字 + 单位标注）
+                        if _yf_sym.endswith(('.SS', '.SZ')):
+                            _total_cap = f"{_mc / 1e8:.0f} 亿"
+                        elif _yf_sym.endswith('.HK'):
+                            _total_cap = f"{_mc / 1e8:.0f} 亿 HKD"
+                        else:
+                            _total_cap = f"{_mc / 1e8:.0f} 亿 USD"
+                logger.info(
+                    f"[stream] yfinance 补充指标: {symbol} → {_yf_sym} "
+                    f"pe={_pe} pb={_pb} roe={_roe} eps={_eps} cap={_total_cap}"
+                )
             except Exception as _yf_err:
-                logger.warning(f"[stream] yfinance 指标获取失败: {_yf_err}")
+                logger.warning(f"[stream] yfinance 指标获取失败 ({symbol}): {_yf_err}")
         _pe_display = f"{_pe:.1f}" if isinstance(_pe, (int, float)) else "--"
         _pb_display = f"{_pb:.2f}" if isinstance(_pb, (int, float)) else "--"
         _roe_display = f"{_roe:.2f}%" if isinstance(_roe, (int, float)) else "--"
