@@ -2804,6 +2804,8 @@ async def trade_executor(state: TradingGraphState) -> dict:
       - TradeOrder.simulated = True，指向本地模拟撮合引擎，不连接任何真实交易所
       - 填充 state.trade_order，标记 status = "completed"
     """
+    logger.info(f"[trade_executor] ⚡ ENTER — state keys: {list(state.keys())}")
+
     symbol         = _sanitize_symbol(state.get("symbol") or state.get("stock_code", "UNKNOWN"))
     market_type    = state.get("market_type", "US_STOCK")
     market_data    = state.get("market_data", {})
@@ -2811,6 +2813,12 @@ async def trade_executor(state: TradingGraphState) -> dict:
     portfolio_dec  = fundamental.get("_portfolio_decision", {})
     risk_decision  = state.get("risk_decision", {}) or {}
     debate_outcome = state.get("debate_outcome")
+
+    logger.info(
+        f"[trade_executor] 读取 state: symbol={symbol} "
+        f"portfolio_dec_keys={list(portfolio_dec.keys()) if portfolio_dec else 'EMPTY'} "
+        f"risk_keys={list(risk_decision.keys()) if risk_decision else 'EMPTY'}"
+    )
 
     action          = portfolio_dec.get("recommendation", "HOLD")
     confidence      = portfolio_dec.get("confidence", 0.5)
