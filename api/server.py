@@ -433,6 +433,13 @@ async def _stream_graph_events(
     # Cloudflare 免费版对长连接有约 100s 空闲超时；portfolio_node 的 LLM 调用
     # 常需 60-120s，中间无 node 事件会被误判为 idle。方案: 15s 无真实事件就发
     # 一行 ": keep-alive\n\n" SSE 注释（客户端会忽略），维持 TCP 活跃。
+    #
+    # 【关键修复 2026-04-21】不能用 asyncio.wait_for() — 它超时后会 CANCEL
+    # 正在等待的 anext() 任务，而这个任务正在推进 LangGraph 的 trade_executor
+    # LLM 调用。一旦被 cancel, trade_executor 半路收到 CancelledError 静默退出,
+    # 结果就是 state.trade_order 永远不会写入。
+    # 正确姿势: asyncio.shield() 保护 anext() 不被取消; 或用 asyncio.wait
+    # (return_when=FIRST_COMPLETED) 只看状态不取消。这里用后者更直观。
     HEARTBEAT_INTERVAL = 15.0
     try:
         stream = _compiled_graph.astream_events(
@@ -441,17 +448,26 @@ async def _stream_graph_events(
             version="v2",            # 使用 LangGraph astream_events v2
         )
         aiter = stream.__aiter__()
+        _pending_task = None
         while True:
-            try:
-                event = await asyncio.wait_for(
-                    aiter.__anext__(), timeout=HEARTBEAT_INTERVAL,
-                )
-            except asyncio.TimeoutError:
-                # SSE comment (colon-prefixed line) 是协议允许的 keep-alive
+            if _pending_task is None:
+                _pending_task = asyncio.ensure_future(aiter.__anext__())
+            done, _ = await asyncio.wait(
+                {_pending_task}, timeout=HEARTBEAT_INTERVAL,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if not done:
+                # 超时: 该任务仍在跑, 不取消, 只发心跳注释
                 yield ": keep-alive\n\n"
                 continue
+
+            # 有结果了: 取出事件, 清空 pending, 下轮再创建新 anext 任务
+            try:
+                event = _pending_task.result()
             except StopAsyncIteration:
                 break
+            finally:
+                _pending_task = None
 
             # ── 以下原 for 循环体（缩进保持在 while 一层下）────
             kind      = event.get("event", "")
