@@ -14,6 +14,8 @@
 <!-- Shared design system -->
 <link rel="stylesheet" href="assets/css/tokens.css">
 <link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/nav.css">
+<link rel="stylesheet" href="assets/css/components.css">
 <link rel="stylesheet" href="assets/css/animations.css">
 <script src="/assets/vendor/lucide.min.js" defer></script>
 <style>
@@ -203,15 +205,17 @@ footer a{color:var(--pri)}
 <div class="sidebar-overlay" id="sidebar-overlay"></div>
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
-    <h2>校园财商学习中心</h2>
+    <h2>校园财商库</h2>
     <button id="sidebar-close" class="close-btn">&times;</button>
   </div>
   <div class="sidebar-content">
-    <a href="home.html" class="sidebar-link featured"><span>进入学习中心</span><span>→</span></a>
-    <a href="#modules" class="sidebar-link"><span>六大核心模块</span><span>→</span></a>
-    <a href="#articles" class="sidebar-link"><span>专题文章库</span><span>→</span></a>
-    <a href="#books" class="sidebar-link"><span>推荐书单</span><span>→</span></a>
-    <a href="community.html" class="sidebar-link"><span>回到投教社区</span><span>→</span></a>
+    <a href="#modules" class="sidebar-link featured"><span>📚 六大核心模块</span><span>→</span></a>
+    <a href="#articles" class="sidebar-link"><span>📝 专题文章库</span><span>→</span></a>
+    <a href="#books" class="sidebar-link"><span>📖 推荐书单</span><span>→</span></a>
+    <a href="learn_basics.html" class="sidebar-link"><span>📈 基础财商知识</span><span>→</span></a>
+    <a href="learn_antifraud.html" class="sidebar-link"><span>🛡️ 大学生防骗指南</span><span>→</span></a>
+    <a href="learn_strategies.html" class="sidebar-link"><span>💡 投资策略锦囊</span><span>→</span></a>
+    <a href="community.html" class="sidebar-link"><span>💬 回到投教社区</span><span>→</span></a>
   </div>
 </aside>
 
@@ -848,6 +852,7 @@ sidebarOverlay.addEventListener('click',closeSidebar);
 function _renderAuthWidget(){const w=document.getElementById('auth-widget');if(!w)return;const u=localStorage.getItem('cq_username')||'';const pg=window.location.pathname.split('/').pop()||'resources.html';if(u){w.innerHTML=`<span style="font-size:12px;color:var(--sub)">👤 ${u}</span><button onclick="['cq_token','cq_username','cq_user_id'].forEach(k=>localStorage.removeItem(k));_renderAuthWidget();" style="background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#8da2b8;font-size:11px;padding:3px 8px;cursor:pointer;">退出</button>`;}else{w.innerHTML=`<a href="auth.html?redirect=${pg}" style="font-size:12px;color:#2dd4bf;text-decoration:none;border:1px solid rgba(45,212,191,0.4);border-radius:6px;padding:3px 10px;">登录/注册</a>`;}}
 document.addEventListener('DOMContentLoaded',_renderAuthWidget);
 </script>
+<script src="assets/js/common.js?v=20260411"></script>
 <script src="assets/js/ui-kit.js"></script>
 <script src="assets/js/command-palette.js"></script>
 

@@ -14,6 +14,8 @@
 <!-- Shared design system -->
 <link rel="stylesheet" href="assets/css/tokens.css">
 <link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/nav.css">
+<link rel="stylesheet" href="assets/css/components.css">
 <link rel="stylesheet" href="assets/css/animations.css">
 <script src="/assets/vendor/lucide.min.js" defer></script>
 <style>
@@ -99,11 +101,47 @@ main{padding-top:96px}
 <a href="dashboard.html">控制台</a>
 <a href="market.html">市场快讯</a>
 <a href="analysis.html">个股分析</a>
-<a href="trade.html">模拟演练</a>
+<a href="trade.html">模拟演练<span class="nav-dot"></span></a>
 <a href="community.html" class="active">投教社区</a>
 <a href="team.html">关于我们</a>
+<div id="auth-widget" style="display:flex;align-items:center;gap:8px;margin-left:8px;flex-shrink:0;"></div>
+<button id="sidebar-toggle" class="sidebar-btn" title="打开学习资源库">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+</button>
 </nav>
 </header>
+
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h2>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            校园财商库
+        </h2>
+        <button id="sidebar-close" class="close-btn">&times;</button>
+    </div>
+    <div class="sidebar-content">
+        <a href="resources.html" class="sidebar-link featured">
+            <span>📚 进入学习资源库</span><span>→</span>
+        </a>
+        <a href="learn_basics.html" class="sidebar-link">
+            <span>📈 基础财商课程</span>
+        </a>
+        <a href="learn_antifraud.html" class="sidebar-link">
+            <span>🛡️ 大学生防骗指南</span>
+        </a>
+        <a href="learn_strategies.html" class="sidebar-link">
+            <span>💡 投资策略锦囊</span>
+        </a>
+    </div>
+</aside>
 
 <main>
 <div class="crumb"><a href="community.html">投教社区</a> / 大学生防骗指南</div>
@@ -429,6 +467,7 @@ main{padding-top:96px}
 &copy; 2026 CampusQuant 校园财商 · 防骗案例来源于公开报道整理 · <a href="community.html">回到投教社区</a>
 </footer>
 
+<script src="assets/js/common.js?v=20260411"></script>
 <script src="assets/js/ui-kit.js"></script>
 <script src="assets/js/command-palette.js"></script>
 
