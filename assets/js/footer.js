@@ -26,11 +26,10 @@
                 </div>
                 <div class="cq-footer-col">
                     <div class="cq-footer-title">学习</div>
-                    <a href="home.html">学习中心</a>
+                    <a href="resources.html">学习资源库</a>
                     <a href="learn_basics.html">基础财商课程</a>
                     <a href="learn_strategies.html">投资策略锦囊</a>
                     <a href="learn_antifraud.html">防骗指南</a>
-                    <a href="resources.html">学习资源库</a>
                 </div>
                 <div class="cq-footer-col">
                     <div class="cq-footer-title">关于</div>

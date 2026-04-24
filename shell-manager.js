@@ -10,7 +10,6 @@
     'community.html',
     'team.html',
     'resources.html',
-    'home.html',
     'auth.html',
   ]);
 

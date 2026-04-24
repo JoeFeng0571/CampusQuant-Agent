@@ -17,7 +17,7 @@
             { keys: ['G', 'M'], label: '跳转到市场快讯', href: 'market.html' },
             { keys: ['G', 'A'], label: '跳转到个股分析', href: 'analysis.html' },
             { keys: ['G', 'C'], label: '跳转到投教社区', href: 'community.html' },
-            { keys: ['G', 'L'], label: '跳转到学习中心', href: 'home.html' },
+            { keys: ['G', 'L'], label: '跳转到学习资源库', href: 'resources.html' },
         ]},
         { group: '操作', items: [
             { keys: ['?'],         label: '显示快捷键' },

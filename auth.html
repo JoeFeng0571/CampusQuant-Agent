@@ -456,7 +456,7 @@
     const countdowns = { login: 0, register: 0 };
 
     // 安全导航：只允许跳转到本站已知页面，防止开放重定向攻击
-    const _SAFE_PAGES = new Set(['dashboard.html','trade.html','analysis.html','platforms.html','market.html','community.html','team.html','resources.html','home.html','auth.html']);
+    const _SAFE_PAGES = new Set(['dashboard.html','trade.html','analysis.html','platforms.html','market.html','community.html','team.html','resources.html','auth.html']);
     function navigateTo(url, replace = false) {
         // 提取文件名，只放行白名单内的页面
         const pageName = String(url).split('?')[0].split('#')[0].split('/').pop();

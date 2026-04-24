@@ -414,7 +414,7 @@
         <a href="community.html">投教社区</a>
         <a href="team.html">关于我们</a>
         <div id="auth-widget" style="display:flex;align-items:center;gap:8px;margin-left:8px;flex-shrink:0;"></div>
-        <button id="sidebar-toggle" class="sidebar-btn" title="学习中心">
+        <button id="sidebar-toggle" class="sidebar-btn" title="打开学习资源库">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
@@ -1084,7 +1084,7 @@ function localMentorFallback(q) {
     if (q.includes('持仓') || q.includes('分析')) return '请前往「持仓体检」页面，输入你的持仓信息，AI会帮你生成全面的风控报告，包括集中度分析、行业分散度、建议仓位调整方案。';
     if (q.includes('港股') || q.includes('hk')) return '港股市场特点：\n• 实行T+0交易（可当日买卖）\n• 有涨跌幅限制较少，波动更大\n• 港股通可用人民币买入部分港股\n• 最低1手起买，部分个股1手=100/200/500股不等\n\n建议先在本平台用HKD模拟账户练习！';
     if (q.includes('美股') || q.includes('us')) return '美股市场特点：\n• 24小时交易（北京时间22:30-05:00）\n• 可买卖科技巨头：AAPL、MSFT、NVDA、TSLA\n• 美股可购买零股（不足1股）\n• 本平台USD模拟账户10,000美元起手练习';
-    return `这是个好问题！关于"${q.slice(0,15)}"，建议你：\n1. 查阅学习中心的相关课程\n2. 在模拟账户里实际操作体验\n3. 去投教社区和同学讨论\n\n如果是具体的个股分析问题，可以去「个股分析」页面让AI深度分析！`;
+    return `这是个好问题！关于"${q.slice(0,15)}"，建议你：\n1. 查阅学习资源库的相关课程\n2. 在模拟账户里实际操作体验\n3. 去投教社区和同学讨论\n\n如果是具体的个股分析问题，可以去「个股分析」页面让AI深度分析！`;
 }
 
 // ══════════════ INIT ══════════════
