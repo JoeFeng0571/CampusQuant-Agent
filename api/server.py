@@ -3330,27 +3330,53 @@ class MentorChatRequest(BaseModel):
     message: str
     history: list[dict] = []
 
+
+_MENTOR_SYS_PROMPT = (
+    "你是「财商学长」，一位专注于大学生财商教育的 AI 助手。"
+    "你的职责是帮助大学生理解金融基础知识，包括：股票投资入门、ETF定投策略、"
+    "仓位风险管理、市盈率/市净率解读、防范投资骗局等。"
+    "回答要简洁易懂，多用举例，避免专业术语堆砌。"
+    "提醒用户本平台仅为模拟练习，不构成投资建议。"
+    "每次回答控制在 200 字以内。"
+)
+
+# 登录用户一个 session_key，多端共享同一段对话
+def _mentor_session_key(user_id: int) -> str:
+    return f"mentor:user:{user_id}"
+
+
 @app.post("/api/v1/chat/mentor", summary="财商学长 AI 对话")
-async def chat_mentor(req: MentorChatRequest):
+async def chat_mentor(
+    req: MentorChatRequest,
+    current_user=Depends(_get_optional_user),
+    db=Depends(_get_db_dep),
+):
     """
     POST /api/v1/chat/mentor
-    Body: { message: str, history: [{role, content}] }
-    Returns: { reply: str }
+    - 已登录：历史存入 DB（按 user_id 关联），跨设备同步，保留最近对话
+    - 未登录：保持旧版 stateless 行为，历史仅由前端 localStorage 维护
     """
     try:
         from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
-        sys_prompt = (
-            "你是「财商学长」，一位专注于大学生财商教育的 AI 助手。"
-            "你的职责是帮助大学生理解金融基础知识，包括：股票投资入门、ETF定投策略、"
-            "仓位风险管理、市盈率/市净率解读、防范投资骗局等。"
-            "回答要简洁易懂，多用举例，避免专业术语堆砌。"
-            "提醒用户本平台仅为模拟练习，不构成投资建议。"
-            "每次回答控制在 200 字以内。"
-        )
+        # ── 1. 构建上下文 ──────────────────────────────────
+        context_turns = req.history[-8:]
+        session_obj = None
 
-        messages = [SystemMessage(content=sys_prompt)]
-        for h in req.history[-8:]:
+        if current_user is not None:
+            from db.crud import get_or_create_chat_session, get_chat_history
+            session_obj = await get_or_create_chat_session(
+                db,
+                _mentor_session_key(current_user.id),
+                user_id=current_user.id,
+            )
+            db_messages = await get_chat_history(db, session_obj.id, limit=20)
+            # 服务端历史为权威源，覆盖前端传来的 history
+            context_turns = [{"role": m.role, "content": m.content} for m in db_messages]
+
+        # ── 2. 调 LLM ─────────────────────────────────────
+        messages = [SystemMessage(content=_MENTOR_SYS_PROMPT)]
+        for h in context_turns[-8:]:
             role = h.get("role", "user")
             content = h.get("content", "")
             if role == "user":
@@ -3363,11 +3389,65 @@ async def chat_mentor(req: MentorChatRequest):
         llm = _build_llm(temperature=0.7)
         resp = await asyncio.get_running_loop().run_in_executor(None, llm.invoke, messages)
         reply = resp.content if hasattr(resp, "content") else str(resp)
-        return {"reply": reply}
+
+        # ── 3. 持久化（仅登录用户）──────────────────────────
+        if session_obj is not None:
+            from db.crud import append_chat_message
+            await append_chat_message(db, session_obj.id, "user",      req.message)
+            await append_chat_message(db, session_obj.id, "assistant", reply)
+
+        return {"reply": reply, "persisted": session_obj is not None}
 
     except Exception as e:
         logger.warning(f"[chat/mentor] LLM 调用失败: {e}")
         return {"reply": f"学长暂时离线了，请稍后再试。（{type(e).__name__}）"}
+
+
+@app.get("/api/v1/chat/mentor/history", summary="获取财商学长对话历史（登录用户）")
+async def get_mentor_history(
+    limit: int = 20,
+    current_user=Depends(_get_current_user),
+    db=Depends(_get_db_dep),
+):
+    """
+    返回当前登录用户的财商学长对话历史，按时间正序（最早在前）。
+    前端可用此接口在页面加载时渲染跨设备同步的历史消息。
+    """
+    from db.crud import get_or_create_chat_session, get_chat_history
+    limit = max(1, min(int(limit), 50))
+    session_obj = await get_or_create_chat_session(
+        db,
+        _mentor_session_key(current_user.id),
+        user_id=current_user.id,
+    )
+    db_messages = await get_chat_history(db, session_obj.id, limit=limit)
+    return {
+        "messages": [
+            {
+                "role":       m.role,
+                "content":    m.content,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+            }
+            for m in db_messages
+        ],
+    }
+
+
+@app.delete("/api/v1/chat/mentor/history", summary="清空财商学长对话历史（登录用户）")
+async def clear_mentor_history(
+    current_user=Depends(_get_current_user),
+    db=Depends(_get_db_dep),
+):
+    """清空当前用户在服务端的对话记录（级联删除所有 messages）。"""
+    from sqlalchemy import select
+    from db.models import ChatSession
+    result = await db.execute(
+        select(ChatSession).where(ChatSession.session_key == _mentor_session_key(current_user.id))
+    )
+    session_obj = result.scalar_one_or_none()
+    if session_obj is not None:
+        await db.delete(session_obj)
+    return {"status": "cleared"}
 
 
 # ════════════════════════════════════════════════════════════════

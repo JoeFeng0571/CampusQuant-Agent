@@ -884,7 +884,34 @@ function fmtTime(d) {
     return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
 }
 
-function loadChatHistory() {
+async function loadChatHistory() {
+    const tok = localStorage.getItem('cq_token');
+
+    // 登录用户：服务端为权威源，拉历史渲染；失败时降级到 localStorage
+    if (tok) {
+        try {
+            const r = await fetch(`${API}/api/v1/chat/mentor/history?limit=20`, {
+                headers: { 'Authorization': 'Bearer ' + tok },
+            });
+            if (r.ok) {
+                const data = await r.json();
+                const msgs = (data.messages || []).map(m => ({
+                    role: m.role === 'user' ? 'user' : 'bot',
+                    text: m.content,
+                    time: m.created_at ? fmtTime(new Date(m.created_at)) : '',
+                }));
+                _chatHistory = msgs.length ? msgs : [MENTOR_INTRO];
+                // 同步一份到 localStorage 作为离线备份
+                try { localStorage.setItem(CHAT_SK, JSON.stringify(_chatHistory.slice(-40))); } catch(_) {}
+                renderAllMessages();
+                return;
+            }
+        } catch(e) {
+            console.warn('[chat] 拉取服务端历史失败，回退到本地缓存:', e);
+        }
+    }
+
+    // 匿名用户 / 服务端不可用：localStorage
     try {
         const saved = localStorage.getItem(CHAT_SK);
         _chatHistory = saved ? JSON.parse(saved) : [MENTOR_INTRO];
@@ -957,6 +984,18 @@ async function clearChat() {
     if (window.cqConfirm) {
         const ok = await cqConfirm('清空全部对话历史？此操作无法撤销', '清空对话');
         if (!ok) return;
+    }
+    // 登录用户：同步清空服务端
+    const tok = localStorage.getItem('cq_token');
+    if (tok) {
+        try {
+            await fetch(`${API}/api/v1/chat/mentor/history`, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + tok },
+            });
+        } catch(e) {
+            console.warn('[chat] 服务端清空失败，仅清理本地:', e);
+        }
     }
     _chatHistory = [MENTOR_INTRO];
     saveChatHistory();
