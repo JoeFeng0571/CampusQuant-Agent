@@ -152,6 +152,66 @@
             color: var(--secondary);
             border-bottom-color: var(--secondary);
         }
+        /* 登录方式切换（密码 / 验证码）*/
+        .method-switch {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            padding: 4px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            margin-bottom: 4px;
+        }
+        .method-btn {
+            padding: 9px 12px;
+            background: transparent;
+            border: none;
+            color: var(--text-sub);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background 0.18s, color 0.18s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .method-btn:hover {
+            color: #fff;
+        }
+        .method-btn.active {
+            background: linear-gradient(135deg, rgba(45,212,191,0.22), rgba(34,211,238,0.22));
+            color: #fff;
+            box-shadow: 0 1px 0 rgba(255,255,255,.08) inset, 0 1px 4px rgba(45,212,191,.18);
+        }
+        .method-btn .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: 0.55;
+        }
+        .method-btn.active .dot {
+            background: var(--primary);
+            opacity: 1;
+            box-shadow: 0 0 8px var(--primary);
+        }
+        .method-hint {
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-dim);
+            margin-top: -4px;
+        }
+        .method-pane {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .method-pane.active {
+            display: flex;
+        }
         .auth-note {
             margin-bottom: 18px;
             padding: 12px 14px;
@@ -296,8 +356,8 @@
 
 <div class="card">
     <div class="auth-note">
-        当前版本使用邮箱验证码完成注册和登录。注册时仍需设置密码，但登录页优先使用邮箱验证码。
-        若页面提示“邮件服务未配置”，说明服务器还没有配置 SMTP 发信账号。
+        已注册用户可选择<b>密码登录</b>或<b>邮箱验证码登录</b>，两种方式任选其一。
+        若提示"邮件服务未配置"，说明服务器尚未配置 SMTP，请改用密码登录。
     </div>
 
     <div class="tabs">
@@ -310,21 +370,37 @@
             <label>邮箱</label>
             <input type="email" id="login-email" placeholder="your@email.com" required>
         </div>
-        <div class="field">
-            <label>密码</label>
-            <input type="password" id="login-pwd" placeholder="输入密码可直接登录">
+
+        <div class="method-switch" role="tablist" aria-label="登录方式">
+            <button type="button" class="method-btn active" data-method="password" onclick="switchLoginMethod('password')" role="tab" aria-selected="true">
+                <span class="dot"></span>密码登录
+            </button>
+            <button type="button" class="method-btn" data-method="code" onclick="switchLoginMethod('code')" role="tab" aria-selected="false">
+                <span class="dot"></span>验证码登录
+            </button>
         </div>
-        <div class="auth-help">可使用“邮箱 + 密码”直接登录；如果没记住密码，也可以改用邮箱验证码登录。</div>
-        <div class="code-row">
+
+        <div class="method-pane active" id="pane-password" role="tabpanel">
             <div class="field">
-                <label>验证码</label>
-                <input type="text" id="login-code" placeholder="请输入 6 位验证码" maxlength="6">
+                <label>密码</label>
+                <input type="password" id="login-pwd" placeholder="输入你注册时设置的密码" autocomplete="current-password">
             </div>
-            <button type="button" class="btn-code" id="btn-send-login-code" onclick="sendCode('login')">发送验证码</button>
+            <div class="method-hint">忘记密码？点上面的"验证码登录"用邮箱收一次性验证码。</div>
         </div>
-        <div class="auth-help">密码和验证码二选一即可；若两者都填写，系统优先使用密码登录。</div>
+
+        <div class="method-pane" id="pane-code" role="tabpanel">
+            <div class="code-row">
+                <div class="field">
+                    <label>邮箱验证码</label>
+                    <input type="text" id="login-code" placeholder="请输入 6 位验证码" maxlength="6" autocomplete="one-time-code">
+                </div>
+                <button type="button" class="btn-code" id="btn-send-login-code" onclick="sendCode('login')">发送验证码</button>
+            </div>
+            <div class="method-hint">验证码会发送到上方邮箱，10 分钟内有效。</div>
+        </div>
+
         <div class="msg" id="login-msg"></div>
-        <button type="submit" class="btn-submit" id="btn-login">登录</button>
+        <button type="submit" class="btn-submit" id="btn-login">密码登录</button>
         <div style="text-align:center; margin-top:12px;">
             <a href="dashboard.html" style="color:var(--text-2); font-size:12px; text-decoration:none;">跳过登录，先体验一下 &rarr;</a>
         </div>
@@ -410,6 +486,29 @@
         document.getElementById('form-register').classList.toggle('active', tab === 'register');
     }
 
+    // 'password' | 'code'
+    let loginMethod = 'password';
+
+    function switchLoginMethod(method) {
+        if (method !== 'password' && method !== 'code') return;
+        loginMethod = method;
+        document.querySelectorAll('.method-btn').forEach(btn => {
+            const active = btn.dataset.method === method;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        document.getElementById('pane-password').classList.toggle('active', method === 'password');
+        document.getElementById('pane-code').classList.toggle('active', method === 'code');
+        document.getElementById('btn-login').textContent = method === 'password' ? '密码登录' : '验证码登录';
+        // 切换后清空上一轮的提示
+        const msg = document.getElementById('login-msg');
+        msg.style.display = 'none';
+        msg.textContent = '';
+        // 自动聚焦到对应输入框
+        const focusId = method === 'password' ? 'login-pwd' : 'login-code';
+        setTimeout(() => { const el = document.getElementById(focusId); if (el) el.focus(); }, 0);
+    }
+
     function showMsg(id, text, type) {
         const el = document.getElementById(id);
         el.textContent = text;
@@ -472,12 +571,25 @@
     async function handleLogin(e) {
         e.preventDefault();
         const btn = document.getElementById('btn-login');
+        const email = document.getElementById('login-email').value.trim();
         const password = document.getElementById('login-pwd').value.trim();
         const verificationCode = document.getElementById('login-code').value.trim();
-        if (!password && !verificationCode) {
-            showMsg('login-msg', '请输入密码或验证码', 'error');
+
+        if (!email) {
+            showMsg('login-msg', '请输入邮箱', 'error');
             return;
         }
+        // 按当前登录方式只校验对应字段；不串用另一种方式的输入
+        if (loginMethod === 'password' && !password) {
+            showMsg('login-msg', '请输入密码，或切换到验证码登录', 'error');
+            return;
+        }
+        if (loginMethod === 'code' && !verificationCode) {
+            showMsg('login-msg', '请输入 6 位邮箱验证码，或切换到密码登录', 'error');
+            return;
+        }
+
+        const originalBtnText = btn.textContent;
         btn.disabled = true;
         btn.textContent = '登录中...';
 
@@ -486,9 +598,9 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json; charset=utf-8' },
                 body: JSON.stringify({
-                    email: document.getElementById('login-email').value.trim(),
-                    password: password || null,
-                    verification_code: verificationCode || null,
+                    email,
+                    password: loginMethod === 'password' ? password : null,
+                    verification_code: loginMethod === 'code' ? verificationCode : null,
                 }),
             });
             const data = await resp.json();
@@ -510,7 +622,7 @@
             showMsg('login-msg', '网络错误，请检查后端或邮件服务配置', 'error');
         } finally {
             btn.disabled = false;
-            btn.textContent = '登录';
+            btn.textContent = originalBtnText;
         }
     }
 
