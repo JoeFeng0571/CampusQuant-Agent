@@ -1213,6 +1213,14 @@ function showRiskAdviceCards(posPct) {
 
 // ══ Submit order ══════════════════════════════════════════════
 async function submitOrder() {
+    // 用户可能在 order-symbol 直接输入但没触发 onblur/Enter——
+    // 提交前先同步一次，避免 race condition 用到旧 currentSymbol
+    const orderSymInput = document.getElementById('order-symbol');
+    const typedSym = (orderSymInput?.value || '').trim().toUpperCase();
+    if (typedSym && typedSym !== currentSymbol) {
+        try { await onOrderSymbolCommit(); } catch (_) {}
+    }
+
     const symbol   = currentSymbol;
     const action   = currentSide;
     const quantity = parseFloat(document.getElementById('order-qty').value);
@@ -1647,7 +1655,9 @@ async function loadTradeKline(symbol, period) {
 // ══ Init ════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
     renderAuthWidget();
-    const urlSym = new URLSearchParams(location.search).get('sym');
+    // URL 参数兼容两种命名：?symbol= (analysis.html / dashboard.html) 和 ?sym= (cases.html 老链接)
+    const _urlParams = new URLSearchParams(location.search);
+    const urlSym = _urlParams.get('symbol') || _urlParams.get('sym');
     if (urlSym) {
         document.getElementById('sym-input').value = urlSym;
         currentSymbol = urlSym.toUpperCase();

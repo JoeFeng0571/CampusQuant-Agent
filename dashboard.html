@@ -703,7 +703,8 @@ async function logout() {
         const ok = await cqConfirm('确定要退出登录吗？', '退出登录');
         if (!ok) return;
     }
-    localStorage.removeItem('cq_token'); localStorage.removeItem('cq_username');
+    // 清三个 key（与其他页面一致，避免 cq_user_id 残留导致状态错乱）
+    ['cq_token', 'cq_username', 'cq_user_id'].forEach(k => localStorage.removeItem(k));
     location.reload();
 }
 

@@ -1538,10 +1538,25 @@
         const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
         try {
             const r = await fetch(`${API_BASE}/api/v1/analysis/history/${encodeURIComponent(recordId)}`, { headers });
-            if (!r.ok) {
-                if (r.status === 401) console.warn('[analysis] 历史详情需要登录');
+            if (r.status === 401) {
+                // 未登录：在状态条显示明确提示而非空白页
+                const dot = document.getElementById('status-dot');
+                const txt = document.getElementById('status-text');
+                if (dot) dot.className = 'status-dot error';
+                if (txt) {
+                    const back = encodeURIComponent(location.pathname + location.search);
+                    txt.innerHTML = `查看历史研报需要登录 ` +
+                        `<a href="auth.html?redirect=${back}" ` +
+                        `style="margin-left:8px;color:var(--primary);text-decoration:underline;">立即登录 →</a>`;
+                }
                 return false;
             }
+            if (r.status === 403) {
+                const txt = document.getElementById('status-text');
+                if (txt) txt.textContent = '该记录不属于当前账号，无法查看';
+                return false;
+            }
+            if (!r.ok) return false;
             const rec = await r.json();
             const sym = (rec.symbol || expectedSym || '').toUpperCase();
             document.getElementById('symbol-input').value = sym;
