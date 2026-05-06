@@ -405,14 +405,14 @@
             margin-right: 12px;
         }
         .mkt-tabs-inline .mkt-tab { padding: 3px 10px; font-size: 11px; }
-        /* 三 panel 在 640px 行内分配（gap 16px×2 = 32px，可用 608px）：
-         *   panel-asset flex 1.4  → ~258px
-         *   recent-analysis flex 1 → ~175px
-         *   news flex 1            → ~175px
-         * min-height 设小一点保证空内容时不撑出 640px 行
+        /* 三 panel 在 640px 行内的高度策略：
+         *   panel-asset      : 按内容收缩（无持仓 ~150px），最多 280px（满仓时内部滚）
+         *   recent-analysis  : 固定 140-180px，不抢空间
+         *   news             : flex:1 吃所有剩余空间，让快讯尽量多条可见
          */
-        .dash-left-col > .panel.panel-asset            { flex: 1.4 1 0; min-height: 200px; }
-        .dash-left-col > .panel:not(.panel-asset)      { flex: 1 1 0;   min-height: 140px; }
+        .dash-left-col > .panel.panel-asset       { flex: 0 0 auto; min-height: 0;     max-height: 280px; }
+        .dash-left-col > .panel:nth-child(2)      { flex: 0 0 auto; min-height: 140px; max-height: 180px; }
+        .dash-left-col > .panel:nth-child(3)      { flex: 1 1 0;    min-height: 180px; }
         @media(max-width:768px) {
             .panel-header-with-tabs { flex-direction: column; align-items: flex-start; }
             .mkt-tabs-inline { margin-left: 0; margin-right: 0; }
