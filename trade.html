@@ -614,8 +614,12 @@
                 <button class="order-tab sell"        id="tab-sell" onclick="switchSide('SELL')">卖 出</button>
             </div>
             <div class="form-row">
-                <div class="form-label">标的代码</div>
-                <input class="form-input" id="order-symbol" type="text" readonly placeholder="从左侧查询填入">
+                <div class="form-label">标的代码 <span style="font-size:10px;color:var(--text-dim);font-weight:400;">(可直接输入或从左侧查询)</span></div>
+                <input class="form-input" id="order-symbol" type="text"
+                       placeholder="如 600519.SH / 00700.HK / AAPL"
+                       autocomplete="off"
+                       onkeydown="if(event.key==='Enter'){event.preventDefault();onOrderSymbolCommit();}"
+                       onblur="onOrderSymbolCommit()">
             </div>
             <div class="form-row">
                 <div class="form-label">参考现价 <span style="font-size:10px;color:var(--text-dim)">(EOD收盘价)</span></div>
@@ -653,24 +657,24 @@
                 <div id="pos-gauge-text" style="margin-top:4px;font-size:11px;font-weight:600;color:var(--text-sub);">—</div>
             </div>
 
-            <!-- 风险选填项（默认展开，让用户一眼看见止盈止损） -->
-            <details open style="margin-bottom:8px;font-size:12px;color:var(--text-sub);">
-                <summary style="cursor:pointer;padding:4px 0;user-select:none;">🛡 止盈止损（选填，不强制）</summary>
+            <!-- 止盈止损（仅买入时显示）：填具体价格，不是百分比 -->
+            <div class="risk-block" id="risk-block" style="margin-bottom:8px;font-size:12px;color:var(--text-sub);">
+                <div style="padding:4px 0;user-select:none;">🛡 止盈止损 <span style="color:var(--text-dim);font-weight:400;">（选填，可直接填价格）</span></div>
                 <div style="padding:8px 4px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                     <div>
-                        <label style="font-size:10px;color:var(--text-dim);">止损比例 (%)</label>
-                        <input class="form-input" id="risk-stop-loss" type="number" step="0.5" min="0" max="50"
-                               placeholder="如 8" oninput="updateEstimate()"
+                        <label style="font-size:10px;color:var(--text-dim);">止损价</label>
+                        <input class="form-input" id="risk-stop-loss" type="number" step="0.01" min="0"
+                               placeholder="如 1500" oninput="updateEstimate()"
                                style="font-size:12px;padding:6px 8px;">
                     </div>
                     <div>
-                        <label style="font-size:10px;color:var(--text-dim);">止盈比例 (%)</label>
-                        <input class="form-input" id="risk-take-profit" type="number" step="0.5" min="0" max="500"
-                               placeholder="如 20" oninput="updateEstimate()"
+                        <label style="font-size:10px;color:var(--text-dim);">止盈价</label>
+                        <input class="form-input" id="risk-take-profit" type="number" step="0.01" min="0"
+                               placeholder="如 1900" oninput="updateEstimate()"
                                style="font-size:12px;padding:6px 8px;">
                     </div>
                 </div>
-            </details>
+            </div>
 
             <!-- 知识跳转提示卡片（可关闭，不拦截下单） -->
             <div id="risk-advice-cards" style="display:none;margin-bottom:10px;"></div>
@@ -996,8 +1000,31 @@ function switchSide(side) {
     btn.className   = 'btn-order ' + side.toLowerCase();
     btn.textContent = side==='BUY' ? '买入委托（模拟）' : '卖出委托（模拟）';
     document.getElementById('est-label').textContent = side==='BUY' ? '预估买入金额' : '预估卖出金额';
+    // 卖出不显示止盈止损（持仓已成立，止盈止损在买入建仓时设定）
+    const riskBlock = document.getElementById('risk-block');
+    if (riskBlock) riskBlock.style.display = (side === 'SELL') ? 'none' : '';
+    // 仓位快捷按钮文案：买入显示"全/半/1-4/1-10 仓"，卖出显示"全/半/1-4/1-10 持仓"
+    document.querySelectorAll('.quick-qty-btn').forEach(btn => {
+        const labelMap = side === 'SELL'
+            ? { 1: '全部', 0.5: '半数', 0.25: '1/4', 0.1: '1/10' }
+            : { 1: '全仓', 0.5: '半仓', 0.25: '1/4仓', 0.1: '1/10' };
+        const m = btn.getAttribute('onclick')?.match(/setQuickQty\(([\d.]+)\)/);
+        const f = m ? Number(m[1]) : null;
+        if (f != null && labelMap[f] != null) btn.textContent = labelMap[f];
+    });
     updateEstimate();
     document.getElementById('order-result').style.display = 'none';
+}
+
+// ══ 直接在下单面板输入 symbol 时：把 currentSymbol 同步到左侧查询 ──
+async function onOrderSymbolCommit() {
+    const raw = document.getElementById('order-symbol').value.trim();
+    if (!raw) return;
+    const symInput = document.getElementById('sym-input');
+    if (symInput && symInput.value !== raw) symInput.value = raw;
+    if (typeof lookupSymbol === 'function') {
+        try { await lookupSymbol(); } catch (_) {}
+    }
 }
 
 function updateBalanceHint() {
@@ -1097,8 +1124,12 @@ function updatePositionGauge(totalNotional) {
 function showRiskAdviceCards(posPct) {
     const box = document.getElementById('risk-advice-cards');
     if (!box) return;
-    const sl = parseFloat(document.getElementById('risk-stop-loss')?.value);
-    const tp = parseFloat(document.getElementById('risk-take-profit')?.value);
+    // 卖出 tab 不展示买入相关风控建议
+    if (currentSide === 'SELL') { box.style.display = 'none'; return; }
+    // sl/tp 现在是绝对价格（不是百分比），计算盈亏比要用与 currentPrice 的距离
+    const sl  = parseFloat(document.getElementById('risk-stop-loss')?.value);
+    const tp  = parseFloat(document.getElementById('risk-take-profit')?.value);
+    const ref = Number(currentPrice) || 0;
     const cards = [];
 
     if (posPct > 0.30) {
@@ -1108,19 +1139,38 @@ function showRiskAdviceCards(posPct) {
             label: '仓位管理',
         });
     }
-    if (!sl || sl === 0) {
+    if (!sl || sl <= 0) {
         cards.push({
-            text: '未填止损。没有止损等于把亏损上限交给市场——可以随时回来补上。',
+            text: '未填止损价。没有止损等于把亏损上限交给市场——可以随时回来补上。',
             anchor: 'learn_discipline.html#stop-loss-rules',
             label: '止损规则',
         });
     }
-    if (sl && tp && tp < sl) {
+    if (sl && ref && sl >= ref) {
         cards.push({
-            text: `盈亏比 ${(tp/sl).toFixed(2)} < 1，长期需要 > 50% 胜率才能不亏。考虑放大止盈或缩小止损。`,
-            anchor: 'learn_discipline.html#take-profit-rules',
-            label: '盈亏比',
+            text: `止损价 ${sl} 高于当前价 ${ref.toFixed(2)}，会立即触发。请检查方向（止损价应低于现价）。`,
+            anchor: 'learn_discipline.html#stop-loss-rules',
+            label: '止损方向',
         });
+    }
+    if (tp && ref && tp <= ref) {
+        cards.push({
+            text: `止盈价 ${tp} 低于当前价 ${ref.toFixed(2)}，会立即触发。请检查方向（止盈价应高于现价）。`,
+            anchor: 'learn_discipline.html#take-profit-rules',
+            label: '止盈方向',
+        });
+    }
+    if (sl && tp && ref && sl < ref && tp > ref) {
+        const reward = tp - ref;
+        const risk   = ref - sl;
+        const ratio  = risk > 0 ? reward / risk : 0;
+        if (ratio > 0 && ratio < 1) {
+            cards.push({
+                text: `盈亏比 ${ratio.toFixed(2)} < 1，长期需要 > 50% 胜率才能不亏。考虑放大止盈或缩小止损。`,
+                anchor: 'learn_discipline.html#take-profit-rules',
+                label: '盈亏比',
+            });
+        }
     }
     if (cards.length === 0) {
         box.style.display = 'none';
@@ -1176,6 +1226,18 @@ async function submitOrder() {
             headers: authHeaders(),
             body:    JSON.stringify({ symbol, action, quantity }),
         });
+        if (resp.status === 401) {
+            // Token 过期：清掉 + 引导重登
+            localStorage.removeItem('cq_token');
+            localStorage.removeItem('cq_username');
+            localStorage.removeItem('cq_user_id');
+            renderAuthWidget();
+            showOrderResult(false, '登录已过期，请重新登录后再下单');
+            if (window.cqToast) cqToast({ title:'登录已过期', message:'请重新登录' }, 'error');
+            btn.disabled = false;
+            btn.textContent = currentSide==='BUY' ? '买入委托（模拟）' : '卖出委托（模拟）';
+            return;
+        }
         const data = await resp.json();
 
         if (!resp.ok) {
@@ -1595,16 +1657,40 @@ function setQuickQty(fraction) {
         return;
     }
     const mkt = _curMkt;
-    let cash = 0;
-    if (mkt === 'A')  cash = _acctData.cash_cnh ?? _acctData.cash ?? 0;
-    if (mkt === 'HK') cash = _acctData.cash_hkd ?? 0;
-    if (mkt === 'US') cash = _acctData.cash_usd ?? 0;
-    // 动态手数（_currentLotSize 由 fetchLotSize 实时更新；港股不同标的手数差异大）
     const lotSize = (mkt === 'US') ? 1 : (Number(_currentLotSize) > 0 ? _currentLotSize : 100);
-    let maxShares = Math.floor(cash / currentPrice);
-    maxShares = Math.floor(maxShares / lotSize) * lotSize;
-    let qty = Math.floor(maxShares * fraction / lotSize) * lotSize;
-    if (qty < lotSize) qty = lotSize;
+
+    let qty;
+    if (currentSide === 'SELL') {
+        // 卖出：基于该标的的实际持仓股数计算
+        const sym = (currentSymbol || '').toUpperCase();
+        const pos = (_acctData.positions || []).find(p => (p.symbol || '').toUpperCase() === sym);
+        const held = pos ? Number(pos.quantity || 0) : 0;
+        if (held <= 0) {
+            if (tip) tip.innerHTML = `<div style="color:var(--text-dim);font-size:12px;margin-top:6px;">${sym || '该标的'} 当前没有持仓，无法卖出</div>`;
+            return;
+        }
+        // 如果持仓不足一手：直接显示当前持仓数量（哪怕零碎股，也允许全部卖出）
+        if (held < lotSize) {
+            qty = held;
+            if (tip) tip.innerHTML = `<div style="color:var(--text-dim);font-size:12px;margin-top:6px;">持仓 ${held} 股不足一手（${lotSize}），仅支持全部卖出</div>`;
+        } else {
+            // 按比例切分，向下对齐到手数；最少卖一手
+            const tradable = Math.floor(held / lotSize) * lotSize;
+            qty = Math.floor(tradable * fraction / lotSize) * lotSize;
+            if (qty < lotSize) qty = lotSize;
+            if (qty > held) qty = held;
+        }
+    } else {
+        // 买入：基于现金计算
+        let cash = 0;
+        if (mkt === 'A')  cash = _acctData.cash_cnh ?? _acctData.cash ?? 0;
+        if (mkt === 'HK') cash = _acctData.cash_hkd ?? 0;
+        if (mkt === 'US') cash = _acctData.cash_usd ?? 0;
+        let maxShares = Math.floor(cash / currentPrice);
+        maxShares = Math.floor(maxShares / lotSize) * lotSize;
+        qty = Math.floor(maxShares * fraction / lotSize) * lotSize;
+        if (qty < lotSize) qty = lotSize;
+    }
     document.getElementById('order-qty').value = qty;
     updateEstimate();
 }

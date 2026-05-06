@@ -516,6 +516,32 @@
             .analyze-btn { padding: 12px; }
             #finance-chart, #trend-chart { height: 200px; }
         }
+
+        /* ── Recent analysis panel（侧边历史记录） ─────────────── */
+        .recent-analysis-panel { display: flex; flex-direction: column; gap: 4px; max-height: 280px; overflow-y: auto; }
+        .recent-analysis-panel::-webkit-scrollbar { width: 4px; }
+        .recent-analysis-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 2px; }
+        .ra-row {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 10px; border-radius: 7px;
+            cursor: pointer; text-decoration: none; color: inherit;
+            transition: background .15s;
+        }
+        .ra-row:hover { background: rgba(255,255,255,.05); }
+        .ra-symbol {
+            font-family: var(--font-mono, monospace); font-weight: 700;
+            font-size: 12px; min-width: 78px; color: var(--primary);
+        }
+        .ra-action {
+            font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 999px;
+            min-width: 30px; text-align: center;
+        }
+        .ra-action.buy  { background: rgba(34,197,94,.12);  color: #22c55e; border: 1px solid rgba(34,197,94,.3); }
+        .ra-action.sell { background: rgba(239,68,68,.12);  color: #ef4444; border: 1px solid rgba(239,68,68,.3); }
+        .ra-action.hold { background: rgba(148,163,184,.12); color: #94a3b8; border: 1px solid rgba(148,163,184,.3); }
+        .ra-time { margin-left: auto; font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+        .ra-empty { padding: 14px 8px; text-align: center; color: var(--text-dim); font-size: 12px; line-height: 1.7; }
+        .ra-empty a { color: var(--primary); text-decoration: none; }
     </style>
 </head>
 <body data-bg-mode="off">
@@ -619,6 +645,17 @@
         <div class="risk-notice">
             ⚠ 本功能为<strong>学习模拟</strong>，结果不构成投资建议。<br>
             大学生守则：单股仓位 ≤ 15%，务必设置止损，切勿加杠杆。
+        </div>
+
+        <!-- ── 我的最近分析（仅本人可见，未登录显示登录提示） ─────── -->
+        <div class="form-group" style="margin-top:18px;border-top:1px solid rgba(255,255,255,.06);padding-top:16px;">
+            <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>📚 我的最近分析</span>
+                <span id="recent-analysis-count" style="font-size:11px;color:var(--text-dim);font-weight:400;"></span>
+            </label>
+            <div id="recent-analysis-panel" class="recent-analysis-panel">
+                <div style="padding:14px 8px;text-align:center;color:var(--text-dim);font-size:12px;">加载中…</div>
+            </div>
         </div>
     </div>
 
@@ -1078,7 +1115,77 @@
                 }
             });
         } catch (_) { /* URL 解析失败不影响页面 */ }
+
+        // ── 加载左侧"我的最近分析"卡片 ──────────────────────────
+        if (typeof loadRecentAnalysisPanel === 'function') {
+            loadRecentAnalysisPanel();
+        }
     });
+
+    // ══ 左侧"我的最近分析"侧边卡 ════════════════════════════════
+    function _formatRecentAge(ts) {
+        let ms = Number(ts) || 0;
+        if (ms > 0 && ms < 1e12) ms *= 1000;     // 后端 epoch 秒 → 毫秒
+        if (!ms) return '';
+        const min = Math.round((Date.now() - ms) / 60000);
+        if (min < 1) return '刚刚';
+        if (min < 60) return `${min}分钟前`;
+        const hr = Math.round(min / 60);
+        if (hr < 24) return `${hr}小时前`;
+        const day = Math.round(hr / 24);
+        if (day < 30) return `${day}天前`;
+        return new Date(ms).toLocaleDateString('zh-CN');
+    }
+
+    async function loadRecentAnalysisPanel() {
+        const panel = document.getElementById('recent-analysis-panel');
+        const cnt   = document.getElementById('recent-analysis-count');
+        if (!panel) return;
+        const token = localStorage.getItem('cq_token') || '';
+        if (!token) {
+            panel.innerHTML = `<div class="ra-empty">登录后可同步你做过的分析<br>
+                <a href="auth.html?redirect=${encodeURIComponent(location.pathname + location.search)}">立即登录 →</a></div>`;
+            if (cnt) cnt.textContent = '';
+            return;
+        }
+        try {
+            const r = await fetch(`${API_BASE}/api/v1/analysis/history?limit=12`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (r.status === 401) {
+                localStorage.removeItem('cq_token');
+                localStorage.removeItem('cq_username');
+                localStorage.removeItem('cq_user_id');
+                panel.innerHTML = `<div class="ra-empty">登录已过期<br>
+                    <a href="auth.html?redirect=${encodeURIComponent(location.pathname + location.search)}">重新登录 →</a></div>`;
+                if (cnt) cnt.textContent = '';
+                return;
+            }
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const data = await r.json();
+            const records = data.records || [];
+            if (cnt) cnt.textContent = records.length ? `${records.length} 条` : '';
+            if (!records.length) {
+                panel.innerHTML = `<div class="ra-empty">还没有分析记录<br>分析完成后会自动归档</div>`;
+                return;
+            }
+            const ACT_MAP = { BUY: '买入', SELL: '卖出', HOLD: '观望' };
+            const ACT_CLS = { BUY: 'buy', SELL: 'sell', HOLD: 'hold' };
+            panel.innerHTML = records.map(rec => {
+                const act  = (rec.action || 'HOLD').toUpperCase();
+                const time = _formatRecentAge(rec.created_at);
+                const sym  = rec.symbol || '';
+                return `<a href="analysis.html?symbol=${encodeURIComponent(sym)}&id=${encodeURIComponent(rec.id)}" class="ra-row">
+                    <span class="ra-symbol">${sym}</span>
+                    <span class="ra-action ${ACT_CLS[act] || 'hold'}">${ACT_MAP[act] || act}</span>
+                    <span class="ra-time">${time}</span>
+                </a>`;
+            }).join('');
+        } catch (e) {
+            console.warn('[analysis] loadRecentAnalysisPanel 失败:', e);
+            panel.innerHTML = `<div class="ra-empty">加载失败，请刷新重试</div>`;
+        }
+    }
 
     // ══ Markdown 研报渲染 ════════════════════════════════════════
     function renderReport(markdown) {

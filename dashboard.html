@@ -851,14 +851,8 @@ function renderAcct(data, mkt) {
     });
     const tbody = document.getElementById('mini-pos-body');
     if (!filtered.length) {
-        tbody.innerHTML = `<tr><td colspan="5" style="padding:0">
-            <div class="empty-state" style="padding:14px 8px;gap:6px">
-                <div class="empty-state-icon" style="width:40px;height:40px;margin-bottom:0"><i data-lucide="inbox"></i></div>
-                <div class="empty-state-title" style="font-size:13px">还没有持仓</div>
-                <a href="trade.html" class="empty-state-cta" style="margin-top:6px;padding:6px 14px;font-size:11px">开始交易 →</a>
-            </div>
-        </td></tr>`;
-        if (window.cqRefreshIcons) cqRefreshIcons();
+        // 空持仓：单行灰字提示即可，不再做"开始交易→"的转化引导
+        tbody.innerHTML = `<tr><td colspan="5" style="padding:18px 8px;text-align:center;color:var(--text-dim);font-size:12px;">该市场暂无持仓</td></tr>`;
         return;
     }
     tbody.innerHTML = filtered.slice(0,6).map(p => {

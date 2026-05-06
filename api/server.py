@@ -3540,32 +3540,39 @@ async def get_trades_v2(symbol: str = "", limit: int = 50):
 # Analysis History — 分析历史记录
 # ════════════════════════════════════════════════════════════════
 
-@app.get("/api/v1/analysis/history", summary="分析历史记录（按用户隔离）")
+@app.get("/api/v1/analysis/history", summary="分析历史记录（仅本人可见）")
 async def analysis_history(
     limit:        int = 20,
     offset:       int = 0,
     current_user=Depends(_get_optional_user),
 ):
-    """登录用户：返回 user.id 名下的记录；未登录：返回 anonymous 桶。"""
+    """
+    严格按 user_id 隔离：
+    - 登录用户：返回该用户名下的记录
+    - 未登录：返回空列表（不再暴露 anonymous 公共桶给访客，避免不同人的匿名分析被混着看）
+    """
+    if not current_user:
+        return {"records": [], "count": 0, "user_id": None, "logged_in": False}
     from utils.analysis_history import get_history
-    user_id = str(current_user.id) if current_user else "anonymous"
+    user_id = str(current_user.id)
     records = get_history(user_id=user_id, limit=limit, offset=offset)
-    return {"records": records, "count": len(records), "user_id": user_id}
+    return {"records": records, "count": len(records), "user_id": user_id, "logged_in": True}
 
 
-@app.get("/api/v1/analysis/history/{record_id}", summary="历史研报详情")
+@app.get("/api/v1/analysis/history/{record_id}", summary="历史研报详情（仅本人）")
 async def analysis_history_detail(
     record_id:    int,
     current_user=Depends(_get_optional_user),
 ):
-    """所有权校验：record.user_id 必须等于当前 user_id 桶。"""
+    """所有权校验：必须登录 + record.user_id 必须等于当前用户 id。"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="请先登录后访问历史记录")
     from utils.analysis_history import get_report
     report = get_report(record_id)
     if not report:
         raise HTTPException(status_code=404, detail="记录不存在")
-    expected_uid = str(current_user.id) if current_user else "anonymous"
-    if report.get("user_id") and report["user_id"] != expected_uid:
-        # 别人的记录不让看
+    expected_uid = str(current_user.id)
+    if report.get("user_id") != expected_uid:
         raise HTTPException(status_code=403, detail="无权访问该记录")
     return report
 
