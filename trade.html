@@ -653,9 +653,9 @@
                 <div id="pos-gauge-text" style="margin-top:4px;font-size:11px;font-weight:600;color:var(--text-sub);">—</div>
             </div>
 
-            <!-- 风险选填项（建议不强制） -->
-            <details style="margin-bottom:8px;font-size:12px;color:var(--text-sub);">
-                <summary style="cursor:pointer;padding:4px 0;user-select:none;">🛡 风控建议（选填，不强制）</summary>
+            <!-- 风险选填项（默认展开，让用户一眼看见止盈止损） -->
+            <details open style="margin-bottom:8px;font-size:12px;color:var(--text-sub);">
+                <summary style="cursor:pointer;padding:4px 0;user-select:none;">🛡 止盈止损（选填，不强制）</summary>
                 <div style="padding:8px 4px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                     <div>
                         <label style="font-size:10px;color:var(--text-dim);">止损比例 (%)</label>
@@ -1255,6 +1255,16 @@ function switchAccountTab(tab) {
 async function loadPortfolio() {
     try {
         const resp = await fetch(`${API_BASE}/api/v1/trade/account`, { headers: authHeaders() });
+        if (resp.status === 401) {
+            // Token 过期：清缓存 + 重置 UI 提示
+            localStorage.removeItem('cq_token');
+            localStorage.removeItem('cq_username');
+            localStorage.removeItem('cq_user_id');
+            renderAuthWidget();
+            _acctData = null;
+            console.warn('[trade] 登录已过期，需重新登录');
+            return;
+        }
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const raw = await resp.json();
 
@@ -1421,6 +1431,15 @@ async function loadOrders() {
     }
     try {
         const resp = await fetch(`${API_BASE}/api/v1/trade/orders?limit=100`, { headers: authHeaders() });
+        if (resp.status === 401) {
+            // Token 过期或无效：清掉 + 引导重登
+            localStorage.removeItem('cq_token');
+            localStorage.removeItem('cq_username');
+            localStorage.removeItem('cq_user_id');
+            wrap.innerHTML = '<div class="empty-pos">登录已过期，请<a href="auth.html?v=20260330-auth-code&redirect=trade.html" style="color:var(--primary);">重新登录</a></div>';
+            renderAuthWidget();
+            return;
+        }
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
         const orders = (data.orders || []).filter(o => {
@@ -1566,14 +1585,23 @@ document.getElementById('sym-input').addEventListener('keydown', e => {
 });
 
 function setQuickQty(fraction) {
-    if (!currentPrice || currentPrice <= 0) return;
-    const mkt = currentMarket;
-    const acct = accounts[mkt];
-    if (!acct) return;
-    const cash = acct.cash || 0;
-    const lotSize = mkt === 'US' ? 1 : 100;
+    const tip = document.getElementById('order-result');
+    if (!currentPrice || currentPrice <= 0) {
+        if (tip) tip.innerHTML = '<div style="color:var(--text-dim);font-size:12px;margin-top:6px;">请先在左侧搜索并选中一只标的</div>';
+        return;
+    }
+    if (!_acctData) {
+        if (tip) tip.innerHTML = '<div style="color:var(--text-dim);font-size:12px;margin-top:6px;">请先登录以加载账户余额</div>';
+        return;
+    }
+    const mkt = _curMkt;
+    let cash = 0;
+    if (mkt === 'A')  cash = _acctData.cash_cnh ?? _acctData.cash ?? 0;
+    if (mkt === 'HK') cash = _acctData.cash_hkd ?? 0;
+    if (mkt === 'US') cash = _acctData.cash_usd ?? 0;
+    // 动态手数（_currentLotSize 由 fetchLotSize 实时更新；港股不同标的手数差异大）
+    const lotSize = (mkt === 'US') ? 1 : (Number(_currentLotSize) > 0 ? _currentLotSize : 100);
     let maxShares = Math.floor(cash / currentPrice);
-    // Round down to lot size
     maxShares = Math.floor(maxShares / lotSize) * lotSize;
     let qty = Math.floor(maxShares * fraction / lotSize) * lotSize;
     if (qty < lotSize) qty = lotSize;

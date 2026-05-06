@@ -1057,15 +1057,26 @@
             });
         }
 
-        // ── 切回本页时尝试从 localStorage 恢复上次分析（URL 带 ?symbol=xxx） ─
+        // ── 切回本页时尝试恢复上次分析 ────────────────────────────
+        // 优先级：URL ?id=N（来自 dashboard 历史卡片）→ 服务端 fetch；
+        //        URL ?symbol=X → 先 L1 localStorage，miss 则按 symbol 查 L2 列表第一条
         try {
-            const urlSym = (new URL(location.href).searchParams.get('symbol') || '').trim();
-            if (urlSym) {
-                // 等下一帧再恢复，确保所有 DOM 元素已就绪
-                requestAnimationFrame(() => {
-                    if (typeof restoreFromCache === 'function') restoreFromCache(urlSym);
-                });
-            }
+            const url = new URL(location.href);
+            const urlId  = (url.searchParams.get('id') || '').trim();
+            const urlSym = (url.searchParams.get('symbol') || '').trim();
+            requestAnimationFrame(async () => {
+                if (urlId && typeof restoreFromServer === 'function') {
+                    const ok = await restoreFromServer(urlId, urlSym);
+                    if (ok) return;
+                }
+                if (urlSym && typeof restoreFromCache === 'function') {
+                    if (restoreFromCache(urlSym)) return;
+                    // L1 miss：尝试用服务端历史列表里 symbol 最近一条 fallback
+                    if (typeof restoreFromServerBySymbol === 'function') {
+                        await restoreFromServerBySymbol(urlSym);
+                    }
+                }
+            });
         } catch (_) { /* URL 解析失败不影响页面 */ }
     });
 
@@ -1390,10 +1401,18 @@
 
         // 顶部状态条：显示"上次分析"标记 + 重新分析按钮
         const ageMs = Date.now() - (rec.saved_at || 0);
-        const ageMin = Math.round(ageMs / 60000);
-        const ageStr = ageMin < 1 ? '刚刚' :
-                       ageMin < 60 ? `${ageMin} 分钟前` :
-                       `${Math.round(ageMin / 60)} 小时前`;
+        _renderRestoredStatus(sym, ageMs);
+        completeProgress();
+        return true;
+    }
+
+    // ── 通用：渲染"上次分析 X 前 + 重新分析按钮"状态条 ────────────────
+    function _renderRestoredStatus(sym, ageMs) {
+        const ageMin = Math.round((ageMs || 0) / 60000);
+        const ageStr = ageMin < 1   ? '刚刚' :
+                       ageMin < 60  ? `${ageMin} 分钟前` :
+                       ageMin < 24*60 ? `${Math.round(ageMin / 60)} 小时前` :
+                       `${Math.round(ageMin / 60 / 24)} 天前`;
         const dot = document.getElementById('status-dot');
         const txt = document.getElementById('status-text');
         if (dot) dot.className = 'status-dot done';
@@ -1403,8 +1422,77 @@
                 `border:1px solid rgba(45,212,191,.28);color:var(--primary);border-radius:6px;cursor:pointer;">` +
                 `↻ 重新分析</button>`;
         }
-        completeProgress();
-        return true;
+    }
+
+    // ── L2 fallback：按记录 id 从服务端拉完整研报渲染（无 L1 缓存时用） ─
+    async function restoreFromServer(recordId, expectedSym) {
+        if (!recordId) return false;
+        const token = localStorage.getItem('cq_token') || '';
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        try {
+            const r = await fetch(`${API_BASE}/api/v1/analysis/history/${encodeURIComponent(recordId)}`, { headers });
+            if (!r.ok) {
+                if (r.status === 401) console.warn('[analysis] 历史详情需要登录');
+                return false;
+            }
+            const rec = await r.json();
+            const sym = (rec.symbol || expectedSym || '').toUpperCase();
+            document.getElementById('symbol-input').value = sym;
+
+            // 服务端旧 schema 只存了 markdown_report、action、confidence、reasoning，
+            // 没有完整的 trade_order / financial_chart_data。这里能渲染什么就渲染什么。
+            if (rec.markdown_report) {
+                try { renderReport(rec.markdown_report); } catch (_) {}
+            }
+            if (rec.action || rec.confidence != null) {
+                try {
+                    showResult({
+                        action:     rec.action || 'HOLD',
+                        symbol:     sym,
+                        confidence: rec.confidence ?? 0,
+                        risk_level: rec.risk_level || '--',
+                    }, null);
+                } catch (_) {}
+            }
+
+            // 时间字段在旧 schema 里是 epoch 秒
+            const tsSec = Number(rec.created_at) || 0;
+            const ageMs = tsSec ? (Date.now() - tsSec * 1000) : 0;
+            _renderRestoredStatus(sym, ageMs);
+            // 财务图表无数据：显示降级提示，避免空白
+            const fc = document.getElementById('finance-chart');
+            if (fc) fc.style.display = 'none';
+            const ph = document.getElementById('chart-placeholder');
+            if (ph) {
+                ph.style.display = 'block';
+                ph.textContent = '📊 历史记录未保存图表数据，重新分析可生成最新图表';
+            }
+            completeProgress();
+            return true;
+        } catch (e) {
+            console.warn('[analysis] restoreFromServer 失败:', e);
+            return false;
+        }
+    }
+
+    // ── L2 fallback by symbol：URL 只有 symbol 时，从服务端历史列表里
+    //                           找该 symbol 最近一条，再调 restoreFromServer。
+    async function restoreFromServerBySymbol(sym) {
+        if (!sym) return false;
+        const token = localStorage.getItem('cq_token') || '';
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        try {
+            const r = await fetch(`${API_BASE}/api/v1/analysis/history?limit=50`, { headers });
+            if (!r.ok) return false;
+            const data = await r.json();
+            const records = data.records || [];
+            const target = records.find(rec => (rec.symbol || '').toUpperCase() === sym.toUpperCase());
+            if (!target) return false;
+            return await restoreFromServer(target.id, sym);
+        } catch (e) {
+            console.warn('[analysis] restoreFromServerBySymbol 失败:', e);
+            return false;
+        }
     }
 
     async function startAnalysis() {

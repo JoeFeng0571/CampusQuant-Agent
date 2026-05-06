@@ -397,6 +397,21 @@
             .chat-panel { height: 340px; }
         }
 
+        /* ── Asset panel: 资产框三个统计卡需要更多空间，tabs 移入 header 同行 ── */
+        .panel-header-with-tabs { flex-wrap: wrap; gap: 8px; row-gap: 8px; }
+        .mkt-tabs-inline {
+            margin-bottom: 0;             /* 取消旧 .mkt-tabs 的 16px 下间距 */
+            margin-left: auto;             /* 推到右侧（panel-action 还在更右） */
+            margin-right: 12px;
+        }
+        .mkt-tabs-inline .mkt-tab { padding: 3px 10px; font-size: 11px; }
+        /* 让资产 panel 在两 panel 平分中多分一份空间，acct-grid 三框不被压扁 */
+        .dash-left-col > .panel.panel-asset { flex: 1.5 1 0; min-height: 360px; }
+        @media(max-width:768px) {
+            .panel-header-with-tabs { flex-direction: column; align-items: flex-start; }
+            .mkt-tabs-inline { margin-left: 0; margin-right: 0; }
+        }
+
         /* ── Recent analysis list ─────────────────────────────── */
         .recent-analysis-list { display: flex; flex-direction: column; gap: 4px; }
         .ra-row {
@@ -537,19 +552,19 @@
         <div class="dash-left-col">
 
             <!-- Portfolio mini card -->
-            <div class="panel">
-                <div class="panel-header">
+            <div class="panel panel-asset">
+                <div class="panel-header panel-header-with-tabs">
                     <div class="panel-title">
                         <i data-lucide="briefcase"></i>
                         我的模拟资产
                     </div>
+                    <div class="mkt-tabs mkt-tabs-inline">
+                        <button class="mkt-tab active" data-mkt="ALL" onclick="switchMkt(this,'ALL')">全部</button>
+                        <button class="mkt-tab" data-mkt="A" onclick="switchMkt(this,'A')">A股</button>
+                        <button class="mkt-tab" data-mkt="HK" onclick="switchMkt(this,'HK')">港股</button>
+                        <button class="mkt-tab" data-mkt="US" onclick="switchMkt(this,'US')">美股</button>
+                    </div>
                     <a href="trade.html" class="panel-action">查看全部 →</a>
-                </div>
-                <div class="mkt-tabs">
-                    <button class="mkt-tab active" data-mkt="ALL" onclick="switchMkt(this,'ALL')">全部</button>
-                    <button class="mkt-tab" data-mkt="A" onclick="switchMkt(this,'A')">A股 (CNH)</button>
-                    <button class="mkt-tab" data-mkt="HK" onclick="switchMkt(this,'HK')">港股 (HKD)</button>
-                    <button class="mkt-tab" data-mkt="US" onclick="switchMkt(this,'US')">美股 (USD)</button>
                 </div>
                 <div class="acct-grid" id="acct-stats">
                     <div class="acct-stat"><div class="acct-stat-label">总资产 (折合CNY)</div><div class="acct-stat-value skel" style="height:22px;width:80%">&nbsp;</div><div class="acct-stat-sub">–</div></div>
@@ -730,6 +745,15 @@ async function loadAccount() {
         const tok = localStorage.getItem('cq_token');
         if (tok) headers['Authorization'] = 'Bearer ' + tok;
         const r = await fetch(`${API}/api/v1/trade/account`, { headers });
+        if (r.status === 401) {
+            // Token 过期：清掉 + 重渲染登录组件
+            localStorage.removeItem('cq_token');
+            localStorage.removeItem('cq_username');
+            localStorage.removeItem('cq_user_id');
+            if (typeof renderAuthWidget === 'function') renderAuthWidget();
+            renderAcctOffline();
+            return;
+        }
         if (!r.ok) throw new Error(r.status);
         _acctData = await r.json();
         renderAcct(_acctData, _curMkt);
@@ -1183,7 +1207,8 @@ async function loadRecentAnalysis() {
             const conf = rec.confidence != null ? `${(rec.confidence * 100).toFixed(0)}%` : '--';
             const time = _formatAge(rec.created_at);
             const sym = rec.symbol || '';
-            return `<a href="analysis.html?symbol=${encodeURIComponent(sym)}" class="ra-row" title="点击查看 ${escHtml(sym)} 的分析">
+            // 同时带 ?id=N 让 analysis.html 在 L1 缓存 miss 时能 fallback 到服务端 fetch
+            return `<a href="analysis.html?symbol=${encodeURIComponent(sym)}&id=${encodeURIComponent(rec.id)}" class="ra-row" title="点击查看 ${escHtml(sym)} 的分析">
                 <span class="ra-symbol">${escHtml(sym)}</span>
                 <span class="ra-action ${ACTION_CLS[act] || 'hold'}">${ACTION_MAP[act] || act}</span>
                 <span class="ra-conf">${conf}</span>
