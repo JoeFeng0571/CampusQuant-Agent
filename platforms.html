@@ -642,6 +642,14 @@
             const token = localStorage.getItem('cq_token') || '';
             const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
             const resp = await fetch('/api/v1/portfolio/positions', { headers });
+            if (resp.status === 401) {
+                // Token 过期：清缓存避免后续操作连续 401
+                localStorage.removeItem('cq_token');
+                localStorage.removeItem('cq_username');
+                localStorage.removeItem('cq_user_id');
+                if (typeof renderAuthWidget === 'function') renderAuthWidget();
+                throw new Error('登录已过期，已切换为本地数据');
+            }
             if (!resp.ok) throw new Error('API 不可用');
             const data = await resp.json();
             const positions = data.positions || data.data || [];

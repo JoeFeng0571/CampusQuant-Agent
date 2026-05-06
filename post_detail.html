@@ -342,6 +342,19 @@ function renderComments(comments) {
 let _liked      = false;
 let _likeCount  = 0;
 
+// 集中处理：token 过期清缓存 + 跳登录
+function _expireTokenAndPrompt() {
+    try {
+        localStorage.removeItem('cq_token');
+        localStorage.removeItem('cq_username');
+        localStorage.removeItem('cq_user_id');
+        if (typeof renderAuthWidget === 'function') renderAuthWidget();
+        if (window.cqToast) cqToast({ title: '登录已过期', message: '请重新登录后再试' }, 'error');
+    } catch(_) {}
+    const back = encodeURIComponent('post_detail.html?id=' + (postId || ''));
+    setTimeout(() => { location.href = `auth.html?redirect=${back}`; }, 600);
+}
+
 async function toggleLike() {
     if (!getToken()) {
         location.href = `auth.html?v=20260330-auth-code&redirect=post_detail.html?id=${postId}`;
@@ -351,6 +364,7 @@ async function toggleLike() {
         const resp = await fetch(`${API_BASE}/api/v1/community/posts/${postId}/like`, {
             method: 'POST', headers: authHeaders(),
         });
+        if (resp.status === 401) { _expireTokenAndPrompt(); return; }
         if (!resp.ok) return;
         const data = await resp.json();
         _liked      = data.liked;
@@ -390,6 +404,12 @@ async function submitComment() {
             headers: authHeaders(),
             body: JSON.stringify({ content }),
         });
+        if (resp.status === 401) {
+            msgEl.textContent = '登录已过期，请重新登录';
+            msgEl.className   = 'msg-error';
+            _expireTokenAndPrompt();
+            return;
+        }
         const data = await resp.json();
         if (!resp.ok) {
             msgEl.textContent = data.detail || '评论失败';

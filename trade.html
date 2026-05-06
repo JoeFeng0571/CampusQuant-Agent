@@ -963,6 +963,7 @@ async function updateQuoteDisplay(symbol) {
     document.getElementById('order-symbol').value = normalizedSymbol || symbol.toUpperCase();
     updateBalanceHint();
     updateEstimate();
+    updateRiskPlaceholders();   // 止盈止损 placeholder 跟随当前价
     // Show deep analysis link
     const daBtn = document.getElementById('btn-deep-analysis');
     if (daBtn) { daBtn.style.display = 'inline-flex'; }
@@ -989,6 +990,24 @@ async function lookupSymbol() {
     _lotFetchSymbol = '';
     startPriceTimer(currentSymbol);
     fetchLotSize(currentSymbol);   // 异步查询手数，回来后自动刷新提示
+}
+
+// ══ 止盈止损 placeholder 跟随当前价（A 股 / 港股 / 美股 自适应） ──
+function updateRiskPlaceholders() {
+    const sl = document.getElementById('risk-stop-loss');
+    const tp = document.getElementById('risk-take-profit');
+    if (!sl || !tp) return;
+    if (!currentPrice || currentPrice <= 0) {
+        sl.placeholder = '当前价 × 0.92';
+        tp.placeholder = '当前价 × 1.15';
+        return;
+    }
+    const px = Number(currentPrice);
+    // 价格越大 round 到整数；价格小（如 ETF）保留 2 位
+    const fmt = px >= 100 ? (v) => Math.round(v).toString()
+                          : (v) => v.toFixed(2);
+    sl.placeholder = '如 ' + fmt(px * 0.92);   // -8% 默认止损
+    tp.placeholder = '如 ' + fmt(px * 1.15);   // +15% 默认止盈
 }
 
 // ══ Order side ════════════════════════════════════════════════

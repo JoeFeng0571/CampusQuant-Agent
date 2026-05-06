@@ -959,7 +959,13 @@ async function loadChatHistory() {
             const r = await fetch(`${API}/api/v1/chat/mentor/history?limit=20`, {
                 headers: { 'Authorization': 'Bearer ' + tok },
             });
-            if (r.ok) {
+            if (r.status === 401) {
+                // Token 过期：清缓存 + 重渲染登录组件，让用户后续操作不再 401
+                localStorage.removeItem('cq_token');
+                localStorage.removeItem('cq_username');
+                localStorage.removeItem('cq_user_id');
+                if (typeof renderAuthWidget === 'function') renderAuthWidget();
+            } else if (r.ok) {
                 const data = await r.json();
                 const msgs = (data.messages || []).map(m => ({
                     role: m.role === 'user' ? 'user' : 'bot',
@@ -967,7 +973,6 @@ async function loadChatHistory() {
                     time: m.created_at ? fmtTime(new Date(m.created_at)) : '',
                 }));
                 _chatHistory = msgs.length ? msgs : [MENTOR_INTRO];
-                // 同步一份到 localStorage 作为离线备份
                 try { localStorage.setItem(CHAT_SK, JSON.stringify(_chatHistory.slice(-40))); } catch(_) {}
                 renderAllMessages();
                 return;

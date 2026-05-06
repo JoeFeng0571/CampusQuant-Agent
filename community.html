@@ -769,11 +769,29 @@
             const resp = await fetch(`${API_BASE}/api/v1/community/posts/${postId}/like`, {
                 method: 'POST', headers: authHeaders(),
             });
+            if (resp.status === 401) {
+                // Token 过期：清 token + 跳登录
+                _expireTokenAndPrompt();
+                return;
+            }
             if (!resp.ok) return;
             const data = await resp.json();
             span.dataset.liked = data.liked ? 'true' : 'false';
             span.innerHTML     = `${data.liked?'❤️':'👍'} ${data.like_count}`;
         } catch(e) { console.warn('点赞失败:', e); }
+    }
+
+    // 集中处理：token 过期清缓存 + 重渲染登录组件 + 跳登录页
+    function _expireTokenAndPrompt(redirectTo) {
+        try {
+            localStorage.removeItem('cq_token');
+            localStorage.removeItem('cq_username');
+            localStorage.removeItem('cq_user_id');
+            if (typeof renderAuthWidget === 'function') renderAuthWidget();
+            if (window.cqToast) cqToast({ title: '登录已过期', message: '请重新登录后再试' }, 'error');
+        } catch(_) {}
+        const back = redirectTo || (location.pathname + location.search);
+        setTimeout(() => navigateTo('auth.html?redirect=' + encodeURIComponent(back)), 600);
     }
 
     function openPostDetail(postId) {
@@ -824,6 +842,11 @@
                 headers: authHeaders(),
                 body: JSON.stringify({ title, content, tag: _selectedTag }),
             });
+            if (resp.status === 401) {
+                showModalMsg('登录已过期，请重新登录', 'danger');
+                _expireTokenAndPrompt();
+                return;
+            }
             const data = await resp.json();
             if (!resp.ok) { showModalMsg(data.detail || '发布失败', 'danger'); return; }
 
