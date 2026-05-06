@@ -1642,9 +1642,13 @@
         startCountdown();
 
         try {
+            // 带 token：服务端按 user_id 写历史，登录后才能在 dashboard / 分析页历史卡片看到自己的记录
+            const _tok = localStorage.getItem('cq_token') || '';
+            const _h = { 'Content-Type': 'application/json; charset=utf-8', 'Accept': 'text/event-stream' };
+            if (_tok) _h['Authorization'] = 'Bearer ' + _tok;
             const resp = await fetch(`${API_BASE}/api/v1/analyze`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json; charset=utf-8', 'Accept': 'text/event-stream' },
+                headers: _h,
                 body: JSON.stringify({ symbol, days: 180 }),
             });
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
