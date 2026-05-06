@@ -364,11 +364,15 @@ _NODE_START_DESC = {
 
 async def _stream_cached_report(
     symbol: str, cached: dict, thread_id: str,
+    user_id: str = "anonymous",
 ) -> AsyncGenerator[str, None]:
     """从缓存快速回放 SSE 事件（<1秒完成）
 
     仅让节点进度条"批量亮起"，不向日志区写入"xxx (缓存)"这种无信息量条目。
     前端通过 data.cached=True 标志识别缓存回放事件, 只更新进度不 appendText。
+
+    user_id：登录用户传 user.id 字符串，未登录传 "anonymous"。即便是缓存命中也
+    要写一条历史记录，否则用户在 dashboard "我的最近分析"会漏掉这次操作。
     """
     seq = 0
     seq += 1
@@ -388,12 +392,19 @@ async def _stream_cached_report(
     # 发送完整结果
     seq += 1
     yield _make_sse_event("complete", "system", "分析完成（来自缓存）", cached, seq)
+    # 写入用户历史（缓存命中也要记，否则历史会漏）
+    try:
+        from utils.analysis_history import save_analysis
+        save_analysis(symbol, cached, user_id=user_id)
+    except Exception as _hist_err:
+        logger.warning(f"[History] 缓存命中写历史失败: {_hist_err}")
     logger.info(f"[Cache] {symbol} 缓存回放完成 ({seq} events)")
 
 
 async def _stream_graph_events(
     symbol:    str,
     thread_id: str,
+    user_id:   str = "anonymous",
 ) -> AsyncGenerator[str, None]:
     """
     调用 LangGraph .astream_events()，将图节点事件转译为 SSE 数据流。
@@ -1137,10 +1148,10 @@ async def _stream_graph_events(
                 report_cache.set(symbol, _complete_data)
             except Exception as _cache_err:
                 logger.warning(f"[Cache] 写入失败: {_cache_err}")
-            # 写入历史记录
+            # 写入历史记录（按 user_id 隔离，登录用户存自己 id，未登录存 "anonymous"）
             try:
                 from utils.analysis_history import save_analysis
-                save_analysis(symbol, _complete_data)
+                save_analysis(symbol, _complete_data, user_id=user_id)
             except Exception as _hist_err:
                 logger.warning(f"[History] 写入失败: {_hist_err}")
     except Exception as _complete_err:
@@ -1172,7 +1183,11 @@ async def _stream_graph_events(
     ),
     response_description="SSE 事件流（Content-Type: text/event-stream）",
 )
-async def analyze_symbol(request: AnalyzeRequest, raw_request: Request = None):
+async def analyze_symbol(
+    request:     AnalyzeRequest,
+    raw_request: Request = None,
+    current_user=Depends(_get_optional_user),  # 可选登录：拿到 user_id 用于历史隔离
+):
     """POST /api/v1/analyze — SSE 流式分析"""
     client_ip = raw_request.client.host if raw_request and raw_request.client else "unknown"
     if not _check_rate_limit("analyze", client_ip):
@@ -1184,8 +1199,13 @@ async def analyze_symbol(request: AnalyzeRequest, raw_request: Request = None):
     # 模糊搜索拦截：中文/英文名称 → 标准交易代码
     symbol    = MarketClassifier.fuzzy_match(raw_symbol)
     thread_id = str(uuid.uuid4())
+    # 历史归属：登录用 user.id 字符串，未登录归 "anonymous"
+    user_id_str = str(current_user.id) if current_user else "anonymous"
 
-    logger.info(f"[API] 收到分析请求: 原始='{raw_symbol}' → 标准='{symbol}' | thread_id={thread_id}")
+    logger.info(
+        f"[API] 收到分析请求: 原始='{raw_symbol}' → 标准='{symbol}' "
+        f"| thread_id={thread_id} | user={user_id_str}"
+    )
 
     # 研报缓存检查
     from utils.report_cache import report_cache
@@ -1193,13 +1213,13 @@ async def analyze_symbol(request: AnalyzeRequest, raw_request: Request = None):
     if cached and not request.force_refresh:
         logger.info(f"[API] 命中研报缓存: {symbol}")
         return StreamingResponse(
-            _stream_cached_report(symbol, cached, thread_id),
+            _stream_cached_report(symbol, cached, thread_id, user_id=user_id_str),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "X-Thread-Id": thread_id, "X-Cache": "HIT"},
         )
 
     return StreamingResponse(
-        _stream_graph_events(symbol, thread_id),
+        _stream_graph_events(symbol, thread_id, user_id=user_id_str),
         media_type="text/event-stream",
         headers={
             "Cache-Control":     "no-cache",
@@ -3517,19 +3537,33 @@ async def get_trades_v2(symbol: str = "", limit: int = 50):
 # Analysis History — 分析历史记录
 # ════════════════════════════════════════════════════════════════
 
-@app.get("/api/v1/analysis/history", summary="分析历史记录")
-async def analysis_history(limit: int = 20, offset: int = 0):
+@app.get("/api/v1/analysis/history", summary="分析历史记录（按用户隔离）")
+async def analysis_history(
+    limit:        int = 20,
+    offset:       int = 0,
+    current_user=Depends(_get_optional_user),
+):
+    """登录用户：返回 user.id 名下的记录；未登录：返回 anonymous 桶。"""
     from utils.analysis_history import get_history
-    records = get_history(limit=limit, offset=offset)
-    return {"records": records, "count": len(records)}
+    user_id = str(current_user.id) if current_user else "anonymous"
+    records = get_history(user_id=user_id, limit=limit, offset=offset)
+    return {"records": records, "count": len(records), "user_id": user_id}
 
 
 @app.get("/api/v1/analysis/history/{record_id}", summary="历史研报详情")
-async def analysis_history_detail(record_id: int):
+async def analysis_history_detail(
+    record_id:    int,
+    current_user=Depends(_get_optional_user),
+):
+    """所有权校验：record.user_id 必须等于当前 user_id 桶。"""
     from utils.analysis_history import get_report
     report = get_report(record_id)
     if not report:
         raise HTTPException(status_code=404, detail="记录不存在")
+    expected_uid = str(current_user.id) if current_user else "anonymous"
+    if report.get("user_id") and report["user_id"] != expected_uid:
+        # 别人的记录不让看
+        raise HTTPException(status_code=403, detail="无权访问该记录")
     return report
 
 

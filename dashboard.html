@@ -397,6 +397,41 @@
             .chat-panel { height: 340px; }
         }
 
+        /* ── Recent analysis list ─────────────────────────────── */
+        .recent-analysis-list { display: flex; flex-direction: column; gap: 4px; }
+        .ra-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 12px; border-radius: 8px;
+            cursor: pointer; text-decoration: none; color: inherit;
+            transition: background .15s;
+        }
+        .ra-row:hover { background: rgba(255,255,255,.04); }
+        .ra-symbol {
+            font-family: var(--font-mono, monospace); font-weight: 700;
+            font-size: 13px; min-width: 84px; color: var(--primary, #2dd4bf);
+        }
+        .ra-action {
+            font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+            min-width: 36px; text-align: center;
+        }
+        .ra-action.buy  { background: rgba(34,197,94,.12);  color: #22c55e; border: 1px solid rgba(34,197,94,.3); }
+        .ra-action.sell { background: rgba(239,68,68,.12);  color: #ef4444; border: 1px solid rgba(239,68,68,.3); }
+        .ra-action.hold { background: rgba(148,163,184,.12); color: #94a3b8; border: 1px solid rgba(148,163,184,.3); }
+        .ra-conf {
+            font-size: 12px; color: rgba(255,255,255,.55);
+            font-variant-numeric: tabular-nums; min-width: 36px; text-align: right;
+        }
+        .ra-time {
+            margin-left: auto; font-size: 11px; color: rgba(255,255,255,.38);
+            font-family: var(--font-mono, monospace); white-space: nowrap;
+        }
+        .ra-empty {
+            padding: 24px 12px; text-align: center; color: rgba(255,255,255,.45);
+            font-size: 13px;
+        }
+        .ra-empty a { color: var(--primary, #2dd4bf); text-decoration: none; }
+        .ra-empty a:hover { text-decoration: underline; }
+
     </style>
 </head>
 <body>
@@ -530,6 +565,22 @@
                             <tr><td colspan="5" style="padding:8px"><div class="skel-bar w-2/3 h-lg"></div></td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- 我的最近分析 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i data-lucide="line-chart"></i>
+                        我的最近分析
+                    </div>
+                    <a href="analysis.html" class="panel-action">新建分析 →</a>
+                </div>
+                <div id="recent-analysis-list" class="recent-analysis-list">
+                    <div class="skel-row"><div class="skel-bar w-3/4 h-lg"></div><div class="skel-bar w-1/2"></div></div>
+                    <div class="skel-row"><div class="skel-bar w-full h-lg"></div><div class="skel-bar w-2/3"></div></div>
+                    <div class="skel-row"><div class="skel-bar w-3/4 h-lg"></div><div class="skel-bar w-1/2"></div></div>
                 </div>
             </div>
 
@@ -1087,12 +1138,74 @@ function localMentorFallback(q) {
     return `这是个好问题！关于"${q.slice(0,15)}"，建议你：\n1. 查阅学习资源库的相关课程\n2. 在模拟账户里实际操作体验\n3. 去投教社区和同学讨论\n\n如果是具体的个股分析问题，可以去「个股分析」页面让AI深度分析！`;
 }
 
+// ══════════════ Recent Analysis ══════════════
+function _formatAge(ts) {
+    // ts 可能是 epoch 秒（旧 sqlite store）或毫秒：自动判断
+    let ms = Number(ts) || 0;
+    if (ms > 0 && ms < 1e12) ms *= 1000;     // 秒 → 毫秒
+    if (!ms) return '';
+    const diffMin = Math.round((Date.now() - ms) / 60000);
+    if (diffMin < 1)  return '刚刚';
+    if (diffMin < 60) return `${diffMin}分钟前`;
+    const diffHr = Math.round(diffMin / 60);
+    if (diffHr < 24)  return `${diffHr}小时前`;
+    const diffDay = Math.round(diffHr / 24);
+    if (diffDay < 30) return `${diffDay}天前`;
+    return new Date(ms).toLocaleDateString('zh-CN');
+}
+
+async function loadRecentAnalysis() {
+    const el = document.getElementById('recent-analysis-list');
+    if (!el) return;
+
+    const token = localStorage.getItem('cq_token') || '';
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+    try {
+        const r = await fetch(`${API}/api/v1/analysis/history?limit=8`, { headers });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        const records = data.records || [];
+
+        if (!records.length) {
+            el.innerHTML = `<div class="ra-empty">
+                ${token ? '还没有分析记录' : '登录后可同步你的分析历史'}
+                <br><a href="analysis.html">立刻开始第一次分析 →</a>
+            </div>`;
+            return;
+        }
+
+        const ACTION_MAP  = { BUY: '买入', SELL: '卖出', HOLD: '观望' };
+        const ACTION_CLS  = { BUY: 'buy',  SELL: 'sell',  HOLD: 'hold'  };
+
+        el.innerHTML = records.map(rec => {
+            const act = (rec.action || 'HOLD').toUpperCase();
+            const conf = rec.confidence != null ? `${(rec.confidence * 100).toFixed(0)}%` : '--';
+            const time = _formatAge(rec.created_at);
+            const sym = rec.symbol || '';
+            return `<a href="analysis.html?symbol=${encodeURIComponent(sym)}" class="ra-row" title="点击查看 ${escHtml(sym)} 的分析">
+                <span class="ra-symbol">${escHtml(sym)}</span>
+                <span class="ra-action ${ACTION_CLS[act] || 'hold'}">${ACTION_MAP[act] || act}</span>
+                <span class="ra-conf">${conf}</span>
+                <span class="ra-time">${time}</span>
+            </a>`;
+        }).join('');
+    } catch (e) {
+        console.warn('[dashboard] loadRecentAnalysis error:', e);
+        el.innerHTML = `<div class="ra-empty">
+            历史加载失败<br>
+            <a href="analysis.html">直接进入分析 →</a>
+        </div>`;
+    }
+}
+
 // ══════════════ INIT ══════════════
 document.addEventListener('DOMContentLoaded', () => {
     renderAuthWidget();
     renderWelcome();
     loadAccount();
     loadNews();
+    loadRecentAnalysis();
     loadChatHistory();
 });
 </script>

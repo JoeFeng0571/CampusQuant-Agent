@@ -83,11 +83,11 @@ def get_history(user_id: str = None, limit: int = 20, offset: int = 0) -> list[d
 
 
 def get_report(record_id: int) -> dict | None:
-    """获取单条完整研报"""
+    """获取单条完整研报（含 user_id 用于上层做所有权校验）"""
     try:
         conn = _get_conn()
         row = conn.execute(
-            "SELECT id, symbol, action, confidence, risk_level, reasoning, markdown_report, created_at FROM history WHERE id=?",
+            "SELECT id, symbol, action, confidence, risk_level, reasoning, markdown_report, created_at, user_id FROM history WHERE id=?",
             (record_id,),
         ).fetchone()
         conn.close()
@@ -95,7 +95,8 @@ def get_report(record_id: int) -> dict | None:
             return None
         return {
             "id": row[0], "symbol": row[1], "action": row[2], "confidence": row[3],
-            "risk_level": row[4], "reasoning": row[5], "markdown_report": row[6], "created_at": row[7],
+            "risk_level": row[4], "reasoning": row[5], "markdown_report": row[6],
+            "created_at": row[7], "user_id": row[8],
         }
     except Exception as e:
         logger.warning(f"[History] 查询失败: {e}")
