@@ -403,14 +403,20 @@ const cntObs = new IntersectionObserver(entries => {
 }, { threshold: 0.5 });
 document.querySelectorAll('.stat-num[data-count]').forEach(el => cntObs.observe(el));
 
-// Cursor glow
+// Cursor glow (rAF 节流 — 避免 400px radial-gradient 每帧重绘)
 const glow = document.getElementById('cursor-glow');
 if (glow && !window.matchMedia('(max-width:768px)').matches) {
+    let gx = 0, gy = 0, glowQueued = false;
+    const glowFlush = () => {
+        glowQueued = false;
+        glow.style.left = gx + 'px';
+        glow.style.top = gy + 'px';
+    };
     document.addEventListener('pointermove', e => {
-        glow.style.left = e.clientX + 'px';
-        glow.style.top = e.clientY + 'px';
+        gx = e.clientX; gy = e.clientY;
         glow.classList.add('active');
-    });
+        if (!glowQueued) { glowQueued = true; requestAnimationFrame(glowFlush); }
+    }, { passive: true });
     document.addEventListener('pointerleave', () => glow.classList.remove('active'));
 }
 

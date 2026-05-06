@@ -11,8 +11,11 @@
     const REDUCE = window.matchMedia &&
         window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const IS_MOBILE = window.matchMedia('(max-width: 768px)').matches;
+    // 低端设备/集显自检：核心数 ≤ 4 直接放弃（Intel UHD 跑不动 O(n²) 连线）
+    const IS_LOW_END = (navigator.hardwareConcurrency || 8) <= 4
+        || (navigator.deviceMemory || 8) <= 4;
 
-    if (REDUCE) return;
+    if (REDUCE || IS_LOW_END) return;
 
     const canvas = document.createElement('canvas');
     canvas.id = 'constellation-canvas';
@@ -22,8 +25,8 @@
 
     const ctx = canvas.getContext('2d');
     let W, H;
-    const PARTICLE_COUNT = IS_MOBILE ? 80 : 180;
-    const CONNECT_DIST = IS_MOBILE ? 100 : 140;
+    const PARTICLE_COUNT = IS_MOBILE ? 40 : 80;
+    const CONNECT_DIST = IS_MOBILE ? 80 : 110;
     const MOUSE_RADIUS = 150;
     const MOUSE_FORCE = 0.02;
 

@@ -31,25 +31,49 @@
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     // ── MAGNET：[data-magnet] 元素被吸住
+    // 性能优化：rAF 节流 + 缓存元素列表（避免每帧 querySelectorAll）
     function init() {
-        const magnetEls = () => document.querySelectorAll('[data-magnet]');
-        document.addEventListener('mousemove', (e) => {
-            magnetEls().forEach(el => {
+        let cachedEls = Array.from(document.querySelectorAll('[data-magnet]'));
+        // DOM 变化时刷新缓存（懒维护，1s debounce 足够）
+        let refreshTimer = null;
+        const refreshCache = () => {
+            clearTimeout(refreshTimer);
+            refreshTimer = setTimeout(() => {
+                cachedEls = Array.from(document.querySelectorAll('[data-magnet]'));
+            }, 1000);
+        };
+        new MutationObserver(refreshCache).observe(document.body, {
+            childList: true, subtree: true,
+        });
+
+        let pendingX = 0, pendingY = 0, frameQueued = false;
+        const flush = () => {
+            frameQueued = false;
+            for (let i = 0; i < cachedEls.length; i++) {
+                const el = cachedEls[i];
                 const r = el.getBoundingClientRect();
                 const cx = r.left + r.width / 2;
                 const cy = r.top + r.height / 2;
-                const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+                const dist = Math.hypot(pendingX - cx, pendingY - cy);
                 const radius = parseFloat(el.dataset.magnet) || 80;
                 if (dist < radius) {
                     const power = (1 - dist / radius) * 0.4;
-                    const tx = (e.clientX - cx) * power;
-                    const ty = (e.clientY - cy) * power;
+                    const tx = (pendingX - cx) * power;
+                    const ty = (pendingY - cy) * power;
                     el.style.transform = `translate(${tx}px,${ty}px)`;
                     el.style.transition = 'transform .15s cubic-bezier(.16,1,.3,1)';
-                } else {
+                } else if (el.style.transform) {
                     el.style.transform = '';
                 }
-            });
+            }
+        };
+        document.addEventListener('mousemove', (e) => {
+            pendingX = e.clientX;
+            pendingY = e.clientY;
+            if (!frameQueued) {
+                frameQueued = true;
+                requestAnimationFrame(flush);
+            }
         }, { passive: true });
     }
 

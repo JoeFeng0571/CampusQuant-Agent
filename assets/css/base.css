@@ -33,7 +33,7 @@ body {
     background-image:
         radial-gradient(ellipse 90% 45% at 50% -8%,
             rgba(20,184,166,0.09) 0%, transparent 65%);
-    background-attachment: fixed;
+    background-attachment: scroll;
     transition: background-color .3s, color .3s;
 }
 
@@ -121,16 +121,7 @@ body[data-bg-mode="quiet"] .topic h2,
 body[data-bg-mode="quiet"] .post-title-h1,
 body[data-bg-mode="quiet"] .article-item h3 { color: #fff !important; }
 
-/* ── Subtle noise grain overlay ── */
-body::after {
-    content: '';
-    position: fixed; inset: 0;
-    pointer-events: none; z-index: 0;
-    mix-blend-mode: overlay;
-    opacity: 0.025;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1   0 0 0 0 1   0 0 0 0 1   0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-size: 200px 200px;
-}
+/* Noise grain overlay removed — mix-blend-mode + fixed full-screen blew up Intel iGPU */
 
 /* ── Z-index stacking ── */
 header, main, footer, .page-wrap, .dash-container,

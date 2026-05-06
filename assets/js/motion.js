@@ -132,14 +132,24 @@
     }
 
     // ══════════ MOUSE GLOW ══════════
-    // 给 .mouse-glow 元素加鼠标跟随
+    // 给 .mouse-glow 元素加鼠标跟随（rAF 节流，避免高频 setProperty 触发 600px radial-gradient 重绘）
     function initMouseGlow() {
         document.querySelectorAll('.mouse-glow').forEach(el => {
+            let pendingX = 0, pendingY = 0, frameQueued = false;
+            const flush = () => {
+                frameQueued = false;
+                el.style.setProperty('--mx', pendingX + 'px');
+                el.style.setProperty('--my', pendingY + 'px');
+            };
             el.addEventListener('mousemove', e => {
                 const r = el.getBoundingClientRect();
-                el.style.setProperty('--mx', (e.clientX - r.left) + 'px');
-                el.style.setProperty('--my', (e.clientY - r.top) + 'px');
-            });
+                pendingX = e.clientX - r.left;
+                pendingY = e.clientY - r.top;
+                if (!frameQueued) {
+                    frameQueued = true;
+                    requestAnimationFrame(flush);
+                }
+            }, { passive: true });
         });
     }
 
