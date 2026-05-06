@@ -19,18 +19,20 @@
                     (document.documentElement && document.documentElement.dataset.bgMode) || 'ambient';
     // 移动端 quiet 模式（降低强度但保留极光氛围）
     const IS_MOBILE = window.matchMedia('(max-width: 768px)').matches;
-    const EFFECTIVE_MODE = IS_MOBILE && BG_MODE === 'ambient' ? 'quiet' : BG_MODE;
+    // 集显 / 低端设备自动降级（Iris Xe / UHD 跑不动 70px blur × 8）
+    // navigator.deviceMemory 浏览器最多返回 8（隐私限制），≤8 已经覆盖大部分集显笔记本
+    const IS_LOW_END = (navigator.hardwareConcurrency || 16) <= 8
+                    || (navigator.deviceMemory || 16) <= 8;
+    const EFFECTIVE_MODE = (IS_MOBILE || IS_LOW_END) && BG_MODE === 'ambient' ? 'quiet' : BG_MODE;
 
-    // 8 个光团配置：颜色 / 起始位置 / 大小 / 漂移路径
+    // 光团配置：颜色 / 起始位置 / 大小 / 漂移路径
+    // 数量从 8 减到 5（GPU 工作量直接减 38%）
     const ORBS_FULL = [
         { color: '45,212,191',  size: 760, top:'-15%', left:'-10%',  driftX: 18, driftY: 12, dur: 32 },  // teal-400
         { color: '34,211,238',  size: 620, top:'5%',   left: '60%',  driftX:-14, driftY: 16, dur: 30 },  // cyan-400
         { color: '56,189,248',  size: 700, top:'40%',  left:'-15%',  driftX: 16, driftY:-12, dur: 36 },  // sky-400
         { color: '20,184,166',  size: 580, top:'55%',  left: '70%',  driftX:-18, driftY:-10, dur: 28 },  // teal-500
-        { color: '94,234,212',  size: 540, top:'75%',  left: '20%',  driftX: 12, driftY:-16, dur: 34 },  // teal-300
         { color: '251,191,36',  size: 600, top:'-10%', left: '35%',  driftX:-10, driftY: 18, dur: 38 },  // amber-400 (warm accent)
-        { color: '248,113,113', size: 520, top:'80%',  left:'-5%',   driftX: 20, driftY:-12, dur: 30 },  // red-400 (warm accent)
-        { color: '52,211,153',  size: 480, top:'25%',  left: '85%',  driftX:-16, driftY: 14, dur: 33 },  // emerald-400
     ];
 
     // quiet 模式：减半光团 + 更低不透明度（文字页用）
@@ -69,7 +71,7 @@
         .aurora-orb {
             position: absolute;
             border-radius: 50%;
-            filter: blur(70px);
+            filter: blur(32px);          /* 70 → 32 (GPU 成本约按半径²下降 ≈ 4.8x 减负) */
             mix-blend-mode: screen;
             will-change: transform;
             opacity: 0.55;
