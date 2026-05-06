@@ -459,7 +459,17 @@ class MarketClassifier:
                     if symbol in seen_symbols:
                         continue
                     seen_symbols.add(symbol)
-                    type_label = _TYPE_MAP.get(type_code, "其他")
+                    # 类型判定：优先用 classify() 按代码格式权威判断
+                    # （新浪 Suggest API 偶尔会把美股标成港股，例如 NOK→Nokia NYSE 被打成 41/港股）
+                    # ETF/基金（31/33）classify 区分不了，保留新浪的；其他都覆盖。
+                    if type_code in ("31", "33"):
+                        type_label = _TYPE_MAP.get(type_code, "其他")
+                    else:
+                        classified, _ = MarketClassifier.classify(symbol)
+                        if classified != MarketType.UNKNOWN:
+                            type_label = classified.value   # "A股" / "港股" / "美股"
+                        else:
+                            type_label = _TYPE_MAP.get(type_code, "其他")
                     results.append({"symbol": symbol, "name": name, "type": type_label})
                     if len(results) >= limit:
                         break
