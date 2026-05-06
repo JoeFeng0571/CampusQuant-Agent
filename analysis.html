@@ -1056,6 +1056,17 @@
                 renderCompositionDonut(_compData[btn.dataset.mode] || [], btn.dataset.mode);
             });
         }
+
+        // ── 切回本页时尝试从 localStorage 恢复上次分析（URL 带 ?symbol=xxx） ─
+        try {
+            const urlSym = (new URL(location.href).searchParams.get('symbol') || '').trim();
+            if (urlSym) {
+                // 等下一帧再恢复，确保所有 DOM 元素已就绪
+                requestAnimationFrame(() => {
+                    if (typeof restoreFromCache === 'function') restoreFromCache(urlSym);
+                });
+            }
+        } catch (_) { /* URL 解析失败不影响页面 */ }
     });
 
     // ══ Markdown 研报渲染 ════════════════════════════════════════
@@ -1272,10 +1283,143 @@
         if (sym) window.location.href = 'trade.html?symbol=' + encodeURIComponent(sym);
     }
 
+    // ══ 分析缓存（localStorage L1）════════════════════════════════════════
+    // 切走再回来 / 刷新 后能秒级恢复上次分析结果。每只股票保留最新一份，24h 过期。
+    const cqAnalysisCache = (function () {
+        const KEY_PREFIX = 'cq_analysis_';
+        const INDEX_KEY  = 'cq_analysis_recent';
+        const MAX_RECENT = 20;
+        const MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+        function save(symbol, payload) {
+            const sym = String(symbol || '').toUpperCase();
+            if (!sym) return;
+            const record = { symbol: sym, saved_at: Date.now(), payload: payload };
+            try {
+                localStorage.setItem(KEY_PREFIX + sym, JSON.stringify(record));
+                let recent = [];
+                try { recent = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]'); } catch (_) {}
+                recent = recent.filter(r => r && r.symbol !== sym);
+                recent.unshift({ symbol: sym, saved_at: record.saved_at });
+                if (recent.length > MAX_RECENT) recent.length = MAX_RECENT;
+                localStorage.setItem(INDEX_KEY, JSON.stringify(recent));
+            } catch (e) {
+                // localStorage 满或被禁；尝试清最老一条再写一次
+                try {
+                    let recent = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]');
+                    if (recent.length) {
+                        const oldest = recent.pop();
+                        localStorage.removeItem(KEY_PREFIX + oldest.symbol);
+                        localStorage.setItem(INDEX_KEY, JSON.stringify(recent));
+                        localStorage.setItem(KEY_PREFIX + sym, JSON.stringify(record));
+                    }
+                } catch (_) { /* 放弃，不影响主流程 */ }
+            }
+        }
+
+        function load(symbol) {
+            const sym = String(symbol || '').toUpperCase();
+            if (!sym) return null;
+            try {
+                const raw = localStorage.getItem(KEY_PREFIX + sym);
+                if (!raw) return null;
+                const rec = JSON.parse(raw);
+                if (Date.now() - (rec.saved_at || 0) > MAX_AGE_MS) {
+                    localStorage.removeItem(KEY_PREFIX + sym);
+                    return null;
+                }
+                return rec;
+            } catch (_) { return null; }
+        }
+
+        function list() {
+            try {
+                const recent = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]');
+                return recent.filter(r => r && (Date.now() - (r.saved_at || 0)) <= MAX_AGE_MS);
+            } catch (_) { return []; }
+        }
+
+        return { save, load, list };
+    })();
+    // 暴露给 dashboard "最近分析" 卡片使用
+    window.cqAnalysisCache = cqAnalysisCache;
+
+    // 从缓存恢复分析结果到 UI（不发起 SSE）
+    function restoreFromCache(sym) {
+        const rec = cqAnalysisCache.load(sym);
+        if (!rec) return false;
+        const p = rec.payload || {};
+
+        document.getElementById('symbol-input').value = sym;
+
+        // 渲染交易决策卡片
+        if (p.trade_order) {
+            try { showResult(p.trade_order, p.risk_decision || null); } catch (_) {}
+        }
+        // 渲染 markdown 研报
+        if (p.final_markdown_report) {
+            try { renderReport(p.final_markdown_report); } catch (_) {}
+        }
+        // 渲染财务图表
+        const cd = p.financial_chart_data;
+        const hasChartData = cd != null && !Array.isArray(cd) &&
+                             Array.isArray(cd.years) && cd.years.length > 0 && cd.has_data === true;
+        if (hasChartData) {
+            try { renderFinanceChart(cd); } catch (_) {}
+        } else {
+            const fc = document.getElementById('finance-chart');
+            if (fc) fc.style.display = 'none';
+            const ph = document.getElementById('chart-placeholder');
+            if (ph) { ph.style.display = 'block'; ph.textContent = '📊 暂无该市场（如港股）的历年财务数据支持'; }
+        }
+        try {
+            const revComp  = (cd && cd.revenue_composition) ? cd.revenue_composition : {};
+            const perfTrend = (cd && cd.performance_trend)  ? cd.performance_trend  : {};
+            renderFinancialCharts(cd, revComp, perfTrend);
+        } catch (_) {}
+
+        // 还原 agent 一句话摘要 + 节点进度条（视觉一致性）
+        if (p.agent_summaries_html) {
+            const sumBox = document.getElementById('agent-summaries');
+            if (sumBox) { sumBox.innerHTML = p.agent_summaries_html; sumBox.style.display = 'block'; }
+        }
+        if (p.node_progress_html) {
+            const np = document.getElementById('node-progress');
+            if (np) np.innerHTML = p.node_progress_html;
+        }
+
+        // 顶部状态条：显示"上次分析"标记 + 重新分析按钮
+        const ageMs = Date.now() - (rec.saved_at || 0);
+        const ageMin = Math.round(ageMs / 60000);
+        const ageStr = ageMin < 1 ? '刚刚' :
+                       ageMin < 60 ? `${ageMin} 分钟前` :
+                       `${Math.round(ageMin / 60)} 小时前`;
+        const dot = document.getElementById('status-dot');
+        const txt = document.getElementById('status-text');
+        if (dot) dot.className = 'status-dot done';
+        if (txt) {
+            txt.innerHTML = `${sym} · 上次分析 ${ageStr} <button onclick="startAnalysis()" ` +
+                `style="margin-left:10px;padding:3px 10px;font-size:11px;background:rgba(45,212,191,.12);` +
+                `border:1px solid rgba(45,212,191,.28);color:var(--primary);border-radius:6px;cursor:pointer;">` +
+                `↻ 重新分析</button>`;
+        }
+        completeProgress();
+        return true;
+    }
+
     async function startAnalysis() {
         if (analysisRunning) return;
         const symbol = document.getElementById('symbol-input').value.trim();
         if (!symbol) { alert('请输入股票代码'); return; }
+
+        // 同步 symbol 到 URL（不增加历史条目，便于"切走再回来"恢复缓存）
+        try {
+            const url = new URL(location.href);
+            if (url.searchParams.get('symbol') !== symbol) {
+                url.searchParams.set('symbol', symbol);
+                history.replaceState(null, '', url.toString());
+            }
+        } catch (_) {}
 
         analysisRunning = true;
         document.getElementById('analyze-btn').disabled = true;
@@ -1429,6 +1573,20 @@
                 document.getElementById('status-dot').className = 'status-dot done';
                 document.getElementById('status-text').textContent = '分析完成';
                 completeProgress();
+                // ── 保存到 localStorage（切走再回来 / 刷新可秒级恢复） ──────
+                try {
+                    const symInput = document.getElementById('symbol-input');
+                    cqAnalysisCache.save(symInput ? symInput.value.trim() : '', {
+                        trade_order:           inner.trade_order || null,
+                        risk_decision:         inner.risk_decision || null,
+                        final_markdown_report: inner.final_markdown_report || '',
+                        financial_chart_data:  inner.financial_chart_data || null,
+                        agent_summaries_html:  document.getElementById('agent-summaries')?.innerHTML || '',
+                        node_progress_html:    document.getElementById('node-progress')?.innerHTML || '',
+                    });
+                } catch (cacheErr) {
+                    console.warn('[analysis cache] 保存失败（不影响显示）:', cacheErr);
+                }
                 break;
             }
             case 'error':
