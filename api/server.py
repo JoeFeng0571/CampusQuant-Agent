@@ -1172,6 +1172,9 @@ async def _stream_graph_events(
 # ════════════════════════════════════════════════════════════════
 # API 端点
 # ════════════════════════════════════════════════════════════════
+# 提前 import：analyze_symbol 装饰器在 module load 时就要解析 Depends 里的名字，
+# 不能等到 line 1611 才 import（重复 import 在 Python 里幂等无害）
+from api.auth import get_optional_user as _get_optional_user  # noqa: E402
 
 @app.post(
     "/api/v1/analyze",
