@@ -405,9 +405,14 @@
             margin-right: 12px;
         }
         .mkt-tabs-inline .mkt-tab { padding: 3px 10px; font-size: 11px; }
-        /* 资产 panel 略多一份空间但不强制 min-height，让"最近分析"和"快讯热搜"也有空间 */
-        .dash-left-col > .panel.panel-asset { flex: 1.3 1 0; min-height: 280px; }
-        .dash-left-col > .panel:not(.panel-asset) { flex: 1 1 0; min-height: 200px; }
+        /* 三 panel 在 640px 行内分配（gap 16px×2 = 32px，可用 608px）：
+         *   panel-asset flex 1.4  → ~258px
+         *   recent-analysis flex 1 → ~175px
+         *   news flex 1            → ~175px
+         * min-height 设小一点保证空内容时不撑出 640px 行
+         */
+        .dash-left-col > .panel.panel-asset            { flex: 1.4 1 0; min-height: 200px; }
+        .dash-left-col > .panel:not(.panel-asset)      { flex: 1 1 0;   min-height: 140px; }
         @media(max-width:768px) {
             .panel-header-with-tabs { flex-direction: column; align-items: flex-start; }
             .mkt-tabs-inline { margin-left: 0; margin-right: 0; }
@@ -851,11 +856,14 @@ function renderAcct(data, mkt) {
         return m === mkt;
     });
     const tbody = document.getElementById('mini-pos-body');
+    const table = document.getElementById('mini-pos-table');
     if (!filtered.length) {
-        // 空持仓：完全清空 tbody，把空间让给下方"最近分析"和"快讯热搜"两个 panel
+        // 空持仓：彻底隐藏整张表（含表头），把空间让给下方两个 panel
         tbody.innerHTML = '';
+        if (table) table.style.display = 'none';
         return;
     }
+    if (table) table.style.display = '';
     tbody.innerHTML = filtered.slice(0,6).map(p => {
         const pnl = p.unrealized_pnl ?? 0;
         return `<tr>
