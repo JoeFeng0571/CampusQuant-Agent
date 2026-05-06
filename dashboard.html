@@ -405,8 +405,9 @@
             margin-right: 12px;
         }
         .mkt-tabs-inline .mkt-tab { padding: 3px 10px; font-size: 11px; }
-        /* 让资产 panel 在两 panel 平分中多分一份空间，acct-grid 三框不被压扁 */
-        .dash-left-col > .panel.panel-asset { flex: 1.5 1 0; min-height: 360px; }
+        /* 资产 panel 略多一份空间但不强制 min-height，让"最近分析"和"快讯热搜"也有空间 */
+        .dash-left-col > .panel.panel-asset { flex: 1.3 1 0; min-height: 280px; }
+        .dash-left-col > .panel:not(.panel-asset) { flex: 1 1 0; min-height: 200px; }
         @media(max-width:768px) {
             .panel-header-with-tabs { flex-direction: column; align-items: flex-start; }
             .mkt-tabs-inline { margin-left: 0; margin-right: 0; }
@@ -851,8 +852,8 @@ function renderAcct(data, mkt) {
     });
     const tbody = document.getElementById('mini-pos-body');
     if (!filtered.length) {
-        // 空持仓：单行灰字提示即可，不再做"开始交易→"的转化引导
-        tbody.innerHTML = `<tr><td colspan="5" style="padding:18px 8px;text-align:center;color:var(--text-dim);font-size:12px;">该市场暂无持仓</td></tr>`;
+        // 空持仓：完全清空 tbody，把空间让给下方"最近分析"和"快讯热搜"两个 panel
+        tbody.innerHTML = '';
         return;
     }
     tbody.innerHTML = filtered.slice(0,6).map(p => {
