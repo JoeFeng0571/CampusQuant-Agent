@@ -77,3 +77,26 @@ submission/
 
 # ==================== 本地恢复点备份(不入库) ====================
 .backup/
+
+# ==================== 文档/演示文稿二进制(不入库) ====================
+*.docx
+*.doc
+*.pptx
+*.ppt
+# PDF 默认整体忽略（assets/data 有需要时单独 ! 加白名单）
+*.pdf
+
+# ==================== 本地笔记 / 营销文案 / scratch 文件 ====================
+OVERNIGHT_NOTES.md
+CampusQuant_PPT.md
+_paper_content.txt
+_ppt_script.txt
+.tmp_*
+# 形如 _xxx.docx / _xxx.txt 的临时草稿
+_*.docx
+tmp.docx
+tmp.txt
+
+# ==================== 历史废弃 PoC（曾含硬编码凭据，永久不入库） ====================
+trade.py
+test_ak_hk.py
