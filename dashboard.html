@@ -1110,9 +1110,9 @@ async function sendChat() {
             }))
         };
 
-        // 20 秒超时——LLM 生成 300 字左右回答需要的时间余量
+        // 30 秒超时——qwen-flash 3-10s 返回，留余量给慢网络
         const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 20000);
+        const timer = setTimeout(() => ctrl.abort(), 30000);
 
         const r = await fetch(`${API}/api/v1/chat/mentor`, {
             method:'POST', headers, body: JSON.stringify(body), signal: ctrl.signal

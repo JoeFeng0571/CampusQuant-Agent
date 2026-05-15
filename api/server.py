@@ -3426,8 +3426,18 @@ async def chat_mentor(
                 messages.append(AIMessage(content=content))
         messages.append(HumanMessage(content=req.message))
 
-        from graph.nodes import _build_llm
-        llm = _build_llm(temperature=0.7)
+        # 用 qwen3.5-flash（同 /api/v1/chat 端点）—— plus 模型 300 字回答耗时 60-90s
+        # 浏览器扛不住；flash 模型同等 prompt 通常 3-8s 返回，足够日常财商问答。
+        from langchain_openai import ChatOpenAI
+        llm = ChatOpenAI(
+            model="qwen3.5-flash",
+            api_key=_cfg.DASHSCOPE_API_KEY,
+            base_url=_cfg.DASHSCOPE_BASE_URL,
+            temperature=0.7,
+            max_tokens=600,
+            timeout=25,
+            request_timeout=25,
+        )
         resp = await asyncio.get_running_loop().run_in_executor(None, llm.invoke, messages)
         reply = resp.content if hasattr(resp, "content") else str(resp)
 
