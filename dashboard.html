@@ -1094,14 +1094,8 @@ async function sendChat() {
 
     appendMsg({ role:'user', text, time: fmtTime(new Date()) });
 
-    // 1. 先尝试本地 FAQ 精确匹配（秒回）
-    const localReply = localMentorMatch(text);
-    if (localReply) {
-        appendMsg({ role:'bot', text: localReply, time: fmtTime(new Date()) });
-        btn.disabled = false; input.focus(); return;
-    }
-
-    // 2. 本地无匹配 → 调后端 LLM
+    // 直接调后端 LLM——不走任何前端硬编码 FAQ / fallback，
+    // 让财商学长的新 system prompt 成为唯一答案来源。
     showTyping();
     try {
         const tok = localStorage.getItem('cq_token');
@@ -1116,9 +1110,9 @@ async function sendChat() {
             }))
         };
 
-        // 设置 8 秒超时，避免长等
+        // 20 秒超时——LLM 生成 300 字左右回答需要的时间余量
         const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 8000);
+        const timer = setTimeout(() => ctrl.abort(), 20000);
 
         const r = await fetch(`${API}/api/v1/chat/mentor`, {
             method:'POST', headers, body: JSON.stringify(body), signal: ctrl.signal
@@ -1131,44 +1125,15 @@ async function sendChat() {
         appendMsg({ role:'bot', text: data.reply || '学长暂时无法回答，请稍后再试', time: fmtTime(new Date()) });
     } catch(e) {
         hideTyping();
-        // 超时或网络错误 → 用通用 fallback
-        const reply = localMentorFallback(text);
-        appendMsg({ role:'bot', text: reply, time: fmtTime(new Date()) });
+        const isAbort = (e && e.name === 'AbortError');
+        const msg = isAbort
+            ? '学长这边网络有点慢，请再发一次。'
+            : '学长暂时离线，请稍后再试。';
+        appendMsg({ role:'bot', text: msg, time: fmtTime(new Date()) });
     } finally {
         btn.disabled = false;
         input.focus();
     }
-}
-
-// 精确匹配本地 FAQ（秒回，不走网络）
-function localMentorMatch(q) {
-    q = q.toLowerCase();
-    const FAQ = [
-        { keys:['etf','定投'], answer:'ETF定投是指每隔固定时间买入固定金额的ETF基金，利用市场波动摊低成本。核心优势是不需要择时，适合大学生月光族每月定投小额资金。\n\n推荐指数：沪深300、中证500作为入门选择。' },
-        { keys:['仓位','风险','风控'], answer:'仓位管理是风控的核心。对于大学生建议：\n• 单只股票不超过总资产的15%\n• 保留20%现金应对突发\n• 学习期间总仓位不超过50%\n\n本平台风控系统会在你越界时提醒你！' },
-        { keys:['a股','入门','新手','怎么学'], answer:'A股入门学习路径：\n1. 基础概念：股票、市盈率(PE)、市净率(PB)\n2. 看K线：日K/周K形态识别\n3. 基本面：看财报三表（利润表/资产负债表/现金流）\n4. 实践：用本平台模拟账户操作，零风险练手！' },
-        { keys:['持仓','体检','分析我'], answer:'请前往「持仓体检」页面，输入你的持仓信息，AI会帮你生成全面的风控报告，包括集中度分析、行业分散度、建议仓位调整方案。\n\n→ <a href="platforms.html" style="color:var(--primary)">立即体检</a>' },
-        { keys:['港股','hk','香港'], answer:'港股市场特点：\n• 实行T+0交易（可当日买卖）\n• 涨跌幅限制较少，波动更大\n• 港股通可用人民币买入部分港股\n• 最低1手起买，部分个股1手=100/200/500股不等\n\n建议先在本平台用HKD模拟账户练习！' },
-        { keys:['美股','us','美国'], answer:'美股市场特点：\n• 交易时间（北京时间21:30-04:00夏/22:30-05:00冬）\n• 可买卖科技巨头：AAPL、MSFT、NVDA、TSLA\n• 美股可购买零股（不足1股）\n• 本平台USD模拟账户10,000美元起手练习' },
-        { keys:['pe','市盈率'], answer:'市盈率(PE) = 股价 ÷ 每股收益(EPS)\n\n• PE < 15：偏低估（但要看行业）\n• PE 15-25：合理区间\n• PE > 30：可能偏贵\n\n不同行业PE差异很大：银行10-15，科技30-50，消费20-35。要和同行业比才有意义！' },
-        { keys:['k线','技术','macd','rsi'], answer:'技术分析入门三件套：\n1. K线图：红涨绿跌，看实体长短和上下影线\n2. 均线(MA)：5日/20日/60日，金叉死叉\n3. RSI指标：>70超买（可能回调），<30超卖（可能反弹）\n\n在「模拟交易」页面可以实时看K线练手！' },
-        { keys:['骗局','防骗','诈骗','割韭菜'], answer:'投资防骗要点：\n• 承诺"稳赚不赔"的都是骗子\n• 不要加任何"荐股群"、"老师带单"\n• 远离杠杆/配资/场外期权\n• 正规券商开户，不走第三方平台\n• 年化收益超过20%要打问号\n\n用本平台零风险学习，不要急着用真钱！' },
-    ];
-    for (const f of FAQ) {
-        if (f.keys.some(k => q.includes(k))) return f.answer;
-    }
-    return null; // 无匹配，走 LLM
-}
-
-function localMentorFallback(q) {
-    q = q.toLowerCase();
-    if (q.includes('etf') || q.includes('定投')) return 'ETF定投是指每隔固定时间买入固定金额的ETF基金，利用市场波动摊低成本。核心优势是不需要择时，适合大学生月光族每月定投小额资金。\n\n推荐指数：沪深300、中证500作为入门选择。';
-    if (q.includes('仓位') || q.includes('风险')) return '仓位管理是风控的核心。对于大学生建议：\n• 单只股票不超过总资产的15%\n• 保留20%现金应对突发\n• 学习期间总仓位不超过50%\n\n本平台风控系统会在你越界时提醒你！';
-    if (q.includes('a股') || q.includes('入门')) return 'A股入门学习路径：\n1. 基础概念：股票、市盈率(PE)、市净率(PB)\n2. 看K线：日K/周K形态识别\n3. 基本面：看财报三表（利润表/资产负债表/现金流）\n4. 实践：用本平台模拟账户操作，零风险练手！';
-    if (q.includes('持仓') || q.includes('分析')) return '请前往「持仓体检」页面，输入你的持仓信息，AI会帮你生成全面的风控报告，包括集中度分析、行业分散度、建议仓位调整方案。';
-    if (q.includes('港股') || q.includes('hk')) return '港股市场特点：\n• 实行T+0交易（可当日买卖）\n• 有涨跌幅限制较少，波动更大\n• 港股通可用人民币买入部分港股\n• 最低1手起买，部分个股1手=100/200/500股不等\n\n建议先在本平台用HKD模拟账户练习！';
-    if (q.includes('美股') || q.includes('us')) return '美股市场特点：\n• 24小时交易（北京时间22:30-05:00）\n• 可买卖科技巨头：AAPL、MSFT、NVDA、TSLA\n• 美股可购买零股（不足1股）\n• 本平台USD模拟账户10,000美元起手练习';
-    return `这是个好问题！关于"${q.slice(0,15)}"，建议你：\n1. 查阅学习资源库的相关课程\n2. 在模拟账户里实际操作体验\n3. 去投教社区和同学讨论\n\n如果是具体的个股分析问题，可以去「个股分析」页面让AI深度分析！`;
 }
 
 // ══════════════ Recent Analysis ══════════════
