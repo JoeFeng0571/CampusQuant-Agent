@@ -3426,11 +3426,13 @@ async def chat_mentor(
                 messages.append(AIMessage(content=content))
         messages.append(HumanMessage(content=req.message))
 
-        # 用 qwen3.5-flash（同 /api/v1/chat 端点）—— plus 模型 300 字回答耗时 60-90s
-        # 浏览器扛不住；flash 模型同等 prompt 通常 3-8s 返回，足够日常财商问答。
+        # 模型选型：qwen-flash 而不是 qwen3.5-flash。
+        # 实测同样 prompt：qwen3.5-flash 17-50s（默认开 thinking 模式，response 里
+        # 有 reasoning_content），qwen-flash 0.8-3s（无 thinking）。聊天场景必须用
+        # 无 thinking 的快模型，否则用户在浏览器永远等不到回复。
         from langchain_openai import ChatOpenAI
         llm = ChatOpenAI(
-            model="qwen3.5-flash",
+            model="qwen-flash",
             api_key=_cfg.DASHSCOPE_API_KEY,
             base_url=_cfg.DASHSCOPE_BASE_URL,
             temperature=0.7,
