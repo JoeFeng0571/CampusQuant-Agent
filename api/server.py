@@ -1080,10 +1080,19 @@ async def _stream_graph_events(
                             if _label in _fin.index:
                                 _profit_row = _fin.loc[_label]
                                 break
+                        # NaN 防护：yfinance 缺失年份返回 NaN，NaN 不是合法 JSON
+                        # 值，会让前端 JSON.parse 失败或 ECharts 渲染异常 → 转 0
+                        import math
+                        def _safe_yi(v):
+                            try:
+                                f = float(v)
+                                return round(f / 1e8, 2) if math.isfinite(f) else 0
+                            except (TypeError, ValueError):
+                                return 0
                         if _rev_row is not None:
-                            revenue_data = [round(float(_rev_row[c]) / 1e8, 2) for c in _cols]
+                            revenue_data = [_safe_yi(_rev_row[c]) for c in _cols]
                         if _profit_row is not None:
-                            profit_data = [round(float(_profit_row[c]) / 1e8, 2) for c in _cols]
+                            profit_data = [_safe_yi(_profit_row[c]) for c in _cols]
                         logger.info(f"[stream] yfinance 补充财务数据: {symbol} years={data_years}")
             except Exception as _yf_err:
                 logger.warning(f"[stream] yfinance 财务数据获取失败: {_yf_err}")
