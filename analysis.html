@@ -1561,8 +1561,7 @@
             const sym = (rec.symbol || expectedSym || '').toUpperCase();
             document.getElementById('symbol-input').value = sym;
 
-            // 服务端旧 schema 只存了 markdown_report、action、confidence、reasoning，
-            // 没有完整的 trade_order / financial_chart_data。这里能渲染什么就渲染什么。
+            // v2+: 历史记录已带 financial_chart_data（旧记录可能为空）
             if (rec.markdown_report) {
                 try { renderReport(rec.markdown_report); } catch (_) {}
             }
@@ -1581,13 +1580,26 @@
             const tsSec = Number(rec.created_at) || 0;
             const ageMs = tsSec ? (Date.now() - tsSec * 1000) : 0;
             _renderRestoredStatus(sym, ageMs);
-            // 财务图表无数据：显示降级提示，避免空白
-            const fc = document.getElementById('finance-chart');
-            if (fc) fc.style.display = 'none';
-            const ph = document.getElementById('chart-placeholder');
-            if (ph) {
-                ph.style.display = 'block';
-                ph.textContent = '📊 历史记录未保存图表数据，重新分析可生成最新图表';
+
+            // 财务图表：有数据就走实时分析同款渲染管线，没数据才降级
+            const cd = rec.financial_chart_data;
+            const hasChartData = cd != null && !Array.isArray(cd) &&
+                                 Array.isArray(cd.years) && cd.years.length > 0 && cd.has_data === true;
+            if (hasChartData) {
+                try { renderFinanceChart(cd); } catch (_) {}
+                try {
+                    const revComp   = cd.revenue_composition || {};
+                    const perfTrend = cd.performance_trend   || {};
+                    renderFinancialCharts(cd, revComp, perfTrend);
+                } catch (_) {}
+            } else {
+                const fc = document.getElementById('finance-chart');
+                if (fc) fc.style.display = 'none';
+                const ph = document.getElementById('chart-placeholder');
+                if (ph) {
+                    ph.style.display = 'block';
+                    ph.textContent = '📊 该记录早于图表持久化版本，重新分析可生成最新图表';
+                }
             }
             completeProgress();
             return true;

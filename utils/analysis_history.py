@@ -29,6 +29,11 @@ def _get_conn():
         created_at REAL DEFAULT (strftime('%s','now')),
         metadata TEXT
     )""")
+    # 老库迁移：financial_chart_data 列在 v2 之后才加，老安装需要 ALTER TABLE 补上
+    try:
+        conn.execute("ALTER TABLE history ADD COLUMN financial_chart_data TEXT")
+    except sqlite3.OperationalError:
+        pass  # 列已存在
     return conn
 
 
@@ -37,8 +42,11 @@ def save_analysis(symbol: str, result: dict, user_id: str = "anonymous"):
     try:
         conn = _get_conn()
         trade_order = result.get("trade_order", {}) or {}
+        chart_data = result.get("financial_chart_data")
+        chart_json = json.dumps(chart_data, ensure_ascii=False) if chart_data else None
         conn.execute(
-            "INSERT INTO history (symbol, action, confidence, risk_level, reasoning, markdown_report, user_id, metadata) VALUES (?,?,?,?,?,?,?,?)",
+            "INSERT INTO history (symbol, action, confidence, risk_level, reasoning, markdown_report, user_id, metadata, financial_chart_data) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
             (
                 symbol,
                 trade_order.get("action", "HOLD"),
@@ -48,6 +56,7 @@ def save_analysis(symbol: str, result: dict, user_id: str = "anonymous"):
                 result.get("final_markdown_report", "")[:10000],
                 user_id,
                 json.dumps({"status": result.get("status")}, ensure_ascii=False),
+                chart_json,
             ),
         )
         conn.commit()
@@ -87,16 +96,23 @@ def get_report(record_id: int) -> dict | None:
     try:
         conn = _get_conn()
         row = conn.execute(
-            "SELECT id, symbol, action, confidence, risk_level, reasoning, markdown_report, created_at, user_id FROM history WHERE id=?",
+            "SELECT id, symbol, action, confidence, risk_level, reasoning, markdown_report, created_at, user_id, financial_chart_data FROM history WHERE id=?",
             (record_id,),
         ).fetchone()
         conn.close()
         if not row:
             return None
+        chart_data = None
+        if row[9]:
+            try:
+                chart_data = json.loads(row[9])
+            except Exception:
+                chart_data = None
         return {
             "id": row[0], "symbol": row[1], "action": row[2], "confidence": row[3],
             "risk_level": row[4], "reasoning": row[5], "markdown_report": row[6],
             "created_at": row[7], "user_id": row[8],
+            "financial_chart_data": chart_data,
         }
     except Exception as e:
         logger.warning(f"[History] 查询失败: {e}")
