@@ -1056,7 +1056,14 @@ async def _stream_graph_events(
                 _mkt = last_state.get("market_type", "")
                 if _mkt in ("HK_STOCK", "US_STOCK") or not symbol.endswith(('.SH', '.SZ')):
                     import yfinance as yf
-                    _yf_sym = symbol.replace('.HK', '') + '.HK' if '.HK' in symbol else symbol
+                    # 港股 ticker 在 yfinance 是 4 位前导零格式（0700/9988/3690/1299.HK），
+                    # 业务侧常见的 5 位 padding（00700.HK）yfinance 拿不到数据。
+                    # 处理：剥 .HK → lstrip 前导 0 → zfill(4) → 加 .HK 回去。
+                    if '.HK' in symbol:
+                        _num = symbol.replace('.HK', '').lstrip('0') or '0'
+                        _yf_sym = _num.zfill(4) + '.HK'
+                    else:
+                        _yf_sym = symbol
                     _ticker = yf.Ticker(_yf_sym)
                     _fin = getattr(_ticker, 'financials', None)
                     if _fin is not None and not _fin.empty:
