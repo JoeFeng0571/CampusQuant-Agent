@@ -417,12 +417,16 @@ def _bars_to_spot(symbol: str, market_type: MarketType) -> dict[str, Any]:
     }
 
 
-def _get_a_spot_table() -> pd.DataFrame:
+def _get_a_spot_table(allow_fetch: bool = True) -> pd.DataFrame:
     cached = _cache_get("overview", "a_spot_table")
     if cached is not None:
         if isinstance(cached, str) and cached == "__FAILED__":
             raise ValueError("A 股行情表暂时不可用（短期负缓存）")
         return cached
+    # allow_fetch=False：单标的取价场景，只吃已预热缓存，绝不在请求路径里
+    # 触发 relay 全表抓取(可能 502 卡 ~21s)或本地 akshare 全市场扫描(GIL 冻死单 worker)
+    if not allow_fetch:
+        raise ValueError("A 股行情表未预热（cache-only）")
     # 优先走内地 relay
     inland = _inland_relay_request("a-stock/spot-table")
     if inland and inland.get("status") == "success" and inland.get("data"):
@@ -437,10 +441,12 @@ def _get_a_spot_table() -> pd.DataFrame:
         raise
 
 
-def _get_hk_spot_table() -> pd.DataFrame:
+def _get_hk_spot_table(allow_fetch: bool = True) -> pd.DataFrame:
     cached = _cache_get("overview", "hk_spot_table")
     if cached is not None:
         return cached
+    if not allow_fetch:
+        raise ValueError("港股行情表未预热（cache-only）")
     inland = _inland_relay_request("hk-stock/spot-table")
     if inland and inland.get("status") == "success" and inland.get("data"):
         df = pd.DataFrame(inland["data"])
@@ -450,10 +456,12 @@ def _get_hk_spot_table() -> pd.DataFrame:
     return _cache_set("overview", "hk_spot_table", df)
 
 
-def _get_us_spot_table() -> pd.DataFrame:
+def _get_us_spot_table(allow_fetch: bool = True) -> pd.DataFrame:
     cached = _cache_get("overview", "us_spot_table")
     if cached is not None:
         return cached
+    if not allow_fetch:
+        raise ValueError("美股行情表未预热（cache-only）")
     inland = _inland_relay_request("us-stock/spot-table")
     if inland and inland.get("status") == "success" and inland.get("data"):
         df = pd.DataFrame(inland["data"])
@@ -465,19 +473,13 @@ def _get_us_spot_table() -> pd.DataFrame:
 
 def _spot_from_a_share(symbol: str) -> dict[str, Any]:
     pure = symbol.split(".")[0]
-    try:
-        df = _get_a_spot_table()
-        row = df[df["代码"].astype(str) == pure]
-        if row.empty:
-            raise ValueError(f"A 股实时行情未命中: {symbol}")
-        item = row.iloc[0]
-    except Exception:
-        df = _akshare_with_retry(ak.stock_zh_a_spot)
-        code_series = df["代码"].astype(str)
-        row = df[(code_series == pure) | (code_series == f"sh{pure}") | (code_series == f"sz{pure}")]
-        if row.empty:
-            raise ValueError(f"A 股实时行情未命中: {symbol}")
-        item = row.iloc[0]
+    # 仅吃已预热的全表缓存（命中=实时价）；未命中直接抛出，由 get_spot_price_raw
+    # 回退到廉价的 _bars_to_spot（单标的 K 线，relay 已缓存）。不在此做全市场扫描。
+    df = _get_a_spot_table(allow_fetch=False)
+    row = df[df["代码"].astype(str) == pure]
+    if row.empty:
+        raise ValueError(f"A 股实时行情未命中: {symbol}")
+    item = row.iloc[0]
     return {
         "symbol": symbol,
         "name": _safe_str(item.get("名称"), symbol),
@@ -491,7 +493,7 @@ def _spot_from_a_share(symbol: str) -> dict[str, Any]:
 
 
 def _spot_from_hk_share(symbol: str) -> dict[str, Any]:
-    df = _get_hk_spot_table()
+    df = _get_hk_spot_table(allow_fetch=False)
     pure = symbol.split(".")[0].zfill(5)
     row = df[df["代码"].astype(str).str.zfill(5) == pure]
     if row.empty:
@@ -510,7 +512,7 @@ def _spot_from_hk_share(symbol: str) -> dict[str, Any]:
 
 
 def _spot_from_us_share(symbol: str) -> dict[str, Any]:
-    df = _get_us_spot_table()
+    df = _get_us_spot_table(allow_fetch=False)
     code_series = df["代码"].astype(str).str.upper()
     matched = df[code_series == symbol.upper()]
     if matched.empty:
