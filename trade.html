@@ -1600,9 +1600,10 @@ async function loadTradeKline(symbol, period) {
     try {
         const countMap = { daily: 500, weekly: 260, monthly: 120 };
         const klineCount = countMap[period] || 500;
-        // 20s 超时：避免冷标的后端慢请求把界面卡成假死（防重入锁要等 fetch 结束才释放）
+        // 30s 超时：避免后端慢请求把界面卡成假死（防重入锁要等 fetch 结束才释放）。
+        // 阈值留足，因 A 股冷标的经内地中继 akshare 首取约需 ~20s。
         const _ctrl = new AbortController();
-        const _to   = setTimeout(() => _ctrl.abort(), 20000);
+        const _to   = setTimeout(() => _ctrl.abort(), 30000);
         let resp;
         try {
             resp = await fetch(
