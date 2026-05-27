@@ -783,7 +783,12 @@
         _klLoading = true;
         _showKlinePlaceholder(`<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" style="animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg><div>加载 ${escHtml(_klCurSym)}...</div>`);
         try {
-            const r = await fetch(`${API_BASE}/market/kline?symbol=${encodeURIComponent(_klCurSym)}&period=${_klCurPeriod}&count=120`);
+            const _ctrl = new AbortController();
+            const _to   = setTimeout(() => _ctrl.abort(), 20000);
+            let r;
+            try {
+                r = await fetch(`${API_BASE}/market/kline?symbol=${encodeURIComponent(_klCurSym)}&period=${_klCurPeriod}&count=120`, { signal: _ctrl.signal });
+            } finally { clearTimeout(_to); }
             if (!r.ok) throw new Error((await r.json().catch(()=>({}))).detail || `HTTP ${r.status}`);
             const data = await r.json();
             const candles = data.kline || [];
@@ -803,7 +808,8 @@
             document.getElementById('kline-cta-link').href = `analysis.html?sym=${encodeURIComponent(_klCurSym)}`;
             document.getElementById('kline-cta').style.display = 'flex';
         } catch(e) {
-            _showKlinePlaceholder(`<div style="color:var(--danger)">K线失败: ${escHtml(e.message)}</div>`);
+            const _m = e.name === 'AbortError' ? '加载超时，请重试' : e.message;
+            _showKlinePlaceholder(`<div style="color:var(--danger)">K线失败: ${escHtml(_m)}</div>`);
         } finally { _klLoading = false; }
     }
 </script>

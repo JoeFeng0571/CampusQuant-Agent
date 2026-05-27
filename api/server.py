@@ -3202,12 +3202,16 @@ async def get_kline(
         _seen[bar["time"]] = bar
     kline_clean = sorted(_seen.values(), key=lambda b: b["time"])
 
-    # 获取股票名称（best-effort，run_in_executor 避免阻塞 event loop）
+    # 股票名称：仅读 spot 缓存，绝不为了一个展示名再发一次跨区 relay 请求。
+    # （冷路径下 get_spot_price_raw 会多一次 ~15s 的内地 relay 往返，拖慢 K 线首屏；
+    #  缓存未命中就回退用代码，前端 market.html 对 name==symbol 已做优雅降级）
     _name = symbol
     try:
-        from tools.market_data import get_spot_price_raw
-        _info = await loop.run_in_executor(None, get_spot_price_raw, symbol)
-        _name = _info.get("name", symbol)
+        from tools.market_data import _cache_get, _normalize_symbol
+        _mt, _norm = _normalize_symbol(symbol)
+        _cached_spot = _cache_get("spot", f"{_mt.name}:{_norm}")
+        if _cached_spot and _cached_spot.get("name"):
+            _name = _cached_spot["name"]
     except Exception:
         pass
 

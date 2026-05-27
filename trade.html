@@ -1600,8 +1600,17 @@ async function loadTradeKline(symbol, period) {
     try {
         const countMap = { daily: 500, weekly: 260, monthly: 120 };
         const klineCount = countMap[period] || 500;
-        const resp = await fetch(
-            `${API_BASE}/api/v1/market/kline?symbol=${encodeURIComponent(symbol)}&period=${period}&count=${klineCount}`);
+        // 20s 超时：避免冷标的后端慢请求把界面卡成假死（防重入锁要等 fetch 结束才释放）
+        const _ctrl = new AbortController();
+        const _to   = setTimeout(() => _ctrl.abort(), 20000);
+        let resp;
+        try {
+            resp = await fetch(
+                `${API_BASE}/api/v1/market/kline?symbol=${encodeURIComponent(symbol)}&period=${period}&count=${klineCount}`,
+                { signal: _ctrl.signal });
+        } finally {
+            clearTimeout(_to);
+        }
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data    = await resp.json();
         const candles = (data.kline || []).filter(c => c.time && c.open > 0);
@@ -1643,7 +1652,8 @@ async function loadTradeKline(symbol, period) {
         _tradeKlineRO.observe(container);
 
     } catch(e) {
-        container.innerHTML = `<div class="kline-msg">K线加载失败：${e.message}</div>`;
+        const _msg = e.name === 'AbortError' ? '加载超时，请切换周期或重新搜索重试' : e.message;
+        container.innerHTML = `<div class="kline-msg">K线加载失败：${_msg}</div>`;
     } finally {
         // Always release the guard so user can retry or switch periods
         _tradeKlineLoading = false;
