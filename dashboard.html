@@ -3,6 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <script>
+        // 来自 splash:跳过自身入场动画(.fade-in-up / .qnav-item)+ 关闭 View Transition 入场。
+        // splash 已经做了 1s 柔和淡出,dashboard 再叠加 0.75s 入场会形成"卡 1 秒"的空窗。
+        // 这段必须在所有 CSS 加载前执行,所以放在 <head> 最早位置。
+        try {
+            if (sessionStorage.getItem("cq_from_splash") === "1") {
+                document.documentElement.classList.add("from-splash");
+                sessionStorage.removeItem("cq_from_splash");  // 一次性使用
+            }
+        } catch (e) { /* 隐私模式容错 */ }
+    </script>
+    <style>
+        /* 来自 splash 时:全部入场动画立即显示,不做渐入,消除跳转后的 1s 空窗 */
+        html.from-splash .fade-in-up,
+        html.from-splash .qnav-item { opacity: 1 !important; animation: none !important; }
+        html.from-splash ::view-transition-new(root),
+        html.from-splash ::view-transition-old(root) { animation: none !important; }
+    </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的控制台 - CampusQuant · 校园财商智能平台</title>
     <meta name="description" content="CampusQuant 个人控制台：查看您的模拟投资组合、分析记录与学习进度，AI 驱动的校园财商智能平台专为大学生打造。">
