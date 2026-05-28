@@ -197,7 +197,7 @@
             ${ICONS[type] || ICONS.info}
             <div class="cq-toast-body">
                 ${title ? `<div class="cq-toast-title">${escHtml(title)}</div>` : ''}
-                <div>${escHtml(body)}</div>
+                ${body ? `<div>${escHtml(body)}</div>` : ''}
             </div>
         `;
         stack.appendChild(el);

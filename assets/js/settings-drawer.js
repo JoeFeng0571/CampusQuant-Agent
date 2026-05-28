@@ -23,9 +23,10 @@
     let prefs = loadPrefs();
 
     function applyPrefs() {
-        // 背景模式
-        if (prefs.bgMode && prefs.bgMode !== 'default') {
-            document.body.dataset.bgMode = prefs.bgMode;
+        // 背景模式：无显式偏好时默认"柔和"(quiet),而不是"完整"
+        const bg = prefs.bgMode || 'quiet';
+        if (bg !== 'default') {
+            document.body.dataset.bgMode = bg;
         } else {
             delete document.body.dataset.bgMode;
         }
@@ -258,7 +259,9 @@
         if (!drawer) return;
         // Sync segmented controls
         drawer.querySelectorAll('.cq-seg[data-pref]').forEach(seg => {
-            const cur = prefs[seg.dataset.pref] || 'default';
+            // 背景动效无偏好时默认柔和(quiet),其它项保持原 default fallback
+            const fallback = seg.dataset.pref === 'bgMode' ? 'quiet' : 'default';
+            const cur = prefs[seg.dataset.pref] || fallback;
             seg.querySelectorAll('button[data-v]').forEach(b => {
                 b.classList.toggle('active', b.dataset.v === cur);
             });

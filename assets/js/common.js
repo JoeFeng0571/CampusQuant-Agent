@@ -158,8 +158,7 @@
                 setTimeout(() => {
                     cqToast({
                         title: '欢迎来到 CampusQuant',
-                        message: '试试 ⌘K 命令面板，或点击右上角 ⚙ 图标个性化设置',
-                    }, 'info', 7000);
+                    }, 'info', 4000);
                     localStorage.setItem(HINT_KEY, '1');
                 }, 1200);
             } else if (attempts < 30) {
