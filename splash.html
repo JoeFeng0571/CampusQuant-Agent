@@ -4,6 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
+    <!-- 预热 dashboard 的关键资源：splash 加载即在后台拉取,动画跑完跳转时已命中浏览器缓存,
+         消除"淡出完成 → 深色空屏 → dashboard 终于渲染"的 2 秒空窗。 -->
+    <link rel="prefetch" href="dashboard.html" as="document">
+    <link rel="prefetch" href="assets/css/tokens.css" as="style">
+    <link rel="prefetch" href="assets/css/base.css" as="style">
+    <link rel="prefetch" href="assets/css/nav.css" as="style">
+    <link rel="prefetch" href="assets/css/components.css" as="style">
+    <link rel="prefetch" href="assets/css/animations.css" as="style">
+    <link rel="prefetch" href="/assets/vendor/lucide.min.js" as="script">
+    <link rel="prefetch" href="/assets/vendor/lottie-player.js" as="script">
+    <link rel="prefetch" href="assets/js/common.js?v=20260411" as="script">
+    <link rel="prefetch" href="assets/js/analytics.js" as="script">
+    <link rel="prefetch" href="assets/js/motion.js" as="script">
+    <link rel="prefetch" href="assets/js/ui-kit.js" as="script">
+    <link rel="prefetch" href="assets/js/command-palette.js?v=20260425" as="script">
+    <link rel="prefetch" href="assets/js/settings-drawer.js?v=20260411" as="script">
+    <link rel="prefetch" href="assets/js/footer.js?v=20260425" as="script">
+    <link rel="prefetch" href="assets/js/aurora.js?v=20260506" as="script">
+    <link rel="prefetch" href="assets/js/grid-dots.js" as="script">
+    <link rel="prefetch" href="assets/js/view-transitions.js" as="script">
+    <link rel="prefetch" href="shell-bridge.js" as="script">
+    <link rel="prefetch" href="assets/lottie/mentor.json" as="fetch" crossorigin>
+
     <title>欢迎来到campusquant</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
