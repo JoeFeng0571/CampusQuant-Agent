@@ -15,6 +15,9 @@
         } catch (e) { /* 隐私模式容错 */ }
     </script>
     <style>
+        /* 防 white flash:html 元素早期背景色,在所有外部 CSS 加载前生效。
+           splash 的兜底色也是 #0d1117,跳转时无视觉断点。 */
+        html { background-color: #0d1117; }
         /* 来自 splash 时:全部入场动画立即显示,不做渐入,消除跳转后的 1s 空窗 */
         html.from-splash .fade-in-up,
         html.from-splash .qnav-item { opacity: 1 !important; animation: none !important; }
@@ -37,7 +40,7 @@
     <link rel="stylesheet" href="assets/css/components.css">
     <link rel="stylesheet" href="assets/css/animations.css">
     <script src="/assets/vendor/lucide.min.js" defer></script>
-    <script src="/assets/vendor/lottie-player.js"></script>
+    <script src="/assets/vendor/lottie-player.js" defer></script>
     <style>
         /* ═══════════════════════════════════════════════════
            Dashboard v2 — Linear/Vercel style
