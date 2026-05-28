@@ -2,10 +2,21 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=dashboard.html">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <title>CampusQuant</title>
+    <script>
+        // 入口分发器：
+        //   首次访问 → 跳 splash.html 播欢迎动画 → 动画结束跳 dashboard.html
+        //   已看过 → 直接跳 dashboard.html（控制台）
+        // 用 localStorage 而非 sessionStorage：确保"任何人首次"是真·终生首次（关闭浏览器不重置）
+        (function () {
+            var seen = false;
+            try { seen = !!localStorage.getItem('hasSeenSplash'); } catch (e) { /* 隐私模式/禁用存储时容错 */ }
+            window.location.replace(seen ? 'dashboard.html' : 'splash.html');
+        })();
+    </script>
+    <!-- 无脚本 fallback：直接到控制台 -->
+    <meta http-equiv="refresh" content="0; url=dashboard.html">
 </head>
-<body>
-    <script>window.location.replace('dashboard.html');</script>
-</body>
+<body></body>
 </html>

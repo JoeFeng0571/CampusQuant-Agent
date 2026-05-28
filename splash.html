@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <title>欢迎来到campusquant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 页面整体淡出效果 */
+        .fade-out {
+            opacity: 0;
+            transition: opacity 0.8s ease-out;
+        }
+        /* 确保画布铺满全屏 */
+        #splash-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 10;
+        }
+        /* 文字层级置于画布之上 */
+        #content-wrapper {
+            position: relative;
+            z-index: 20;
+        }
+    </style>
+</head>
+<body id="main-body" class="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-teal-950 to-teal-800 m-0 overflow-hidden text-white">
+
+    <canvas id="splash-canvas"></canvas>
+    
+    <div id="content-wrapper" class="flex flex-col items-center justify-center pointer-events-none">
+        <h1 id="splash-text" class="text-4xl md:text-5xl font-bold tracking-widest opacity-0 transition-opacity duration-1000" style="text-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+            Campusquant多智能体证券分析与模拟沙盘交易平台
+        </h1>
+        <p id="splash-sub" class="mt-4 text-teal-200 text-lg tracking-wide opacity-0 transition-opacity duration-1000 delay-300">
+            重塑你的财富认知
+        </p>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const targetPage = "dashboard.html"; // 你的主页文件名
+
+            // 1. 防打扰机制：看过的直接跳转（用 localStorage，确保"任何人首次"是真·终生首次）
+            if (localStorage.getItem("hasSeenSplash")) {
+                window.location.replace(targetPage);
+                return;
+            }
+
+            const canvas = document.getElementById("splash-canvas");
+            const ctx = canvas.getContext("2d");
+            const splashText = document.getElementById("splash-text");
+            const splashSub = document.getElementById("splash-sub");
+            const mainBody = document.getElementById("main-body");
+
+            // 让画布尺寸匹配屏幕大小
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            // 2. 粒子类定义
+            class Particle {
+                constructor() {
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() * canvas.height;
+                    this.vx = (Math.random() - 0.5) * 1.5; // X轴速度
+                    this.vy = (Math.random() - 0.5) * 1.5; // Y轴速度
+                    this.baseRadius = Math.random() * 2 + 1; // 基础大小
+                    this.radius = this.baseRadius;
+                    // 随机赋予青绿色或金色
+                    this.color = Math.random() > 0.7 ? "#fbbf24" : "#4fd1c5"; 
+                }
+
+                update(isFading) {
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    // 边缘反弹
+                    if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                    if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+
+                    // 如果进入退场阶段，粒子缩小消失
+                    if (isFading && this.radius > 0.05) {
+                        this.radius -= 0.05;
+                    }
+                }
+
+                draw() {
+                    if (this.radius <= 0.05) return;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = this.color;
+                    ctx.fill();
+                }
+            }
+
+            // 初始化粒子群
+            // 根据屏幕宽度自适应粒子数量（手机少一点，电脑多一点）
+            const particleCount = window.innerWidth < 768 ? 40 : 80;
+            const particles = [];
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle());
+            }
+
+            let animationId;
+            let isEnding = false; // 控制退场状态
+
+            // 3. 动画循环
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // 更新和绘制每个粒子
+                particles.forEach(p => {
+                    p.update(isEnding);
+                    p.draw();
+                });
+
+                // 绘制粒子之间的连线（核心视觉效果）
+                if (!isEnding) {
+                    for (let i = 0; i < particles.length; i++) {
+                        for (let j = i + 1; j < particles.length; j++) {
+                            const dx = particles[i].x - particles[j].x;
+                            const dy = particles[i].y - particles[j].y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+
+                            // 如果两个粒子距离小于 120，则画一条线
+                            if (distance < 120) {
+                                ctx.beginPath();
+                                ctx.moveTo(particles[i].x, particles[i].y);
+                                ctx.lineTo(particles[j].x, particles[j].y);
+                                // 根据距离计算线条透明度（越近越清晰）
+                                const opacity = 1 - (distance / 120);
+                                ctx.strokeStyle = `rgba(79, 209, 197, ${opacity * 0.5})`; // 青绿色半透明线条
+                                ctx.lineWidth = 1;
+                                ctx.stroke();
+                            }
+                        }
+                    }
+                }
+
+                animationId = requestAnimationFrame(animate);
+            }
+
+            // 启动动画
+            animate();
+
+            // 4. 时间轴控制（核心流程）
+            
+            // a. 0.5秒后，文字淡入
+            setTimeout(() => {
+                splashText.classList.remove("opacity-0");
+                splashSub.classList.remove("opacity-0");
+            }, 500);
+
+            // b. 2.5秒后，粒子开始收缩消失，断开连线
+            setTimeout(() => {
+                isEnding = true;
+            }, 2500);
+
+            // c. 3.5秒后，全屏淡出准备跳转
+            setTimeout(() => {
+                mainBody.classList.add("fade-out");
+                
+                // d. 4.3秒后，正式跳转并记录缓存
+                setTimeout(() => {
+                    cancelAnimationFrame(animationId);
+                    localStorage.setItem("hasSeenSplash", "true");
+                    window.location.replace(targetPage);
+                }, 800); 
+
+            }, 3500);
+        });
+    </script>
+</body>
+</html>
