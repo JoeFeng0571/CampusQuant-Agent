@@ -7,14 +7,10 @@
     <title>欢迎来到campusquant</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* html 兜底背景：body 淡出到 opacity:0 时,避免一瞬间露出浏览器默认白色背景。
-           与 body 的 teal-950 → teal-800 渐变保持一致,让"消失"看起来是渐隐而不是闪屏。 */
-        html { background: linear-gradient(to bottom right, #042f2e 0%, #115e59 100%); }
-        /* 页面整体淡出:最后 1s 完整渐变,ease-in-out 比 ease-out 更柔和 */
-        .fade-out {
-            opacity: 0;
-            transition: opacity 1s ease-in-out;
-        }
+        /* html 兜底背景：与 dashboard 同色(#0d1117)。body 淡出到 0 时,
+           露出的是 dashboard 同款深色,而不是绿色,跳转后几乎无视觉断点。 */
+        html, body { background-color: #0d1117; }
+        /* 注：fade 完全由 JS inline style 控制(避免 CSS class 被 tailwind 等覆盖) */
         /* 确保画布铺满全屏 */
         #splash-canvas {
             position: absolute;
@@ -169,11 +165,16 @@
                 isEnding = true;
             }, 2500);
 
-            // c. 3.3秒后，开始最后一秒的整体淡出（与 .fade-out 的 1s ease-in-out 对齐）
+            // c. 3.3 秒后开始最后 1 秒的整体淡出。
+            //    用 JS inline style 直接控制 transition + opacity，绕开任何 CSS class 优先级问题
+            //    (之前 .fade-out 不生效就是被 tailwind/层叠覆盖,inline style 永远赢)。
             setTimeout(() => {
-                mainBody.classList.add("fade-out");
+                mainBody.style.transition = "opacity 1s ease-in-out";
+                // 强制 reflow:让浏览器先记下当前的 opacity:1,再变 0 才会真触发过渡
+                void mainBody.offsetHeight;
+                mainBody.style.opacity = "0";
 
-                // d. 等 1 秒淡出完成（opacity 已到 0），再跳转，避免"还没淡完就硬切"的咯噔感
+                // d. 1 秒后(淡出已完成)再跳转,避免"还没淡完就硬切"
                 setTimeout(() => {
                     cancelAnimationFrame(animationId);
                     localStorage.setItem("hasSeenSplash", "true");
