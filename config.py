@@ -14,7 +14,10 @@ class Config:
 
     # ==================== 主 LLM：阿里云百炼（DashScope）====================
     DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "")
-    DASHSCOPE_MODEL   = os.getenv("QWEN_MODEL_NAME", "qwen3.5-plus")  # 文本生成模型
+    # 默认走 qwen-plus（无 thinking 模式）。qwen3.5-* 系列默认开 thinking，
+    # 在结构化输出场景会把 token 预算用光，触发 LengthFinishReasonError，
+    # 表现为所有分析师节点降级到层 3 安全默认值（HOLD/0.30）。
+    DASHSCOPE_MODEL   = os.getenv("QWEN_MODEL_NAME", "qwen-plus")
     DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"  # OpenAI 兼容端点
     DASHSCOPE_EMBEDDING_MODEL = "text-embedding-v3"                     # Embedding 模型
 
