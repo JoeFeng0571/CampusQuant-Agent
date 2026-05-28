@@ -409,12 +409,16 @@ class MarketClassifier:
                         break
 
         # ── 2. 新浪财经 Suggest API ──────────────────────────────────
-        # 响应格式: var suggestvalue="名称,类型码,代码,简称,拼音,...|名称2,...";
-        # 类型码: 11=A股 31/33=ETF/基金 41=港股 71=美股
-        _TYPE_MAP = {
-            "11": "A股", "31": "ETF", "33": "基金",
-            "41": "港股", "71": "美股",
+        # 响应格式: var suggestvalue="名称,类型码,代码,简称,...,;名称2,...,;";
+        #   - entry 之间用 `;` 分隔（不是 `|` — 基金 entry 字段里会嵌 `|`）
+        #   - 类型码（实测）: 11=A股 31=港股 41=美股OTC/ADR 71=美股NYSE/NASDAQ
+        #                  201=基金 33=另类基金 之类
+        # 仅作 fallback；下面统一用 MarketClassifier.classify(symbol) 权威判断。
+        _TYPE_FALLBACK = {
+            "11": "A股", "31": "港股", "41": "美股", "71": "美股",
+            "201": "基金", "33": "基金",
         }
+        sina_results: list[dict] = []
         try:
             url = (
                 "http://suggest3.sinajs.cn/suggest/type=&key="
@@ -429,18 +433,21 @@ class MarketClassifier:
 
             m = re.search(r'"([^"]+)"', raw)
             if m and m.group(1):
-                for entry in m.group(1).split("|"):
+                for entry in m.group(1).split(";"):
                     if not entry.strip():
                         continue
                     fields = entry.split(",")
                     if len(fields) < 4:
                         continue
-                    # 新浪格式: 名称,类型码,代码,简称,拼音,...
-                    # 有时 fields[0] 带分号前缀，用 fields[3](简称)更可靠
+                    # fields[0]=完整名称, [1]=类型码, [2]=原始代码, [3]=带前缀简称
+                    name      = fields[0].strip().lstrip(";；")
                     type_code = fields[1].strip()
                     raw_code  = fields[2].strip()
-                    name      = (fields[3].strip() or fields[0].strip()).lstrip(";；")
                     if not raw_code or not name:
+                        continue
+
+                    # 过滤基金（数量大、刷屏搜索结果，前端不分析基金）
+                    if type_code in ("201", "33"):
                         continue
 
                     # 规范化代码
@@ -454,28 +461,29 @@ class MarketClassifier:
                     elif re.match(r'^[A-Z]{1,5}$', raw_code.upper()):
                         symbol = raw_code.upper()
                     else:
-                        symbol = raw_code.upper()
+                        # 形如 zijmf 这类 OTC/ADR 拼音码，跳过
+                        continue
 
                     if symbol in seen_symbols:
                         continue
                     seen_symbols.add(symbol)
-                    # 类型判定：优先用 classify() 按代码格式权威判断
-                    # （新浪 Suggest API 偶尔会把美股标成港股，例如 NOK→Nokia NYSE 被打成 41/港股）
-                    # ETF/基金（31/33）classify 区分不了，保留新浪的；其他都覆盖。
-                    if type_code in ("31", "33"):
-                        type_label = _TYPE_MAP.get(type_code, "其他")
+                    # 类型判定：先按代码格式（最权威），落不到再用新浪类型码
+                    classified, _ = MarketClassifier.classify(symbol)
+                    if classified != MarketType.UNKNOWN:
+                        type_label = classified.value
                     else:
-                        classified, _ = MarketClassifier.classify(symbol)
-                        if classified != MarketType.UNKNOWN:
-                            type_label = classified.value   # "A股" / "港股" / "美股"
-                        else:
-                            type_label = _TYPE_MAP.get(type_code, "其他")
-                    results.append({"symbol": symbol, "name": name, "type": type_label})
-                    if len(results) >= limit:
-                        break
+                        type_label = _TYPE_FALLBACK.get(type_code, "其他")
+                    sina_results.append({"symbol": symbol, "name": name, "type": type_label})
         except Exception:
             pass   # 网络超时或解析失败，静默降级至本地结果
 
+        # ── 3. 同名跨市场排序：A股 > 港股 > 美股 > ETF > 其他 ──
+        # （用户群体在大陆，"紫金矿业"默认应给 601899.SH 不是 02899.HK；
+        #   同时保留同名其他市场的条目，让用户主动选）
+        _MARKET_PRIORITY = {"A股": 0, "港股": 1, "美股": 2, "ETF": 3}
+        sina_results.sort(key=lambda r: _MARKET_PRIORITY.get(r["type"], 99))
+
+        results.extend(sina_results)
         return results[:limit]
 
 
