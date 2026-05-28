@@ -68,8 +68,12 @@
         document.addEventListener("DOMContentLoaded", () => {
             const targetPage = "dashboard.html"; // 你的主页文件名
 
-            // 1. 防打扰机制：看过的直接跳转（用 localStorage，确保"任何人首次"是真·终生首次）
-            if (localStorage.getItem("hasSeenSplash")) {
+            // 1. 防打扰机制：本会话内看过的直接跳转
+            //    用 sessionStorage —— 关闭浏览器/开新窗口/新标签 都视为"重新打开",会再次播放;
+            //    同一标签内的刷新、站内跳回 / 不再重播。正好契合演示场景。
+            //    顺手清掉旧版残留的 localStorage 标记,确保已升级用户也能再次看到 splash。
+            try { localStorage.removeItem("hasSeenSplash"); } catch (e) {}
+            if (sessionStorage.getItem("hasSeenSplash")) {
                 window.location.replace(targetPage);
                 return;
             }
@@ -201,7 +205,7 @@
                 // d. 1 秒后(淡出已完成)再跳转,避免"还没淡完就硬切"
                 setTimeout(() => {
                     cancelAnimationFrame(animationId);
-                    localStorage.setItem("hasSeenSplash", "true");
+                    sessionStorage.setItem("hasSeenSplash", "true");
                     // 标记"来自 splash":dashboard 据此跳过自身入场动画,避免叠加 1s 卡顿。
                     // sessionStorage 一次性使用,dashboard 读后立即清除。
                     sessionStorage.setItem("cq_from_splash", "1");

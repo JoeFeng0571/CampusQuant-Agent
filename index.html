@@ -6,12 +6,16 @@
     <title>CampusQuant</title>
     <script>
         // 入口分发器：
-        //   首次访问 → 跳 splash.html 播欢迎动画 → 动画结束跳 dashboard.html
-        //   已看过 → 直接跳 dashboard.html（控制台）
-        // 用 localStorage 而非 sessionStorage：确保"任何人首次"是真·终生首次（关闭浏览器不重置）
+        //   本会话首次进 / → 跳 splash.html 播欢迎动画 → 动画结束跳 dashboard.html
+        //   本会话已看过 → 直接跳 dashboard.html（站内跳回 / 不重播,刷新也不重播）
+        // 用 sessionStorage:关闭浏览器/开新窗口/新标签 视为"重新打开",再次播放(契合演示场景)。
+        // 顺手清掉旧版残留的 localStorage 标记。
         (function () {
             var seen = false;
-            try { seen = !!localStorage.getItem('hasSeenSplash'); } catch (e) { /* 隐私模式/禁用存储时容错 */ }
+            try {
+                localStorage.removeItem('hasSeenSplash');
+                seen = !!sessionStorage.getItem('hasSeenSplash');
+            } catch (e) { /* 隐私模式/禁用存储时容错 */ }
             window.location.replace(seen ? 'dashboard.html' : 'splash.html');
         })();
     </script>
