@@ -1134,23 +1134,42 @@ def get_market_news_raw(limit: int = 20) -> list[dict[str, Any]]:
     if inland and inland.get("status") == "success" and inland.get("data"):
         return inland["data"]
 
+    # 主源：东方财富全球财经直播（无 WAF，200 条/天）
+    # 备源：cls.cn 2026-05 起被 CloudWAF 拦截（事件 ID 08-clou-88），无 sign 一律 418
     try:
-        df = _akshare_with_retry(lambda: ak.stock_info_global_cls(symbol="全部"))
+        df = _akshare_with_retry(ak.stock_info_global_em)
         result: list[dict[str, Any]] = []
-        sorted_df = df.sort_values(["发布日期", "发布时间"], ascending=False)
+        sorted_df = df.sort_values("发布时间", ascending=False)
         for _, row in sorted_df.head(max(int(limit), 1)).iterrows():
-            publish_at = f"{row.get('发布日期', '')} {row.get('发布时间', '')}".strip()
             result.append(
                 {
                     "title": _safe_str(row.get("标题"))[:200],
-                    "source": "财联社",
-                    "time": publish_at,
-                    "url": "https://www.cls.cn/telegraph",
+                    "source": "东方财富",
+                    "time": _safe_str(row.get("发布时间")),
+                    "url": _safe_str(row.get("链接")) or "https://finance.eastmoney.com/news.html",
                 }
             )
         return result
     except Exception as exc:
-        logger.warning(f"[market_data] get_market_news_raw 失败: {exc}")
+        logger.warning(f"[market_data] get_market_news_raw(em) 失败: {exc}")
+
+    # 兜底：同花顺全球财经
+    try:
+        df = _akshare_with_retry(ak.stock_info_global_ths)
+        result = []
+        sorted_df = df.sort_values("发布时间", ascending=False)
+        for _, row in sorted_df.head(max(int(limit), 1)).iterrows():
+            result.append(
+                {
+                    "title": _safe_str(row.get("标题"))[:200],
+                    "source": "同花顺",
+                    "time": _safe_str(row.get("发布时间")),
+                    "url": _safe_str(row.get("链接")) or "https://news.10jqka.com.cn/",
+                }
+            )
+        return result
+    except Exception as exc:
+        logger.warning(f"[market_data] get_market_news_raw(ths) 失败: {exc}")
         return []
 
 

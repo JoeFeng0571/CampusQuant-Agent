@@ -3251,7 +3251,7 @@ async def _start_hot_news_refresh():
 
 _HOTNEWS_MOCK: list[dict] = [
     {
-        "source": "cailian", "label": "财联社", "icon": "📰", "color": "#e74c3c",
+        "source": "cailian", "label": "东方财富", "icon": "📰", "color": "#e74c3c",
         "items": [
             {"title": "沪深两市今日整体平稳，科技与消费板块轮番活跃", "url": "https://www.cls.cn/telegraph", "rank": 1},
             {"title": "央行最新数据显示社会融资规模稳步扩张", "url": "https://www.cls.cn/telegraph", "rank": 2},

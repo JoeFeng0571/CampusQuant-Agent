@@ -47,24 +47,22 @@ _HEADERS = {
 # ════════════════════════════════════════════════════════════════
 
 def _fetch_cailian() -> list[dict]:
-    """财联社 7x24 最新 3 条快讯（akshare）"""
+    """财经 7x24 最新 3 条快讯。
+    cls.cn 2026-05 起被 CloudWAF 拦截（事件 ID 08-clou-88），改用东方财富 stock_info_global_em。"""
     try:
         import akshare as ak
-        df = ak.stock_info_global_cls(symbol="全部")
+        df = ak.stock_info_global_em()
         if df is None or df.empty:
             return []
-        df = df.head(3)
+        sorted_df = df.sort_values("发布时间", ascending=False).head(3)
         results = []
-        for i, row in enumerate(df.itertuples(), start=1):
-            title = str(getattr(row, "内容", getattr(row, "标题", "")))[:200]
-            results.append({
-                "title": title,
-                "url":   "https://www.cls.cn/telegraph",
-                "rank":  i,
-            })
+        for i, row in enumerate(sorted_df.itertuples(), start=1):
+            title = str(getattr(row, "标题", ""))[:200]
+            url = str(getattr(row, "链接", "")) or "https://finance.eastmoney.com/news.html"
+            results.append({"title": title, "url": url, "rank": i})
         return results
     except Exception as e:
-        logger.warning(f"[hot_news] 财联社抓取失败: {e}")
+        logger.warning(f"[hot_news] 财经快讯(em)抓取失败: {e}")
         return []
 
 
@@ -185,7 +183,7 @@ _FETCHERS = {
 
 _SOURCE_META = {
     "jin10":        {"label": "金十数据",   "color": "#ff6600", "icon": "🔔"},
-    "cailian":      {"label": "财联社",    "color": "#e74c3c", "icon": "📰"},
+    "cailian":      {"label": "东方财富",   "color": "#e74c3c", "icon": "📰"},
     "wallstreetcn": {"label": "华尔街见闻", "color": "#f5a623", "icon": "📊"},
     "sina_live":    {"label": "新浪财经",   "color": "#e8312f", "icon": "⚡"},
     "thepaper":     {"label": "澎湃新闻",   "color": "#2ecc71", "icon": "📌"},

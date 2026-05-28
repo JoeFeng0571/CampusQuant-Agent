@@ -354,17 +354,22 @@ _HOT_NEWS_TTL = 15 * 60
 
 
 def _fetch_cailian() -> list[dict]:
+    """财经 7x24 Top 3。
+    cls.cn 2026-05 起被 CloudWAF 拦截（事件 ID 08-clou-88），无 sign 直接 418。
+    改用东方财富全球财经直播（同为 7x24 财经快讯，无 WAF）。"""
     try:
-        df = ak.stock_info_global_cls(symbol="全部")
+        df = ak.stock_info_global_em()
         if df is None or df.empty:
             return []
+        sorted_df = df.sort_values("发布时间", ascending=False)
         results = []
-        for i, row in enumerate(df.head(3).itertuples(), start=1):
-            title = str(getattr(row, "内容", getattr(row, "标题", "")))[:200]
-            results.append({"title": title, "url": "https://www.cls.cn/telegraph", "rank": i})
+        for i, row in enumerate(sorted_df.head(3).itertuples(), start=1):
+            title = str(getattr(row, "标题", ""))[:200]
+            url = str(getattr(row, "链接", "")) or "https://finance.eastmoney.com/news.html"
+            results.append({"title": title, "url": url, "rank": i})
         return results
     except Exception as e:
-        logger.warning(f"财联社抓取失败: {e}")
+        logger.warning(f"财经快讯(em)抓取失败: {e}")
         return []
 
 
@@ -433,7 +438,7 @@ def _fetch_jin10_relay() -> list[dict]:
 
 _NEWS_FETCHERS = {
     "jin10": (_fetch_jin10_relay, {"label": "金十数据", "color": "#ff6600", "icon": "bell"}),
-    "cailian": (_fetch_cailian, {"label": "财联社", "color": "#e74c3c", "icon": "news"}),
+    "cailian": (_fetch_cailian, {"label": "东方财富", "color": "#e74c3c", "icon": "news"}),
     "sina_live": (_fetch_sina_live, {"label": "新浪财经", "color": "#e8312f", "icon": "bolt"}),
     "thepaper": (_fetch_thepaper, {"label": "澎湃新闻", "color": "#2ecc71", "icon": "pin"}),
 }
@@ -990,21 +995,36 @@ def a_stock_news(symbol: str, limit: int = 5):
 
 @app.get("/relay/market-news", dependencies=[Depends(verify_token)])
 def market_news(limit: int = 20):
+    # 主源：东方财富全球财经直播（cls.cn 2026-05 起被 CloudWAF 拦截，无 sign 一律 418）
     try:
-        df = _akshare_with_retry(lambda: ak.stock_info_global_cls(symbol="全部"))
+        df = _akshare_with_retry(ak.stock_info_global_em)
         result = []
-        sorted_df = df.sort_values(["发布日期", "发布时间"], ascending=False)
+        sorted_df = df.sort_values("发布时间", ascending=False)
         for _, row in sorted_df.head(max(int(limit), 1)).iterrows():
-            publish_at = f"{row.get('发布日期', '')} {row.get('发布时间', '')}".strip()
             result.append({
                 "title": _safe_str(row.get("标题"))[:200],
-                "source": "财联社",
-                "time": publish_at,
-                "url": "https://www.cls.cn/telegraph",
+                "source": "东方财富",
+                "time": _safe_str(row.get("发布时间")),
+                "url": _safe_str(row.get("链接")) or "https://finance.eastmoney.com/news.html",
             })
         return {"status": "success", "data": result}
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e1:
+        logger.warning(f"market-news(em) 失败: {e1}")
+
+    try:
+        df = _akshare_with_retry(ak.stock_info_global_ths)
+        result = []
+        sorted_df = df.sort_values("发布时间", ascending=False)
+        for _, row in sorted_df.head(max(int(limit), 1)).iterrows():
+            result.append({
+                "title": _safe_str(row.get("标题"))[:200],
+                "source": "同花顺",
+                "time": _safe_str(row.get("发布时间")),
+                "url": _safe_str(row.get("链接")) or "https://news.10jqka.com.cn/",
+            })
+        return {"status": "success", "data": result}
+    except Exception as e2:
+        raise HTTPException(status_code=502, detail=f"em+ths both failed: {e2}")
 
 
 # ════════════════════════════════════════════════════════════════
