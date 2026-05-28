@@ -7,10 +7,13 @@
     <title>欢迎来到campusquant</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 页面整体淡出效果 */
+        /* html 兜底背景：body 淡出到 opacity:0 时,避免一瞬间露出浏览器默认白色背景。
+           与 body 的 teal-950 → teal-800 渐变保持一致,让"消失"看起来是渐隐而不是闪屏。 */
+        html { background: linear-gradient(to bottom right, #042f2e 0%, #115e59 100%); }
+        /* 页面整体淡出:最后 1s 完整渐变,ease-in-out 比 ease-out 更柔和 */
         .fade-out {
             opacity: 0;
-            transition: opacity 0.8s ease-out;
+            transition: opacity 1s ease-in-out;
         }
         /* 确保画布铺满全屏 */
         #splash-canvas {
@@ -166,18 +169,18 @@
                 isEnding = true;
             }, 2500);
 
-            // c. 3.5秒后，全屏淡出准备跳转
+            // c. 3.3秒后，开始最后一秒的整体淡出（与 .fade-out 的 1s ease-in-out 对齐）
             setTimeout(() => {
                 mainBody.classList.add("fade-out");
-                
-                // d. 4.3秒后，正式跳转并记录缓存
+
+                // d. 等 1 秒淡出完成（opacity 已到 0），再跳转，避免"还没淡完就硬切"的咯噔感
                 setTimeout(() => {
                     cancelAnimationFrame(animationId);
                     localStorage.setItem("hasSeenSplash", "true");
                     window.location.replace(targetPage);
-                }, 800); 
+                }, 1000);
 
-            }, 3500);
+            }, 3300);
         });
     </script>
 </body>
