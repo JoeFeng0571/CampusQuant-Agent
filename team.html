@@ -74,8 +74,9 @@
     /* STATS */
     .stats-strip {
         display:flex; justify-content:center; gap:48px; flex-wrap:wrap;
-        padding:48px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border);
-        margin:0 auto 80px; max-width:900px;
+        padding:32px 0 0; border-top:1px solid var(--border);
+        margin:28px auto 0; max-width:760px;
+        position:relative; z-index:1;
     }
     .stat-item { text-align:center; }
     .stat-num {
@@ -244,20 +245,19 @@
         <div class="hero-tag">Open Source &middot; Campus Fintech &middot; AI-Powered</div>
         <h1 class="hero-title">用 AI 重新定义<br>大学生财商教育</h1>
         <p class="hero-sub">8 个 AI Agent 协同分析 &middot; 3 大市场实时覆盖 &middot; 零真实风险<br>让每位在校生都能建立正确的财富认知</p>
+        <!-- STATS（移入 hero，置于滚动提示上方）-->
+        <div class="stats-strip">
+            <div class="stat-item"><div class="stat-num" data-count="8">0</div><div class="stat-unit">AI Agent 节点</div></div>
+            <div class="stat-item"><div class="stat-num" data-count="3">0</div><div class="stat-unit">覆盖市场</div></div>
+            <div class="stat-item"><div class="stat-num" data-count="15">0</div><div class="stat-unit">技术指标</div></div>
+            <div class="stat-item"><div class="stat-num" data-count="0">0</div><div class="stat-unit">真实交易接口</div></div>
+            <div class="stat-item"><div class="stat-num" data-count="5275">0</div><div class="stat-unit">RAG 向量数</div></div>
+        </div>
         <div class="hero-scroll">
             <span>向下滚动探索</span>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
         </div>
     </section>
-
-    <!-- STATS -->
-    <div class="stats-strip">
-        <div class="stat-item"><div class="stat-num" data-count="8">0</div><div class="stat-unit">AI Agent 节点</div></div>
-        <div class="stat-item"><div class="stat-num" data-count="3">0</div><div class="stat-unit">覆盖市场</div></div>
-        <div class="stat-item"><div class="stat-num" data-count="15">0</div><div class="stat-unit">技术指标</div></div>
-        <div class="stat-item"><div class="stat-num" data-count="0">0</div><div class="stat-unit">真实交易接口</div></div>
-        <div class="stat-item"><div class="stat-num" data-count="5275">0</div><div class="stat-unit">RAG 向量数</div></div>
-    </div>
 
     <!-- MISSION -->
     <section class="sec">
