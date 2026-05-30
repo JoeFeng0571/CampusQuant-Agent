@@ -14,10 +14,12 @@ class Config:
 
     # ==================== 主 LLM：阿里云百炼（DashScope）====================
     DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "")
-    # 默认走 qwen-plus（无 thinking 模式）。qwen3.5-* 系列默认开 thinking，
-    # 在结构化输出场景会把 token 预算用光，触发 LengthFinishReasonError，
-    # 表现为所有分析师节点降级到层 3 安全默认值（HOLD/0.30）。
-    DASHSCOPE_MODEL   = os.getenv("QWEN_MODEL_NAME", "qwen-plus")
+    # 默认走 qwen3.7-max（旗舰档，A/B 实测 6/6 深度字段、延迟 ~19s，约为 qwen-plus 的一半）。
+    # 注意：qwen3.x 系列默认开 thinking，在结构化输出场景会把 token 预算用在 reasoning 阶段、
+    # 触发 LengthFinishReasonError 截断 → 全降级 HOLD/0.30。llm_client._generate_openai_compat
+    # 已对 qwen3.x 自动注入 enable_thinking=False（非流式结构化输出必须关）。切回非 qwen3 档
+    # （qwen-plus/qwen-max/qwen-flash）时该开关不影响。
+    DASHSCOPE_MODEL   = os.getenv("QWEN_MODEL_NAME", "qwen3.7-max")
     DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"  # OpenAI 兼容端点
     DASHSCOPE_EMBEDDING_MODEL = "text-embedding-v3"                     # Embedding 模型
 

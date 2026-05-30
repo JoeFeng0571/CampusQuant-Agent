@@ -178,6 +178,12 @@ class LLMClient:
         if response_format == "json":
             kwargs["response_format"] = {"type": "json_object"}
 
+        # qwen3.x 系列默认开 thinking，非流式结构化输出场景必须关闭：
+        # 否则 reasoning 阶段吃光 max_tokens → 答案截断(LengthFinishReasonError) →
+        # 上层全部降级到 HOLD/0.30。qwen-plus/qwen-max/qwen-flash 等非 qwen3 档不受影响。
+        if self.provider == "dashscope" and str(self.model).startswith("qwen3"):
+            kwargs["extra_body"] = {"enable_thinking": False}
+
         response = self.client.chat.completions.create(**kwargs, timeout=120.0)
         return response.choices[0].message.content
 
