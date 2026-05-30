@@ -2,7 +2,7 @@
 tools/hot_news.py — 多平台热榜聚合（后端缓存，15 分钟 TTL）
 
 数据源：
-  1. cailian      — 财联社 7x24 快讯（akshare，最新 3 条）
+  1. cailian      — 东方财富 7x24 快讯（akshare，最新 3 条）
   2. wallstreetcn — 华尔街见闻热门文章（公开 API，Top 3）
   3. sina_live    — 新浪财经实时快讯（新浪直播接口，Top 3）
   4. thepaper     — 澎湃新闻热榜（澎湃公开接口，Top 3）

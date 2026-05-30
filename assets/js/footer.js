@@ -22,7 +22,6 @@
                     <a href="trade.html">模拟演练</a>
                     <a href="market.html">市场快讯</a>
                     <a href="analysis.html">个股分析</a>
-                    <a href="platforms.html">持仓体检</a>
                 </div>
                 <div class="cq-footer-col">
                     <div class="cq-footer-title">学习</div>

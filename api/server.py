@@ -2660,7 +2660,7 @@ async def get_market_indices():
     }
 
 
-@app.get("/api/v1/market/news", summary="获取财联社全球财经快讯")
+@app.get("/api/v1/market/news", summary="获取东方财富全球财经快讯")
 async def get_market_news(limit: int = 20):
     """
     GET /api/v1/market/news?limit=20
@@ -3285,7 +3285,7 @@ _HOTNEWS_MOCK: list[dict] = [
 ]
 
 
-@app.get("/api/v1/market/hotnews", summary="多平台热榜聚合（财联社/雪球/知乎/凤凰/澎湃）")
+@app.get("/api/v1/market/hotnews", summary="多平台热榜聚合（东方财富/雪球/知乎/凤凰/澎湃）")
 async def get_hot_news(force: bool = False):
     """
     GET /api/v1/market/hotnews?force=false

@@ -16,7 +16,6 @@
         { id:'nav-trade',     label:'模拟演练 / 交易', icon:'line-chart', href:'trade.html', group:'页面', kw:'trade buy sell 买卖 委托' },
         { id:'nav-market',    label:'市场快讯',  icon:'newspaper', href:'market.html', group:'页面', kw:'market news 行情 ticker' },
         { id:'nav-analysis',  label:'个股分析',  icon:'search-code', href:'analysis.html', group:'页面', kw:'analysis ai 研报 deep' },
-        { id:'nav-platforms', label:'持仓体检',  icon:'stethoscope', href:'platforms.html', group:'页面', kw:'health check 体检 仓位' },
         { id:'nav-community', label:'投教社区',  icon:'users-round', href:'community.html', group:'页面', kw:'community post forum 讨论' },
         { id:'nav-team',      label:'关于我们',  icon:'info', href:'team.html', group:'页面', kw:'about team 团队' },
         { id:'nav-resources', label:'学习资源库',icon:'library', href:'resources.html', group:'学习', kw:'learn study resources books 书' },
