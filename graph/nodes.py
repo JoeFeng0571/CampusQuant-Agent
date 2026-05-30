@@ -115,7 +115,7 @@ def _build_llm(temperature: float = 0.3):
 
     if provider == "dashscope":
         from langchain_openai import ChatOpenAI
-        return ChatOpenAI(
+        _kwargs = dict(
             model=config.DASHSCOPE_MODEL,
             api_key=config.DASHSCOPE_API_KEY,
             base_url=config.DASHSCOPE_BASE_URL,
@@ -124,6 +124,12 @@ def _build_llm(temperature: float = 0.3):
             timeout=_LLM_TIMEOUT,
             request_timeout=_LLM_TIMEOUT,
         )
+        # qwen3.x 系列默认开 thinking。with_structured_output(非流式)场景下,reasoning 阶段
+        # 会吃光 max_tokens → 触发 LengthFinishReasonError → _invoke_structured_with_fallback
+        # 三层降级到 HOLD/0.30。必须显式关闭。qwen-plus/qwen-max/qwen-flash 等非 qwen3 档不受影响。
+        if str(config.DASHSCOPE_MODEL).startswith("qwen3"):
+            _kwargs["extra_body"] = {"enable_thinking": False}
+        return ChatOpenAI(**_kwargs)
     elif provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
         return ChatAnthropic(
@@ -249,7 +255,15 @@ async def _invoke_structured_with_fallback(
     # include_raw=True 让 LangChain 返回 {"raw": AIMessage, "parsed": Model, "parsing_error": ...}
     # 这样同时拿到 parsed 结果和原始响应(含 token usage metadata),二者得兼。
     try:
-        structured_llm = llm.with_structured_output(pydantic_model, include_raw=True)
+        # qwen3.x 在默认 json 模式下会把结果包进 {"<ModelName>": {...}} 外壳,导致 Pydantic
+        # 解析失败 → 三层降级。改用 function_calling(工具调用)模式可拿到干净的顶层字段。
+        # 仅对 qwen3.x 启用,不改动 qwen-plus/qwen-max 等已验证可用的默认行为。
+        if str(config.DASHSCOPE_MODEL).startswith("qwen3"):
+            structured_llm = llm.with_structured_output(
+                pydantic_model, include_raw=True, method="function_calling"
+            )
+        else:
+            structured_llm = llm.with_structured_output(pydantic_model, include_raw=True)
         wrapped = await asyncio.wait_for(structured_llm.ainvoke(messages), timeout=timeout)
         if isinstance(wrapped, dict):
             parsed = wrapped.get("parsed")
