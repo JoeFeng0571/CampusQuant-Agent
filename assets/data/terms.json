@@ -25,6 +25,13 @@
     "level": "beginner",
     "category": "valuation"
   },
+  "EPS": {
+    "full_name": "每股收益 Earnings Per Share",
+    "definition": "归属于普通股股东的净利润 ÷ 总股本。衡量每一股能赚多少钱，是 PE 的分母，盈利能力的核心指标。",
+    "anchor": "#valuation",
+    "level": "beginner",
+    "category": "valuation"
+  },
   "PEG": {
     "full_name": "市盈增长比 PE / Growth",
     "definition": "PE ÷ 年化盈利增速。PEG=1 被视为合理估值；<1 相对低估，>2 需警惕。",

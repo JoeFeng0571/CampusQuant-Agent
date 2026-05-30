@@ -678,7 +678,7 @@
                         <circle class="countdown-circle-bg" cx="22" cy="22" r="20"/>
                         <circle class="countdown-circle" id="countdown-circle" cx="22" cy="22" r="20"/>
                     </svg>
-                    <div class="countdown-text" id="countdown-text">8:00</div>
+                    <div class="countdown-text" id="countdown-text">1:00</div>
                 </div>
             </div>
             <div id="node-progress"></div>
@@ -1235,9 +1235,9 @@
 
     // ══ 倒计时 ═══════════════════════════════════════════════════
     let _cdTimer = null;
-    // 真实分析耗时: 基础 3-4min, 触发辩论 +1-2min, 风控重试 +1min
-    // 上限按"最坏情况 + 缓冲"设计, 避免用户以为卡死
-    const CD_TOTAL = 480; // 8 minutes
+    // 真实分析耗时: qwen3.7-max 关 thinking 后干净一轮 ~1min(2026-05-30 实测 58s)
+    // 触发辩论/风控重试会略增, 超过预估后下方显示"+m:ss 仍在分析", 不做假进度
+    const CD_TOTAL = 60; // 1 minute
     function startCountdown() {
         stopCountdown();
         let remaining = CD_TOTAL;
@@ -1259,9 +1259,9 @@
                 const progress = (CD_TOTAL - remaining) / CD_TOTAL;
                 circEl.style.strokeDashoffset = circumference * (1 - (remaining / CD_TOTAL));
                 pbEl.style.width = (progress * 100).toFixed(1) + '%';
-                if (remaining <= 30) {
+                if (remaining <= 10) {
                     circEl.className = 'countdown-circle crit';
-                } else if (remaining <= 60) {
+                } else if (remaining <= 25) {
                     circEl.className = 'countdown-circle warn';
                 } else {
                     circEl.className = 'countdown-circle';
