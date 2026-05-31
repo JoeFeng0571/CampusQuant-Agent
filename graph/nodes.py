@@ -1811,7 +1811,7 @@ _MARKET_WEIGHTS = {
 }
 
 # 【v2.2 P1-B】连续冲突分数阈值: score >= 此值触发辩论
-_CONFLICT_SCORE_THRESHOLD = 0.60
+_CONFLICT_SCORE_THRESHOLD = 0.30
 
 
 def _conflict_score(
@@ -1832,17 +1832,18 @@ def _conflict_score(
             "score": float,          # 0~1,冲突强度
             "dir_std": float,        # 0~0.816,方向分散度
             "max_conflict": float,   # 0~1,最自信但最矛盾一对的 min(conf)
-            "should_debate": bool,   # score >= 0.60
+            "should_debate": bool,   # score >= 0.30
         }
 
     计算规则:
-      1. dir_std: 把 BUY/HOLD/SELL 映射到 {+1, 0, -1},算总体标准差
-         全同方向 → 0, 极端分散 [+1,0,-1] → 0.816
-      2. max_conflict: 遍历三对,找"方向相反"的一对,取双方置信度的最小值
-         (因为若一方置信度很低,这个矛盾并不可怕)
-      3. 综合分 = 0.6 * dir_std_normalized + 0.4 * max_conflict
-         dir_std_normalized = dir_std / 0.816
-      4. should_debate = score >= 0.60
+      1. dir_std: 把 BUY/HOLD/SELL 映射到 {+1, 0, -1},算总体标准差(仅供日志参考)
+      2. max_conflict(置信度加权方向分歧): 遍历三对,任意方向不一致都计分:
+         方向差 2(BUY↔SELL,相反)权重 1.0;方向差 1(与 HOLD 相邻)权重 0.5;
+         再乘该对双方的最小置信度(低置信分歧不算数)。取最强一对。
+      3. 综合分 score = max_conflict
+      4. should_debate = score >= 0.30
+         (改前公式 max_conflict 只在 BUY×SELL 时 >0;qwen3.7-max 几乎只给
+          BUY/HOLD,导致冲突分恒为 0.35、辩论永不触发 —— 故改为相邻分歧也计分)
     """
     import statistics as _stat
 
@@ -1855,17 +1856,17 @@ def _conflict_score(
     # 方向分散度
     dir_std = _stat.pstdev(dirs)
 
-    # 最自信但最矛盾的一对
+    # 置信度加权方向分歧:任意方向不一致都计分(不再硬依赖 BUY×SELL)
+    # 方向差 2(BUY↔SELL)权重 1.0;方向差 1(与 HOLD 相邻)权重 0.5;乘双方最小置信度。
     max_conflict = 0.0
     for i, j in [(0, 1), (0, 2), (1, 2)]:
-        if dirs[i] * dirs[j] < 0:  # 一正一负,真矛盾
-            pair_min_conf = min(confs[i], confs[j])
-            max_conflict = max(max_conflict, pair_min_conf)
+        ddir = abs(dirs[i] - dirs[j])      # 0=同向 / 1=与HOLD相邻 / 2=BUY↔SELL相反
+        if ddir > 0:
+            weight = 1.0 if ddir == 2 else 0.5
+            max_conflict = max(max_conflict, weight * min(confs[i], confs[j]))
 
-    # 综合冲突分
-    dir_std_normalized = dir_std / 0.816 if dir_std > 0 else 0.0
-    score = 0.6 * dir_std_normalized + 0.4 * max_conflict
-    score = max(0.0, min(1.0, score))
+    # 综合冲突分 = 置信度加权方向分歧
+    score = max(0.0, min(1.0, max_conflict))
 
     return {
         "score":        round(score, 3),
